@@ -1213,6 +1213,72 @@ body::before {
   .detail-big{ font-size:1.55rem; }
 }
 
+
+
+/* ── [FINAL FIX] 등급 텍스트/배지 대비 최종 보정 ───────────────── */
+.result-card.grade-SP,
+.result-card.grade-S,
+.result-card.grade-A,
+.result-card.grade-B,
+.result-card.grade-C {
+  border-left-width: 4px !important;
+}
+.result-card.grade-SP { background: linear-gradient(180deg, rgba(255,45,85,.08), rgba(15,26,39,.96)) !important; }
+.result-card.grade-S  { background: linear-gradient(180deg, rgba(255,107,53,.08), rgba(15,26,39,.96)) !important; }
+.result-card.grade-A  { background: linear-gradient(180deg, rgba(255,149,0,.08), rgba(15,26,39,.96)) !important; }
+.result-card.grade-B  { background: linear-gradient(180deg, rgba(255,214,10,.09), rgba(15,26,39,.96)) !important; }
+.result-card.grade-C  { background: linear-gradient(180deg, rgba(142,142,147,.10), rgba(15,26,39,.96)) !important; }
+
+.grade-badge.grade-SP {
+  background: linear-gradient(135deg, #ff2d55, #ff4560) !important;
+  color: #ffffff !important;
+  border: none !important;
+  text-shadow: 0 1px 2px rgba(0,0,0,.35) !important;
+}
+.grade-badge.grade-S {
+  background: linear-gradient(135deg, #ff6b35, #ff8c42) !important;
+  color: #ffffff !important;
+  border: none !important;
+  text-shadow: 0 1px 2px rgba(0,0,0,.35) !important;
+}
+.grade-badge.grade-A {
+  background: linear-gradient(135deg, #ff9500, #ffb340) !important;
+  color: #ffffff !important;
+  border: none !important;
+  text-shadow: 0 1px 2px rgba(0,0,0,.35) !important;
+}
+.grade-badge.grade-B {
+  background: linear-gradient(135deg, #ffd60a, #ffe45c) !important;
+  color: #1f2937 !important;
+  border: none !important;
+  text-shadow: none !important;
+}
+.grade-badge.grade-C {
+  background: linear-gradient(135deg, #6b7280, #8e8e93) !important;
+  color: #f8fafc !important;
+  border: none !important;
+  text-shadow: none !important;
+}
+
+/* 카드 내부의 등급 텍스트가 상위 색상에 덮이지 않도록 보정 */
+.triple-score .tscore-val,
+.ex-compare-row-v2 span,
+.card-score,
+.card-symbol {
+  color: inherit;
+}
+
+/* 필터 버튼 가독성 보정 */
+.grade-filter {
+  color: var(--text-secondary) !important;
+  border-color: var(--border-bright) !important;
+}
+.grade-filter.f-active {
+  color: #ffffff !important;
+  border-color: var(--accent-cyan) !important;
+  box-shadow: 0 0 0 1px rgba(0,212,255,.18) inset;
+}
+
 </style>
 </head>
 <body>
