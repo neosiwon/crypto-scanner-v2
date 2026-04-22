@@ -1005,101 +1005,212 @@ body::before {
 .sc-sync .sum-val { color:var(--accent-cyan); }
 
 
-/* ── 판단 대시보드형 상세 카드 개선 ── */
-.dashboard-top-grid {
-  display:grid;
-  grid-template-columns:repeat(2,minmax(0,1fr));
-  gap:8px;
-  margin-bottom:12px;
+
+/* ── [UI FIX] 대비/가독성 강화 ───────────────────────────────── */
+.result-card.grade-B{
+  background:linear-gradient(180deg, rgba(255,214,10,.08), rgba(15,26,39,.95));
+  border-color:rgba(255,214,10,.35);
 }
-.dashboard-stat-card {
-  background:var(--bg-secondary);
-  border:1px solid var(--border);
-  border-radius:6px;
-  padding:10px 12px;
+.result-card.grade-C{
+  background:linear-gradient(180deg, rgba(142,142,147,.10), rgba(15,26,39,.95));
+  border-color:rgba(142,142,147,.35);
 }
-.dashboard-stat-label {
-  font-size:.58rem;
-  color:var(--text-muted);
-  font-family:var(--mono);
-  margin-bottom:4px;
+.grade-badge.grade-B{
+  background:var(--grade-b) !important;
+  color:#111827 !important;
+  border:none !important;
+  font-weight:800 !important;
+  text-shadow:none !important;
+  box-shadow:0 2px 12px rgba(255,214,10,.35);
 }
-.dashboard-stat-value {
-  font-family:var(--mono);
-  font-size:1rem;
+.grade-badge.grade-C{
+  background:#6b7280 !important;
+  color:#f8fafc !important;
+  border:none !important;
+  font-weight:800 !important;
+  box-shadow:0 2px 10px rgba(107,114,128,.28);
+}
+.card-header{ background:rgba(255,255,255,.02); }
+.card-symbol{ font-size:1rem; font-weight:800; }
+.card-score{ font-size:1.45rem; font-weight:800; }
+.card-change{ font-size:.78rem; font-weight:700; }
+
+.detail-section-title{
+  color:#57e7ff !important;
+  font-size:.72rem !important;
   font-weight:800;
-  line-height:1.3;
+  padding-bottom:6px;
 }
-.position-grid {
+.detail-card{
+  background:#0d1724;
+  border:1px solid #23445f;
+  border-radius:10px;
+  padding:12px 14px;
+  box-shadow:0 0 0 1px rgba(255,255,255,.02) inset;
+}
+.detail-kicker{
+  font-family:var(--mono);
+  font-size:.62rem;
+  letter-spacing:1.2px;
+  color:#6c93b3;
+  margin-bottom:8px;
+}
+.detail-big{
+  font-family:var(--mono);
+  font-size:1.78rem;
+  font-weight:800;
+  color:#f4f8ff;
+  line-height:1.1;
+}
+.detail-sub{
+  margin-top:8px;
+  color:#b7c8da;
+  font-size:.78rem;
+  line-height:1.6;
+}
+.position-grid{
   display:grid;
   grid-template-columns:repeat(2,minmax(0,1fr));
-  gap:8px;
+  gap:10px;
 }
-.position-card {
-  background:var(--bg-secondary);
-  border:1px solid var(--border);
-  border-radius:6px;
+.target-grid-v2{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:10px;
+  margin-top:10px;
+}
+.target-card{
+  background:#0d1724;
+  border:1px solid #21445f;
+  border-radius:10px;
   padding:12px;
 }
-.position-card-label {
-  font-size:.6rem;
-  color:var(--text-muted);
+.target-card .t-label{
   font-family:var(--mono);
-  margin-bottom:6px;
-}
-.position-main-value {
-  font-family:var(--mono);
-  font-size:1.08rem;
-  font-weight:800;
-  line-height:1.2;
-  color:var(--text-primary);
-}
-.position-sub-value {
-  margin-top:4px;
-  font-size:.7rem;
-  color:var(--text-secondary);
-  line-height:1.5;
-}
-.position-meta {
-  margin-top:6px;
   font-size:.64rem;
-  font-family:var(--mono);
+  color:#7d9ab6;
+  margin-bottom:8px;
 }
-.position-cost { border-color:rgba(0,212,255,.25); }
-.position-current { border-color:rgba(0,230,118,.2); }
-.position-stop { border-color:rgba(255,69,96,.25); }
-.score-visual-top {
+.target-card .t-value{
+  font-family:var(--mono);
+  font-size:1.55rem;
+  font-weight:800;
+  line-height:1.1;
+}
+.target-card .t-note{
+  margin-top:8px;
+  color:#93a9c0;
+  font-size:.72rem;
+}
+.target-card.target1 .t-value{ color:var(--accent-green); }
+.target-card.target2 .t-value{ color:var(--accent-cyan); }
+.target-card.target3 .t-value{ color:var(--accent-orange); }
+.target-card.stoploss .t-value{ color:var(--accent-red); }
+
+.position-card.current .detail-big{ color:var(--accent-green); }
+.position-card.now .detail-big{ color:#f8fbff; }
+.position-state-ok{
+  display:inline-flex;align-items:center;gap:6px;
+  margin-top:10px;padding:4px 10px;border-radius:999px;
+  background:rgba(0,230,118,.12); color:var(--accent-green);
+  border:1px solid rgba(0,230,118,.25);
+  font-family:var(--mono); font-size:.7rem; font-weight:700;
+}
+.position-state-no{
+  display:inline-flex;align-items:center;gap:6px;
+  margin-top:10px;padding:4px 10px;border-radius:999px;
+  background:rgba(255,69,96,.10); color:var(--accent-red);
+  border:1px solid rgba(255,69,96,.25);
+  font-family:var(--mono); font-size:.7rem; font-weight:700;
+}
+
+.score-viz-wrap{
+  display:flex; flex-direction:column; gap:10px;
+}
+.score-head-grid{
   display:grid;
   grid-template-columns:repeat(3,minmax(0,1fr));
-  gap:8px;
+  gap:10px;
+}
+.score-head-card{
+  background:#0d1724;border:1px solid #21445f;border-radius:10px;padding:12px;
+}
+.score-head-label{
+  font-family:var(--mono);font-size:.62rem;color:#7d9ab6;margin-bottom:8px;
+}
+.score-head-value{
+  font-family:var(--mono);font-size:1.32rem;font-weight:800;color:#f6fbff;
+}
+.score-head-card.structure .score-head-value{ color:var(--accent-cyan); }
+.score-head-card.entry .score-head-value{ color:var(--accent-green); }
+.score-head-card.risk .score-head-value{ color:var(--accent-orange); }
+
+.score-group{
+  background:#0d1724;border:1px solid #21445f;border-radius:10px;padding:12px;
+}
+.score-group-title{
+  font-family:var(--mono);font-size:.68rem;font-weight:800;color:#d9ecff;
   margin-bottom:10px;
 }
-.score-mini-card {
-  background:var(--bg-secondary);
-  border:1px solid var(--border);
-  border-radius:6px;
-  padding:10px;
-  text-align:center;
+.score-bar-row{
+  display:grid;
+  grid-template-columns:92px 1fr 48px;
+  gap:8px;
+  align-items:center;
+  margin-bottom:8px;
 }
-.score-mini-label {
-  font-size:.58rem;
-  color:var(--text-muted);
-  font-family:var(--mono);
-  margin-bottom:5px;
+.score-bar-row:last-child{ margin-bottom:0; }
+.score-bar-label{
+  font-family:var(--mono); font-size:.66rem; color:#a8bfd6;
 }
-.score-mini-value {
-  font-family:var(--mono);
-  font-size:1rem;
-  font-weight:800;
+.score-bar-track{
+  height:8px; border-radius:999px; background:#16283a; overflow:hidden;
+  border:1px solid rgba(255,255,255,.03);
 }
-.dashboard-bars .score-row-label { width:82px; }
-.dashboard-bars .score-row-val { width:48px; font-weight:700; }
-.dashboard-bars .score-bar-wrap { height:8px; }
-.risk-dashboard { display:flex; flex-direction:column; gap:6px; }
-.action-box > div { flex:1; min-width:0; }
-@media (min-width: 700px) {
-  .dashboard-top-grid { grid-template-columns:repeat(4,minmax(0,1fr)); }
-  .position-grid { grid-template-columns:repeat(3,minmax(0,1fr)); }
+.score-bar-fill{
+  height:100%; border-radius:999px;
+}
+.score-bar-fill.pos{ background:linear-gradient(90deg,#00d4ff,#00e676); }
+.score-bar-fill.warn{ background:linear-gradient(90deg,#ffb74d,#ff8c42); }
+.score-bar-fill.neg{ background:linear-gradient(90deg,#ff6b6b,#ff4560); }
+.score-bar-val{
+  font-family:var(--mono);font-size:.66rem;color:#f6fbff;text-align:right;
+}
+.analysis-panel,
+.risk-panel{
+  background:#0d1724;border:1px solid #21445f;border-radius:10px;padding:12px 14px;
+}
+.analysis-panel .row{
+  display:flex; gap:10px; margin-bottom:8px; font-size:.72rem; line-height:1.6;
+}
+.analysis-panel .row:last-child{ margin-bottom:0; }
+.analysis-panel .label{
+  width:44px; flex-shrink:0; font-family:var(--mono); font-weight:800;
+}
+.analysis-panel .label.str{ color:var(--accent-green); }
+.analysis-panel .label.weak{ color:var(--accent-orange); }
+.analysis-panel .label.con{ color:var(--accent-cyan); }
+.analysis-panel .content{ color:#c4d4e4; }
+
+.risk-stack{ display:flex; flex-direction:column; gap:8px; }
+.risk-item-v2{
+  display:flex; gap:8px; align-items:flex-start;
+  padding:8px 10px; border-radius:8px;
+  background:#111f30; border:1px solid rgba(255,255,255,.04);
+}
+.risk-badge-v2{
+  flex-shrink:0; padding:2px 8px; border-radius:999px;
+  font-family:var(--mono); font-size:.6rem; font-weight:800;
+  background:rgba(255,140,66,.12); color:var(--accent-orange);
+  border:1px solid rgba(255,140,66,.25);
+}
+.risk-desc-v2{ color:#c2d2e2; font-size:.72rem; line-height:1.5; }
+
+@media (max-width: 640px){
+  .position-grid, .target-grid-v2, .score-head-grid{ grid-template-columns:1fr 1fr; }
+  .score-head-grid .score-head-card.risk{ grid-column:1 / -1; }
+  .score-bar-row{ grid-template-columns:76px 1fr 42px; }
+  .detail-big{ font-size:1.55rem; }
 }
 
 </style>
@@ -1931,6 +2042,61 @@ function buildRiskDetails(box, volRatio, btcPenalty, fakePump, lateEntry, hasBin
   return risks;
 }
 
+// ── [UI ONLY] 점수 시각화 데이터 생성 ─────────────────────────────
+// 기존 점수 계산 방식은 절대 변경하지 않고, 표시용으로만 분해한다.
+function buildScoreViz(rep) {
+  var btcPenalty = (state.btcFilter && state.btcFilter.penalty) ? state.btcFilter.penalty : 0;
+  var speed = rep.vol && rep.vol.accel > 1.2 ? 1 : (rep.vol && rep.vol.accel > 1.05 ? 0.5 : 0);
+  var obv   = rep.obv && rep.obv.trend === 'up' ? 1 : 0;
+  var prep  = rep.prePump ? 3 : 0;
+
+  var structureTotal = prep + speed + obv;
+  var entryTotal = 0;
+  if (rep.isEntryReady) entryTotal += 1.5;
+  if (rep.finalEntryAllowed) entryTotal += 1.0;
+  if (rep.currentPhase && rep.currentPhase.ratio <= 1.05) entryTotal += 1.0;
+  else if (rep.currentPhase && rep.currentPhase.ratio <= 1.15) entryTotal += 0.5;
+  if (rep.rsi >= 50 && rep.rsi <= 65) entryTotal += 0.5;
+
+  var riskTotal = 0;
+  if (btcPenalty > 0) riskTotal += btcPenalty >= 2 ? 1.0 : 0.5;
+  if (rep.fakePump) riskTotal += 1.0;
+  if (rep.lateEntry) riskTotal += 1.0;
+  if (rep.accumulationCost && rep.accumulationCost.confidence === '낮음') riskTotal += 0.5;
+  if (rep.rsi > 68) riskTotal += 0.5;
+
+  return {
+    structure: {
+      total: parseFloat(structureTotal.toFixed(1)),
+      items: [
+        { label:'PRE-PUMP', value:prep, max:3, type:'pos' },
+        { label:'속도', value:speed, max:1, type:speed>0?'pos':'warn' },
+        { label:'OBV', value:obv, max:1, type:obv>0?'pos':'warn' },
+        { label:'BTC', value:btcPenalty, max:2, type:btcPenalty>0?'neg':'pos' }
+      ]
+    },
+    entry: {
+      total: parseFloat(entryTotal.toFixed(1)),
+      items: [
+        { label:'ENTRY', value:rep.isEntryReady?1.5:0, max:1.5, type:rep.isEntryReady?'pos':'warn' },
+        { label:'허용구간', value:rep.finalEntryAllowed?1.0:0, max:1.0, type:rep.finalEntryAllowed?'pos':'neg' },
+        { label:'평단이격', value:(rep.currentPhase && rep.currentPhase.ratio<=1.05)?1:((rep.currentPhase && rep.currentPhase.ratio<=1.15)?0.5:0), max:1.0, type:(rep.currentPhase && rep.currentPhase.ratio<=1.15)?'pos':'neg' },
+        { label:'RSI', value:(rep.rsi>=50 && rep.rsi<=65)?0.5:0, max:0.5, type:(rep.rsi>=50 && rep.rsi<=65)?'pos':'warn' }
+      ]
+    },
+    risk: {
+      total: parseFloat(riskTotal.toFixed(1)),
+      items: [
+        { label:'BTC', value:btcPenalty, max:2, type:btcPenalty>0?'neg':'pos' },
+        { label:'fake', value:rep.fakePump?1:0, max:1, type:rep.fakePump?'neg':'pos' },
+        { label:'late', value:rep.lateEntry?1:0, max:1, type:rep.lateEntry?'neg':'pos' },
+        { label:'신뢰도', value:(rep.accumulationCost && rep.accumulationCost.confidence==='낮음')?0.5:0, max:0.5, type:(rep.accumulationCost && rep.accumulationCost.confidence==='낮음')?'neg':'pos' }
+      ]
+    }
+  };
+}
+
+
 // ══════════════════════════════════════════════════════════════════
 // 단일 거래소 심볼 분석
 // ══════════════════════════════════════════════════════════════════
@@ -2355,6 +2521,7 @@ function toggleCoinDetail(idx) {
   if (chevEl) chevEl.classList.add('open');
 }
 
+
 function buildCoinDetailHTML(coin) {
   var rep  = coin.representative;
   var g    = rep.gradeCode, gDisp=rep.gradeLabel, gCol=rep.gradeColor;
@@ -2363,165 +2530,142 @@ function buildCoinDetailHTML(coin) {
   var obvCls = obv.trend==='up'?'val-bull':obv.trend==='down'?'val-bear':'val-neutral';
   var mfiCls = mfi>=60?'val-bull':mfi<=40?'val-bear':'val-neutral';
   var smcCol = smc&&smc.direction==='bull'?'var(--accent-green)':smc&&smc.direction==='bear'?'var(--accent-red)':'var(--text-muted)';
-
+  var rep_analysis   = rep.analysis    || { strengths:[], weaknesses:[], conclusion:'' };
+  var rep_risks      = rep.riskDetails || [];
+  var rep_actionDesc = rep.actionDesc  || '';
   var accStr  = rep.accumulationStrength || {};
   var accCost = rep.accumulationCost     || {};
   var cpPhase = rep.currentPhase         || {};
   var distTgt = rep.distributionTargets  || {};
-  var repAnalysis   = rep.analysis    || { strengths:[], weaknesses:[], conclusion:'' };
-  var repRisks      = rep.riskDetails || [];
-  var repActionDesc = rep.actionDesc  || '';
-  var repFake       = rep.fakePump    === true;
-  var repLate       = rep.lateEntry   === true;
+  var scoreViz = buildScoreViz(rep);
 
-  function clamp(n, min, max) { return Math.max(min, Math.min(max, n)); }
-  function esc(v) { return escapeHtml(v==null?'':String(v)); }
-
-  // ① 상단 판단 요약
-  var repHTML = '<div class="dashboard-top-grid">'
-    +'<div class="dashboard-stat-card"><div class="dashboard-stat-label">등급</div><div class="dashboard-stat-value" style="color:'+gCol+';font-weight:800">'+gDisp+'</div></div>'
-    +'<div class="dashboard-stat-card"><div class="dashboard-stat-label">종합 점수</div><div class="dashboard-stat-value" style="color:'+gCol+'">'+rep.total+'</div></div>'
-    +'<div class="dashboard-stat-card"><div class="dashboard-stat-label">대표 거래소</div><div class="dashboard-stat-value">'+rep.exchange+'</div></div>'
-    +'<div class="dashboard-stat-card"><div class="dashboard-stat-label">상태</div><div class="dashboard-stat-value" style="font-size:.78rem">'+(rep.isEntryReady?'✅ ENTRY':rep.prePump?'🟣 PRE-PUMP':'⏳ 관찰')+'</div></div>'
+  var repHTML = '<div class="triple-score">'
+    +'<div class="tscore-item"><div class="tscore-label">등급</div><div class="tscore-val" style="color:'+gCol+';font-weight:800">'+gDisp+'</div></div>'
+    +'<div class="tscore-item"><div class="tscore-label">종합 점수</div><div class="tscore-val" style="color:'+gCol+'">'+rep.total+'</div></div>'
+    +'<div class="tscore-item"><div class="tscore-label">대표 거래소</div><div class="tscore-val">'+rep.exchange+'</div></div>'
+    +'<div class="tscore-item"><div class="tscore-label">상태</div><div class="tscore-val" style="font-size:.78rem">'+(rep.isEntryReady?'✅ ENTRY':rep.prePump?'🟣 PRE-PUMP':'⏳ 관찰')+'</div></div>'
     +'</div>';
 
-  // ② 세력 포지션 블록
-  var confidence = accCost.confidence || '낮음';
-  var confCls = confidence==='높음' ? 'val-bull' : confidence==='보통' ? 'val-warn' : 'val-bear';
-  var phaseCls = cpPhase.label==='매집' ? 'val-bull' : cpPhase.label==='초기 상승' ? 'val-neutral' : cpPhase.label==='본 상승' ? 'val-warn' : 'val-bear';
-  var stopLoss = distTgt.stopLoss || distTgt.invalid || box.low || 0;
-  var stopPct = distTgt.stopPercent != null ? distTgt.stopPercent : (stopLoss>0 ? parseFloat((((stopLoss - rep.price)/rep.price)*100).toFixed(1)) : null);
+  var btcWarnHTML = state.btcFilter&&state.btcFilter.penalty>0
+    ?'<div class="btc-warning">BTC 패널티: -'+state.btcFilter.penalty+' ('+escapeHtml(state.btcFilter.desc||'BTC 약세')+')</div>':'';
 
-  var positionHTML = '<div class="detail-section"><div class="detail-section-title">▶ 세력 포지션</div>'
-    +'<div class="position-grid">'
-    +'<div class="position-card position-cost"><div class="position-card-label">세력 예상 평단</div>'
-      +'<div class="position-main-value">'+(accCost.center?formatPrice(accCost.center):'-')+'</div>'
-      +'<div class="position-sub-value">'+(accCost.center?formatPrice(accCost.low)+' ~ '+formatPrice(accCost.high):'데이터 부족')+'</div>'
-      +'<div class="position-meta '+confCls+'">신뢰도: '+esc(confidence)+'</div></div>'
-    +'<div class="position-card position-current"><div class="position-card-label">현재 위치</div>'
-      +'<div class="position-main-value '+phaseCls+'">'+(cpPhase.ratio?cpPhase.ratio+'x':'-')+'</div>'
-      +'<div class="position-sub-value">'+esc(cpPhase.label||'분석 대기')+'</div>'
-      +'<div class="position-meta '+(rep.finalEntryAllowed?'val-bull':'val-bear')+'">'+(rep.finalEntryAllowed?'진입 허용 구간':'진입 주의 구간')+'</div></div>'
-    +'<div class="position-card target-1"><div class="position-card-label">1차 목표</div>'
-      +'<div class="position-main-value">'+(distTgt.target1?formatPrice(distTgt.target1):'-')+'</div>'
-      +'<div class="position-sub-value">초기 분배</div></div>'
-    +'<div class="position-card target-2"><div class="position-card-label">2차 목표</div>'
-      +'<div class="position-main-value">'+(distTgt.target2?formatPrice(distTgt.target2):'-')+'</div>'
-      +'<div class="position-sub-value">메인 분배</div></div>'
-    +'<div class="position-card target-3"><div class="position-card-label">3차 목표</div>'
-      +'<div class="position-main-value">'+(distTgt.target3?formatPrice(distTgt.target3):'-')+'</div>'
-      +'<div class="position-sub-value">과열 확장</div></div>'
-    +'<div class="position-card position-stop"><div class="position-card-label">손절 / 무효화</div>'
-      +'<div class="position-main-value">'+(stopLoss?formatPrice(stopLoss):'-')+'</div>'
-      +'<div class="position-sub-value">'+(stopPct!=null?(stopPct>0?'+':'')+stopPct+'%':'기준 미계산')+'</div></div>'
-    +'</div>'
-    +'</div>';
-
-  // ③ 점수 시각화
-  var structScore = 0;
-  if (rep.prePump) structScore += 3;
-  if (box.isSideways && box.distanceToTop < 3) structScore += 1;
-  if (obv.trend === 'up') structScore += 1;
-  structScore = clamp(structScore, 0, 5);
-
-  var entryScore = 0;
-  if (rep.finalEntryAllowed) entryScore += 2;
-  if (vol.accel > 1.2) entryScore += 1.5;
-  else if (vol.accel > 1.05) entryScore += 1;
-  if (rsi >= 50 && rsi <= 65) entryScore += 1.5;
-  if (!repFake && !repLate) entryScore += 1;
-  entryScore = clamp(entryScore, 0, 6);
-
-  var riskScore = 0;
-  if (state.btcFilter && state.btcFilter.penalty) riskScore += state.btcFilter.penalty;
-  if (repFake) riskScore += 1.5;
-  if (repLate) riskScore += 1.5;
-  if (rsi > 68) riskScore += 1;
-  if (coin.syncStatus.type === 'solo') riskScore += 0.5;
-  riskScore = clamp(parseFloat(riskScore.toFixed(1)), 0, 5);
-  var riskLabel = riskScore <= 1.5 ? '낮음' : riskScore <= 3 ? '보통' : '높음';
-  var riskCls = riskScore <= 1.5 ? 'val-bull' : riskScore <= 3 ? 'val-warn' : 'val-bear';
-
-  var scoreVisHTML = '<div class="detail-section"><div class="detail-section-title">▶ 점수 시각화</div>'
-    +'<div class="score-visual-top">'
-      +'<div class="score-mini-card"><div class="score-mini-label">구조 점수</div><div class="score-mini-value tscore-structure">'+structScore.toFixed(1)+'</div></div>'
-      +'<div class="score-mini-card"><div class="score-mini-label">진입 점수</div><div class="score-mini-value tscore-entry">'+entryScore.toFixed(1)+'</div></div>'
-      +'<div class="score-mini-card"><div class="score-mini-label">리스크</div><div class="score-mini-value '+riskCls+'">'+riskLabel+' · '+riskScore.toFixed(1)+'</div></div>'
-    +'</div>'
-    +'<div class="score-breakdown dashboard-bars">'
-      +'<div class="score-row"><div class="score-row-label">PRE-PUMP</div><div class="score-bar-wrap"><div class="score-bar-fill" style="width:'+(rep.prePump?100:0)+'%;background:var(--accent-green)"></div></div><div class="score-row-val">'+(rep.prePump?'+3':'0')+'</div></div>'
-      +'<div class="score-row"><div class="score-row-label">속도</div><div class="score-bar-wrap"><div class="score-bar-fill" style="width:'+clamp(vol.accel*40,0,100)+'%;background:var(--accent-cyan)"></div></div><div class="score-row-val">'+(vol.accel>1.2?'+1':vol.accel>1.05?'+0.5':'0')+'</div></div>'
-      +'<div class="score-row"><div class="score-row-label">OBV</div><div class="score-bar-wrap"><div class="score-bar-fill" style="width:'+(obv.trend==='up'?100:obv.trend==='flat'?40:0)+'%;background:var(--accent-orange)"></div></div><div class="score-row-val">'+(obv.trend==='up'?'+1':'0')+'</div></div>'
-      +'<div class="score-row"><div class="score-row-label">BTC 패널티</div><div class="score-bar-wrap"><div class="score-bar-fill" style="width:'+clamp((state.btcFilter&&state.btcFilter.penalty?state.btcFilter.penalty:0)*35,0,100)+'%;background:var(--accent-red)"></div></div><div class="score-row-val">'+((state.btcFilter&&state.btcFilter.penalty)?'-'+state.btcFilter.penalty:'0')+'</div></div>'
-    +'</div>'
-    +'<div class="score-summary-line">📊 '+esc(rep.scoreSummary||rep.total+'')+'</div>'
-    +'</div>';
-
-  // ④ 구조 해석
-  var analysisHTML = '<div class="detail-section"><div class="detail-section-title">▶ 구조 해석</div>'
-    +'<div class="analysis-3line">'
-      +'<div class="analysis-row strength"><div class="analysis-label">강점</div><div class="analysis-content">'+(repAnalysis.strengths&&repAnalysis.strengths.length?repAnalysis.strengths.map(esc).join(' · '):'핵심 강점 없음')+'</div></div>'
-      +'<div class="analysis-row weakness"><div class="analysis-label">약점</div><div class="analysis-content">'+(repAnalysis.weaknesses&&repAnalysis.weaknesses.length?repAnalysis.weaknesses.map(esc).join(' · '):'뚜렷한 약점 없음')+'</div></div>'
-      +'<div class="analysis-row conclusion"><div class="analysis-label">결론</div><div class="analysis-content">'+esc(repAnalysis.conclusion||'관찰 유지')+'</div></div>'
+  var accCol = accStr.label==='강함'?'var(--accent-green)':accStr.label==='보통'?'var(--accent-orange)':accStr.label==='참고 불가'?'var(--text-muted)':'#aabfd4';
+  var accStrHTML = '<div class="detail-section"><div class="detail-section-title">▶ 매집 강도 해석</div>'
+    +'<div class="detail-card">'
+    +'<div class="detail-kicker">ACCUMULATION STRENGTH</div>'
+    +'<div class="detail-big" style="font-size:1.38rem;color:'+accCol+'">'+escapeHtml(accStr.label||'참고 불가')+'</div>'
+    +'<div class="detail-sub">근거: '+escapeHtml(accStr.reason||'PRE-PUMP 미충족')+'</div>'
     +'</div></div>';
 
-  // ⑤ 리스크
-  var riskHTML = '<div class="detail-section"><div class="detail-section-title">▶ 리스크</div>'
-    +'<div class="risk-dashboard">';
-  if (repRisks.length) {
-    riskHTML += repRisks.map(function(r) {
-      var catCol = r.cat==='시장'||r.cat==='패턴' ? 'var(--accent-red)' : r.cat==='타이밍'||r.cat==='구조' ? 'var(--accent-orange)' : 'var(--text-muted)';
-      return '<div class="risk-categorized"><span class="risk-cat-badge" style="color:'+catCol+'">'+esc(r.cat)+'</span><span>'+esc(r.desc)+'</span></div>';
-    }).join('');
-  } else {
-    riskHTML += '<div class="risk-categorized"><span class="risk-cat-badge" style="color:var(--accent-green)">안정</span><span>특이 리스크 없음</span></div>';
-  }
-  if (repFake) riskHTML += '<div class="risk-categorized"><span class="risk-cat-badge" style="color:var(--accent-red)">패턴</span><span>fakePump 감지 — 반등 가능성 주의</span></div>';
-  if (repLate) riskHTML += '<div class="risk-categorized"><span class="risk-cat-badge" style="color:var(--accent-orange)">타이밍</span><span>늦은 진입 — 눌림 대기 권장</span></div>';
-  riskHTML += '</div></div>';
+  var confCol = accCost.confidence==='높음'?'var(--accent-green)':accCost.confidence==='보통'?'var(--accent-orange)':'var(--accent-red)';
+  var costHTML = '<div class="detail-section"><div class="detail-section-title">▶ 세력 예상 평단가</div>'
+    +'<div class="detail-card">'
+    +'<div class="detail-kicker">ACCUMULATION COST RANGE</div>'
+    +'<div class="detail-big">'+formatPrice(accCost.low||0)+' ~ '+formatPrice(accCost.high||0)+'</div>'
+    +'<div class="detail-sub">중심값 <b style="color:#fff">'+formatPrice(accCost.center||0)+'</b> · 신뢰도 <span style="color:'+confCol+';font-weight:800">'+escapeHtml(accCost.confidence||'낮음')+'</span></div>'
+    +'</div></div>';
 
-  // ⑥ 거래소 비교
+  var phaseCol = cpPhase.label==='매집'?'var(--accent-green)':cpPhase.label==='초기 상승'?'var(--accent-cyan)':cpPhase.label==='본 상승'?'var(--accent-orange)':'var(--accent-red)';
+  var stopVal = distTgt.stopLoss ? formatPrice(distTgt.stopLoss) : (accCost.low ? formatPrice(accCost.low * 0.95) : '-');
+  var stopNote = distTgt.stopLoss ? (distTgt.stopPercent ? ('-'+distTgt.stopPercent.toFixed(1)+'%') : '무효화 기준') : '평단 하단 이탈';
+  var positionHTML = '<div class="detail-section"><div class="detail-section-title">▶ 세력 포지션</div>'
+    +'<div class="position-grid">'
+      +'<div class="detail-card position-card current">'
+        +'<div class="detail-kicker">CURRENT PHASE</div>'
+        +'<div class="detail-big" style="color:'+phaseCol+'">'+(cpPhase.ratio?cpPhase.ratio+'x':'-')+' · '+escapeHtml(cpPhase.label||'미확정')+'</div>'
+        +'<div class="detail-sub">'+escapeHtml(cpPhase.note||'현재 위치 해석 정보 없음')+'</div>'
+        +(rep.finalEntryAllowed?'<div class="position-state-ok">✅ 진입 허용 구간</div>':'<div class="position-state-no">🚫 추격/신뢰도 이슈</div>')
+      +'</div>'
+      +'<div class="detail-card position-card now">'
+        +'<div class="detail-kicker">CURRENT VS COST</div>'
+        +'<div class="detail-big">'+formatPrice(rep.price)+' | '+(cpPhase.ratio?cpPhase.ratio+'x':'-')+'</div>'
+        +'<div class="detail-sub">세력 추정 평단과 현재가 이격을 바로 확인하는 구간</div>'
+      +'</div>'
+    +'</div>'
+    +'<div class="target-grid-v2">'
+      +'<div class="target-card target1"><div class="t-label">1차 목표</div><div class="t-value">'+formatPrice(distTgt.target1||0)+'</div><div class="t-note">초기 분배</div></div>'
+      +'<div class="target-card target2"><div class="t-label">2차 목표</div><div class="t-value">'+formatPrice(distTgt.target2||0)+'</div><div class="t-note">메인 분배</div></div>'
+      +'<div class="target-card target3"><div class="t-label">3차 목표</div><div class="t-value">'+formatPrice(distTgt.target3||0)+'</div><div class="t-note">확장 목표</div></div>'
+      +'<div class="target-card stoploss"><div class="t-label">손절 / 무효화</div><div class="t-value">'+stopVal+'</div><div class="t-note">'+escapeHtml(stopNote)+'</div></div>'
+    +'</div></div>';
+
+  function vizGroup(title, group, cls) {
+    return '<div class="score-group">'
+      +'<div class="score-group-title">'+title+'</div>'
+      +group.items.map(function(item){
+        var pct = item.max > 0 ? Math.max(0, Math.min(100, (item.value / item.max) * 100)) : 0;
+        return '<div class="score-bar-row">'
+          +'<div class="score-bar-label">'+escapeHtml(item.label)+'</div>'
+          +'<div class="score-bar-track"><div class="score-bar-fill '+item.type+'" style="width:'+pct+'%"></div></div>'
+          +'<div class="score-bar-val">'+(item.type==='neg'&&item.value>0?'-':'')+item.value+'</div>'
+          +'</div>';
+      }).join('')
+      +'</div>';
+  }
+
+  var scoreHTML = '<div class="detail-section"><div class="detail-section-title">▶ 점수 시각화</div>'
+    +'<div class="score-viz-wrap">'
+      +'<div class="score-head-grid">'
+        +'<div class="score-head-card structure"><div class="score-head-label">구조 점수</div><div class="score-head-value">'+scoreViz.structure.total.toFixed(1)+'</div></div>'
+        +'<div class="score-head-card entry"><div class="score-head-label">진입 점수</div><div class="score-head-value">'+scoreViz.entry.total.toFixed(1)+'</div></div>'
+        +'<div class="score-head-card risk"><div class="score-head-label">리스크</div><div class="score-head-value">'+scoreViz.risk.total.toFixed(1)+'</div></div>'
+      +'</div>'
+      +vizGroup('구조 구성요소', scoreViz.structure, 'structure')
+      +vizGroup('진입 타이밍', scoreViz.entry, 'entry')
+      +vizGroup('위험 요소', scoreViz.risk, 'risk')
+    +'</div></div>';
+
+  var analysisHTML = '<div class="detail-section"><div class="detail-section-title">▶ 구조 해석</div>'
+    +'<div class="analysis-panel">'
+      +'<div class="row"><div class="label str">강점</div><div class="content">'+(rep_analysis.strengths.length?escapeHtml(rep_analysis.strengths.join(' / ')):'강점 데이터 없음')+'</div></div>'
+      +'<div class="row"><div class="label weak">약점</div><div class="content">'+(rep_analysis.weaknesses.length?escapeHtml(rep_analysis.weaknesses.join(' / ')):'특이 약점 없음')+'</div></div>'
+      +'<div class="row"><div class="label con">결론</div><div class="content">'+escapeHtml(rep_analysis.conclusion||'관찰 유지')+'</div></div>'
+    +'</div></div>';
+
+  var riskHTML = '<div class="detail-section"><div class="detail-section-title">▶ 리스크</div>'
+    +'<div class="risk-panel"><div class="risk-stack">'
+    +(rep_risks.length ? rep_risks.map(function(r){
+      return '<div class="risk-item-v2"><span class="risk-badge-v2">'+escapeHtml(r.cat)+'</span><div class="risk-desc-v2">'+escapeHtml(r.desc)+'</div></div>';
+    }).join('') : '<div class="risk-desc-v2" style="color:var(--text-muted)">특이 리스크 없음</div>')
+    +'</div></div></div>';
+
   var PRIORITY_ORDER = ['BINANCE','UPBIT','BITHUMB'];
-  var sortedEx = coin.exchanges.slice().sort(function(a,b){ return PRIORITY_ORDER.indexOf(a.exchange)-PRIORITY_ORDER.indexOf(b.exchange); });
+  var sortedEx = coin.exchanges.slice().sort(function(a,b){
+    return PRIORITY_ORDER.indexOf(a.exchange)-PRIORITY_ORDER.indexOf(b.exchange);
+  });
   var compHTML = '<div class="ex-compare-table">'
     +sortedEx.map(function(ex){
       var isRep = ex.exchange === rep.exchange;
       var gc    = calcGrade(ex.total);
       return '<div class="ex-compare-row-v2">'
-        +'<span class="ex-rep-badge '+(isRep?'is-rep':'')+'">'+(isRep?'대표':'')+'</span>'
-        +'<span style="font-family:var(--mono);font-size:.7rem;width:70px">'+ex.exchange+'</span>'
-        +'<span style="color:'+gc.color+';font-weight:700">'+gc.label+'</span>'
-        +'<span style="color:'+gc.color+'">'+ex.total+'</span>'
+        +'<span class="ex-rep-badge '+(isRep?'is-rep':'')+'">'+(isRep?'대표':'  ')+'</span>'
+        +'<span style="font-family:var(--mono);font-size:.72rem;width:72px;color:#dfeeff">'+ex.exchange+'</span>'
+        +'<span style="color:'+gc.color+';font-weight:800">'+gc.label+'</span>'
+        +'<span style="color:'+gc.color+';font-weight:700"> '+ex.total+'</span>'
         +(ex.prePump?'<span class="prepump-badge" style="font-size:.55rem">🟣</span>':'')
         +(ex.isEntryReady?'<span style="font-size:.6rem;color:var(--accent-green)"> ✅</span>':'')
         +'</div>';
     }).join('')
     +'</div>';
 
-  // ⑦ 지표
+  var mfiDesc = mfi>=60?'자금 유입':mfi<=40?'자금 유출':'중립';
   var indHTML = '<div class="indicator-grid">'
     +'<div class="ind-item"><div class="ind-label">현재가 (대표)</div><div class="ind-value val-neutral">'+formatPrice(rep.price)+'</div></div>'
     +'<div class="ind-item"><div class="ind-label">24h 변동</div><div class="ind-value '+(rep.changeRate>=0?'val-bull':'val-bear')+'">'+formatPct(rep.changeRate)+'</div></div>'
     +'<div class="ind-item"><div class="ind-label">RSI(14)</div><div class="ind-value '+rsiCls+'">'+rsi.toFixed(1)+'</div></div>'
-    +'<div class="ind-item"><div class="ind-label">MFI(14)</div><div class="ind-value '+mfiCls+'">'+mfi+'</div></div>'
+    +'<div class="ind-item"><div class="ind-label">MFI(14)</div><div class="ind-value '+mfiCls+'">'+mfi+' ('+mfiDesc+')</div></div>'
     +'<div class="ind-item"><div class="ind-label">OBV</div><div class="ind-value '+obvCls+'">'+(obv.trend==='up'?'↑ 상승'+(obv.leading?' 선행':''):obv.trend==='down'?'↓ 하락':'→ 횡보')+'</div></div>'
-    +'<div class="ind-item"><div class="ind-label">거래량 / 속도</div><div class="ind-value '+(vol.ratio>=1.3?'val-bull':'val-neutral')+'">'+vol.ratio+'x / '+vol.accel+'x</div></div>'
-    +'<div class="ind-item"><div class="ind-label">박스 구조</div><div class="ind-value val-neutral">'+(box.isBreakout?box.breakoutStrength+'% 돌파':box.distanceToTop.toFixed(1)+'% 남음')+'</div></div>'
-    +'<div class="ind-item"><div class="ind-label">SMC</div><div class="ind-value" style="color:'+smcCol+'">'+(smc?smc.summary:'〰️ 신호 없음')+'</div></div>'
+    +'<div class="ind-item"><div class="ind-label">거래량(3C)</div><div class="ind-value '+(vol.ratio>=1.3?'val-bull':'val-neutral')+'">'+vol.ratio+'x '+(vol.trend==='increasing'?'↑':'→')+'</div></div>'
     +'</div>';
 
-  // ⑧ 액션 및 보조정보
-  var actCls = rep.action==='진입 우선'?'action-enter':rep.action==='분할 진입'?'action-split':rep.action==='PRE-PUMP 대기'?'action-pullback':rep.action.indexOf('금지')>=0||rep.action.indexOf('관망')>=0?'action-avoid':'action-watch';
+  var actCls = rep.action==='진입 우선'?'action-enter':rep.action==='분할 진입'?'action-split':rep.action==='PRE-PUMP 대기'?'action-pullback':rep.action.includes('금지')||rep.action.includes('관망')?'action-avoid':'action-watch';
   var gapText = '';
   if (coin.priceGap !== null && coin.priceGap !== undefined) {
     var gapCol = coin.gapStatus==='국내 과열'?'var(--accent-red)':coin.gapStatus==='해외 선행'?'var(--accent-cyan)':'var(--text-muted)';
-    gapText = '<div class="action-sub-info">📡 가격 괴리: <span style="color:'+gapCol+'">'+(coin.priceGap > 0 ? '+' : '')+coin.priceGap.toFixed(1)+'% ('+esc(coin.gapStatus)+')</span></div>';
+    gapText = '<div class="action-sub-info">가격 괴리: <span style="color:'+gapCol+'">'+(coin.priceGap > 0 ? '+' : '')+coin.priceGap.toFixed(1)+'% ('+escapeHtml(coin.gapStatus)+')</span></div>';
   } else if (coin.gapStatus) {
-    gapText = '<div class="action-sub-info">📡 가격 괴리: '+esc(coin.gapStatus)+'</div>';
+    gapText = '<div class="action-sub-info">가격 괴리: '+escapeHtml(coin.gapStatus)+'</div>';
   }
-
-  var btcWarnHTML = state.btcFilter && state.btcFilter.penalty>0
-    ?'<div class="btc-warning">BTC 패널티: -'+state.btcFilter.penalty+' ('+state.btcFilter.desc+')</div>':'';
 
   var chartLinks='<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">';
   coin.existsIn.forEach(function(ex){
@@ -2535,17 +2679,21 @@ function buildCoinDetailHTML(coin) {
 
   return btcWarnHTML
     + repHTML
+    + '<div class="score-summary-line">📊 '+escapeHtml(rep.scoreSummary||String(rep.total))+'</div>'
+    + accStrHTML
+    + costHTML
     + positionHTML
-    + scoreVisHTML
+    + scoreHTML
     + analysisHTML
     + riskHTML
     + '<div class="detail-section"><div class="detail-section-title">▶ 거래소 비교</div>'+compHTML+'</div>'
-    + '<div class="detail-section"><div class="detail-section-title">▶ 동조 판단</div><div style="padding:8px;background:var(--bg-secondary);border-radius:4px;"><span class="sync-badge '+coin.syncStatus.cls+'">'+coin.syncStatus.label+'</span><div style="font-family:var(--mono);font-size:.65rem;color:var(--text-muted);margin-top:6px">존재 거래소: '+coin.existsIn.join(' / ')+'</div></div></div>'
+    + '<div class="detail-section"><div class="detail-section-title">▶ 동조 판단</div><div class="detail-card"><div class="detail-kicker">SYNC STATUS</div><div class="detail-sub"><span class="sync-badge '+coin.syncStatus.cls+'">'+coin.syncStatus.label+'</span></div><div class="detail-sub">존재 거래소: '+coin.existsIn.join(' / ')+'</div></div></div>'
     + '<div class="detail-section"><div class="detail-section-title">▶ 지표 (대표 거래소 기준)</div>'+indHTML+'</div>'
-    + '<div class="detail-section"><div class="detail-section-title">▶ 종합 판단</div><div class="action-box"><span class="action-badge '+actCls+'">'+esc(rep.action)+'</span><div><span class="action-desc">'+esc(repActionDesc||'신호 확정 전 관찰 유지')+'</span>'+gapText+'</div></div></div>'
+    + '<div class="detail-section"><div class="detail-section-title">▶ 종합 판단</div><div class="action-box"><span class="action-badge '+actCls+'">'+escapeHtml(rep.action)+'</span><span class="action-desc">'+escapeHtml(rep_actionDesc || '')+'</span></div>'+gapText+'</div>'
     + '<div class="detail-section"><div class="detail-section-title">▶ 차트 확인</div>'+chartLinks+'</div>'
     + '<div style="font-size:.58rem;color:var(--text-muted);font-family:var(--mono);margin-top:8px">기준: '+rep.exchange+' 1시간봉</div>';
 }
+
 
 // ── 텔레그램 ─────────────────────────────────────────────────────
 var alertState=(function(){try{var s=localStorage.getItem('tg_alert_state_v2');return s?JSON.parse(s):{};}catch(e){return{};}})();
