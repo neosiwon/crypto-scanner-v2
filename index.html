@@ -1004,6 +1004,37 @@ body::before {
 .sc-sync { border-color:var(--accent-cyan); }
 .sc-sync .sum-val { color:var(--accent-cyan); }
 
+
+/* ── v2-5 readability patch ── */
+.detail-section-title{font-size:.72rem!important;font-weight:700!important;color:var(--accent-cyan)!important}
+.metric-panel{background:linear-gradient(180deg,rgba(15,26,39,.96),rgba(10,18,30,.96));border:1px solid var(--border-bright);border-radius:8px;padding:12px 14px}
+.metric-head{font-family:var(--mono);font-size:.62rem;letter-spacing:1px;color:var(--text-muted);margin-bottom:8px}
+.metric-main{font-family:var(--mono);font-size:1rem;font-weight:800;line-height:1.5;color:var(--text-primary)}
+.metric-sub{margin-top:6px;font-family:var(--mono);font-size:.67rem;line-height:1.6;color:var(--text-secondary)}
+.position-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.position-card{background:var(--bg-secondary);border:1px solid var(--border-bright);border-radius:8px;padding:12px}
+.position-label{font-family:var(--mono);font-size:.6rem;color:var(--text-muted);margin-bottom:6px}
+.position-value{font-family:var(--mono);font-size:1rem;font-weight:800;color:var(--text-primary);line-height:1.45}
+.position-note{margin-top:6px;font-family:var(--mono);font-size:.64rem;color:var(--text-secondary);line-height:1.55}
+.conf-high{color:var(--accent-green)} .conf-mid{color:var(--accent-orange)} .conf-low{color:var(--accent-red)}
+.target-grid-strong{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:8px}
+.target-card{background:var(--bg-secondary);border:1px solid var(--border-bright);border-radius:8px;padding:12px;text-align:center}
+.target-card .t-label{font-family:var(--mono);font-size:.62rem;color:var(--text-muted);margin-bottom:6px}
+.target-card .t-value{font-family:var(--mono);font-size:1rem;font-weight:900;line-height:1.2}
+.target-card.t1 .t-value{color:var(--accent-green)}
+.target-card.t2 .t-value{color:var(--accent-cyan)}
+.target-card.t3 .t-value{color:var(--accent-orange)}
+.score-summary-line{font-size:.76rem!important;line-height:1.7!important;padding:10px 12px!important}
+.analysis-3line,.risk-panel{background:var(--bg-secondary);border:1px solid var(--border-bright);border-radius:8px;padding:12px}
+.risk-panel .risk-row{display:flex;gap:8px;align-items:flex-start;margin-bottom:6px;font-family:var(--mono);font-size:.67rem;color:var(--text-secondary);line-height:1.55}
+.risk-panel .risk-row:last-child{margin-bottom:0}
+.risk-chip{flex-shrink:0;padding:1px 7px;border-radius:999px;background:rgba(255,69,96,.12);border:1px solid rgba(255,69,96,.25);color:var(--accent-red);font-size:.56rem;font-weight:700}
+.action-box{align-items:flex-start!important}
+.action-desc{font-size:.72rem!important;line-height:1.7!important;color:var(--text-primary)!important}
+.grade-badge.grade-B{color:#1a1a1a!important;text-shadow:none!important}
+.grade-badge.grade-C{color:#ddd!important}
+@media (max-width:640px){.position-grid,.target-grid-strong{grid-template-columns:1fr}.metric-main,.position-value,.target-card .t-value{font-size:1.06rem}}
+
 </style>
 </head>
 <body>
@@ -2354,43 +2385,44 @@ function buildCoinDetailHTML(coin) {
   accStrHTML += '</div></div>';
 
   // B. 세력 평단 추정 섹션
-  var costHTML = '<div class="detail-section"><div class="detail-section-title">▶ 세력 평단 추정</div>'
-    +'<div style="padding:8px;background:var(--bg-secondary);border-radius:4px;font-family:var(--mono);font-size:.68rem">';
-  if (accCost.center && accCost.center > 0) {
-    var confCol = accCost.confidence==='높음'?'var(--accent-green)':accCost.confidence==='보통'?'var(--accent-orange)':'var(--accent-red)';
-    costHTML += formatPrice(accCost.low)+' ~ '+formatPrice(accCost.high)
-      +'<div style="margin-top:4px">중심값: <b>'+formatPrice(accCost.center)+'</b>'
-      +'  신뢰도: <span style="color:'+confCol+'">'+accCost.confidence+'</span></div>';
-  } else {
-    costHTML += '<span style="color:var(--text-muted)">평단 추정 불가 — 박스 내부 데이터 부족</span>';
-  }
-  costHTML += '</div></div>';
+  var hasAccCost = accCost && accCost.center && accCost.center > 0;
+  var confCls = accCost.confidence==='높음'?'conf-high':accCost.confidence==='보통'?'conf-mid':'conf-low';
+  var costHTML = '<div class="detail-section"><div class="detail-section-title">▶ 세력 예상 평단가</div>'
+    +'<div class="metric-panel">'
+    +'<div class="metric-head">ACCUMULATION COST RANGE</div>'
+    +'<div class="metric-main">'+(hasAccCost ? formatPrice(accCost.low)+' ~ '+formatPrice(accCost.high) : '데이터 부족')+'</div>'
+    +'<div class="metric-sub">'
+    +(hasAccCost ? '중심값 <b>'+formatPrice(accCost.center)+'</b> · 신뢰도 <span class="'+confCls+'">'+escapeHtml(accCost.confidence||'낮음')+'</span>' : '박스 내부 캔들 부족으로 중심값 신뢰도 낮음')
+    +'</div>'
+    +'</div></div>';
 
   // C. 현재 위치 + 분배 목표 섹션
-  var phaseHTML = '<div class="detail-section"><div class="detail-section-title">▶ 현재 위치 / 분배 목표</div>'
-    +'<div style="padding:8px;background:var(--bg-secondary);border-radius:4px;font-family:var(--mono);font-size:.68rem">';
-  if (cpPhase.ratio) {
-    var phaseCol = cpPhase.label==='매집'?'var(--accent-green)':cpPhase.label==='초기 상승'?'var(--accent-cyan)':cpPhase.label==='본 상승'?'var(--accent-orange)':cpPhase.label==='분배 경계'||cpPhase.label==='과열'?'var(--accent-red)':'var(--text-muted)';
-    phaseHTML += '현재: <span style="color:'+phaseCol+';font-weight:700">'+cpPhase.ratio+'x → '+cpPhase.label+'</span>'
-      +'<div style="color:var(--text-muted);font-size:.62rem;margin-top:2px">'+escapeHtml(cpPhase.note||'')+'</div>';
-    if (rep.finalEntryAllowed === true) {
-      phaseHTML += '<div style="margin-top:6px;color:var(--accent-green);font-weight:700">✅ 진입 허용 구간</div>';
-    } else {
-      phaseHTML += '<div style="margin-top:6px;color:var(--accent-red)">🚫 진입 차단 (추격 또는 신뢰도 낮음)</div>';
-    }
-  } else {
-    phaseHTML += '<span style="color:var(--text-muted)">위치 분석 불가</span>';
-  }
-  if (distTgt.target1 && distTgt.target1 > 0) {
-    phaseHTML += '<div style="margin-top:8px;border-top:1px solid var(--border);padding-top:6px">'
-      +'분배 목표:'
-      +'<div style="margin-top:4px">1차: <b>'+formatPrice(distTgt.target1)+'</b>'
-      +'  2차: <b>'+formatPrice(distTgt.target2)+'</b>'
-      +'  3차: <b>'+formatPrice(distTgt.target3)+'</b></div>'
-      +'<div style="color:var(--text-muted);font-size:.6rem;margin-top:2px">'+escapeHtml(distTgt.note||'')+'</div>'
-      +'</div>';
-  }
-  phaseHTML += '</div></div>';
+  var hasTargets = distTgt && distTgt.target1 && distTgt.target1 > 0;
+  var phaseCol = cpPhase.label==='매집'?'var(--accent-green)':cpPhase.label==='초기 상승'?'var(--accent-cyan)':cpPhase.label==='본 상승'?'var(--accent-orange)':cpPhase.label==='분배 경계'||cpPhase.label==='과열'?'var(--accent-red)':'var(--text-muted)';
+  var phaseHTML = '<div class="detail-section"><div class="detail-section-title">▶ 현재 위치 / 세력 예상 목표가</div>'
+    +'<div class="position-grid">'
+      +'<div class="position-card">'
+        +'<div class="position-label">현재 위치</div>'
+        +'<div class="position-value" style="color:'+phaseCol+'">'+(cpPhase.ratio ? cpPhase.ratio+'x · '+escapeHtml(cpPhase.label||'미확인') : '분석 불가')+'</div>'
+        +'<div class="position-note">'+escapeHtml(cpPhase.note || '평단 대비 현재 위치를 계산하지 못했습니다.')+'</div>'
+        +'<div class="position-note" style="margin-top:8px;color:'+(rep.finalEntryAllowed===true?'var(--accent-green)':'var(--accent-red)')+'">'+(rep.finalEntryAllowed===true?'✅ 진입 허용 구간':'🚫 진입 차단 구간')+'</div>'
+      +'</div>'
+      +'<div class="position-card">'
+        +'<div class="position-label">평단 대비 현재가</div>'
+        +'<div class="position-value">'+formatPrice(rep.price)+(cpPhase.ratio ? ' | '+cpPhase.ratio+'x' : '')+'</div>'
+        +'<div class="position-note">세력 추정 평단과 현재가 이격을 같이 확인하는 구간</div>'
+      +'</div>'
+    +'</div>'
+    +'<div class="metric-panel" style="margin-top:8px">'
+      +'<div class="metric-head">FINAL DISTRIBUTION TARGETS</div>'
+      +(hasTargets
+        ? '<div class="target-grid-strong">'
+            +'<div class="target-card t1"><div class="t-label">1차 목표</div><div class="t-value">'+formatPrice(distTgt.target1)+'</div></div>'
+            +'<div class="target-card t2"><div class="t-label">2차 목표</div><div class="t-value">'+formatPrice(distTgt.target2)+'</div></div>'
+            +'<div class="target-card t3"><div class="t-label">3차 목표</div><div class="t-value">'+formatPrice(distTgt.target3)+'</div></div>'
+          +'</div><div class="metric-sub">'+escapeHtml(distTgt.note||'')+'</div>'
+        : '<div class="metric-main">목표가 계산 대기</div><div class="metric-sub">평단 추정은 되었지만 목표가 데이터가 아직 연결되지 않았습니다.</div>')
+    +'</div></div>';
 
   // [v2-2] 추가 섹션 — 구조 해석, 리스크, priceGap, actionDesc
   var rep_analysis   = rep.analysis    || { strengths:[], weaknesses:[], conclusion:'' };
@@ -2401,24 +2433,24 @@ function buildCoinDetailHTML(coin) {
 
   // ▶ 구조 해석 섹션
   var analysisHTML = '<div class="detail-section"><div class="detail-section-title">▶ 구조 해석</div>'
-    +'<div style="padding:8px;background:var(--bg-secondary);border-radius:4px;font-size:.68rem;font-family:var(--mono)">';
+    +'<div class="analysis-3line">';
   if (rep_analysis.strengths.length) {
-    analysisHTML += '<div style="color:var(--accent-green);margin-bottom:4px">✅ '
-      + rep_analysis.strengths.map(escapeHtml).join('<br>✅ ') + '</div>';
+    analysisHTML += '<div class="analysis-row strength"><span class="analysis-label">강점</span><span class="analysis-content">'
+      + rep_analysis.strengths.map(escapeHtml).join(' / ') + '</span></div>';
   }
   if (rep_analysis.weaknesses.length) {
-    analysisHTML += '<div style="color:var(--accent-orange);margin-top:4px">⚠ '
-      + rep_analysis.weaknesses.map(escapeHtml).join('<br>⚠ ') + '</div>';
+    analysisHTML += '<div class="analysis-row weakness"><span class="analysis-label">약점</span><span class="analysis-content">'
+      + rep_analysis.weaknesses.map(escapeHtml).join(' / ') + '</span></div>';
   }
   if (rep_analysis.conclusion) {
-    analysisHTML += '<div style="margin-top:6px;border-top:1px solid var(--border);padding-top:4px;color:var(--text-primary)">'
-      + escapeHtml(rep_analysis.conclusion) + '</div>';
+    analysisHTML += '<div class="analysis-row conclusion"><span class="analysis-label">결론</span><span class="analysis-content">'
+      + escapeHtml(rep_analysis.conclusion) + '</span></div>';
   }
   analysisHTML += '</div></div>';
 
   // ▶ 리스크 섹션
   var riskHTML = '<div class="detail-section"><div class="detail-section-title">▶ 리스크</div>'
-    +'<div style="padding:8px;background:var(--bg-secondary);border-radius:4px;font-size:.68rem">';
+    +'<div class="risk-panel">';
   if (rep_risks.length) {
     riskHTML += rep_risks.map(function(r) {
       var catCol = r.cat==='시장'||r.cat==='패턴'?'var(--accent-red)':r.cat==='타이밍'||r.cat==='구조'?'var(--accent-orange)':'var(--text-muted)';
