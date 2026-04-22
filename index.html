@@ -1279,6 +1279,48 @@ body::before {
   box-shadow: 0 0 0 1px rgba(0,212,255,.18) inset;
 }
 
+
+
+/* ── [BADGE TEXT FIX] 좌측 등급 배지 텍스트 밝게 통일 ───────────────── */
+.grade-badge.grade-SP,
+.grade-badge.grade-S,
+.grade-badge.grade-A,
+.grade-badge.grade-B,
+.grade-badge.grade-C {
+  color:#fffdf7 !important;
+  text-shadow:0 1px 2px rgba(0,0,0,.35) !important;
+}
+.grade-badge.grade-B {
+  background:linear-gradient(135deg,#ffd60a,#ffea7a) !important;
+  color:#fffdf7 !important;
+}
+.grade-badge.grade-C {
+  background:linear-gradient(135deg,#606772,#8a92a1) !important;
+  color:#fffdf7 !important;
+}
+
+/* ── [GRAPH FIX] 기존 디자인 유지 + 점수 반영형 막대 ───────────────── */
+.score-head-value.positive::before { content:'+'; margin-right:1px; }
+.score-head-value.negative::before { content:''; }
+.score-bar-track {
+  height:12px !important;
+  border-radius:999px !important;
+  background:#1a2d42 !important;
+  border:1px solid rgba(255,255,255,.05) !important;
+  overflow:hidden;
+}
+.score-bar-fill {
+  height:100% !important;
+  border-radius:999px !important;
+  box-shadow:0 0 10px rgba(0,0,0,.08) inset;
+}
+.score-bar-fill.pos { background:linear-gradient(90deg,#59c7ff,#73f0ba) !important; }
+.score-bar-fill.neg { background:linear-gradient(90deg,#ff9a5f,#ff5f6d) !important; }
+.score-bar-fill.zero { background:linear-gradient(90deg,#23384d,#23384d) !important; }
+.score-bar-label { color:#d3e1ef !important; font-size:.68rem !important; }
+.score-bar-val { font-weight:800 !important; font-size:.68rem !important; }
+.score-group-title { color:#f4f8ff !important; }
+
 </style>
 </head>
 <body>
@@ -2112,55 +2154,61 @@ function buildRiskDetails(box, volRatio, btcPenalty, fakePump, lateEntry, hasBin
 // 기존 점수 계산 방식은 절대 변경하지 않고, 표시용으로만 분해한다.
 function buildScoreViz(rep) {
   var btcPenalty = (state.btcFilter && state.btcFilter.penalty) ? state.btcFilter.penalty : 0;
-  var speed = rep.vol && rep.vol.accel > 1.2 ? 1 : (rep.vol && rep.vol.accel > 1.05 ? 0.5 : 0);
+  var speed = rep.vol && rep.vol.accel > 1.2 ? 1 : ((rep.vol && rep.vol.accel > 1.05) ? 0.5 : 0);
   var obv   = rep.obv && rep.obv.trend === 'up' ? 1 : 0;
   var prep  = rep.prePump ? 3 : 0;
 
-  var structureTotal = prep + speed + obv;
-  var entryTotal = 0;
-  if (rep.isEntryReady) entryTotal += 1.5;
-  if (rep.finalEntryAllowed) entryTotal += 1.0;
-  if (rep.currentPhase && rep.currentPhase.ratio <= 1.05) entryTotal += 1.0;
-  else if (rep.currentPhase && rep.currentPhase.ratio <= 1.15) entryTotal += 0.5;
-  if (rep.rsi >= 50 && rep.rsi <= 65) entryTotal += 0.5;
+  var entryBase = rep.isEntryReady ? 1.5 : 0;
+  var allowZone = rep.finalEntryAllowed ? 1.0 : 0;
+  var costFit   = 0;
+  if (rep.currentPhase && rep.currentPhase.ratio <= 1.05) costFit = 1.0;
+  else if (rep.currentPhase && rep.currentPhase.ratio <= 1.15) costFit = 0.5;
+  var rsiFit    = (rep.rsi >= 50 && rep.rsi <= 65) ? 0.5 : 0;
 
-  var riskTotal = 0;
-  if (btcPenalty > 0) riskTotal += btcPenalty >= 2 ? 1.0 : 0.5;
-  if (rep.fakePump) riskTotal += 1.0;
-  if (rep.lateEntry) riskTotal += 1.0;
-  if (rep.accumulationCost && rep.accumulationCost.confidence === '낮음') riskTotal += 0.5;
-  if (rep.rsi > 68) riskTotal += 0.5;
+  var riskBtc   = btcPenalty > 0 ? btcPenalty : 0;
+  var riskFake  = rep.fakePump ? 1.0 : 0;
+  var riskLate  = rep.lateEntry ? 1.0 : 0;
+  var riskConf  = (rep.accumulationCost && rep.accumulationCost.confidence === '낮음') ? 0.5 : 0;
+  var riskHeat  = rep.rsi > 68 ? 0.5 : 0;
+
+  var structureTotal = prep + speed + obv;
+  var entryTotal     = entryBase + allowZone + costFit + rsiFit;
+  var riskTotal      = -(riskBtc + riskFake + riskLate + riskConf + riskHeat);
 
   return {
     structure: {
       total: parseFloat(structureTotal.toFixed(1)),
+      max: 5,
       items: [
-        { label:'PRE-PUMP', value:prep, max:3, type:'pos' },
-        { label:'속도', value:speed, max:1, type:speed>0?'pos':'warn' },
-        { label:'OBV', value:obv, max:1, type:obv>0?'pos':'warn' },
-        { label:'BTC', value:btcPenalty, max:2, type:btcPenalty>0?'neg':'pos' }
+        { label:'PRE-PUMP', value:prep, max:3, type: prep>0 ? 'pos' : 'zero', sign:'+' },
+        { label:'속도', value:speed, max:1, type: speed>0 ? 'pos' : 'zero', sign:'+' },
+        { label:'OBV', value:obv, max:1, type: obv>0 ? 'pos' : 'zero', sign:'+' }
       ]
     },
     entry: {
       total: parseFloat(entryTotal.toFixed(1)),
+      max: 4,
       items: [
-        { label:'ENTRY', value:rep.isEntryReady?1.5:0, max:1.5, type:rep.isEntryReady?'pos':'warn' },
-        { label:'허용구간', value:rep.finalEntryAllowed?1.0:0, max:1.0, type:rep.finalEntryAllowed?'pos':'neg' },
-        { label:'평단이격', value:(rep.currentPhase && rep.currentPhase.ratio<=1.05)?1:((rep.currentPhase && rep.currentPhase.ratio<=1.15)?0.5:0), max:1.0, type:(rep.currentPhase && rep.currentPhase.ratio<=1.15)?'pos':'neg' },
-        { label:'RSI', value:(rep.rsi>=50 && rep.rsi<=65)?0.5:0, max:0.5, type:(rep.rsi>=50 && rep.rsi<=65)?'pos':'warn' }
+        { label:'ENTRY', value:entryBase, max:1.5, type: entryBase>0 ? 'pos' : 'zero', sign:'+' },
+        { label:'허용구간', value:allowZone, max:1.0, type: allowZone>0 ? 'pos' : 'zero', sign:'+' },
+        { label:'평단이격', value:costFit, max:1.0, type: costFit>0 ? 'pos' : 'zero', sign:'+' },
+        { label:'RSI', value:rsiFit, max:0.5, type: rsiFit>0 ? 'pos' : 'zero', sign:'+' }
       ]
     },
     risk: {
       total: parseFloat(riskTotal.toFixed(1)),
+      max: 5,
       items: [
-        { label:'BTC', value:btcPenalty, max:2, type:btcPenalty>0?'neg':'pos' },
-        { label:'fake', value:rep.fakePump?1:0, max:1, type:rep.fakePump?'neg':'pos' },
-        { label:'late', value:rep.lateEntry?1:0, max:1, type:rep.lateEntry?'neg':'pos' },
-        { label:'신뢰도', value:(rep.accumulationCost && rep.accumulationCost.confidence==='낮음')?0.5:0, max:0.5, type:(rep.accumulationCost && rep.accumulationCost.confidence==='낮음')?'neg':'pos' }
+        { label:'BTC', value:riskBtc, max:2, type: riskBtc>0 ? 'neg' : 'zero', sign:'-' },
+        { label:'fake', value:riskFake, max:1, type: riskFake>0 ? 'neg' : 'zero', sign:'-' },
+        { label:'late', value:riskLate, max:1, type: riskLate>0 ? 'neg' : 'zero', sign:'-' },
+        { label:'신뢰도', value:riskConf, max:0.5, type: riskConf>0 ? 'neg' : 'zero', sign:'-' },
+        { label:'과열', value:riskHeat, max:0.5, type: riskHeat>0 ? 'neg' : 'zero', sign:'-' }
       ]
     }
   };
 }
+
 
 
 // ══════════════════════════════════════════════════════════════════
@@ -2655,6 +2703,12 @@ function buildCoinDetailHTML(coin) {
       +'<div class="target-card stoploss"><div class="t-label">손절 / 무효화</div><div class="t-value">'+stopVal+'</div><div class="t-note">'+escapeHtml(stopNote)+'</div></div>'
     +'</div></div>';
 
+  function fmtScore(item) {
+    if (!item || !item.value) return '0';
+    var num = (Math.round(item.value * 10) % 10 === 0) ? item.value.toFixed(0) : item.value.toFixed(1);
+    return (item.sign || '') + num;
+  }
+
   function vizGroup(title, group, cls) {
     return '<div class="score-group">'
       +'<div class="score-group-title">'+title+'</div>'
@@ -2663,7 +2717,7 @@ function buildCoinDetailHTML(coin) {
         return '<div class="score-bar-row">'
           +'<div class="score-bar-label">'+escapeHtml(item.label)+'</div>'
           +'<div class="score-bar-track"><div class="score-bar-fill '+item.type+'" style="width:'+pct+'%"></div></div>'
-          +'<div class="score-bar-val">'+(item.type==='neg'&&item.value>0?'-':'')+item.value+'</div>'
+          +'<div class="score-bar-val">'+fmtScore(item)+'</div>'
           +'</div>';
       }).join('')
       +'</div>';
@@ -2672,13 +2726,14 @@ function buildCoinDetailHTML(coin) {
   var scoreHTML = '<div class="detail-section"><div class="detail-section-title">▶ 점수 시각화</div>'
     +'<div class="score-viz-wrap">'
       +'<div class="score-head-grid">'
-        +'<div class="score-head-card structure"><div class="score-head-label">구조 점수</div><div class="score-head-value">'+scoreViz.structure.total.toFixed(1)+'</div></div>'
-        +'<div class="score-head-card entry"><div class="score-head-label">진입 점수</div><div class="score-head-value">'+scoreViz.entry.total.toFixed(1)+'</div></div>'
-        +'<div class="score-head-card risk"><div class="score-head-label">리스크</div><div class="score-head-value">'+scoreViz.risk.total.toFixed(1)+'</div></div>'
+        +'<div class="score-head-card structure"><div class="score-head-label">구조 점수</div><div class="score-head-value positive">'+scoreViz.structure.total.toFixed(1)+'</div></div>'
+        +'<div class="score-head-card entry"><div class="score-head-label">진입 점수</div><div class="score-head-value positive">'+scoreViz.entry.total.toFixed(1)+'</div></div>'
+        +'<div class="score-head-card risk"><div class="score-head-label">리스크</div><div class="score-head-value negative">'+scoreViz.risk.total.toFixed(1)+'</div></div>'
       +'</div>'
       +vizGroup('구조 구성요소', scoreViz.structure, 'structure')
       +vizGroup('진입 타이밍', scoreViz.entry, 'entry')
       +vizGroup('위험 요소', scoreViz.risk, 'risk')
+      +'<div class="score-summary-line">'+escapeHtml(rep.scoreSummary || '')+'</div>'
     +'</div></div>';
 
   var analysisHTML = '<div class="detail-section"><div class="detail-section-title">▶ 구조 해석</div>'
