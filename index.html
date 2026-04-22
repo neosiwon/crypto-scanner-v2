@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<title>CRYPTO SCANNER <span style="font-size:.55rem;color:var(--text-muted);font-family:var(--mono);letter-spacing:0">v3 · 2026.04.23</span> | 세력매집 급등직전 탐지기</title>
+<title>Crypto Scanner v3 | 세력매집 급등직전 탐지기</title>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600;700&family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
 <style>
 /* ══════════════════════════════════════════
@@ -1087,7 +1087,10 @@ body::before {
           <div class="live-dot" id="liveDot"></div>
           <span id="liveStatus">IDLE</span>
         </div>
-        <div id="clock">--:--:--</div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <div id="clock">--:--:--</div>
+          <span style="font-family:var(--mono);font-size:.58rem;color:var(--text-muted);background:rgba(255,255,255,.06);padding:1px 7px;border-radius:3px;border:1px solid var(--border)">v3.0 · 2026.04.23</span>
+        </div>
       </div>
     </div>
   </header>
@@ -1947,6 +1950,22 @@ async function saveSnapshot(coin, alertType) {
     priceGap:           coin.priceGap         || null,
     gapStatus:          coin.gapStatus        || '',
     stopLoss:           rep.box ? rep.box.low : null,
+    // 전략 데이터 (백엔드 승률 비교용)
+    strategyA: {
+      type:          'elder_split',
+      target1:       (rep.distributionTargets && rep.distributionTargets.target1) || null,
+      target2:       (rep.distributionTargets && rep.distributionTargets.target2) || null,
+      target3:       (rep.distributionTargets && rep.distributionTargets.target3) || null,
+      exit1Pct:      30,
+      exit2Pct:      35,
+      stopLoss:      rep.box ? rep.box.low : null,
+    },
+    strategyB: (function() {
+      var _atr = Number(rep.atr || 0);
+      if (!_atr || isNaN(_atr) || !isFinite(_atr) || _atr <= 0)
+        return { type:'atr_trailing', error:'ATR 데이터 부족', trailAmount: null };
+      return { type:'atr_trailing', trailAmount: parseFloat((_atr * 2).toFixed(6)), stopLoss: rep.box ? rep.box.low : null };
+    })(),
     // 백엔드 검증 예약 필드
     outcome:            null,
     failReason:         null,
@@ -2113,42 +2132,172 @@ function exitSnapshotMode() {
 
 
 // ── [v3] 종합 브리핑 — 일반인 이해 가능 자연어 요약 (최대 4문장/220자) ──
+
+// ── [v3] 점수 시각화 — buildScoreViz + renderScoreViz ─────────────
+// 기존 calcScore 방식 절대 변경하지 않음 — 표시용으로만 분해
+// 섹션별 절대 max 고정: 구조=3 / 진입=1.5 / 리스크=2
+function buildScoreViz(rep) {
+  var btcPenalty = (rep._btcPenalty !== undefined) ? rep._btcPenalty : 0;
+  if (typeof window !== 'undefined' && window.state && window.state.btcFilter)
+    btcPenalty = window.state.btcFilter.penalty || 0;
+
+  // ⭐ 공식 스캔 점수 (절대 max=3 고정 — PRE-PUMP 기준)
+  var prep  = rep.prePump ? 3 : 0;
+  var speed = rep.vol && rep.vol.accel > 1.2 ? 1.0
+            : rep.vol && rep.vol.accel > 1.05 ? 0.5 : 0;
+  var obv   = rep.obv && rep.obv.trend === 'up' ? 1.0 : 0;
+  var structureTotal = prep + speed + obv;
+
+  // 🔍 보조 진입 해석 (절대 max=1.5 고정 — ENTRY 기준, 총점 미반영)
+  var entryBase  = rep.isEntryReady  ? 1.5 : 0;
+  var allowZone  = rep.finalEntryAllowed ? 1.0 : 0;
+  var costFit    = 0;
+  if (rep.currentPhase && rep.currentPhase.ratio <= 1.05)      costFit = 1.0;
+  else if (rep.currentPhase && rep.currentPhase.ratio <= 1.15) costFit = 0.5;
+  var rsiFit     = (rep.rsi >= 50 && rep.rsi <= 65) ? 0.5 : 0;
+  var entryTotal = entryBase + allowZone + costFit + rsiFit;
+
+  // ⚠️ 리스크 해석 (절대 max=2 고정 — BTC 기준, 음수 체계)
+  var rBtc   = btcPenalty > 0 ? Math.min(btcPenalty, 2) : 0;
+  var rFake  = rep.fakePump  ? 1.0 : 0;
+  var rLate  = rep.lateEntry ? 1.0 : 0;
+  var rConf  = (rep.accumulationCost && rep.accumulationCost.confidence === '낮음') ? 0.5 : 0;
+  var rHeat  = rep.rsi > 68 ? 0.5 : 0;
+  var riskTotal = -(rBtc + rFake + rLate + rConf + rHeat);
+
+  return {
+    structure: {
+      label: '⭐ 공식 스캔 점수',
+      total: parseFloat(structureTotal.toFixed(1)),
+      max:   5,     // 표시용 총점 max
+      items: [
+        { label:'PRE-PUMP', value:prep,  max:3, type:prep>0?'pos':'zero', sign:'+' },
+        { label:'속도',      value:speed, max:3, type:speed>0?'pos':'zero', sign:'+' },
+        { label:'OBV',       value:obv,   max:3, type:obv>0?'pos':'zero', sign:'+' },
+      ]
+    },
+    entry: {
+      label: '🔍 보조 진입 해석',
+      note:  '⚠️ 총점 미반영',
+      total: parseFloat(entryTotal.toFixed(1)),
+      max:   4,
+      items: [
+        { label:'ENTRY',  value:entryBase, max:1.5, type:entryBase>0?'pos':'zero', sign:'+' },
+        { label:'허용구간', value:allowZone, max:1.5, type:allowZone>0?'pos':'zero', sign:'+' },
+        { label:'평단이격', value:costFit,   max:1.5, type:costFit>0?'pos':'zero', sign:'+' },
+        { label:'RSI',    value:rsiFit,    max:1.5, type:rsiFit>0?'pos':'zero', sign:'+' },
+      ]
+    },
+    risk: {
+      label: '⚠️ 리스크 해석',
+      total: parseFloat(riskTotal.toFixed(1)),
+      max:   5,
+      items: [
+        { label:'BTC',   value:rBtc,  max:2, type:rBtc>0?'neg':'zero', sign:'-', tag:rBtc>0?'[⚠️ 총점 미반영]':'' },
+        { label:'반등?', value:rFake, max:2, type:rFake>0?'neg':'zero', sign:'-', tag:rFake>0?'[🚫 ENTRY 차단]':'' },
+        { label:'늦진입', value:rLate, max:2, type:rLate>0?'neg':'zero', sign:'-', tag:rLate>0?'[🚫 ENTRY 차단]':'' },
+        { label:'신뢰도', value:rConf, max:2, type:rConf>0?'neg':'zero', sign:'-', tag:rConf>0?'[⚠️ 주의]':'' },
+        { label:'과열',  value:rHeat, max:2, type:rHeat>0?'neg':'zero', sign:'-', tag:rHeat>0?'[⚠️ 주의]':'' },
+      ]
+    }
+  };
+}
+
+function renderScoreViz(viz) {
+  if (!viz) return '';
+  var BAR_COLORS = { pos:'var(--accent-green)', neg:'var(--accent-red)', zero:'var(--border)' };
+
+  function renderSection(sec) {
+    var headerNote = sec.note
+      ? '<span style="font-size:.58rem;color:var(--accent-orange);margin-left:6px">'+sec.note+'</span>'
+      : '';
+    var rows = sec.items.map(function(item) {
+      // safeWidth — 섹션 절대 max 기준 (개별 max 아님)
+      var pct   = safeWidth(item.value, item.max);
+      var col   = BAR_COLORS[item.type] || 'var(--border)';
+      var sign  = item.value > 0 ? item.sign : '';
+      var tag   = item.tag ? '<span style="font-size:.55rem;color:var(--text-muted);margin-left:4px">'+item.tag+'</span>' : '';
+      return '<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">'
+        +'<span style="width:52px;font-family:var(--mono);font-size:.62rem;color:var(--text-muted);flex-shrink:0">'+item.label+'</span>'
+        +'<div style="flex:1;height:7px;background:var(--bg-secondary);border-radius:3px;overflow:hidden">'
+        +'<div style="width:'+pct+'%;height:100%;background:'+col+';border-radius:3px;transition:width .3s"></div>'
+        +'</div>'
+        +'<span style="width:28px;font-family:var(--mono);font-size:.62rem;color:'+col+';text-align:right">'+sign+item.value+'</span>'
+        +tag
+        +'</div>';
+    }).join('');
+    var totalColor = sec.total < 0 ? 'var(--accent-red)' : sec.total >= 3.5 ? 'var(--accent-green)' : 'var(--accent-orange)';
+    return '<div style="margin-bottom:10px">'
+      +'<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px">'
+      +'<span style="font-size:.68rem;font-weight:700;color:var(--text-primary)">'+sec.label+headerNote+'</span>'
+      +'<span style="font-size:.68rem;font-family:var(--mono);color:'+totalColor+'">'+sec.total+'</span>'
+      +'</div>'
+      +rows
+      +'</div>';
+  }
+
+  return '<div style="padding:8px;background:var(--bg-secondary);border-radius:4px">'
+    +renderSection(viz.structure)
+    +renderSection(viz.entry)
+    +renderSection(viz.risk)
+    +'</div>';
+}
+
 function buildComprehensiveBriefing(coin) {
   var rep   = coin.representative;
   var pp    = rep.prePump;
-  var phase = rep.currentPhase  || {};
-  var cost  = rep.accumulationCost || {};
+  var phase = rep.currentPhase      || {};
+  var cost  = rep.accumulationCost  || {};
   var str   = rep.accumulationStrength || {};
+  var box   = rep.box || {};
+  var vol   = rep.vol || {};
+  var obv   = rep.obv || {};
   var sents = [];
 
-  // 1. 구조 + 위치
+  // 1. 구조 + 위치 (자연어 전문가 서술)
   if (pp && phase.label === '매집') {
-    sents.push(rep.base+'은(는) 현재 횡보 박스 내 상단 근접 구간에서 거래량이 늘고 있습니다.');
+    sents.push(rep.base+'은(는) 현재 횡보 박스 내 상단 근접 구간에서 에너지를 축적하는 흐름입니다.');
+  } else if (pp && phase.label === '초기 상승') {
+    sents.push(rep.base+'은(는) 매집 패턴이 확인되고 초기 상승 구간에 진입했습니다. 평단 대비 '+(phase.ratio||'?')+'배 수준입니다.');
   } else if (pp) {
-    sents.push(rep.base+'은(는) 매집 패턴이 감지됐지만, 이미 평단 대비 '+phase.ratio+'배 위에 있습니다.');
+    sents.push(rep.base+'은(는) 매집 패턴은 유효하나 이미 평단 대비 '+(phase.ratio||'?')+'배 위에 있어 신중한 접근이 필요합니다.');
   } else {
-    sents.push(rep.base+'은(는) 아직 명확한 매집 패턴이 형성되지 않았습니다.');
+    sents.push(rep.base+'은(는) 현재 뚜렷한 세력 매집 패턴이 형성되지 않은 상태입니다.');
   }
 
-  // 2. 수급
+  // 2. 수급 상태 (거래량/OBV)
   if (str.label && str.label !== '참고 불가') {
-    sents.push('거래량 수급은 '+str.label+' 수준이며, '+escapeHtml(str.reason||'')+'.');
+    var supplyDesc = str.label === '강함'
+      ? '거래량 급증 및 OBV 상승이 동반된 강한 수급 유입이 포착됩니다.'
+      : str.label === '보통'
+      ? '거래량이 평균 대비 증가하고 있으며 수급 측면에서 긍정적인 신호가 보입니다.'
+      : '수급 신호가 약한 편이라 추가 확인이 필요합니다.';
+    sents.push(supplyDesc);
+  }
+  if (obv.trend === 'up' && obv.leading) {
+    sents.push('OBV가 가격보다 먼저 상승하는 선행 패턴이 감지되어 돌파 기대감이 높습니다.');
   }
 
-  // 3. 리스크 + 행동
+  // 3. 구조 설명
+  if (box.isSideways && box.isNearTop) {
+    sents.push('박스 상단까지 약 '+box.distanceToTop.toFixed(1)+'% 남은 상황으로, 돌파 직전 구조에 해당합니다.');
+  } else if (box.isBreakout && box.breakoutStrength <= 5) {
+    sents.push('박스 상단을 '+box.breakoutStrength.toFixed(1)+'% 돌파한 초기 단계로, 추격보다 눌림목 진입이 유리합니다.');
+  }
+
+  // 4. 리스크 + 행동 가이드
   if (rep.fakePump) {
-    sents.push('최근 반등 패턴이 감지됐습니다 — 물린 세력의 탈출 가능성이 있어 진입 주의가 필요합니다.');
+    sents.push('다만 최근 저점 대비 빠른 반등이 포착됐습니다 — 물린 세력의 탈출 가능성이 있으므로 무리한 추격보다 보수적으로 접근하시기 바랍니다.');
   } else if (rep.lateEntry) {
-    sents.push('이미 박스를 돌파한 상태라 신규 진입보다 눌림목을 기다리는 것이 유리합니다.');
+    sents.push('이미 박스 돌파 이후 상당 부분 상승한 상태입니다 — 신규 진입보다 단기 눌림목을 기다리는 전략을 권장합니다.');
   } else if (rep.finalEntryAllowed) {
-    sents.push('현재 평단 대비 이격이 낮아 진입을 검토해볼 수 있는 구간입니다.');
+    sents.push('현재 평단 대비 이격이 낮아 진입을 검토해볼 수 있는 구간입니다. 단계적 분할 매수를 고려하세요.');
   } else {
-    sents.push('현재는 관찰 구간이며, 돌파 확인 후 재진입을 검토하세요.');
+    sents.push('현재는 관찰 구간이며, 거래량과 구조를 추가 확인 후 진입 여부를 결정하세요.');
   }
 
-  var brief = sents.join(' ');
-  if (brief.length > 220) brief = brief.slice(0, 218) + '…';
-  return brief;
+  var raw = sents.join(' ');
+  return safeBriefing(raw);  // 500자 soft cap 적용
 }
 
 // ── [v3] 기술 리뷰 — buildAnalysis 대체, 4~6줄 전문가 요약 ─────────
@@ -2712,9 +2861,27 @@ function buildCoinDetailHTML(coin) {
 
   // [v3] 종합 브리핑 — 카드 상단 (일반인 요약)
   var briefText = buildComprehensiveBriefing(coin);
+  // [v3] 브리핑 <details> 래핑 + 경고 문구
+  var _briefSummary = briefText.slice(0, 60) + (briefText.length > 60 ? '…' : '');
   var briefHTML = '<div class="detail-section" style="background:rgba(0,199,190,.06);border-color:rgba(0,199,190,.3)">'
-    +'<div class="detail-section-title" style="color:var(--accent-cyan)">💬 종합 브리핑</div>'
-    +'<div style="font-size:.72rem;color:var(--text-primary);line-height:1.6;padding:6px 0">'+escapeHtml(briefText)+'</div>'
+    +'<details open>'
+    +'<summary style="cursor:pointer;font-size:.7rem;font-weight:700;color:var(--accent-cyan);list-style:none;display:flex;align-items:center;gap:6px">'
+    +'<span>💬</span><span>'+escapeHtml(_briefSummary)+'</span>'
+    +'<span style="font-size:.6rem;color:var(--text-muted);margin-left:auto">▾ 상세 보기</span>'
+    +'</summary>'
+    +'<div style="font-size:.72rem;color:var(--text-primary);line-height:1.7;padding:8px 0">'
+    +escapeHtml(briefText)
+    +'</div>'
+    +'<div style="font-size:.6rem;color:var(--text-muted);margin-top:6px;padding-top:6px;border-top:1px solid var(--border)">'
+    +'※ 브리핑은 참고용이며 최종 판단은 점수(total)와 필터 조건을 우선으로 할 것'
+    +'</div>'
+    +'</details>'
+    +'</div>';
+
+  // [v3] 점수 시각화 섹션 (buildScoreViz + renderScoreViz)
+  var _scoreViz    = buildScoreViz(rep);
+  var scoreVizHTML = '<div class="detail-section"><div class="detail-section-title">📊 점수 시각화</div>'
+    + renderScoreViz(_scoreViz)
     +'</div>';
 
   // [v3] 기술 리뷰 — buildAnalysis 섹션 대체
@@ -2909,6 +3076,7 @@ function buildCoinDetailHTML(coin) {
   return btcWarnHTML
     +repHTML
     +briefHTML
+    +scoreVizHTML
     +'<div class="score-summary-line">📊 '+escapeHtml(rep.scoreSummary||rep.total+'')+'</div>'
     +accStrHTML+costHTML+phaseHTML
     +techHTML+riskHTML
@@ -2925,11 +3093,14 @@ function buildCoinDetailHTML(coin) {
     +gapText
     +'<div style="margin-top:10px;padding:8px;background:rgba(0,230,118,.06);border:1px solid rgba(0,230,118,.2);border-radius:4px;font-family:var(--mono);font-size:.67rem">'
     +'<div style="color:var(--accent-green);font-weight:700;margin-bottom:6px">📐 매도 전략 (A안 — 엘더 방식)</div>'
-    +'<div style="margin-bottom:2px">1차 익절: <b>'+formatPrice(distTgt.target1||0)+'</b> <span style="color:var(--text-muted)">(30%)</span></div>'
-    +'<div style="margin-bottom:2px">2차 익절: <b>'+formatPrice(distTgt.target2||0)+'</b> <span style="color:var(--text-muted)">(30~40%)</span></div>'
-    +'<div style="margin-bottom:2px">손절 기준: <b>'+formatPrice(rep.box&&rep.box.low||0)+'</b> <span style="color:var(--accent-red)">(box.low)</span></div>'
-    +'<div style="color:var(--text-muted);font-size:.62rem;margin-top:4px">이후 잔량: 추세 추적 유지</div>'
-    +'</div>'
+    +'<div style="margin-bottom:2px">1차 익절: <b>'+formatPriceByExchange(distTgt.target1||0,rep.exchange)+'</b> <span style="color:var(--text-muted)">(30%)</span></div>'
+    +'<div style="margin-bottom:2px">2차 익절: <b>'+formatPriceByExchange(distTgt.target2||0,rep.exchange)+'</b> <span style="color:var(--text-muted)">(30~40%)</span></div>'
+    +'<div style="margin-bottom:2px">손절 기준: <b>'+formatPriceByExchange(rep.box&&rep.box.low||0,rep.exchange)+'</b> <span style="color:var(--accent-red)">(box.low)</span></div>'
+    +'<div style="color:var(--text-muted);margin-top:2px">이후 잔량: 추세 추적 유지</div>'
+    +'<details style="margin-top:8px;border-top:1px solid rgba(0,230,118,.2);padding-top:6px"><summary style="cursor:pointer;font-size:.63rem;color:var(--text-muted);list-style:none">💡 B 전략 보기 (추세 추종 트레일링 스탑)</summary>'
+    +'<div style="margin-top:4px;font-size:.62rem;color:var(--text-secondary)">'
+    +(function(){var _a=Number(rep.atr||0);if(!_a||isNaN(_a)||!isFinite(_a)||_a<=0)return'ATR 부족으로 계산 불가';return '고점 대비 '+formatPriceByExchange(_a*2,rep.exchange)+' (ATR×2) 하락 시 전량 청산';})()+'</div></details>'
+    +'</div>'+'</div>'
     +'<div class="detail-section"><div class="detail-section-title">▶ 차트 확인</div>'+chartLinks+'</div>'
     +'<div style="font-size:.58rem;color:var(--text-muted);font-family:var(--mono);margin-top:8px">기준: '+rep.exchange+' 1시간봉</div>';
 }
@@ -3250,6 +3421,57 @@ function buildTgMessage(coin,alertType){
 }
 
 // ── 포맷 유틸 ─────────────────────────────────────────────────────
+
+// ── [v3] 방어 함수 3개 ─────────────────────────────────────────────
+
+// safeWidth — 막대그래프 폭 계산 방어 (NaN/Inf/ZeroDivision 차단)
+// 반드시 섹션 절대 최대값(max)을 고정으로 사용할 것
+// 구조 max=3 / 진입 max=1.5 / 리스크 max=2
+function safeWidth(score, max) {
+  if (!max || max <= 0) return 0;
+  if (score === null || score === undefined) return 0;
+  var num = Number(score);
+  if (isNaN(num)) return 0;
+  var w = (Math.abs(num) / max) * 100;
+  if (!isFinite(w) || isNaN(w)) return 0;
+  if (w > 100) return 100;
+  if (w < 0)   return 0;
+  return parseFloat(w.toFixed(2));
+}
+
+// formatPriceByExchange — 거래소별 가격 포맷 (NaN/Inf/null 방어)
+// 원본 데이터는 건드리지 말 것 — 화면/텔레그램 출력 시에만 사용
+function formatPriceByExchange(value, exchange) {
+  if (value === null || value === undefined) return '-';
+  var num = Number(value);
+  if (isNaN(num) || !isFinite(num)) return '-';
+  // exchange 없을 때 fallback (연결 안 된 경우 대비)
+  if (!exchange) {
+    return num >= 1
+      ? num.toLocaleString('en-US', { minimumFractionDigits:2, maximumFractionDigits:4 })
+      : num.toLocaleString('en-US', { minimumFractionDigits:4, maximumFractionDigits:8 });
+  }
+  if (exchange === 'UPBIT' || exchange === 'BITHUMB') {
+    return num.toLocaleString('en-US', { minimumFractionDigits:1, maximumFractionDigits:1 });
+  }
+  if (exchange === 'BINANCE') {
+    return num < 1
+      ? num.toLocaleString('en-US', { minimumFractionDigits:5, maximumFractionDigits:5 })
+      : num.toLocaleString('en-US', { minimumFractionDigits:2, maximumFractionDigits:2 });
+  }
+  // 미지원 거래소 fallback
+  return num.toLocaleString('en-US', { minimumFractionDigits:2, maximumFractionDigits:4 });
+}
+
+// safeBriefing — 브리핑 길이 폭주 방지 (500자 soft cap)
+// UI 카드 높이 붕괴 방지용 — "제한"이 아닌 "방어 장치"
+function safeBriefing(text) {
+  if (!text) return '';
+  if (typeof text !== 'string') text = String(text);
+  if (text.length > 500) return text.slice(0, 497) + '…';
+  return text;
+}
+
 function formatPrice(p){if(!p||isNaN(p))return'-';if(p>=1000000)return p.toLocaleString('ko-KR',{maximumFractionDigits:0});if(p>=100)return p.toLocaleString('ko-KR',{maximumFractionDigits:2});if(p>=1)return p.toFixed(4);return p.toFixed(8);}
 function formatPct(v){if(v===undefined||v===null||isNaN(v))return'-';v=parseFloat(v);return(v>=0?'+':'')+v.toFixed(2)+'%';}
 function escapeHtml(s){if(!s)return'';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
