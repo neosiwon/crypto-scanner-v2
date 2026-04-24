@@ -1655,35 +1655,75 @@ body::before {
   .score-head-grid{ grid-template-columns:1fr; }
 }
 
+
+
+/* ═══════════════════════════════════════════════════════════════
+   [MODULE: woos_hero_ui_v3_7] — 메인 로고 히어로 / 모바일 최적 / 상태탭 정리
+   ═══════════════════════════════════════════════════════════════ */
+#app{max-width:760px;padding:0 14px 88px;}
+#header.hero-header{min-height:42vh;display:flex;align-items:center;justify-content:center;padding:26px 0 18px;border-bottom:none;margin-bottom:10px;position:relative;}
+#header.hero-header::before{content:'';position:absolute;inset:12px 0 0;background:radial-gradient(circle at 50% 42%,rgba(0,212,255,.18),transparent 34%),radial-gradient(circle at 50% 28%,rgba(138,78,255,.14),transparent 38%);pointer-events:none;}
+.woos-hero-card{position:relative;width:100%;min-height:310px;display:flex;flex-direction:column;justify-content:center;align-items:center;padding:20px 12px 16px;border-radius:18px;background:linear-gradient(180deg,rgba(10,20,33,.42),rgba(7,12,20,.08)),radial-gradient(circle at 50% 45%,rgba(0,212,255,.08),transparent 45%);}
+.woos-hero-logo{display:block;width:min(92vw,560px);max-width:100%;height:auto;margin:0 auto;filter:drop-shadow(0 0 8px rgba(0,229,255,.44)) drop-shadow(0 0 22px rgba(138,78,255,.28)) drop-shadow(0 0 34px rgba(0,255,136,.10));}
+.woos-hero-fallback{font-family:var(--mono);font-size:2rem;font-weight:900;letter-spacing:4px;color:var(--accent-cyan);text-shadow:var(--glow-cyan);}
+.woos-hero-meta{margin-top:10px;display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap;font-family:var(--mono);font-size:.64rem;color:#6d8aa6;letter-spacing:2px;text-align:center;}
+.woos-hero-meta .build-badge{margin-left:6px;}
+.woos-hero-status{position:absolute;right:14px;top:14px;display:flex;align-items:center;gap:9px;padding:8px 10px;border:1px solid rgba(0,212,255,.12);border-radius:999px;background:rgba(6,12,20,.58);backdrop-filter:blur(8px);}
+.woos-hero-status #clock{font-size:.66rem;color:#91a9c1;}
+.woos-hero-status .live-indicator{font-size:.62rem;color:#91a9c1;}
+.disclaimer{margin-top:2px;border-radius:12px;padding:11px 14px;}
+#controlPanel{margin-top:18px;border-radius:14px;padding:18px;background:linear-gradient(180deg,rgba(15,26,39,.94),rgba(10,18,29,.92));box-shadow:0 18px 50px rgba(0,0,0,.18),inset 0 1px 0 rgba(255,255,255,.03);}
+.control-title{font-size:.72rem;margin-bottom:15px;color:#3be5ff;}
+.ex-toggle{min-height:52px;border-radius:10px;font-size:.76rem;letter-spacing:1.5px;}
+.ctrl-input{min-height:46px;border-radius:10px;}
+#scanBtn{min-height:64px;border-radius:12px;font-size:.95rem;letter-spacing:6px;margin-top:8px;}
+body.woos-scanning #header.hero-header{min-height:28vh;transition:min-height .45s ease;}
+body.woos-scanning .woos-hero-logo{width:min(58vw,340px);opacity:.88;transition:width .45s ease,opacity .35s ease;}
+body.woos-results #header.hero-header{min-height:20vh;transition:min-height .45s ease;}
+body.woos-results .woos-hero-logo{width:min(48vw,280px);transition:width .45s ease;}
+#progressPanel.visible{animation:woosPanelIn .28s ease-out both;}
+@keyframes woosPanelIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+#diagnosticPanel.woos-system-panel{margin:12px 0 16px!important;padding:12px!important;background:rgba(8,15,24,.42)!important;border:1px solid rgba(36,61,87,.58)!important;border-radius:14px!important;font-size:.68rem!important;color:#7a9ab8!important;}
+.woos-status-grid{display:grid;grid-template-columns:1fr;gap:8px;}
+.woos-status-row{display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:0;}
+.woos-status-label{font-family:var(--mono);color:#6f89a4;font-size:.62rem;min-width:58px;letter-spacing:.8px;}
+.woos-chip{display:inline-flex;align-items:center;justify-content:center;min-height:26px;padding:4px 9px;border-radius:999px;border:1px solid rgba(36,61,87,.78);background:rgba(13,23,36,.78);font-family:var(--mono);font-size:.62rem;text-decoration:none!important;cursor:pointer;}
+.woos-chip.cyan{color:#7dd3fc;border-color:rgba(125,211,252,.30)}.woos-chip.yellow{color:#fbbf24;border-color:rgba(251,191,36,.28)}.woos-chip.green{color:#4ade80;border-color:rgba(74,222,128,.24)}.woos-chip.purple{color:#c084fc;border-color:rgba(192,132,252,.28)}.woos-chip.orange{color:#fb923c;border-color:rgba(251,146,60,.28)}.woos-chip.blue{color:#60a5fa;border-color:rgba(96,165,250,.28)}.woos-chip.lime{color:#a3e635;border-color:rgba(163,230,53,.24)}
+#diagResult.woos-diag-result{margin-top:10px!important;padding:10px 12px!important;border:1px solid rgba(36,61,87,.52);border-radius:10px!important;background:rgba(0,0,0,.34)!important;}
+.result-card{border-radius:14px;background:linear-gradient(180deg,rgba(17,30,46,.96),rgba(10,18,29,.94));box-shadow:0 10px 24px rgba(0,0,0,.16),inset 0 1px 0 rgba(255,255,255,.025);overflow:hidden;}
+.result-card:hover{transform:translateY(-1px);box-shadow:0 14px 34px rgba(0,0,0,.22),0 0 0 1px rgba(0,212,255,.06) inset;}
+.card-header{padding:14px 14px;align-items:stretch;}
+.grade-badge{width:42px;height:42px;border-radius:12px;font-size:.92rem;}
+.card-main{display:flex;flex-direction:column;justify-content:center;gap:6px;}
+.card-symbol{font-size:1.08rem;letter-spacing:.5px;}
+.card-score{font-size:1.72rem;line-height:1;}
+.card-change{font-size:.78rem;}
+.sig-tag,.prepump-badge,.sync-badge,.exists-tag{border-radius:999px;}
+.impact-strip{display:flex;gap:6px;flex-wrap:wrap;margin-top:3px;}
+.impact-pill{display:inline-flex;align-items:center;gap:4px;padding:3px 7px;border-radius:999px;border:1px solid rgba(36,61,87,.62);background:rgba(8,15,24,.42);font-family:var(--mono);font-size:.58rem;color:#91a9c1;}
+.impact-pill b{color:#f6fbff;font-weight:800;}
+.card-detail.open{animation:impactOpen .22s ease-out both;}
+@keyframes impactOpen{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:translateY(0)}}
+@media (max-width:640px){#app{padding:0 12px 84px;}#header.hero-header{min-height:38vh;padding:18px 0 8px;}.woos-hero-card{min-height:270px;padding:18px 6px 14px;}.woos-hero-logo{width:96vw;}.woos-hero-status{position:static;margin-top:10px;gap:8px;}.woos-hero-meta{font-size:.58rem;letter-spacing:1.6px;}.disclaimer{font-size:.66rem;line-height:1.7;}#controlPanel{padding:15px;border-radius:13px;}.control-row{gap:8px;}.ex-toggle{min-width:0;min-height:50px;font-size:.68rem;padding:10px 2px;}.ex-badge{font-size:.46rem;right:5px;top:-6px;}.input-group{min-width:100%;}#scannerApiRow .input-group,#proxyRow .input-group{min-width:100%;}#scanBtn{min-height:62px;font-size:.9rem;letter-spacing:4px;}.woos-status-label{width:100%;min-width:100%;margin-bottom:2px;}.woos-chip{font-size:.60rem;padding:4px 8px;}.card-header{gap:10px;padding:13px 12px;}.grade-badge{width:38px;height:38px;border-radius:10px;}.card-symbol{font-size:1rem;}.card-right{min-width:58px;}.card-score{font-size:1.5rem;}.impact-strip{display:none;}}
+/* [END MODULE: woos_hero_ui_v3_7] */
+
 </style>
 </head>
 <body>
 <div id="app">
 
-  <!-- ─── 헤더 ─── -->
-  <header id="header">
-    <div class="header-top">
-      <div>
-        <!-- [MODIFIED v3.6] 텍스트 로고 → 이미지 로고 (WOOS CRYPTO SCANNER) -->
-        <!-- 이미지 로드 실패 시 텍스트로 fallback -->
-        <div class="logo-wrap">
-          <img src="assets/logo.png" alt="WOOS CRYPTO SCANNER"
-               class="main-logo"
-               onerror="this.style.display='none';var f=document.getElementById('logoFallback');if(f)f.style.display='block';">
-          <div id="logoFallback" class="logo" style="display:none">CRYPTO SCANNER</div>
-        </div>
-        <div class="logo-sub">
-          UPBIT · BINANCE · REAL-TIME
-          <!-- [v3.6] 빌드 버전 배지 — 탭 시 상세 팝업 -->
-          <span class="build-badge" id="buildBadge" onclick="showBuildInfo()"
-                title="빌드 정보 상세 보기">v3.6</span>
-        </div>
+  <!-- ─── 헤더 / 메인 로고 히어로 ─── -->
+  <header id="header" class="hero-header">
+    <div class="woos-hero-card">
+      <img src="assets/logo.png" alt="WOOS CRYPTO SCANNER" class="woos-hero-logo"
+           onerror="this.style.display='none';var f=document.getElementById('logoFallback');if(f)f.style.display='block';">
+      <div id="logoFallback" class="woos-hero-fallback" style="display:none">WOOS SCANNER</div>
+      <div class="woos-hero-meta">
+        <span>UPBIT</span><span>·</span><span>BITHUMB</span><span>·</span><span>BINANCE</span><span>·</span><span>REAL-TIME</span>
+        <span class="build-badge" id="buildBadge" onclick="showBuildInfo()" title="빌드 정보 상세 보기">v3.7</span>
       </div>
-      <div class="header-status">
-        <div class="live-indicator">
-          <div class="live-dot" id="liveDot"></div>
-          <span id="liveStatus">IDLE</span>
-        </div>
+      <div class="woos-hero-status">
+        <div class="live-indicator"><div class="live-dot" id="liveDot"></div><span id="liveStatus">IDLE</span></div>
         <div id="clock">--:--:--</div>
       </div>
     </div>
@@ -1828,46 +1868,25 @@ body::before {
   </section>
 
   <!-- ═════════════════════════════════════════════════════════════ -->
-  <!-- [MODULE: diagnostic_panel]  — v3.5 진단 UI (축소형)            -->
-  <!-- 작은 1줄 텍스트 링크 3개. 결과 있을 때만 확장.                  -->
-  <!-- [MODIFIED v3.5] 기존 대형 버튼 → 미니멀 인라인 링크            -->
-  <!-- ═════════════════════════════════════════════════════════════ -->
-  <section id="diagnosticPanel" style="margin:-2px 0 10px 0;padding:6px 10px;
-    background:transparent;border-top:1px dashed rgba(255,180,50,0.15);
-    border-bottom:1px dashed rgba(255,180,50,0.15);font-size:.7rem;color:#7a8b9f">
-    <span style="color:#7a8b9f;margin-right:8px">진단:</span>
-    <a href="javascript:void(0)" onclick="diagTelegramDirect()"
-      style="color:#7dd3fc;text-decoration:none;margin-right:10px;cursor:pointer">TG발송</a>
-    <span style="color:#3a4a6a">·</span>
-    <a href="javascript:void(0)" onclick="diagAlertState()"
-      style="color:#fbbf24;text-decoration:none;margin:0 10px;cursor:pointer">쿨다운</a>
-    <span style="color:#3a4a6a">·</span>
-    <a href="javascript:void(0)" onclick="diagKVSave()"
-      style="color:#4ade80;text-decoration:none;margin-left:10px;cursor:pointer">KV저장</a>
-    <!-- [MODULE: phase2_ops_row] — Phase 2.1 운영 버튼 -->
-    <div style="margin-top:6px;padding-top:6px;border-top:1px dashed rgba(180,120,255,0.15)">
-      <span style="color:#7a8b9f;margin-right:8px">Phase 2:</span>
-      <a href="javascript:void(0)" onclick="opsMigrate()"
-        style="color:#c084fc;text-decoration:none;margin-right:10px;cursor:pointer">마이그레이션</a>
-      <span style="color:#3a4a6a">·</span>
-      <a href="javascript:void(0)" onclick="opsVerifyBatch()"
-        style="color:#fb923c;text-decoration:none;margin:0 10px;cursor:pointer">배치검증</a>
-      <span style="color:#3a4a6a">·</span>
-      <a href="javascript:void(0)" onclick="opsPendingStatus()"
-        style="color:#60a5fa;text-decoration:none;margin:0 10px;cursor:pointer">큐상태</a>
-      <span style="color:#3a4a6a">·</span>
-      <a href="javascript:void(0)" onclick="opsDashboard()"
-        style="color:#a3e635;text-decoration:none;margin-left:10px;cursor:pointer">대시보드</a>
+  <!-- [MODULE: diagnostic_panel] — v3.7 시스템 상태 / 운영 탭 정리 -->
+  <section id="diagnosticPanel" class="woos-system-panel">
+    <div class="woos-status-grid">
+      <div class="woos-status-row">
+        <span class="woos-status-label">진단</span>
+        <a class="woos-chip cyan" href="javascript:void(0)" onclick="diagTelegramDirect()">TG발송</a>
+        <a class="woos-chip yellow" href="javascript:void(0)" onclick="diagAlertState()">쿨다운</a>
+        <a class="woos-chip green" href="javascript:void(0)" onclick="diagKVSave()">KV저장</a>
+      </div>
+      <div class="woos-status-row">
+        <span class="woos-status-label">Phase 2</span>
+        <a class="woos-chip purple" href="javascript:void(0)" onclick="opsMigrate()">마이그레이션</a>
+        <a class="woos-chip orange" href="javascript:void(0)" onclick="opsVerifyBatch()">배치검증</a>
+        <a class="woos-chip blue" href="javascript:void(0)" onclick="opsPendingStatus()">큐상태</a>
+        <a class="woos-chip lime" href="javascript:void(0)" onclick="opsDashboard()">대시보드</a>
+      </div>
     </div>
-    <!-- [END MODULE: phase2_ops_row] -->
-    <div id="diagResult" style="margin-top:8px;padding:8px 10px;
-      background:rgba(0,0,0,0.4);border-radius:6px;font-family:var(--mono);
-      font-size:.68rem;color:#c7d7e6;white-space:pre-wrap;word-break:break-all;
-      max-height:280px;overflow-y:auto;display:none"></div>
-    <a href="javascript:void(0)" onclick="diagClearResult()" id="diagClearBtn"
-      style="display:none;margin-top:4px;color:#7a8b9f;font-size:.65rem;text-decoration:none;cursor:pointer">
-      × 닫기
-    </a>
+    <div id="diagResult" class="woos-diag-result" style="white-space:pre-wrap;word-break:break-all;max-height:280px;overflow-y:auto;display:none"></div>
+    <a href="javascript:void(0)" onclick="diagClearResult()" id="diagClearBtn" style="display:none;margin-top:6px;color:#7a8b9f;font-size:.65rem;text-decoration:none;cursor:pointer">× 닫기</a>
   </section>
   <!-- [END MODULE: diagnostic_panel] -->
 
@@ -2502,7 +2521,7 @@ async function opsDashboard() {
 // 탭 시 상세 팝업
 // ═══════════════════════════════════════════════════════════════
 
-var HTML_VERSION = 'v3.6';  // HTML 빌드 (여기서 관리)
+var HTML_VERSION = 'v3.7';  // HTML 빌드 (여기서 관리)
 var _cachedBuildInfo = null;
 
 async function fetchBuildInfo() {
@@ -3708,6 +3727,7 @@ var sleep = function(ms){return new Promise(function(r){setTimeout(r,ms);});};
 async function startScan() {
   if (state.isScanning) return;
   state.isScanning = true;
+  try { document.body.classList.remove('woos-results'); document.body.classList.add('woos-scanning'); } catch(e){}
 
   var btn = document.getElementById('scanBtn');
   btn.disabled=true; btn.classList.add('scanning'); btn.textContent='⟳ SCANNING...';
@@ -3843,6 +3863,7 @@ async function startScan() {
   addLog('스캔 완료. 통합 후보: '+coins.length+'개','ok');
 
   applyFilter(); renderSummary();
+  try { document.body.classList.remove('woos-scanning'); document.body.classList.add('woos-results'); } catch(e){}
   ['summaryBar','filterBar','quickFilterBar'].forEach(function(id){var el=document.getElementById(id);if(el)el.classList.add('visible');});
   document.getElementById('progressPanel').classList.remove('visible');
   document.getElementById('liveDot').className='live-dot active';
@@ -3939,6 +3960,7 @@ function buildCoinCardHTML(coin, idx) {
     +'<div class="ex-tags">'+existsBadges+'</div></div>'
     +entryBanner
     +'<div class="card-signals">'+prePumpBadge+syncBadge+'</div>'
+    +'<div class="impact-strip"><span class="impact-pill">대표 <b>'+rep.exchange+'</b></span><span class="impact-pill">점수 <b>'+rep.total+'</b></span><span class="impact-pill">변동 <b>'+formatPct(rep.changeRate)+'</b></span></div>'
     +'</div>'
     +'<div class="card-right">'
     +'<div class="card-score" style="color:'+gCol+'">'+rep.total+'</div>'
