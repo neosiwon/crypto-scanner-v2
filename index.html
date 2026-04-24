@@ -1679,6 +1679,46 @@ body::before {
     </div>
   </section>
 
+  <!-- ═════════════════════════════════════════════════════════════ -->
+  <!-- [MODULE: diagnostic_panel]  — v3.5 진단 UI (임시)              -->
+  <!-- 향후 제거 또는 dev-only 플래그로 숨김 예정                      -->
+  <!-- 목적: 모바일 환경에서 알람/KV/쿨다운 문제를 탭 한 번으로 진단   -->
+  <!-- ═════════════════════════════════════════════════════════════ -->
+  <section id="diagnosticPanel" style="margin-bottom:10px;padding:12px;
+    background:rgba(255,180,50,0.04);border:1px solid rgba(255,180,50,0.2);
+    border-radius:10px">
+    <div style="font-size:.85rem;font-weight:700;color:#ffb432;margin-bottom:10px">
+      🔧 진단 도구 (v3.5)
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button onclick="diagTelegramDirect()" class="diag-btn"
+        style="flex:1;min-width:140px;padding:10px 8px;background:#1a2335;border:1px solid #3a4a6a;
+        border-radius:8px;color:#7dd3fc;font-size:.78rem;cursor:pointer">
+        📲 텔레그램 직접 발송
+      </button>
+      <button onclick="diagAlertState()" class="diag-btn"
+        style="flex:1;min-width:140px;padding:10px 8px;background:#1a2335;border:1px solid #3a4a6a;
+        border-radius:8px;color:#fbbf24;font-size:.78rem;cursor:pointer">
+        ⏰ 쿨다운 상태 조회
+      </button>
+      <button onclick="diagKVSave()" class="diag-btn"
+        style="flex:1;min-width:140px;padding:10px 8px;background:#1a2335;border:1px solid #3a4a6a;
+        border-radius:8px;color:#4ade80;font-size:.78rem;cursor:pointer">
+        💾 KV 저장 테스트
+      </button>
+    </div>
+    <div id="diagResult" style="margin-top:10px;padding:10px;
+      background:rgba(0,0,0,0.4);border-radius:6px;font-family:var(--mono);
+      font-size:.7rem;color:#c7d7e6;white-space:pre-wrap;word-break:break-all;
+      max-height:240px;overflow-y:auto;display:none"></div>
+    <button onclick="diagClearResult()" id="diagClearBtn"
+      style="display:none;margin-top:6px;padding:4px 10px;background:transparent;
+      border:1px solid #3a4a6a;border-radius:6px;color:#7a8b9f;font-size:.7rem;cursor:pointer">
+      결과 닫기
+    </button>
+  </section>
+  <!-- [END MODULE: diagnostic_panel] -->
+
   <!-- ─── 진행 패널 ─── -->
   <section id="progressPanel">
     <div class="progress-header">
@@ -1993,6 +2033,147 @@ if (typeof window !== 'undefined') {
 }
 // ═══════════════════════════════════════════════════════════════
 // [END MODULE: scanner_api_settings_js]
+// ═══════════════════════════════════════════════════════════════
+
+// ═══════════════════════════════════════════════════════════════
+// [MODULE: diagnostic_functions]  — v3.5 진단 JS (임시)
+// 향후 제거 또는 dev-only 플래그 뒤로 숨김 예정.
+// UI: [MODULE: diagnostic_panel] 과 페어링.
+// ═══════════════════════════════════════════════════════════════
+
+function diagShowResult(html) {
+  var box = document.getElementById('diagResult');
+  var btn = document.getElementById('diagClearBtn');
+  if (!box) return;
+  box.style.display = 'block';
+  box.innerHTML = html;
+  if (btn) btn.style.display = 'inline-block';
+}
+function diagClearResult() {
+  var box = document.getElementById('diagResult');
+  var btn = document.getElementById('diagClearBtn');
+  if (box) box.style.display = 'none';
+  if (btn) btn.style.display = 'none';
+}
+function diagEsc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// 진단 1: 텔레그램 Bot API 직접 호출
+function diagTelegramDirect() {
+  var tok = '';
+  var cid = '';
+  try {
+    tok = localStorage.getItem('tg_token') || '';
+    cid = localStorage.getItem('tg_chatid') || '';
+  } catch(e) {}
+  if (!tok || !cid) {
+    diagShowResult('<span style="color:#f87171">❌ 토큰 또는 chatID 없음</span>\n텔레그램 알림 설정에서 값을 먼저 입력하세요.');
+    return;
+  }
+  diagShowResult('⏳ 발송 중...');
+  var msg = '[DIAG ' + new Date().toLocaleTimeString('ko-KR') + '] 진단 버튼에서 직접 발송';
+  fetch('https://api.telegram.org/bot' + tok + '/sendMessage', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ chat_id: cid, text: msg })
+  })
+  .then(function(r) { return r.json().then(function(d){ return {status:r.status, data:d}; }); })
+  .then(function(res) {
+    var ok = res.data && res.data.ok;
+    var header = ok
+      ? '<span style="color:#4ade80">✅ 발송 성공 (HTTP ' + res.status + ')</span>\n텔레그램 확인하세요.'
+      : '<span style="color:#f87171">❌ 실패 (HTTP ' + res.status + ')</span>';
+    diagShowResult(header + '\n\n' + diagEsc(JSON.stringify(res.data, null, 2)));
+  })
+  .catch(function(e) {
+    diagShowResult('<span style="color:#f87171">❌ 네트워크 에러</span>\n' + diagEsc(e.message));
+  });
+}
+
+// 진단 2: alert_state (쿨다운 상태) 조회
+function diagAlertState() {
+  var raw = '';
+  try { raw = localStorage.getItem('alert_state') || ''; } catch(e) {}
+  if (!raw) {
+    diagShowResult('<span style="color:#fbbf24">⚠ alert_state 없음</span>\n아직 한 번도 알람을 보낸 적이 없거나, 쿨다운 이력이 초기화된 상태입니다.');
+    return;
+  }
+  try {
+    var parsed = JSON.parse(raw);
+    var coins = Object.keys(parsed);
+    var now = Date.now();
+    var header = '<span style="color:#4ade80">📋 쿨다운 중인 코인: ' + coins.length + '개</span>\n현재 시각: ' + new Date(now).toLocaleTimeString('ko-KR') + '\n\n';
+    var lines = [];
+    coins.forEach(function(base) {
+      var st = parsed[base];
+      var grade = st.lastGrade || '?';
+      var score = st.lastScore || 0;
+      var sentAt = st.sentAt || {};
+      var types = Object.keys(sentAt).map(function(t) {
+        var elapsed = Math.floor((now - sentAt[t]) / 60000);
+        return '  ' + t + ': ' + elapsed + '분 전';
+      }).join('\n');
+      lines.push('▸ ' + base + ' (' + grade + ' / ' + score + '점)\n' + types);
+    });
+    diagShowResult(header + diagEsc(lines.join('\n\n')));
+  } catch(e) {
+    diagShowResult('<span style="color:#f87171">❌ 파싱 실패</span>\n' + diagEsc(e.message) + '\n\nRaw:\n' + diagEsc(raw.substring(0, 500)));
+  }
+}
+
+// 진단 3: Workers KV 저장 테스트 (POST /api/snapshots)
+function diagKVSave() {
+  var base = '', tok = '';
+  try {
+    base = localStorage.getItem('snapshot_api_base') || '';
+    tok  = localStorage.getItem('scanner_token') || '';
+  } catch(e) {}
+  if (!base) {
+    diagShowResult('<span style="color:#f87171">❌ SCANNER API BASE 미설정</span>');
+    return;
+  }
+  diagShowResult('⏳ 저장 요청 중...');
+  var testSnap = {
+    snapshotId: 'DIAG_' + Date.now() + '_TEST',
+    timestamp: new Date().toISOString(),
+    base: 'DIAG',
+    gradeCode: 'A',
+    total: 3.5,
+    exchange: 'BITHUMB',
+    alertType: 'ENTRY',
+    source: 'html_manual_test',
+    price: 100,
+    rsi: 55
+  };
+  var headers = { 'Content-Type': 'application/json' };
+  if (tok) headers['X-Scanner-Token'] = tok;
+  fetch(base + '/api/snapshots', {
+    method: 'POST',
+    headers: headers,
+    body: JSON.stringify(testSnap)
+  })
+  .then(function(r) { return r.text().then(function(t){ return {status:r.status, body:t}; }); })
+  .then(function(res) {
+    var header;
+    if (res.status === 200 || res.status === 201) {
+      header = '<span style="color:#4ade80">✅ 저장 성공 (HTTP ' + res.status + ')</span>\n/snapshots 조회 시 DIAG 키로 확인 가능';
+    } else if (res.status === 401) {
+      header = '<span style="color:#f87171">❌ 인증 실패 (401)</span>\nSCANNER_TOKEN 불일치 — Cloudflare 변수와 HTML 입력값 확인';
+    } else if (res.status === 404) {
+      header = '<span style="color:#f87171">❌ 경로 없음 (404)</span>\nWorkers 에 /api/snapshots 엔드포인트 배포 안 됨 — index.js 재배포 필요';
+    } else {
+      header = '<span style="color:#f87171">❌ 실패 (HTTP ' + res.status + ')</span>';
+    }
+    diagShowResult(header + '\n\n' + diagEsc(res.body.substring(0, 500)));
+  })
+  .catch(function(e) {
+    diagShowResult('<span style="color:#f87171">❌ 네트워크 에러</span>\n' + diagEsc(e.message) + '\n\nURL: ' + diagEsc(base + '/api/snapshots'));
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════
+// [END MODULE: diagnostic_functions]
 // ═══════════════════════════════════════════════════════════════
 
 function fetchWithTimeout(url, opts, ms) {
