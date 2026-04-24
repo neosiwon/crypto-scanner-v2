@@ -115,6 +115,38 @@ body::before {
   font-family: var(--mono); letter-spacing: 2px;
   margin-top: 3px;
 }
+/* [MODULE: build_badge] — v3.6 빌드 버전 표시 */
+.build-badge {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 1px 6px;
+  font-family: var(--mono);
+  font-size: .55rem;
+  font-weight: 700;
+  letter-spacing: .5px;
+  color: var(--accent-cyan);
+  background: rgba(0, 229, 255, 0.08);
+  border: 1px solid rgba(0, 229, 255, 0.25);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all .2s ease;
+}
+.build-badge:hover, .build-badge:active {
+  background: rgba(0, 229, 255, 0.18);
+  border-color: rgba(0, 229, 255, 0.5);
+  color: #fff;
+}
+.build-badge.build-mismatch {
+  color: #f87171;
+  background: rgba(248, 113, 113, 0.1);
+  border-color: rgba(248, 113, 113, 0.4);
+}
+.build-badge.build-syncing {
+  color: #fbbf24;
+  background: rgba(251, 191, 36, 0.08);
+  border-color: rgba(251, 191, 36, 0.3);
+}
+/* [END MODULE: build_badge] */
 .header-status { display: flex; align-items: center; gap: 8px; }
 .live-indicator {
   display: flex; align-items: center; gap: 5px;
@@ -1640,7 +1672,12 @@ body::before {
                onerror="this.style.display='none';var f=document.getElementById('logoFallback');if(f)f.style.display='block';">
           <div id="logoFallback" class="logo" style="display:none">CRYPTO SCANNER</div>
         </div>
-        <div class="logo-sub">UPBIT · BINANCE · REAL-TIME</div>
+        <div class="logo-sub">
+          UPBIT · BINANCE · REAL-TIME
+          <!-- [v3.6] 빌드 버전 배지 — 탭 시 상세 팝업 -->
+          <span class="build-badge" id="buildBadge" onclick="showBuildInfo()"
+                title="빌드 정보 상세 보기">v3.6</span>
+        </div>
       </div>
       <div class="header-status">
         <div class="live-indicator">
@@ -2456,6 +2493,114 @@ async function opsDashboard() {
 
 // ═══════════════════════════════════════════════════════════════
 // [END MODULE: diagnostic_functions]
+// ═══════════════════════════════════════════════════════════════
+
+// ═══════════════════════════════════════════════════════════════
+// [MODULE: build_info]  — v3.6 빌드 버전 표시
+// 향후 ui/build_info.js 로 분리 예정.
+// 로드 시 Workers /health 조회 → buildTag 읽음 → 배지 업데이트
+// 탭 시 상세 팝업
+// ═══════════════════════════════════════════════════════════════
+
+var HTML_VERSION = 'v3.6';  // HTML 빌드 (여기서 관리)
+var _cachedBuildInfo = null;
+
+async function fetchBuildInfo() {
+  var base = '';
+  try { base = localStorage.getItem('snapshot_api_base') || ''; } catch(e){}
+  if (!base) return null;
+  try {
+    var res = await fetch(base + '/health', { cache: 'no-store' });
+    if (!res.ok) return null;
+    var data = await res.json();
+    return data;
+  } catch(e) { return null; }
+}
+
+function updateBuildBadge(info) {
+  var el = document.getElementById('buildBadge');
+  if (!el) return;
+  _cachedBuildInfo = info;
+  if (!info) {
+    el.textContent = HTML_VERSION;
+    el.classList.add('build-syncing');
+    el.title = 'Workers 연결 확인 중... (탭해서 재시도)';
+    return;
+  }
+  el.classList.remove('build-syncing', 'build-mismatch');
+  var serverTag = info.buildTag || '?';
+  // 축약: 'phase2.1-outcome-verify-test1-migrate' → 'v2.1 · migrate'
+  var shortTag = shortenBuildTag(serverTag);
+  el.textContent = HTML_VERSION + ' · ' + shortTag;
+  el.title = '탭해서 상세 보기';
+}
+
+function shortenBuildTag(tag) {
+  if (!tag) return '?';
+  // phase 숫자 추출
+  var m = tag.match(/phase(\d+(?:\.\d+)?)/);
+  var phase = m ? 'p' + m[1] : 'dev';
+  // 뒤쪽 suffix 추출 (outcome-verify, migrate 등 마지막 키워드)
+  var parts = tag.split('-');
+  var lastKeyword = '';
+  for (var i = parts.length - 1; i >= 0; i--) {
+    var p = parts[i];
+    if (p && !/^\d/.test(p) && p !== 'test1' && p !== 'verify' &&
+        !p.startsWith('b') && !p.startsWith('phase')) {
+      lastKeyword = p;
+      break;
+    }
+  }
+  return lastKeyword ? phase + '·' + lastKeyword : phase;
+}
+
+function showBuildInfo() {
+  var info = _cachedBuildInfo;
+  if (!info) {
+    // 재시도
+    fetchBuildInfo().then(updateBuildBadge).then(function(){
+      if (_cachedBuildInfo) showBuildInfo();
+      else alert('Workers 연결 실패.\nSCANNER API BASE 설정을 확인하세요.');
+    });
+    return;
+  }
+  var lines = [
+    '🏷 빌드 정보',
+    '',
+    'HTML (스캐너): ' + HTML_VERSION,
+    'Workers:       ' + (info.buildTag || '?'),
+    'Version:       ' + (info.version || '?'),
+    'Release:       ' + (info.release || '?'),
+    '',
+    'Sleep Mode:    ' + (info.sleepMode ? 'ON 🌙' : 'OFF ☀'),
+    '',
+    '📦 Features:'
+  ];
+  if (info.features) {
+    Object.keys(info.features).forEach(function(k){
+      var v = info.features[k];
+      lines.push('  ' + k + ': ' + (typeof v === 'boolean' ? (v ? '✓' : '✗') : v));
+    });
+  }
+  alert(lines.join('\n'));
+}
+
+// 페이지 로드 + localStorage 변경 시 자동 업데이트
+(function initBuildInfo(){
+  function run() {
+    fetchBuildInfo().then(updateBuildBadge);
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', run);
+  } else {
+    setTimeout(run, 500);  // API BASE 세팅 후
+  }
+  // 5분마다 자동 재조회 (Workers 재배포 감지)
+  setInterval(run, 5 * 60 * 1000);
+})();
+
+// ═══════════════════════════════════════════════════════════════
+// [END MODULE: build_info]
 // ═══════════════════════════════════════════════════════════════
 
 function fetchWithTimeout(url, opts, ms) {
