@@ -1927,6 +1927,120 @@ body.scan-complete .main-logo,
 }
 /* [END MODULE: woos_mobile_hero_v38] */
 
+/* ═══════════════════════════════════════════════════════════════
+   [MODULE: ops_compact_v39] — 진단/Phase2 카드 컴팩트 패치 (모바일 Y축 밀도)
+   향후 css/ops_compact.css 로 분리 예정.
+
+   목적: v3.8 토글 카드 UI의 Y축 여백 압축
+   - 카드 버튼 세로 56px → 42~46px (탭 표준 44pt 준수)
+   - 토글 헤더 48px → 36~40px
+   - 섹션 간격 (토글 사이) 10px → 6px
+   - padding / gap 전체 축소
+
+   원칙: Q1.B + Q2.B + Q3.B 기본 가정 적용
+   ═══════════════════════════════════════════════════════════════ */
+
+/* 토글 컨테이너 — 섹션 간 간격 축소 */
+.settings-toggle-v38,
+.ops-toggle-v38 {
+  margin-top: 8px !important;
+}
+.settings-toggle-v38:first-of-type,
+.ops-toggle-v38:first-of-type {
+  margin-top: 4px !important;
+}
+
+/* 토글 summary (접힘/펼침 헤더) — 48px → 38px */
+.settings-toggle-v38 > summary,
+.ops-toggle-v38 > summary {
+  padding: 8px 12px !important;
+  min-height: 36px !important;
+  font-size: .68rem !important;
+  letter-spacing: 1.2px !important;
+}
+.settings-toggle-v38 > summary::after,
+.ops-toggle-v38 > summary::after {
+  font-size: .82rem !important;
+}
+
+/* 토글 body padding — 펼친 내용 좁게 */
+.settings-body-v38,
+.ops-body-v38 {
+  padding: 0 10px 10px !important;
+}
+
+/* 카드 그리드 gap — 10px → 6px */
+.ops-card-grid-v38 {
+  gap: 6px !important;
+}
+
+/* 카드 버튼 — 56px → 44px, padding 타이트 */
+.ops-card-v38 {
+  min-height: 44px !important;
+  padding: 6px 8px !important;
+  font-size: .68rem !important;
+  border-radius: 10px !important;
+  gap: 5px !important;
+  letter-spacing: .5px !important;
+  line-height: 1.15 !important;
+}
+
+/* diagResult 결과창 — padding 축소 */
+#diagResult.diag-result-v38 {
+  margin: 8px 0 0 !important;
+  padding: 9px 10px !important;
+  font-size: .65rem !important;
+  border-radius: 10px !important;
+}
+#diagClearBtn.diag-clear-v38 {
+  margin: 6px 0 0 !important;
+  padding: 5px 8px !important;
+  font-size: .62rem !important;
+  border-radius: 7px !important;
+}
+
+/* diagnosticPanel 자체 margin — 섹션 박스 위/아래 여백도 축소 */
+#diagnosticPanel.diagnostic-v38 {
+  margin: 10px 0 !important;
+}
+
+/* 고급 설정 토글 안 input 도 약간 컴팩트 */
+.settings-body-v38 .control-row {
+  margin-bottom: 8px !important;
+}
+.settings-body-v38 .ctrl-input,
+.settings-body-v38 #proxyStatus,
+.settings-body-v38 #scannerApiStatus {
+  min-height: 44px !important;
+  font-size: .72rem !important;
+}
+
+/* 380px 이하 극소 화면 — 더 타이트하게 */
+@media (max-width: 380px) {
+  .ops-card-v38 {
+    min-height: 42px !important;
+    font-size: .64rem !important;
+    padding: 5px 6px !important;
+  }
+  .settings-toggle-v38 > summary,
+  .ops-toggle-v38 > summary {
+    min-height: 34px !important;
+    font-size: .64rem !important;
+    padding: 7px 10px !important;
+  }
+  .ops-card-grid-v38 { gap: 5px !important; }
+}
+
+/* 640px 이하 — v3.8 에서 지정한 min-height: 56px 를 덮어쓰기 */
+@media (max-width: 640px) {
+  .ops-card-v38 {
+    min-height: 44px !important;
+    font-size: .66rem !important;
+  }
+  .ops-card-grid-v38 { gap: 6px !important; }
+}
+/* [END MODULE: ops_compact_v39] */
+
 </style>
 </head>
 <body>
@@ -1944,7 +2058,7 @@ body.scan-complete .main-logo,
       </div>
       <div class="logo-sub">
         UPBIT · BITHUMB · BINANCE · REAL-TIME
-        <span class="build-badge" id="buildBadge" onclick="showBuildInfo()" title="빌드 정보 상세 보기">v3.8 · p2.1</span>
+        <span class="build-badge" id="buildBadge" onclick="showBuildInfo()" title="빌드 정보 상세 보기">v3.9 · p2.1</span>
       </div>
       <div class="woos-hero-status">
         <div class="live-indicator">
@@ -1993,7 +2107,7 @@ body.scan-complete .main-logo,
           <div class="input-group" style="flex:3">
             <label class="input-label">BINANCE PROXY URL (Cloudflare Worker)</label>
             <input type="text" class="ctrl-input" id="inputProxyUrl"
-              placeholder="https://your-worker.workers.dev"
+              placeholder="자동 입력됨 · 다르면 수정 후 자동 저장"
               oninput="updateProxyStatus()">
           </div>
           <div class="input-group" style="flex:1;justify-content:flex-end">
@@ -2383,17 +2497,53 @@ function calcSyncStatus(exchanges) {
 }
 
 // ── 프록시 유틸 ──────────────────────────────────────────────────
+// [MODULE: proxy_persist_v39]  — v3.9 PROXY URL 하드코딩 기본값 + localStorage 병행
+// 향후 ui/settings.js 로 분리 예정.
+// 우선순위: 1) 사용자 입력값 → 2) localStorage → 3) DEFAULT_PROXY_URL
+// 사용자가 입력창에서 수정하면 자동 저장. 수정 후에도 재배포 후 유지됨.
+var DEFAULT_PROXY_URL = 'https://exchange-proxy-worker-v2.neosiwon.workers.dev';
+
 function getProxyUrl() {
   var el = document.getElementById('inputProxyUrl');
   return el ? el.value.trim().replace(/\/$/, '') : '';
 }
 function updateProxyStatus() {
   var url = getProxyUrl(), el = document.getElementById('proxyStatus');
+  // localStorage 자동 저장 (입력값 있을 때만)
+  try {
+    if (url) localStorage.setItem('proxy_url', url);
+    // 입력값이 비어있으면 localStorage 는 건드리지 않음 (사용자가 의도적으로 비운 경우일 수 있어)
+  } catch(e) {}
   if (!el) return;
   if (!url) { el.textContent='미설정'; el.style.color='var(--text-muted)'; }
   else if (url.startsWith('https://')) { el.textContent='설정됨 ✓'; el.style.color='var(--accent-green)'; }
   else { el.textContent='URL 확인 필요'; el.style.color='var(--accent-yellow)'; }
 }
+// 페이지 로드 시 proxy URL 복원
+// 우선순위: localStorage → DEFAULT_PROXY_URL
+function initProxyUrl() {
+  var el = document.getElementById('inputProxyUrl');
+  if (!el) return;
+  var saved = '';
+  try { saved = localStorage.getItem('proxy_url') || ''; } catch(e){}
+  // 우선순위 결정
+  var value = saved || DEFAULT_PROXY_URL;
+  // 이미 사용자가 현재 세션에서 입력한 값이 있으면 덮어쓰지 않음
+  if (el.value && el.value.trim()) return;
+  el.value = value;
+  // DEFAULT_PROXY_URL 쓴 경우에도 localStorage 에 저장 (다음부터는 saved 로 로드됨)
+  try { if (!saved && value) localStorage.setItem('proxy_url', value); } catch(e){}
+  updateProxyStatus();
+}
+// DOMContentLoaded 시점에 실행
+if (typeof window !== 'undefined') {
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initProxyUrl);
+  } else {
+    setTimeout(initProxyUrl, 0);
+  }
+}
+// [END MODULE: proxy_persist_v39]
 
 // ═══════════════════════════════════════════════════════════════
 // [MODULE: scanner_api_settings_js]  — v3.5 신규
@@ -2756,7 +2906,7 @@ async function opsDashboard() {
 // 탭 시 상세 팝업
 // ═══════════════════════════════════════════════════════════════
 
-var HTML_VERSION = 'v3.8';  // HTML 빌드 (여기서 관리)
+var HTML_VERSION = 'v3.9';  // HTML 빌드 (여기서 관리)
 var _cachedBuildInfo = null;
 
 async function fetchBuildInfo() {
