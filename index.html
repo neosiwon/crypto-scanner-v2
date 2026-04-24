@@ -3,7 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<title>CRYPTO SCANNER | 세력매집 급등직전 탐지기</title>
+<title>WOOS CRYPTO SCANNER | 세력매집 급등직전 탐지기</title>
+<!-- [v3.6] 파비콘 — 이미지 없어도 무시됨 -->
+<link rel="icon" type="image/png" href="assets/logo.png">
+<link rel="apple-touch-icon" href="assets/logo.png">
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600;700&family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
 <style>
 /* ══════════════════════════════════════════
@@ -86,6 +89,27 @@ body::before {
   letter-spacing: 3px;
   text-shadow: var(--glow-cyan);
 }
+/* [MODULE: main_logo] — v3.6 로고 이미지 */
+.logo-wrap {
+  display: inline-block;
+  line-height: 0;
+}
+.main-logo {
+  display: block;
+  max-width: 200px;
+  width: 55vw;
+  min-width: 140px;
+  height: auto;
+  /* 네온 글로우 효과 — 기존 UI 사이안 톤과 일치 */
+  filter: drop-shadow(0 0 6px rgba(0, 229, 255, 0.35))
+          drop-shadow(0 0 12px rgba(138, 78, 255, 0.18));
+  transition: filter .25s ease;
+}
+.main-logo:hover {
+  filter: drop-shadow(0 0 8px rgba(0, 229, 255, 0.55))
+          drop-shadow(0 0 16px rgba(138, 78, 255, 0.25));
+}
+/* [END MODULE: main_logo] */
 .logo-sub {
   font-size: .6rem; color: var(--text-muted);
   font-family: var(--mono); letter-spacing: 2px;
@@ -1608,7 +1632,14 @@ body::before {
   <header id="header">
     <div class="header-top">
       <div>
-        <div class="logo">CRYPTO SCANNER</div>
+        <!-- [MODIFIED v3.6] 텍스트 로고 → 이미지 로고 (WOOS CRYPTO SCANNER) -->
+        <!-- 이미지 로드 실패 시 텍스트로 fallback -->
+        <div class="logo-wrap">
+          <img src="assets/logo.png" alt="WOOS CRYPTO SCANNER"
+               class="main-logo"
+               onerror="this.style.display='none';var f=document.getElementById('logoFallback');if(f)f.style.display='block';">
+          <div id="logoFallback" class="logo" style="display:none">CRYPTO SCANNER</div>
+        </div>
         <div class="logo-sub">UPBIT · BINANCE · REAL-TIME</div>
       </div>
       <div class="header-status">
@@ -1776,10 +1807,26 @@ body::before {
     <span style="color:#3a4a6a">·</span>
     <a href="javascript:void(0)" onclick="diagKVSave()"
       style="color:#4ade80;text-decoration:none;margin-left:10px;cursor:pointer">KV저장</a>
+    <!-- [MODULE: phase2_ops_row] — Phase 2.1 운영 버튼 -->
+    <div style="margin-top:6px;padding-top:6px;border-top:1px dashed rgba(180,120,255,0.15)">
+      <span style="color:#7a8b9f;margin-right:8px">Phase 2:</span>
+      <a href="javascript:void(0)" onclick="opsMigrate()"
+        style="color:#c084fc;text-decoration:none;margin-right:10px;cursor:pointer">마이그레이션</a>
+      <span style="color:#3a4a6a">·</span>
+      <a href="javascript:void(0)" onclick="opsVerifyBatch()"
+        style="color:#fb923c;text-decoration:none;margin:0 10px;cursor:pointer">배치검증</a>
+      <span style="color:#3a4a6a">·</span>
+      <a href="javascript:void(0)" onclick="opsPendingStatus()"
+        style="color:#60a5fa;text-decoration:none;margin:0 10px;cursor:pointer">큐상태</a>
+      <span style="color:#3a4a6a">·</span>
+      <a href="javascript:void(0)" onclick="opsDashboard()"
+        style="color:#a3e635;text-decoration:none;margin-left:10px;cursor:pointer">대시보드</a>
+    </div>
+    <!-- [END MODULE: phase2_ops_row] -->
     <div id="diagResult" style="margin-top:8px;padding:8px 10px;
       background:rgba(0,0,0,0.4);border-radius:6px;font-family:var(--mono);
       font-size:.68rem;color:#c7d7e6;white-space:pre-wrap;word-break:break-all;
-      max-height:200px;overflow-y:auto;display:none"></div>
+      max-height:280px;overflow-y:auto;display:none"></div>
     <a href="javascript:void(0)" onclick="diagClearResult()" id="diagClearBtn"
       style="display:none;margin-top:4px;color:#7a8b9f;font-size:.65rem;text-decoration:none;cursor:pointer">
       × 닫기
@@ -2254,6 +2301,158 @@ function diagKVSave() {
     diagShowResult('<span style="color:#f87171">❌ 네트워크 에러</span>\n' + diagEsc(e.message) + '\n\nURL: ' + diagEsc(base + '/api/snapshots'));
   });
 }
+
+// ═══════════════════════════════════════════════════════════════
+// [MODULE: phase2_ops_functions] — Phase 2.1 운영 버튼
+// 향후 ui/phase2_ops.js 로 분리 예정.
+// 목적: 주소창 Bookmarklet 우회 (삼성 인터넷 javascript: 제한 대응)
+// ═══════════════════════════════════════════════════════════════
+
+function opsGetBase() {
+  var base = '';
+  try { base = localStorage.getItem('snapshot_api_base') || ''; } catch(e){}
+  return base;
+}
+
+function opsFormatJSON(obj) {
+  try { return diagEsc(JSON.stringify(obj, null, 2)); }
+  catch(e){ return diagEsc(String(obj)); }
+}
+
+// 레거시 53건 pending 큐로 마이그레이션
+async function opsMigrate() {
+  var base = opsGetBase();
+  if (!base) {
+    diagShowResult('<span style="color:#f87171">❌ SCANNER API BASE 미설정</span>');
+    return;
+  }
+  if (!confirm('기존 snap 들을 pending 큐로 이동합니다.\n(이미 outcome 있는 것은 건너뜀)\n\n계속?')) return;
+  diagShowResult('⏳ 마이그레이션 실행 중...');
+  try {
+    var res = await fetch(base + '/outcome/migrate-legacy', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ limit: 100 })
+    });
+    var status = res.status;
+    var data = await res.json().catch(function(){ return { error: 'invalid json' }; });
+    var hdr;
+    if (data.ok) {
+      hdr = '<span style="color:#c084fc">✅ 마이그레이션 완료 (HTTP ' + status + ')</span>\n'
+          + 'migrated: ' + data.migrated + '건 / skipped: ' + data.skipped + '건 / errors: ' + data.errors + '건\n'
+          + 'pending 큐 크기: ' + data.newPendingSize;
+    } else if (status === 404) {
+      hdr = '<span style="color:#f87171">❌ 엔드포인트 없음 (HTTP 404)</span>\n'
+          + 'Workers 가 /outcome/migrate-legacy 포함된 최신 버전 아님.\nindex.js 재배포 필요.';
+    } else {
+      hdr = '<span style="color:#f87171">❌ 실패 (HTTP ' + status + ')</span>';
+    }
+    diagShowResult(hdr + '\n\n' + opsFormatJSON(data));
+  } catch(e) {
+    diagShowResult('<span style="color:#f87171">❌ 네트워크 에러</span>\n' + diagEsc(e.message));
+  }
+}
+
+// 수동 배치 검증 (10건 처리)
+async function opsVerifyBatch() {
+  var base = opsGetBase();
+  if (!base) {
+    diagShowResult('<span style="color:#f87171">❌ SCANNER API BASE 미설정</span>');
+    return;
+  }
+  diagShowResult('⏳ 배치 검증 중 (최대 10건)...');
+  try {
+    var res = await fetch(base + '/outcome/verify-pending', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ limit: 10 })
+    });
+    var status = res.status;
+    var data = await res.json().catch(function(){ return { error: 'invalid json' }; });
+    var hdr;
+    if (data.ok) {
+      // resultType 분포 집계
+      var counts = { SUCCESS:0, WATCH:0, FLAT:0, FAIL:0, ORPHANED:0 };
+      (data.results || []).forEach(function(r){
+        if (counts[r.resultType] !== undefined) counts[r.resultType]++;
+      });
+      hdr = '<span style="color:#fb923c">✅ 배치 검증 완료</span>\n'
+          + 'processed: ' + data.processed + '건 / remaining: ' + data.remaining + '건\n'
+          + 'SUCCESS: ' + counts.SUCCESS + ' / WATCH: ' + counts.WATCH
+          + ' / FLAT: ' + counts.FLAT + ' / FAIL: ' + counts.FAIL
+          + ' / ORPHANED: ' + counts.ORPHANED;
+    } else {
+      hdr = '<span style="color:#f87171">❌ 실패 (HTTP ' + status + ')</span>';
+    }
+    diagShowResult(hdr + '\n\n' + opsFormatJSON(data));
+  } catch(e) {
+    diagShowResult('<span style="color:#f87171">❌ 네트워크 에러</span>\n' + diagEsc(e.message));
+  }
+}
+
+// pending 큐 상태 조회
+async function opsPendingStatus() {
+  var base = opsGetBase();
+  if (!base) {
+    diagShowResult('<span style="color:#f87171">❌ SCANNER API BASE 미설정</span>');
+    return;
+  }
+  diagShowResult('⏳ 큐 상태 조회 중...');
+  try {
+    var res = await fetch(base + '/outcome/pending');
+    var status = res.status;
+    var data = await res.json().catch(function(){ return { error: 'invalid json' }; });
+    var hdr = '<span style="color:#60a5fa">📋 Pending 큐 현황</span>\n'
+      + 'total: ' + (data.total != null ? data.total : '?')
+      + ' / dueForVerify: ' + (data.dueForVerify != null ? data.dueForVerify : '?')
+      + ' / cap: ' + (data.cap != null ? data.cap : '?') + '\n'
+      + 'batchLimit: ' + data.batchLimit + '건/Cron · 창: ' + data.windowHours + 'h · ORPHAN: ' + data.orphanThresholdDays + '일';
+    diagShowResult(hdr + '\n\n' + opsFormatJSON(data));
+  } catch(e) {
+    diagShowResult('<span style="color:#f87171">❌ 네트워크 에러</span>\n' + diagEsc(e.message));
+  }
+}
+
+// 대시보드 데이터 조회 (캐시 우회)
+async function opsDashboard() {
+  var base = opsGetBase();
+  if (!base) {
+    diagShowResult('<span style="color:#f87171">❌ SCANNER API BASE 미설정</span>');
+    return;
+  }
+  diagShowResult('⏳ 대시보드 데이터 조회 중...');
+  try {
+    var res = await fetch(base + '/outcome/dashboard?nocache=1');
+    var status = res.status;
+    var data = await res.json().catch(function(){ return { error: 'invalid json' }; });
+    var hdr;
+    if (data.alertStats) {
+      var a = data.alertStats;
+      var c = data.coinStats || {};
+      hdr = '<span style="color:#a3e635">📊 대시보드 요약</span>\n\n'
+          + '[알람 단위]\n'
+          + '  total: ' + a.total + ' (pending: ' + (a.pending||0) + ')\n'
+          + '  SUCCESS: ' + a.success + ' / WATCH: ' + a.watch
+          + ' / FLAT: ' + a.flat + ' / FAIL: ' + a.fail + ' / ORPHAN: ' + (a.orphaned||0) + '\n'
+          + '  성공률: ' + a.successRate + '% · Watch+: ' + a.watchOrBetter + '%\n'
+          + '  평균 MaxRise: ' + (a.avgMaxRise||0) + '% · MaxDraw: ' + (a.avgMaxDrawdown||0) + '%\n\n'
+          + '[코인 단위]\n'
+          + '  total: ' + (c.total||0)
+          + ' / SUCCESS: ' + (c.success||0) + ' / FAIL: ' + (c.fail||0) + '\n'
+          + '  성공률: ' + (c.successRate||0) + '%\n\n'
+          + 'coinEvolution: ' + ((data.coinEvolution||[]).length) + '개 코인 추적 중';
+    } else {
+      hdr = '<span style="color:#f87171">❌ 대시보드 응답 형식 이상</span>';
+    }
+    diagShowResult(hdr);
+  } catch(e) {
+    diagShowResult('<span style="color:#f87171">❌ 네트워크 에러</span>\n' + diagEsc(e.message));
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// [END MODULE: phase2_ops_functions]
+// ═══════════════════════════════════════════════════════════════
 
 // ═══════════════════════════════════════════════════════════════
 // [END MODULE: diagnostic_functions]
