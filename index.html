@@ -2385,6 +2385,214 @@ body.scan-complete .main-logo,
 }
 /* [END MODULE: phase22_outcome_css] */
 
+/* ═══════════════════════════════════════════════════════════════
+   [MODULE: ui_compact_v401] — Y축 축소 + 폰트 확대 (모바일 가독성)
+   향후 css/ui_compact.css 로 분리 예정.
+
+   v4.0.2 수정:
+     - Outcome 디스클레이머 → 원위치 복원 (sticky 유지)
+     - 스캐너 디스클레이머 최하단 이동은 HTML 구조로 처리
+     - 거래소 버튼 Y축 56px → 46px (폰트 유지, 패딩만)
+     - Outcome 여백 추가 축소, 폰트 크기 유지
+
+   적용 범위: 진단/Phase2 ops 카드 + Outcome 전 섹션 + 거래소 버튼
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ─ 거래소 버튼 Y축 축소 (폰트 유지, 패딩만 압축) ─ */
+.exchange-row-v38 .ex-toggle {
+  min-height: 46px !important;     /* 56 → 46 */
+  padding: 6px 4px !important;     /* 11 5 → 6 4 */
+}
+/* 640px 이하 v3.8 규칙 덮어쓰기 */
+@media (max-width: 640px) {
+  .exchange-row-v38 .ex-toggle {
+    min-height: 46px !important;   /* 58 → 46 */
+    padding: 6px 3px !important;
+  }
+}
+
+/* ─ 진단/Phase2 ops 카드 — 폰트 크게 ─ */
+.ops-card-v38 {
+  font-size: .78rem !important;
+  letter-spacing: .3px !important;
+  padding: 5px 8px !important;
+  min-height: 42px !important;
+}
+.settings-toggle-v38 > summary,
+.ops-toggle-v38 > summary {
+  font-size: .76rem !important;
+  min-height: 34px !important;
+  padding: 6px 12px !important;
+}
+
+/* ─ Outcome KPI 카드 — Y 축소 + 폰트 ↑ ─ */
+.outcome-kpi {
+  padding: 7px 6px !important;
+}
+.outcome-kpi-label {
+  font-size: .66rem !important;
+  margin-bottom: 2px !important;
+  letter-spacing: .5px !important;
+}
+.outcome-kpi-value {
+  font-size: 1.4rem !important;
+  line-height: 1 !important;
+}
+
+/* ─ Outcome 섹션 카드 ─ */
+.outcome-section {
+  padding: 7px 10px !important;    /* 8 11 → 7 10 (더 타이트) */
+  margin-bottom: 6px !important;   /* 8 → 6 */
+}
+.outcome-section-title {
+  font-size: .74rem !important;
+  margin-bottom: 5px !important;   /* 6 → 5 */
+  letter-spacing: .8px !important;
+}
+
+/* ─ Outcome 가로 막대 행 ─ */
+.outcome-row {
+  padding: 3px 0 !important;       /* 4 → 3 */
+  font-size: .76rem !important;
+}
+.outcome-row-label {
+  min-width: 64px !important;
+  font-size: .76rem !important;
+}
+.outcome-row-bar {
+  height: 11px !important;         /* 12 → 11 */
+}
+.outcome-row-stats {
+  font-size: .68rem !important;
+  min-width: 80px !important;
+}
+
+/* ─ 결과 분포 가로 막대 ─ */
+.outcome-dist {
+  padding: 7px 10px !important;
+  margin-bottom: 6px !important;
+}
+.outcome-dist-title {
+  font-size: .74rem !important;
+  margin-bottom: 5px !important;
+}
+.outcome-dist-bar {
+  height: 15px !important;         /* 16 → 15 */
+}
+.outcome-dist-seg {
+  font-size: .66rem !important;
+}
+.outcome-dist-legend {
+  font-size: .66rem !important;
+  gap: 10px !important;
+  margin-top: 5px !important;
+}
+
+/* ─ 단위 토글 ─ */
+.outcome-unit-toggle {
+  padding: 2px !important;
+  margin-bottom: 6px !important;
+}
+.outcome-unit-btn {
+  padding: 5px 4px !important;
+  font-size: .74rem !important;
+}
+
+/* ─ 등급 진화 카드 ─ */
+.grade-evo-card {
+  padding: 5px 9px 4px !important;
+  margin-bottom: 4px !important;
+}
+.grade-evo-header {
+  font-size: .72rem !important;
+  margin-bottom: 2px !important;
+}
+.grade-evo-result {
+  font-size: .66rem !important;
+  padding: 2px 8px !important;
+}
+
+/* ─ 최근 outcome 카드 ─ */
+.recent-outcome-card {
+  padding: 5px 9px !important;
+  margin-bottom: 3px !important;   /* 4 → 3 */
+  gap: 9px !important;
+  font-size: .74rem !important;
+}
+.recent-outcome-card .ro-grade {
+  width: 32px !important; height: 32px !important;
+  font-size: .78rem !important;
+  border-radius: 7px !important;
+}
+.recent-outcome-card .ro-coin {
+  font-size: .82rem !important;
+}
+.recent-outcome-card .ro-meta {
+  font-size: .64rem !important;
+  margin-top: 1px !important;
+}
+.recent-outcome-card .ro-rise {
+  font-size: .92rem !important;
+}
+.recent-outcome-card .ro-rt {
+  font-size: .6rem !important;
+  padding: 1px 6px !important;
+  margin-top: 1px !important;
+}
+
+/* ─ 새로고침/메타 행 ─ */
+.outcome-refresh-row {
+  margin-bottom: 5px !important;   /* 6 → 5 */
+}
+.outcome-refresh-btn {
+  padding: 5px 11px !important;
+  font-size: .72rem !important;
+}
+.outcome-meta-text {
+  font-size: .66rem !important;
+}
+
+/* ─ Outcome 디스클레이머 ─ */
+/* sticky top 유지 (v4.0 원래 상태) */
+.outcome-disclaimer {
+  font-size: .66rem !important;    /* .62 → .66 (살짝만 ↑) */
+  padding: 8px 11px !important;
+  margin-bottom: 6px !important;
+  line-height: 1.55 !important;
+}
+
+/* ─ 스캐너 탭 최하단 면책 문구 ─ */
+/* HTML 구조상 이미 최하단에 위치. 위 여백만 확보. */
+#tab-scanner > .disclaimer {
+  margin-top: 14px !important;
+  margin-bottom: 4px !important;
+  opacity: .82;
+}
+
+/* ─ 로딩/에러/빈 상태 ─ */
+.outcome-loading,
+.outcome-error,
+.outcome-empty {
+  padding: 22px 14px !important;
+  font-size: .78rem !important;
+}
+
+/* 380px 이하 — 더 컴팩트 */
+@media (max-width: 380px) {
+  .exchange-row-v38 .ex-toggle { min-height: 44px !important; padding: 5px 3px !important; }
+  .ops-card-v38 { font-size: .72rem !important; min-height: 40px !important; }
+  .outcome-kpi-value { font-size: 1.2rem !important; }
+  .outcome-kpi-label { font-size: .62rem !important; }
+  .outcome-section-title { font-size: .7rem !important; }
+  .outcome-row,
+  .outcome-row-label { font-size: .72rem !important; }
+  .recent-outcome-card .ro-coin { font-size: .78rem !important; }
+  .recent-outcome-card .ro-rise { font-size: .86rem !important; }
+  .outcome-disclaimer { font-size: .62rem !important; }
+}
+
+/* [END MODULE: ui_compact_v401] */
+
 </style>
 </head>
 <body>
@@ -2402,7 +2610,7 @@ body.scan-complete .main-logo,
       </div>
       <div class="logo-sub">
         UPBIT · BITHUMB · BINANCE · REAL-TIME
-        <span class="build-badge" id="buildBadge" onclick="showBuildInfo()" title="빌드 정보 상세 보기">v4.0 · p2.2</span>
+        <span class="build-badge" id="buildBadge" onclick="showBuildInfo()" title="빌드 정보 상세 보기">v4.0.2 · p2.2</span>
       </div>
       <div class="woos-hero-status">
         <div class="live-indicator">
@@ -2434,12 +2642,6 @@ body.scan-complete .main-logo,
        탭 패널: SCANNER
        ═══════════════════════════════════════════════════════════════ -->
   <div class="woos-tab-panel active" id="tab-scanner">
-  <!-- ─── 면책 고지 ─── -->
-  <div class="disclaimer">
-    ⚠ 본 도구는 기술적 지표 기반 참고 정보만 제공합니다. 투자 판단의 책임은 전적으로 본인에게 있습니다.
-    세력매집은 가능성 표현이며 확정이 아닙니다. 모든 투자에는 손실 위험이 따릅니다.
-  </div>
-
   <!-- ─── 컨트롤 패널 ─── -->
   <section id="controlPanel" class="control-panel-v38">
     <div class="control-title">▶ SCANNER CONTROLS</div>
@@ -2707,6 +2909,12 @@ body.scan-complete .main-logo,
       실서비스 권장: 자체 백엔드 프록시 서버 구성
     </div>
   </div>
+
+  <!-- ─── 면책 고지 (스캐너 탭 최하단 · v4.0.1에서 이동) ─── -->
+  <div class="disclaimer">
+    ⚠ 본 도구는 기술적 지표 기반 참고 정보만 제공합니다. 투자 판단의 책임은 전적으로 본인에게 있습니다.
+    세력매집은 가능성 표현이며 확정이 아닙니다. 모든 투자에는 손실 위험이 따릅니다.
+  </div>
   </div>
   <!-- ═══════════════════════════════════════════════════════════════
        탭 패널 끝: SCANNER
@@ -2739,7 +2947,7 @@ body.scan-complete .main-logo,
        향후 ui/outcome_dashboard.html 로 분리 예정.
        ═══════════════════════════════════════════════════════════════ -->
   <div class="woos-tab-panel" id="tab-outcome">
-    <!-- 디스클레이머 배너 (sticky) -->
+    <!-- 디스클레이머 배너 (sticky · v4.0 원위치) -->
     <div class="outcome-disclaimer">
       ⚠ 본 결과는 <b>24H 테스트1 전용 기준</b>입니다. 기존 전략 TP1 은 변경되지 않았습니다.<br>
       Success ≥ +5% · Watch +3~+5% · Flat -5~+3% · Fail ≤ -5%
@@ -3320,7 +3528,7 @@ async function opsDashboard() {
 // 탭 시 상세 팝업
 // ═══════════════════════════════════════════════════════════════
 
-var HTML_VERSION = 'v4.0';  // HTML 빌드 (여기서 관리)
+var HTML_VERSION = 'v4.0.2';  // HTML 빌드 (여기서 관리)
 var _cachedBuildInfo = null;
 
 async function fetchBuildInfo() {
