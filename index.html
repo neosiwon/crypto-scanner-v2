@@ -1582,6 +1582,33 @@ body::before {
       </div>
     </div>
 
+    <!-- ═════════════════════════════════════════════════════════ -->
+    <!-- [MODULE: scanner_api_settings_ui]  — v3.5 신규             -->
+    <!-- Scanner API base URL + 인증 토큰 입력                       -->
+    <!-- 수동 스캔 알람을 Workers KV 에 저장하기 위한 연결 설정       -->
+    <!-- ═════════════════════════════════════════════════════════ -->
+    <div class="control-row" id="scannerApiRow">
+      <div class="input-group" style="flex:3">
+        <label class="input-label">SCANNER API BASE (Workers URL)</label>
+        <input type="text" class="ctrl-input" id="inputScannerApiBase"
+          placeholder="https://auto-alert-worker-v3.xxx.workers.dev"
+          oninput="updateScannerApiStatus()">
+      </div>
+      <div class="input-group" style="flex:2">
+        <label class="input-label">SCANNER TOKEN</label>
+        <input type="password" class="ctrl-input" id="inputScannerToken"
+          placeholder="X-Scanner-Token 값"
+          oninput="updateScannerApiStatus()">
+      </div>
+      <div class="input-group" style="flex:1;justify-content:flex-end">
+        <label class="input-label">상태</label>
+        <div id="scannerApiStatus" style="font-family:var(--mono);font-size:.7rem;padding:8px 10px;
+          background:var(--bg-secondary);border:1px solid var(--border);border-radius:var(--radius);
+          color:var(--text-muted)">미설정</div>
+      </div>
+    </div>
+    <!-- [END MODULE: scanner_api_settings_ui] -->
+
     <!-- 파라미터 -->
     <div class="control-row">
       <div class="input-group">
@@ -1906,6 +1933,68 @@ function updateProxyStatus() {
   else if (url.startsWith('https://')) { el.textContent='설정됨 ✓'; el.style.color='var(--accent-green)'; }
   else { el.textContent='URL 확인 필요'; el.style.color='var(--accent-yellow)'; }
 }
+
+// ═══════════════════════════════════════════════════════════════
+// [MODULE: scanner_api_settings_js]  — v3.5 신규
+// 향후 ui/settings.js 로 분리 예정.
+// Scanner API base URL + X-Scanner-Token 입력값을 localStorage 에 저장.
+// 입력 시마다 실시간 상태 표시 + 자동 저장.
+// 페이지 로드 시 복원.
+// ═══════════════════════════════════════════════════════════════
+function updateScannerApiStatus() {
+  var baseEl  = document.getElementById('inputScannerApiBase');
+  var tokEl   = document.getElementById('inputScannerToken');
+  var stEl    = document.getElementById('scannerApiStatus');
+  if (!baseEl || !stEl) return;
+  var base = (baseEl.value || '').trim().replace(/\/$/, '');
+  var tok  = tokEl ? (tokEl.value || '').trim() : '';
+  // localStorage 저장
+  try {
+    if (base) localStorage.setItem('snapshot_api_base', base);
+    else      localStorage.removeItem('snapshot_api_base');
+    if (tok)  localStorage.setItem('scanner_token', tok);
+    else      localStorage.removeItem('scanner_token');
+  } catch(e) {}
+  // 상태 표시
+  if (!base) {
+    stEl.textContent = '미설정';
+    stEl.style.color = 'var(--text-muted)';
+  } else if (!base.startsWith('https://')) {
+    stEl.textContent = 'URL 확인';
+    stEl.style.color = 'var(--accent-yellow)';
+  } else if (!tok) {
+    stEl.textContent = 'URL ✓ 토큰 ?';
+    stEl.style.color = 'var(--accent-yellow)';
+  } else {
+    stEl.textContent = '설정됨 ✓';
+    stEl.style.color = 'var(--accent-green)';
+  }
+}
+
+// 페이지 로드 시 localStorage 에서 복원
+function initScannerApiSettings() {
+  try {
+    var base = localStorage.getItem('snapshot_api_base') || '';
+    var tok  = localStorage.getItem('scanner_token') || '';
+    var baseEl = document.getElementById('inputScannerApiBase');
+    var tokEl  = document.getElementById('inputScannerToken');
+    if (baseEl) baseEl.value = base;
+    if (tokEl)  tokEl.value  = tok;
+  } catch(e) {}
+  updateScannerApiStatus();
+}
+// DOMContentLoaded 후 1회 실행
+if (typeof window !== 'undefined') {
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initScannerApiSettings);
+  } else {
+    setTimeout(initScannerApiSettings, 0);
+  }
+}
+// ═══════════════════════════════════════════════════════════════
+// [END MODULE: scanner_api_settings_js]
+// ═══════════════════════════════════════════════════════════════
+
 function fetchWithTimeout(url, opts, ms) {
   ms = ms||6000;
   var ctrl = new AbortController(), t = setTimeout(function(){ctrl.abort();}, ms);
@@ -2381,22 +2470,51 @@ function buildSnapshotPayload(coin, alertType) {
   };
 }
 
+// ═══════════════════════════════════════════════════════════════
+// [MODULE: snapshot_remote_api]  — v3.5 수정 (경로/토큰/소스 통합)
+// 향후 core/snapshot-remote.js 로 분리 예정.
+// Workers 측 [MODULE: snapshot_ingest] 와 페어링.
+//
+// 경로: /snapshot (레거시) / /api/snapshots (v3.5 공식)
+// 인증: X-Scanner-Token (localStorage 'scanner_token' 사용)
+// source: 'html_manual' 고정 (수동 스캔 식별)
+// 폴백: 원격 실패 시 localStorage 유지 (기존 동작 불변)
+// ═══════════════════════════════════════════════════════════════
+
+// [MODIFIED v3.5] 경로 /api/snapshots, 토큰 헤더, source 주입, 폴백 유지
 async function saveSnapshotRemote(snapshot) {
   var base = getSnapshotApiBase();
-  if (!base) return { ok:false, skipped:true };
+  if (!base) return { ok:false, skipped:true, reason:'no_api_base' };
   try {
+    // source 필드 주입 (HTML 수동 스캔 표시) — Workers 가 이 필드로 자동/수동 구분
+    var payload = Object.assign({}, snapshot, { source: 'html_manual' });
+    var headers = { 'Content-Type':'application/json' };
+    // 토큰 설정되어 있으면 헤더 추가
+    try {
+      var token = localStorage.getItem('scanner_token');
+      if (token) headers['X-Scanner-Token'] = token;
+    } catch(e) {}
     var res = await fetch(base + '/api/snapshots', {
       method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body: JSON.stringify(snapshot)
+      headers: headers,
+      body: JSON.stringify(payload)
     });
-    if (!res.ok) throw new Error('HTTP '+res.status);
+    if (!res.ok) {
+      if (res.status === 401) {
+        addLog('[SNAPSHOT] 인증 실패 — scanner_token 확인 필요', 'warn');
+      }
+      throw new Error('HTTP '+res.status);
+    }
     return await res.json();
   } catch(e) {
     addLog('[SNAPSHOT] 원격 저장 실패: '+e.message, 'warn');
     return { ok:false, error:e.message };
   }
 }
+
+// ═══════════════════════════════════════════════════════════════
+// [END MODULE: snapshot_remote_api]
+// ═══════════════════════════════════════════════════════════════
 
 function saveSnapshotLocal(snapshot) {
   try {
@@ -2413,12 +2531,17 @@ function saveSnapshotLocal(snapshot) {
   }
 }
 
+// [MODIFIED v3.5] 경로 /snapshot/{id} (Workers 레거시 호환) — /api/snapshots/{id} alias 도 동작
 async function loadSnapshot(snapshotId) {
   var base = getSnapshotApiBase();
   if (base) {
     try {
+      // v3.5 공식 경로 우선 시도
       var res = await fetch(base + '/api/snapshots/' + encodeURIComponent(snapshotId));
       if (res.ok) return await res.json();
+      // 레거시 경로 폴백
+      var resLegacy = await fetch(base + '/snapshot/' + encodeURIComponent(snapshotId));
+      if (resLegacy.ok) return await resLegacy.json();
     } catch(e){}
   }
   try {
@@ -2429,30 +2552,71 @@ async function loadSnapshot(snapshotId) {
   return null;
 }
 
+// [MODIFIED v3.5]
+//   - 경로 /snapshots (Workers 실제 엔드포인트)
+//   - Workers 응답 {items: [...]} 구조 파싱
+//   - 원격 + 로컬 병합 (snapshotId 기준 dedupe, 원격 우선)
+//   - 원격 실패 시 로컬 폴백 (기존 동작 유지)
 async function listSnapshots(query) {
   var base = getSnapshotApiBase();
+  var remote = [];
+  var gotRemote = false;
   if (base) {
     try {
-      var q = query ? ('?q=' + encodeURIComponent(query)) : '';
-      var res = await fetch(base + '/api/snapshots' + q);
+      var q = '';
+      if (query) {
+        // 쿼리가 심볼 형태면 base 파라미터로 전송, 아니면 무시 (Workers 는 free-text 검색 미지원)
+        var qTrim = String(query).trim().toUpperCase();
+        if (/^[A-Z0-9]+$/.test(qTrim)) q = '?base=' + encodeURIComponent(qTrim) + '&limit=100';
+        else                           q = '?limit=100';
+      } else {
+        q = '?limit=100';
+      }
+      var res = await fetch(base + '/snapshots' + q);
       if (res.ok) {
         var data = await res.json();
-        return data.items || data.snapshots || data || [];
+        remote = (data && data.items) ? data.items : [];
+        gotRemote = true;
       }
     } catch(e){}
   }
+  // 로컬 조회 (폴백 + 병합용)
+  var local = [];
   try {
     var raw = localStorage.getItem('scanner_snapshots');
-    var arr = raw ? JSON.parse(raw) : [];
+    local = raw ? JSON.parse(raw) : [];
     if (query) {
       var ql = String(query).toLowerCase();
-      arr = arr.filter(function(x){
+      local = local.filter(function(x){
         return (x.base && x.base.toLowerCase().indexOf(ql) >= 0) ||
                (x.snapshotId && x.snapshotId.toLowerCase().indexOf(ql) >= 0);
       });
     }
-    return arr;
-  } catch(e){ return []; }
+  } catch(e){}
+  // 원격 응답 못 받았으면 로컬만 반환
+  if (!gotRemote) return local;
+  // 원격 + 로컬 병합 (snapshotId 기준 dedupe, 원격 우선)
+  var seen = {};
+  var merged = [];
+  remote.forEach(function(x){
+    if (x && x.snapshotId && !seen[x.snapshotId]) {
+      seen[x.snapshotId] = true;
+      merged.push(x);
+    }
+  });
+  local.forEach(function(x){
+    if (x && x.snapshotId && !seen[x.snapshotId]) {
+      seen[x.snapshotId] = true;
+      merged.push(x);
+    }
+  });
+  // timestamp 내림차순 정렬
+  merged.sort(function(a,b){
+    var ta = a.timestamp ? (typeof a.timestamp === 'number' ? a.timestamp : new Date(a.timestamp).getTime()) : 0;
+    var tb = b.timestamp ? (typeof b.timestamp === 'number' ? b.timestamp : new Date(b.timestamp).getTime()) : 0;
+    return tb - ta;
+  });
+  return merged;
 }
 
 function openSnapshotPanel() {
