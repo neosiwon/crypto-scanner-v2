@@ -2041,6 +2041,350 @@ body.scan-complete .main-logo,
 }
 /* [END MODULE: ops_compact_v39] */
 
+/* ═══════════════════════════════════════════════════════════════
+   [MODULE: phase22_tabs_css] — 상단 탭 바 (스캐너/스냅샷/24H Outcome)
+   향후 css/tabs.css 로 분리 예정.
+   ═══════════════════════════════════════════════════════════════ */
+.woos-tabs {
+  display: flex;
+  gap: 4px;
+  margin: 12px 0 10px;
+  padding: 4px;
+  background: rgba(8, 16, 28, .58);
+  border: 1px solid rgba(36, 61, 87, .8);
+  border-radius: 12px;
+}
+.woos-tab {
+  flex: 1;
+  min-height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-family: var(--mono);
+  font-size: .68rem;
+  letter-spacing: 1px;
+  color: var(--text-muted);
+  background: transparent;
+  border: none;
+  border-radius: 9px;
+  cursor: pointer;
+  transition: all .15s ease;
+  padding: 4px 8px;
+  line-height: 1.1;
+}
+.woos-tab:hover { color: var(--text-secondary); background: rgba(0, 212, 255, .04); }
+.woos-tab.active {
+  color: var(--accent-cyan);
+  background: rgba(0, 212, 255, .12);
+  border: 1px solid rgba(0, 212, 255, .35);
+}
+.woos-tab-badge {
+  font-size: .58rem;
+  padding: 1px 5px;
+  border-radius: 999px;
+  background: rgba(0, 212, 255, .15);
+  color: var(--accent-cyan);
+  letter-spacing: .3px;
+}
+/* 탭 콘텐츠 영역 */
+.woos-tab-panel { display: none; }
+.woos-tab-panel.active { display: block; animation: tabFade .2s ease-out; }
+@keyframes tabFade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+@media (max-width: 380px) {
+  .woos-tab { font-size: .62rem; min-height: 36px; }
+}
+/* [END MODULE: phase22_tabs_css] */
+
+/* ═══════════════════════════════════════════════════════════════
+   [MODULE: phase22_outcome_css] — 24H Outcome 탭 스타일
+   향후 css/outcome_dashboard.css 로 분리 예정.
+   ═══════════════════════════════════════════════════════════════ */
+.outcome-disclaimer {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  margin: 0 0 10px;
+  padding: 9px 12px;
+  background: linear-gradient(90deg, rgba(251,191,36,.14), rgba(251,191,36,.06));
+  border: 1px solid rgba(251,191,36,.4);
+  border-radius: 10px;
+  font-family: var(--mono);
+  font-size: .62rem;
+  line-height: 1.5;
+  color: #fbbf24;
+  letter-spacing: .3px;
+}
+.outcome-refresh-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  gap: 8px;
+}
+.outcome-refresh-btn {
+  padding: 6px 11px;
+  font-family: var(--mono);
+  font-size: .62rem;
+  color: var(--accent-cyan);
+  background: rgba(0,212,255,.08);
+  border: 1px solid rgba(0,212,255,.3);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all .15s;
+}
+.outcome-refresh-btn:active { transform: scale(.97); }
+.outcome-meta-text {
+  font-family: var(--mono);
+  font-size: .58rem;
+  color: var(--text-muted);
+  letter-spacing: .5px;
+}
+
+/* 요약 KPI 4카드 */
+.outcome-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+  margin-bottom: 10px;
+}
+.outcome-kpi {
+  padding: 10px 6px;
+  background: linear-gradient(180deg, rgba(17,30,46,.9), rgba(12,20,32,.92));
+  border: 1px solid rgba(36,61,87,.9);
+  border-radius: 10px;
+  text-align: center;
+}
+.outcome-kpi-label {
+  font-family: var(--mono);
+  font-size: .56rem;
+  color: var(--text-muted);
+  letter-spacing: .8px;
+  margin-bottom: 4px;
+}
+.outcome-kpi-value {
+  font-family: var(--mono);
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: #f6fbff;
+  line-height: 1.1;
+}
+.outcome-kpi.success .outcome-kpi-value { color: #4ade80; }
+.outcome-kpi.warn .outcome-kpi-value { color: #fbbf24; }
+.outcome-kpi.rate .outcome-kpi-value { color: #7dd3fc; }
+
+/* 결과 분포 가로 막대 */
+.outcome-dist {
+  padding: 10px 12px;
+  background: rgba(8,16,28,.54);
+  border: 1px solid rgba(36,61,87,.8);
+  border-radius: 10px;
+  margin-bottom: 10px;
+}
+.outcome-dist-title {
+  font-family: var(--mono);
+  font-size: .62rem;
+  color: var(--text-secondary);
+  letter-spacing: 1.2px;
+  margin-bottom: 8px;
+}
+.outcome-dist-bar {
+  display: flex;
+  height: 18px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: rgba(0,0,0,.4);
+}
+.outcome-dist-seg {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--mono);
+  font-size: .55rem;
+  font-weight: 700;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  transition: flex .3s ease;
+}
+.outcome-dist-seg.success { background: #16a34a; }
+.outcome-dist-seg.watch { background: #ca8a04; }
+.outcome-dist-seg.flat { background: #475569; }
+.outcome-dist-seg.fail { background: #dc2626; }
+.outcome-dist-legend {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+  font-family: var(--mono);
+  font-size: .55rem;
+}
+.outcome-dist-legend span b { color: #fff; }
+
+/* 단위 토글 (알람/코인) */
+.outcome-unit-toggle {
+  display: flex;
+  gap: 4px;
+  background: rgba(8,16,28,.6);
+  border: 1px solid rgba(36,61,87,.7);
+  border-radius: 8px;
+  padding: 3px;
+  margin-bottom: 10px;
+}
+.outcome-unit-btn {
+  flex: 1;
+  padding: 7px 4px;
+  font-family: var(--mono);
+  font-size: .62rem;
+  color: var(--text-muted);
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.outcome-unit-btn.active {
+  background: rgba(0,212,255,.12);
+  color: var(--accent-cyan);
+}
+
+/* 거래소/등급 섹션 공통 */
+.outcome-section {
+  padding: 10px 12px;
+  background: rgba(8,16,28,.5);
+  border: 1px solid rgba(36,61,87,.8);
+  border-radius: 10px;
+  margin-bottom: 10px;
+}
+.outcome-section-title {
+  font-family: var(--mono);
+  font-size: .62rem;
+  color: var(--text-secondary);
+  letter-spacing: 1.2px;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.outcome-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+  border-bottom: 1px dashed rgba(36,61,87,.5);
+  font-family: var(--mono);
+  font-size: .64rem;
+}
+.outcome-row:last-child { border-bottom: none; }
+.outcome-row-label {
+  min-width: 60px;
+  font-weight: 700;
+  color: var(--text-secondary);
+}
+.outcome-row-bar {
+  flex: 1;
+  display: flex;
+  height: 14px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: rgba(0,0,0,.35);
+}
+.outcome-row-bar > div { transition: flex .3s; }
+.outcome-row-stats {
+  font-size: .58rem;
+  color: var(--text-muted);
+  min-width: 74px;
+  text-align: right;
+}
+
+/* 등급 진화 SVG 카드 */
+.grade-evo-card {
+  padding: 8px 10px 6px;
+  background: rgba(8,16,28,.6);
+  border: 1px solid rgba(36,61,87,.75);
+  border-radius: 10px;
+  margin-bottom: 6px;
+}
+.grade-evo-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+  font-family: var(--mono);
+  font-size: .6rem;
+}
+.grade-evo-coin { font-weight: 800; color: #f6fbff; letter-spacing: .5px; }
+.grade-evo-peak { color: var(--accent-cyan); }
+.grade-evo-result {
+  font-size: .56rem;
+  padding: 2px 7px;
+  border-radius: 999px;
+  letter-spacing: .3px;
+}
+.grade-evo-result.success { background: rgba(22,163,74,.18); color: #4ade80; border: 1px solid rgba(22,163,74,.4); }
+.grade-evo-result.watch { background: rgba(202,138,4,.18); color: #fbbf24; border: 1px solid rgba(202,138,4,.4); }
+.grade-evo-result.flat { background: rgba(71,85,105,.22); color: #94a3b8; border: 1px solid rgba(71,85,105,.5); }
+.grade-evo-result.fail { background: rgba(220,38,38,.18); color: #f87171; border: 1px solid rgba(220,38,38,.4); }
+.grade-evo-result.orphaned { background: rgba(100,100,100,.14); color: #6b7280; border: 1px solid rgba(100,100,100,.4); }
+.grade-evo-svg { width: 100%; height: auto; display: block; }
+
+/* 최근 outcome 카드 */
+.recent-outcome-card {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 8px;
+  padding: 8px 10px;
+  background: rgba(8,16,28,.52);
+  border: 1px solid rgba(36,61,87,.7);
+  border-radius: 10px;
+  margin-bottom: 5px;
+  align-items: center;
+  font-family: var(--mono);
+  font-size: .62rem;
+}
+.recent-outcome-card .ro-grade {
+  width: 30px; height: 30px;
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: .7rem; font-weight: 800;
+}
+.recent-outcome-card .ro-main { overflow: hidden; }
+.recent-outcome-card .ro-coin { font-weight: 800; color: #f6fbff; font-size: .72rem; }
+.recent-outcome-card .ro-meta { font-size: .55rem; color: var(--text-muted); margin-top: 2px; }
+.recent-outcome-card .ro-right { text-align: right; }
+.recent-outcome-card .ro-rise { font-weight: 800; font-size: .82rem; }
+.recent-outcome-card .ro-rise.pos { color: #4ade80; }
+.recent-outcome-card .ro-rise.neg { color: #f87171; }
+.recent-outcome-card .ro-rt {
+  font-size: .52rem;
+  padding: 1px 5px;
+  border-radius: 999px;
+  letter-spacing: .3px;
+  display: inline-block;
+  margin-top: 2px;
+}
+
+/* 로딩/에러 상태 */
+.outcome-loading,
+.outcome-error,
+.outcome-empty {
+  text-align: center;
+  padding: 28px 14px;
+  font-family: var(--mono);
+  font-size: .68rem;
+  color: var(--text-muted);
+  background: rgba(8,16,28,.5);
+  border: 1px dashed rgba(36,61,87,.6);
+  border-radius: 10px;
+  margin: 12px 0;
+}
+.outcome-error { color: #f87171; border-color: rgba(248,113,113,.4); }
+
+@media (max-width: 380px) {
+  .outcome-kpi-grid { grid-template-columns: repeat(2, 1fr); }
+  .outcome-kpi-value { font-size: 1.1rem; }
+}
+/* [END MODULE: phase22_outcome_css] */
+
 </style>
 </head>
 <body>
@@ -2058,7 +2402,7 @@ body.scan-complete .main-logo,
       </div>
       <div class="logo-sub">
         UPBIT · BITHUMB · BINANCE · REAL-TIME
-        <span class="build-badge" id="buildBadge" onclick="showBuildInfo()" title="빌드 정보 상세 보기">v3.9 · p2.1</span>
+        <span class="build-badge" id="buildBadge" onclick="showBuildInfo()" title="빌드 정보 상세 보기">v4.0 · p2.2</span>
       </div>
       <div class="woos-hero-status">
         <div class="live-indicator">
@@ -2070,6 +2414,26 @@ body.scan-complete .main-logo,
     </div>
   </header>
 
+  <!-- ═══════════════════════════════════════════════════════════════
+       [MODULE: phase22_tabs_html] — 탭 바 (스캐너/스냅샷/24H Outcome)
+       향후 ui/tabs.html 로 분리 예정.
+       ═══════════════════════════════════════════════════════════════ -->
+  <nav class="woos-tabs" id="woosTabs">
+    <button class="woos-tab active" data-tab="scanner"
+      onclick="switchTab('scanner')">📡 스캐너</button>
+    <button class="woos-tab" data-tab="snapshot"
+      onclick="switchTab('snapshot')">📷 스냅샷</button>
+    <button class="woos-tab" data-tab="outcome"
+      onclick="switchTab('outcome')">📊 24H Outcome
+      <span class="woos-tab-badge" id="outcomeTabBadge" style="display:none">0</span>
+    </button>
+  </nav>
+  <!-- [END MODULE: phase22_tabs_html] -->
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       탭 패널: SCANNER
+       ═══════════════════════════════════════════════════════════════ -->
+  <div class="woos-tab-panel active" id="tab-scanner">
   <!-- ─── 면책 고지 ─── -->
   <div class="disclaimer">
     ⚠ 본 도구는 기술적 지표 기반 참고 정보만 제공합니다. 투자 판단의 책임은 전적으로 본인에게 있습니다.
@@ -2343,6 +2707,56 @@ body.scan-complete .main-logo,
       실서비스 권장: 자체 백엔드 프록시 서버 구성
     </div>
   </div>
+  </div>
+  <!-- ═══════════════════════════════════════════════════════════════
+       탭 패널 끝: SCANNER
+       ═══════════════════════════════════════════════════════════════ -->
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       탭 패널: SNAPSHOT
+       기존 스냅샷 패널(ID=snapshotPanel)을 재사용하기 위한 얇은 컨테이너.
+       `openSnapshotPanel()` 이 호출되면 snapshotPanel 이 렌더링됨.
+       ═══════════════════════════════════════════════════════════════ -->
+  <div class="woos-tab-panel" id="tab-snapshot">
+    <div class="disclaimer" style="background:rgba(0,212,255,.06);border-color:rgba(0,212,255,.3);color:#7dd3fc">
+      📷 기록된 알람 스냅샷을 검색/조회합니다. 최근 탭에서 알람 상세 · 등급 변화 · 전략 B · 뉴스 등을 확인할 수 있습니다.
+    </div>
+    <div id="snapshotTabContainer">
+      <!-- snapshotPanel 의 복사본 역할. 실제 렌더는 renderSnapshotPanel() 이 처리 -->
+      <div class="snapshot-panel" style="position:relative;display:block;margin:0;border-radius:12px">
+        <div class="snapshot-search-wrap" style="margin-top:0">
+          <input id="snapshotSearchInputTab" class="ctrl-input"
+            placeholder="코인명 또는 snapshot ID 검색"
+            oninput="renderSnapshotPanel(this.value, 'tab')">
+        </div>
+        <div id="snapshotListTab" class="snapshot-list"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       [MODULE: phase22_outcome_html] — 24H Outcome 탭 컨테이너
+       향후 ui/outcome_dashboard.html 로 분리 예정.
+       ═══════════════════════════════════════════════════════════════ -->
+  <div class="woos-tab-panel" id="tab-outcome">
+    <!-- 디스클레이머 배너 (sticky) -->
+    <div class="outcome-disclaimer">
+      ⚠ 본 결과는 <b>24H 테스트1 전용 기준</b>입니다. 기존 전략 TP1 은 변경되지 않았습니다.<br>
+      Success ≥ +5% · Watch +3~+5% · Flat -5~+3% · Fail ≤ -5%
+    </div>
+
+    <!-- 새로고침 + 메타 정보 -->
+    <div class="outcome-refresh-row">
+      <span class="outcome-meta-text" id="outcomeMetaText">-</span>
+      <button class="outcome-refresh-btn" onclick="refreshOutcomeDashboard(true)">↺ 새로고침</button>
+    </div>
+
+    <!-- 동적 콘텐츠 컨테이너 -->
+    <div id="outcomeContent">
+      <div class="outcome-loading">⏳ 대시보드 로드 중...</div>
+    </div>
+  </div>
+  <!-- [END MODULE: phase22_outcome_html] -->
 
   <!-- ─── 하단 ─── -->
   <footer id="footer">
@@ -2906,7 +3320,7 @@ async function opsDashboard() {
 // 탭 시 상세 팝업
 // ═══════════════════════════════════════════════════════════════
 
-var HTML_VERSION = 'v3.9';  // HTML 빌드 (여기서 관리)
+var HTML_VERSION = 'v4.0';  // HTML 빌드 (여기서 관리)
 var _cachedBuildInfo = null;
 
 async function fetchBuildInfo() {
@@ -3005,6 +3419,396 @@ function showBuildInfo() {
 
 // ═══════════════════════════════════════════════════════════════
 // [END MODULE: build_info]
+// ═══════════════════════════════════════════════════════════════
+
+// ═══════════════════════════════════════════════════════════════
+// [MODULE: phase22_tabs_js]  — Phase 2.2 탭 전환 로직
+// 향후 ui/tabs.js 로 분리 예정.
+// 탭 3개: scanner / snapshot / outcome
+// 처음엔 scanner 활성화. outcome 탭 첫 진입 시 자동 데이터 로드.
+// ═══════════════════════════════════════════════════════════════
+var _activeTab = 'scanner';
+var _outcomeLoaded = false;
+
+function switchTab(tabName) {
+  if (tabName === _activeTab) return;
+  // 탭 버튼 active 전환
+  var tabs = document.querySelectorAll('.woos-tab');
+  tabs.forEach(function(b){
+    if (b.getAttribute('data-tab') === tabName) b.classList.add('active');
+    else b.classList.remove('active');
+  });
+  // 패널 표시 전환
+  var panels = document.querySelectorAll('.woos-tab-panel');
+  panels.forEach(function(p){
+    if (p.id === 'tab-' + tabName) p.classList.add('active');
+    else p.classList.remove('active');
+  });
+  _activeTab = tabName;
+
+  // 탭별 초기 렌더링
+  if (tabName === 'outcome' && !_outcomeLoaded) {
+    _outcomeLoaded = true;
+    refreshOutcomeDashboard(false);
+  }
+  if (tabName === 'snapshot') {
+    // 스냅샷 리스트를 탭 내부 컨테이너로 렌더
+    try { renderSnapshotPanel('', 'tab'); } catch(e){}
+  }
+}
+
+// 페이지 로드 시 URL hash 가 #outcome 이면 자동 전환
+(function initTabFromHash(){
+  function run(){
+    try {
+      var hash = (window.location.hash || '').replace('#','');
+      if (hash === 'outcome' || hash === 'snapshot' || hash === 'scanner') {
+        switchTab(hash);
+      }
+    } catch(e){}
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', run);
+  else setTimeout(run, 50);
+})();
+
+// ═══════════════════════════════════════════════════════════════
+// [END MODULE: phase22_tabs_js]
+// ═══════════════════════════════════════════════════════════════
+
+// ═══════════════════════════════════════════════════════════════
+// [MODULE: phase22_outcome_dashboard_js]  — Phase 2.2 Outcome 대시보드
+// 향후 ui/outcome_dashboard.js 로 분리 예정.
+//
+// Workers 엔드포인트:
+//   GET /outcome/dashboard         — 집계 데이터 (10분 캐시)
+//   GET /outcome/dashboard?nocache=1 — 강제 재계산
+//   GET /outcome/pending           — pending 큐 현황 (대기 건수)
+//
+// 표시 내용:
+//   1) 디스클레이머 배너 (고정)
+//   2) 요약 KPI 4카드 (Total / Success / Watch+ / 성공률)
+//   3) 결과 분포 가로 막대
+//   4) 알람/코인 단위 토글
+//   5) 거래소별 성과 (BITHUMB + UPBIT 메인, BINANCE 참고)
+//   6) 등급별 성과 (SPLUS / S / A)
+//   7) 등급 진화 시각화 SVG (최대 10개)
+//   8) 최근 outcome 카드 (최대 20개)
+// ═══════════════════════════════════════════════════════════════
+
+var _outcomeData = null;
+var _outcomeUnit = 'alert';  // 'alert' or 'coin'
+
+function _outcomeEsc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+function _outcomeGetBase() {
+  try { return (localStorage.getItem('snapshot_api_base') || '').replace(/\/$/, ''); }
+  catch(e){ return ''; }
+}
+
+async function refreshOutcomeDashboard(forceNoCache) {
+  var container = document.getElementById('outcomeContent');
+  var meta = document.getElementById('outcomeMetaText');
+  if (!container) return;
+
+  var base = _outcomeGetBase();
+  if (!base) {
+    container.innerHTML = '<div class="outcome-error">❌ SCANNER API BASE 미설정<br>ADVANCED SETTINGS 에서 Workers URL 을 입력하세요</div>';
+    return;
+  }
+
+  container.innerHTML = '<div class="outcome-loading">⏳ 대시보드 로드 중...</div>';
+  if (meta) meta.textContent = '조회 중...';
+
+  try {
+    var url = base + '/outcome/dashboard' + (forceNoCache ? '?nocache=1' : '');
+    var res = await fetch(url, { cache: 'no-store' });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    var data = await res.json();
+    _outcomeData = data;
+
+    // 메타 표시
+    var gen = data.generatedAt ? new Date(data.generatedAt) : new Date();
+    var cached = data.cached ? ' · 캐시' : ' · FRESH';
+    if (meta) meta.textContent = '생성: ' + gen.toLocaleTimeString('ko-KR') + cached;
+
+    renderOutcomeDashboard(data);
+    updateOutcomeTabBadge(data);
+  } catch(e) {
+    container.innerHTML = '<div class="outcome-error">❌ 대시보드 로드 실패<br>' + _outcomeEsc(e.message) + '</div>';
+    if (meta) meta.textContent = '오류';
+  }
+}
+
+function updateOutcomeTabBadge(data) {
+  var badge = document.getElementById('outcomeTabBadge');
+  if (!badge) return;
+  var total = (data.alertStats && data.alertStats.total) || 0;
+  if (total > 0) {
+    badge.textContent = total;
+    badge.style.display = 'inline-block';
+  } else {
+    badge.style.display = 'none';
+  }
+}
+
+function renderOutcomeDashboard(data) {
+  var container = document.getElementById('outcomeContent');
+  if (!container) return;
+
+  var html = '';
+
+  // 단위 토글
+  html += '<div class="outcome-unit-toggle">'
+    + '<button class="outcome-unit-btn ' + (_outcomeUnit === 'alert' ? 'active' : '') + '" onclick="setOutcomeUnit(\'alert\')">알람 단위 (' + ((data.alertStats && data.alertStats.total) || 0) + ')</button>'
+    + '<button class="outcome-unit-btn ' + (_outcomeUnit === 'coin' ? 'active' : '') + '" onclick="setOutcomeUnit(\'coin\')">코인 단위 (' + ((data.coinStats && data.coinStats.total) || 0) + ')</button>'
+    + '</div>';
+
+  var stats = _outcomeUnit === 'coin' ? (data.coinStats || {}) : (data.alertStats || {});
+
+  // 1) 요약 KPI
+  html += '<div class="outcome-kpi-grid">'
+    + _kpiCard('Total', stats.total || 0, '')
+    + _kpiCard('Success', stats.success || 0, 'success')
+    + _kpiCard('Watch+', ((stats.success || 0) + (stats.watch || 0)), 'warn')
+    + _kpiCard('성공률', (stats.successRate != null ? stats.successRate + '%' : '-'), 'rate')
+    + '</div>';
+
+  // 2) 결과 분포 막대
+  html += _renderDistribution(stats);
+
+  // 3) 거래소별 (알람 단위 기준 — 메인)
+  if (data.byExchange && _outcomeUnit === 'alert') {
+    html += _renderSectionBar('🏛 거래소별 성과 (BITHUMB + UPBIT 메인)',
+      data.byExchange, ['BITHUMB', 'UPBIT']);
+    // BINANCE 참고
+    if (data.byExchangeRef && data.byExchangeRef.BINANCE && data.byExchangeRef.BINANCE.total > 0) {
+      html += '<div class="outcome-section" style="opacity:.65">'
+        + '<div class="outcome-section-title">📎 BINANCE (참고용 · 메인 KPI 제외)</div>'
+        + _renderSectionRow('BINANCE', data.byExchangeRef.BINANCE)
+        + '</div>';
+    }
+  }
+
+  // 4) 등급별 (알람 단위 기준)
+  if (data.byGrade && _outcomeUnit === 'alert') {
+    html += _renderSectionBar('⭐ 등급별 성과', data.byGrade, ['SPLUS', 'S', 'A']);
+  }
+
+  // 5) 등급 진화 시각화
+  if (data.coinEvolution && data.coinEvolution.length > 0) {
+    html += '<div class="outcome-section">'
+      + '<div class="outcome-section-title">📈 등급 진화 — 같은 코인의 시간축 변화</div>';
+    // 최대 10개만 표시
+    data.coinEvolution.slice(0, 10).forEach(function(evo){
+      html += _renderGradeEvolution(evo);
+    });
+    if (data.coinEvolution.length > 10) {
+      html += '<div style="text-align:center;font-size:.58rem;color:var(--text-muted);margin-top:6px">+' + (data.coinEvolution.length - 10) + '개 더 있음</div>';
+    }
+    html += '</div>';
+  }
+
+  // 6) 최근 outcome 카드
+  if (data.recentOutcomes && data.recentOutcomes.length > 0) {
+    html += '<div class="outcome-section">'
+      + '<div class="outcome-section-title">🕐 최근 Outcome (최대 20건)</div>';
+    data.recentOutcomes.slice(0, 20).forEach(function(r){
+      html += _renderRecentCard(r);
+    });
+    html += '</div>';
+  } else if ((stats.total || 0) === 0) {
+    html += '<div class="outcome-empty">아직 검증된 outcome 이 없습니다.<br>마이그레이션 또는 배치검증 실행 후 확인하세요.</div>';
+  }
+
+  container.innerHTML = html;
+}
+
+function _kpiCard(label, value, cls) {
+  return '<div class="outcome-kpi ' + (cls || '') + '">'
+    + '<div class="outcome-kpi-label">' + _outcomeEsc(label) + '</div>'
+    + '<div class="outcome-kpi-value">' + _outcomeEsc(value) + '</div>'
+    + '</div>';
+}
+
+function _renderDistribution(stats) {
+  var s = stats.success || 0, w = stats.watch || 0, f = stats.flat || 0, fa = stats.fail || 0;
+  var total = s + w + f + fa;
+  if (total === 0) {
+    return '<div class="outcome-dist"><div class="outcome-dist-title">결과 분포</div>'
+      + '<div style="text-align:center;color:var(--text-muted);padding:14px;font-size:.6rem">데이터 없음</div></div>';
+  }
+  function pct(v){ return ((v / total) * 100).toFixed(1); }
+  var segs = [];
+  if (s > 0)  segs.push('<div class="outcome-dist-seg success" style="flex:' + s  + '" title="SUCCESS ' + s  + '">' + (s  >= 2 ? s  : '') + '</div>');
+  if (w > 0)  segs.push('<div class="outcome-dist-seg watch"   style="flex:' + w  + '" title="WATCH '   + w  + '">' + (w  >= 2 ? w  : '') + '</div>');
+  if (f > 0)  segs.push('<div class="outcome-dist-seg flat"    style="flex:' + f  + '" title="FLAT '    + f  + '">' + (f  >= 2 ? f  : '') + '</div>');
+  if (fa > 0) segs.push('<div class="outcome-dist-seg fail"    style="flex:' + fa + '" title="FAIL '    + fa + '">' + (fa >= 2 ? fa : '') + '</div>');
+  return '<div class="outcome-dist">'
+    + '<div class="outcome-dist-title">결과 분포 (총 ' + total + '건)</div>'
+    + '<div class="outcome-dist-bar">' + segs.join('') + '</div>'
+    + '<div class="outcome-dist-legend">'
+    +   '<span>🟢 SUCCESS <b>' + s  + '</b> (' + pct(s)  + '%)</span>'
+    +   '<span>🟡 WATCH <b>'   + w  + '</b> (' + pct(w)  + '%)</span>'
+    +   '<span>⬜ FLAT <b>'    + f  + '</b> (' + pct(f)  + '%)</span>'
+    +   '<span>🔴 FAIL <b>'    + fa + '</b> (' + pct(fa) + '%)</span>'
+    + '</div>'
+    + '</div>';
+}
+
+function _renderSectionBar(title, dataObj, keys) {
+  var html = '<div class="outcome-section">'
+    + '<div class="outcome-section-title">' + _outcomeEsc(title) + '</div>';
+  keys.forEach(function(k){
+    if (dataObj[k]) html += _renderSectionRow(k, dataObj[k]);
+  });
+  html += '</div>';
+  return html;
+}
+
+function _renderSectionRow(label, row) {
+  var s = row.success || 0, w = row.watch || 0, f = row.flat || 0, fa = row.fail || 0;
+  var total = s + w + f + fa;
+  var successRate = total > 0 ? ((s / total) * 100).toFixed(1) + '%' : '-';
+  var segs = '';
+  if (total > 0) {
+    if (s > 0)  segs += '<div style="flex:' + s  + ';background:#16a34a" title="SUCCESS ' + s + '"></div>';
+    if (w > 0)  segs += '<div style="flex:' + w  + ';background:#ca8a04" title="WATCH ' + w + '"></div>';
+    if (f > 0)  segs += '<div style="flex:' + f  + ';background:#475569" title="FLAT ' + f + '"></div>';
+    if (fa > 0) segs += '<div style="flex:' + fa + ';background:#dc2626" title="FAIL ' + fa + '"></div>';
+  } else {
+    segs = '<div style="flex:1;background:rgba(0,0,0,.3)"></div>';
+  }
+  return '<div class="outcome-row">'
+    + '<div class="outcome-row-label">' + _outcomeEsc(label) + '</div>'
+    + '<div class="outcome-row-bar">' + segs + '</div>'
+    + '<div class="outcome-row-stats">' + total + '건 · ' + successRate + '</div>'
+    + '</div>';
+}
+
+function _renderGradeEvolution(evo) {
+  var snaps = evo.snaps || [];
+  if (snaps.length === 0) return '';
+
+  // SVG 설정
+  var W = 300, H = 56, padX = 30, padY = 10;
+  var gradeY = { 'SPLUS': 0, 'S': 1, 'A': 2, 'B': 3 };
+  var rowH = (H - padY*2) / 3;  // 4단계 → 3 갭
+  var times = snaps.map(function(s){ return s.t; });
+  var minT = Math.min.apply(null, times);
+  var maxT = Math.max.apply(null, times);
+  var rangeT = Math.max(maxT - minT, 1);
+
+  function xFor(t) { return padX + ((t - minT) / rangeT) * (W - padX*2); }
+  function yFor(g) {
+    var idx = gradeY[g]; if (idx == null) idx = 3;
+    return padY + idx * rowH;
+  }
+  function colorFor(rt) {
+    if (rt === 'SUCCESS') return '#4ade80';
+    if (rt === 'WATCH')   return '#fbbf24';
+    if (rt === 'FLAT')    return '#94a3b8';
+    if (rt === 'FAIL')    return '#f87171';
+    if (rt === 'ORPHANED') return '#6b7280';
+    return '#3a4a6a';
+  }
+
+  // 배경 그리드
+  var grid = '';
+  ['SPLUS', 'S', 'A', 'B'].forEach(function(g){
+    var y = yFor(g);
+    grid += '<line x1="' + padX + '" y1="' + y + '" x2="' + (W-padX) + '" y2="' + y + '" stroke="rgba(36,61,87,.4)" stroke-width="1" stroke-dasharray="2,3"/>';
+    grid += '<text x="' + (padX-4) + '" y="' + (y+3) + '" font-family="monospace" font-size="7" fill="rgba(125,163,193,.6)" text-anchor="end">' + g + '</text>';
+  });
+
+  // 선 + 점
+  var paths = '';
+  if (snaps.length > 1) {
+    var d = 'M ' + xFor(snaps[0].t) + ' ' + yFor(snaps[0].grade);
+    for (var i=1; i<snaps.length; i++) {
+      d += ' L ' + xFor(snaps[i].t) + ' ' + yFor(snaps[i].grade);
+    }
+    paths += '<path d="' + d + '" fill="none" stroke="rgba(125,211,252,.45)" stroke-width="1.3"/>';
+  }
+  var dots = '';
+  snaps.forEach(function(s){
+    var cx = xFor(s.t), cy = yFor(s.grade);
+    var c = colorFor(s.resultType);
+    dots += '<circle cx="' + cx + '" cy="' + cy + '" r="3.5" fill="' + c + '" stroke="#0c1420" stroke-width="1"><title>' + s.grade + ' @ ' + new Date(s.t).toLocaleString('ko-KR') + (s.resultType ? ' · ' + s.resultType + (s.maxRise!=null?' ('+s.maxRise+'%)':'') : '') + '</title></circle>';
+  });
+
+  // 결과 뱃지
+  var peakOut = evo.peakOutcome;
+  var resultBadge = '';
+  if (peakOut && peakOut.resultType) {
+    var cls = peakOut.resultType.toLowerCase();
+    resultBadge = '<span class="grade-evo-result ' + cls + '">' + peakOut.resultType
+      + (peakOut.maxRise != null ? ' ' + (peakOut.maxRise > 0 ? '+' : '') + peakOut.maxRise + '%' : '')
+      + '</span>';
+  }
+
+  return '<div class="grade-evo-card">'
+    + '<div class="grade-evo-header">'
+    +   '<span class="grade-evo-coin">' + _outcomeEsc(evo.base) + ' <span style="color:var(--text-muted);font-weight:400">· ' + _outcomeEsc(evo.exchange || '') + '</span></span>'
+    +   '<span class="grade-evo-peak">peak: ' + _outcomeEsc(evo.peakGrade || '?') + '</span>'
+    +   resultBadge
+    + '</div>'
+    + '<svg class="grade-evo-svg" viewBox="0 0 ' + W + ' ' + H + '" xmlns="http://www.w3.org/2000/svg">'
+    +   grid + paths + dots
+    + '</svg>'
+    + '</div>';
+}
+
+function _renderRecentCard(r) {
+  var rt = r.resultType || '';
+  var rtCls = rt.toLowerCase();
+  var rtColor = {
+    'success': 'background:rgba(22,163,74,.18);color:#4ade80;border:1px solid rgba(22,163,74,.4)',
+    'watch':   'background:rgba(202,138,4,.18);color:#fbbf24;border:1px solid rgba(202,138,4,.4)',
+    'flat':    'background:rgba(71,85,105,.22);color:#94a3b8;border:1px solid rgba(71,85,105,.5)',
+    'fail':    'background:rgba(220,38,38,.18);color:#f87171;border:1px solid rgba(220,38,38,.4)',
+    'orphaned':'background:rgba(100,100,100,.14);color:#6b7280;border:1px solid rgba(100,100,100,.4)'
+  }[rtCls] || '';
+
+  var gradeColor = {
+    'SPLUS': 'background:linear-gradient(135deg,#ff2d55,#ff6b35);color:#fff',
+    'S':     'background:linear-gradient(135deg,#ff6b35,#f59e0b);color:#fff',
+    'A':     'background:linear-gradient(135deg,#f59e0b,#fbbf24);color:#1a1a1a',
+    'B':     'background:rgba(100,116,139,.3);color:#cbd5e1'
+  }[r.grade] || 'background:rgba(50,50,60,.4);color:#94a3b8';
+
+  var rise = r.maxRise != null ? (r.maxRise > 0 ? '+' : '') + r.maxRise.toFixed(1) + '%' : '-';
+  var riseCls = (r.maxRise || 0) > 0 ? 'pos' : 'neg';
+  var tStr = r.timestamp ? new Date(r.timestamp).toLocaleString('ko-KR',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}) : '';
+
+  var tp1Info = '';
+  if (r.strategyTp1Reached === true) tp1Info = ' · TP1 ✓';
+  else if (r.strategyTp1Reached === false) tp1Info = ' · TP1 ✗';
+
+  return '<div class="recent-outcome-card">'
+    + '<div class="ro-grade" style="' + gradeColor + '">' + _outcomeEsc(r.grade || '?') + '</div>'
+    + '<div class="ro-main">'
+    +   '<div class="ro-coin">' + _outcomeEsc(r.base || '?') + ' <span style="color:var(--text-muted);font-size:.58rem;font-weight:400">· ' + _outcomeEsc(r.exchange || '') + '</span></div>'
+    +   '<div class="ro-meta">' + tStr + tp1Info + '</div>'
+    + '</div>'
+    + '<div class="ro-right">'
+    +   '<div class="ro-rise ' + riseCls + '">' + rise + '</div>'
+    +   '<div class="ro-rt" style="' + rtColor + '">' + _outcomeEsc(rt) + '</div>'
+    + '</div>'
+    + '</div>';
+}
+
+function setOutcomeUnit(unit) {
+  if (_outcomeUnit === unit) return;
+  _outcomeUnit = unit;
+  if (_outcomeData) renderOutcomeDashboard(_outcomeData);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// [END MODULE: phase22_outcome_dashboard_js]
 // ═══════════════════════════════════════════════════════════════
 
 function fetchWithTimeout(url, opts, ms) {
@@ -3693,17 +4497,20 @@ function closeSnapshotPanel() {
   if (p) p.classList.remove('visible');
 }
 // [MODIFIED v3.5] 패널 렌더링 업그레이드 — source 배지 + 등급 + 거래소 + alertType
-async function renderSnapshotPanel(query) {
+async function renderSnapshotPanel(query, context) {
+  // context: 'tab' 이면 tab-snapshot 컨테이너에도 렌더. undefined 면 기존 동작.
   var listEl = document.getElementById('snapshotList');
-  if (!listEl) return;
-  listEl.innerHTML = '<div class="snapshot-empty">로딩 중...</div>';
+  var listElTab = document.getElementById('snapshotListTab');
+  var targetList = (context === 'tab' && listElTab) ? listElTab : listEl;
+  if (!targetList) return;
+  targetList.innerHTML = '<div class="snapshot-empty">로딩 중...</div>';
   var items = await listSnapshots(query || '');
   if (!items || !items.length) {
-    listEl.innerHTML = '<div class="snapshot-empty">저장된 snapshot 없음</div>';
+    targetList.innerHTML = '<div class="snapshot-empty">저장된 snapshot 없음</div>';
     return;
   }
   // [v3.5] source / exchange / alertType / gradeCode 필드 활용
-  listEl.innerHTML = items.map(function(s){
+  targetList.innerHTML = items.map(function(s){
     var src       = s.source || '';
     var isManual  = src === 'html_manual' || src === 'html_manual_test';
     var srcBadge  = isManual
