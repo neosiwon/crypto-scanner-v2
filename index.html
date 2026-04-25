@@ -2610,7 +2610,7 @@ body.scan-complete .main-logo,
       </div>
       <div class="logo-sub">
         UPBIT · BITHUMB · BINANCE · REAL-TIME
-        <span class="build-badge" id="buildBadge" onclick="showBuildInfo()" title="빌드 정보 상세 보기">v4.0.2 · p2.2</span>
+        <span class="build-badge" id="buildBadge" onclick="showBuildInfo()" title="빌드 정보 상세 보기">v4.1.0 · p3.1</span>
       </div>
       <div class="woos-hero-status">
         <div class="live-indicator">
@@ -3125,6 +3125,52 @@ function calcSyncStatus(exchanges) {
 // 사용자가 입력창에서 수정하면 자동 저장. 수정 후에도 재배포 후 유지됨.
 var DEFAULT_PROXY_URL = 'https://exchange-proxy-worker-v2.neosiwon.workers.dev';
 
+// ═══════════════════════════════════════════════════════════════
+// [MODULE: naming_v1]  — Phase 3.1 시스템 명명 + 등급 표시 유틸
+// 향후 utils/naming.js 로 분리 예정.
+// Workers 측과 동일한 정의 (양쪽 일관성 유지).
+//
+//   스캐너 (scanner)  : 코인 발굴 + 점수제 등급 + 알람
+//   분석기 (tracking) : 알람된 코인의 시간축 추적관찰
+//
+//   내부 코드값: SPLUS / S / A / B / C
+//   UI 표시값:  S+ / S / A / B / C
+// ═══════════════════════════════════════════════════════════════
+var SYSTEM_NAMES = {
+  scanner:  { ko: '스캐너',  en: 'WOOS Scanner',  desc: '코인 발굴 + 알람' },
+  tracking: { ko: '분석기',  en: 'WOOS Tracking', desc: '추적관찰 + 검증' }
+};
+
+function formatGradeLabel(grade) {
+  if (grade === 'SPLUS') return 'S+';
+  return grade || '-';
+}
+
+function formatGradeForUI(coin) {
+  if (coin && coin.representative && coin.representative.gradeCode) {
+    return formatGradeLabel(coin.representative.gradeCode);
+  }
+  if (coin && coin.gradeCode) {
+    return formatGradeLabel(coin.gradeCode);
+  }
+  return '-';
+}
+// [END MODULE: naming_v1]
+
+// ═══════════════════════════════════════════════════════════════
+// [MODULE: snapshot_api_fallback_v1]  — Phase 3.1 스냅샷 API 기본값
+// 향후 ui/settings.js 로 통합 예정.
+//
+// 사용자가 ADVANCED SETTINGS 에서 SCANNER API BASE 입력 안 했을 경우
+// fallback 으로 사용하는 Workers URL.
+// 우선순위: localStorage('snapshot_api_base') > DEFAULT_SCANNER_API_BASE
+//
+// 데모 사이트에서는 이 fallback 으로 자동 작동 → 사용자 입력 불필요.
+// 운영 환경에서도 입력 까먹어도 동작 보장.
+// ═══════════════════════════════════════════════════════════════
+var DEFAULT_SCANNER_API_BASE = 'https://auto-alert-worker-v3.neosiwon.workers.dev';
+// [END MODULE: snapshot_api_fallback_v1]
+
 function getProxyUrl() {
   var el = document.getElementById('inputProxyUrl');
   return el ? el.value.trim().replace(/\/$/, '') : '';
@@ -3528,7 +3574,7 @@ async function opsDashboard() {
 // 탭 시 상세 팝업
 // ═══════════════════════════════════════════════════════════════
 
-var HTML_VERSION = 'v4.0.2';  // HTML 빌드 (여기서 관리)
+var HTML_VERSION = 'v4.1.0';  // Phase 3.1 — 분석기 인프라 (이름 통일 + 스냅샷 fallback)
 var _cachedBuildInfo = null;
 
 async function fetchBuildInfo() {
@@ -4457,10 +4503,17 @@ function calcPriceGap(upbitPrice, binancePrice, usdtkrw) {
 }
 
 function getSnapshotApiBase() {
+  // [Phase 3.1] 우선순위:
+  //   1) localStorage 사용자 입력값
+  //   2) DEFAULT_SCANNER_API_BASE (하드코딩 fallback — 데모 / 입력 누락 대응)
   try {
     var saved = localStorage.getItem('snapshot_api_base');
     if (saved) return saved.replace(/\/$/, '');
   } catch(e){}
+  // fallback
+  if (typeof DEFAULT_SCANNER_API_BASE === 'string' && DEFAULT_SCANNER_API_BASE) {
+    return DEFAULT_SCANNER_API_BASE.replace(/\/$/, '');
+  }
   return '';
 }
 
@@ -4609,6 +4662,7 @@ function saveSnapshotLocal(snapshot) {
 }
 
 // [MODIFIED v3.5] 경로 /snapshot/{id} (Workers 레거시 호환) — /api/snapshots/{id} alias 도 동작
+// [Phase 3.1] /public/snapshot/{id} fallback 추가 (데모 / 토큰 미설정 대응)
 async function loadSnapshot(snapshotId) {
   var base = getSnapshotApiBase();
   if (base) {
@@ -4619,7 +4673,16 @@ async function loadSnapshot(snapshotId) {
       // 레거시 경로 폴백
       var resLegacy = await fetch(base + '/snapshot/' + encodeURIComponent(snapshotId));
       if (resLegacy.ok) return await resLegacy.json();
-    } catch(e){}
+      // [Phase 3.1] public 폴백
+      var resPub = await fetch(base + '/public/snapshot/' + encodeURIComponent(snapshotId));
+      if (resPub.ok) return await resPub.json();
+    } catch(e){
+      // 네트워크 에러 시에도 public 시도
+      try {
+        var resPubE = await fetch(base + '/public/snapshot/' + encodeURIComponent(snapshotId));
+        if (resPubE.ok) return await resPubE.json();
+      } catch(_){}
+    }
   }
   try {
     var raw = localStorage.getItem('scanner_snapshots');
@@ -4649,13 +4712,34 @@ async function listSnapshots(query) {
       } else {
         q = '?limit=100';
       }
+      // [Phase 3.1] 1차: 인증 가능한 /snapshots 시도
       var res = await fetch(base + '/snapshots' + q);
       if (res.ok) {
         var data = await res.json();
         remote = (data && data.items) ? data.items : [];
         gotRemote = true;
+      } else if (res.status === 401 || res.status === 403 || res.status === 404) {
+        // [Phase 3.1] 2차 fallback: /public/snapshots 시도 (인증 불필요, 데모 모드 / 토큰 미설정 대응)
+        try {
+          var resPub = await fetch(base + '/public/snapshots' + q);
+          if (resPub.ok) {
+            var dataPub = await resPub.json();
+            remote = (dataPub && dataPub.items) ? dataPub.items : [];
+            gotRemote = true;
+          }
+        } catch(_){}
       }
-    } catch(e){}
+    } catch(e){
+      // [Phase 3.1] 네트워크 에러 시에도 public 시도
+      try {
+        var resPubE = await fetch(base + '/public/snapshots' + q);
+        if (resPubE.ok) {
+          var dataPubE = await resPubE.json();
+          remote = (dataPubE && dataPubE.items) ? dataPubE.items : [];
+          gotRemote = true;
+        }
+      } catch(_){}
+    }
   }
   // 로컬 조회 (폴백 + 병합용)
   var local = [];
