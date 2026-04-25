@@ -3137,6 +3137,144 @@ body.scan-complete .main-logo,
   .analyzer-card .event-row { font-size: 10px; }
   .analyzer-card .event-row .event-time { min-width: 56px; }
 }
+
+/* ── 추적 중 카드 강화 (Phase 3.5+) ────────────────────── */
+.analyzer-progress-card {
+  background: linear-gradient(180deg, rgba(0, 212, 255, 0.04), rgba(0, 212, 255, 0.01));
+  border: 1px solid rgba(0, 212, 255, 0.3);
+  border-radius: 8px;
+  padding: 12px;
+  margin: 8px 0;
+  font-size: 13px;
+  color: var(--text-primary);
+  border-left: 3px solid var(--accent-cyan);
+}
+.analyzer-progress-card[data-tier="A"] { border-left-color: #7c3aed; }
+.analyzer-progress-card[data-tier="B"] { border-left-color: #2563eb; }
+.analyzer-progress-card[data-tier="C"] { border-left-color: #6b7280; }
+
+.analyzer-progress-card .progress-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+  font-size: 13px;
+}
+.analyzer-progress-card .progress-elapsed {
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-family: var(--mono);
+}
+.analyzer-progress-card .progress-pct {
+  color: var(--accent-cyan);
+  font-weight: 600;
+}
+.analyzer-progress-card .progress-bar {
+  height: 4px;
+  background: var(--bg-panel);
+  border-radius: 2px;
+  margin: 6px 0 10px;
+  overflow: hidden;
+}
+.analyzer-progress-card .progress-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent-cyan), var(--accent-green));
+  transition: width .3s ease;
+}
+.analyzer-progress-card .progress-current {
+  margin: 6px 0;
+  padding: 8px;
+  background: var(--bg-panel);
+  border-radius: 6px;
+  font-family: var(--mono);
+}
+.analyzer-progress-card .progress-current .label {
+  color: var(--text-secondary);
+  margin-right: 4px;
+}
+.analyzer-progress-card .progress-status {
+  margin: 8px 0;
+  font-size: 11px;
+  font-family: var(--mono);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+.analyzer-progress-card .threshold-reached {
+  color: var(--accent-green);
+  font-weight: 600;
+}
+.analyzer-progress-card .muted { color: var(--text-muted); }
+.analyzer-progress-card details {
+  margin-top: 8px;
+}
+.analyzer-progress-card details > summary {
+  cursor: pointer;
+  color: var(--text-secondary);
+  font-size: 12px;
+  user-select: none;
+  padding: 4px 0;
+}
+.analyzer-progress-card details[open] > summary { color: var(--accent-cyan); }
+.analyzer-progress-card details > div {
+  padding: 8px 0;
+  border-top: 1px solid var(--border);
+  margin-top: 8px;
+}
+.analyzer-progress-card .summary-row {
+  display: flex;
+  justify-content: space-around;
+  margin: 8px 0;
+  padding: 6px;
+  background: var(--bg-panel);
+  border-radius: 4px;
+}
+.analyzer-progress-card .ok-text { color: var(--accent-green); }
+.analyzer-progress-card .neg-text { color: var(--accent-orange); }
+.analyzer-progress-card .small { font-size: 10px; color: var(--text-secondary); }
+.analyzer-progress-card .events-box {
+  margin-top: 8px;
+}
+.analyzer-progress-card .events-title {
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-bottom: 4px;
+}
+.analyzer-progress-card .event-row {
+  display: flex;
+  align-items: center;
+  padding: 3px 8px;
+  margin: 2px 0;
+  background: var(--bg-panel);
+  border-radius: 4px;
+  font-family: var(--mono);
+  font-size: 11px;
+  gap: 8px;
+}
+.analyzer-progress-card .event-row .event-time {
+  color: var(--text-secondary);
+  min-width: 56px;
+  font-weight: 600;
+}
+.analyzer-progress-card .event-row .event-label {
+  color: var(--text-primary);
+  flex: 1;
+}
+.analyzer-progress-card .event-row .event-value {
+  text-align: right;
+  font-weight: 700;
+}
+.analyzer-progress-card .event-row .event-value.up { color: var(--accent-green); }
+.analyzer-progress-card .event-row .event-value.down { color: var(--accent-orange); }
+.analyzer-progress-card svg {
+  display: block;
+  margin: 6px auto;
+  background: var(--bg-card);
+  border-radius: 4px;
+}
 /* [END MODULE: phase35_visualization_css] */
 
 </style>
@@ -7219,14 +7357,149 @@ window.addEventListener('load', async function(){
   }
   
   // ══ status 별 카드 분기 ══════════════════════════════
-  function renderInProgressCard(meta) {
+  function renderInProgressCard(meta, trackingData) {
     var elapsedMs = Date.now() - (meta.tierAssignedAt || 0);
     var symbol = meta.base || meta.snapshotId || '';
-    return '<div class="analyzer-progress">'
-         + '<b>' + escapeHtml(symbol) + '</b> · '
-         + '추적 중 — ' + renderTierBadge(meta.tier)
-         + ' · ' + escapeHtml(formatElapsed(elapsedMs)) + ' 경과'
-         + '</div>';
+    var totalMs = 24 * 3600 * 1000;
+    var progress = Math.min(100, Math.max(0, (elapsedMs / totalMs) * 100));
+    
+    // trackingData 가 있으면 진행 상황 풍부하게
+    var thresholds = (trackingData && trackingData.thresholds) || null;
+    var tp1 = (trackingData && trackingData.tp1) || null;
+    var samples = (trackingData && trackingData.samples) || null;
+    var dq = (trackingData && trackingData.dataQuality) || null;
+    
+    // 시작 가격 / 현재 가격 / 변화율
+    var openPrice = meta.openPrice || (samples && samples[0] && samples[0].price) || null;
+    var currentPrice = null;
+    var currentPct = null;
+    if (samples && samples.length > 0) {
+      currentPrice = samples[samples.length - 1].price;
+      if (openPrice) {
+        currentPct = ((currentPrice - openPrice) / openPrice) * 100;
+      }
+    }
+    
+    // 도달한 임계값 카운트
+    var reachedList = [];
+    if (thresholds) {
+      ['+3', '+5', '+10', '-5'].forEach(function(t){
+        if (thresholds[t] && thresholds[t].reached) reachedList.push(t);
+      });
+    }
+    
+    var html = '<div class="analyzer-progress-card" data-tier="' + escapeHtml(meta.tier || 'B') + '">'
+      + '<div class="progress-header">'
+      +   '<div>'
+      +     '<b>' + escapeHtml(symbol) + '</b> · 추적 중 '
+      +     renderTierBadge(meta.tier)
+      +   '</div>'
+      +   '<div class="progress-elapsed">'
+      +     escapeHtml(formatElapsed(elapsedMs)) + ' / 24h '
+      +     '<span class="progress-pct">(' + progress.toFixed(0) + '%)</span>'
+      +   '</div>'
+      + '</div>'
+      // 진행률 바
+      + '<div class="progress-bar">'
+      +   '<div class="progress-bar-fill" style="width:' + progress.toFixed(1) + '%"></div>'
+      + '</div>';
+    
+    // 현재 가격 정보
+    if (currentPct !== null) {
+      var pctCls = currentPct >= 0 ? 'ok-text' : 'neg-text';
+      var sign = currentPct >= 0 ? '+' : '';
+      html += '<div class="progress-current">'
+            + '<span class="label">현재:</span> '
+            + '<b class="' + pctCls + '">' + sign + currentPct.toFixed(2) + '%</b>'
+            + ' <span class="small">'
+            + escapeHtml(String(openPrice)) + ' → ' + escapeHtml(String(currentPrice))
+            + '</span>'
+            + '</div>';
+    } else {
+      html += '<div class="progress-current"><span class="muted">데이터 수집 중...</span></div>';
+    }
+    
+    // 도달한 임계값 + TP1
+    var statusParts = [];
+    if (reachedList.length > 0) {
+      var reachedHtml = reachedList.map(function(t){
+        var r = thresholds[t];
+        return '<span class="threshold-reached">' + escapeHtml(t) + ' (' + escapeHtml(String(r.elapsedMin)) + '분)</span>';
+      }).join(' ');
+      statusParts.push('📈 ' + reachedHtml);
+    } else {
+      statusParts.push('<span class="muted">📈 임계값 미달</span>');
+    }
+    
+    if (tp1 && tp1.reached) {
+      statusParts.push('<span class="ok-text">🎯 TP1: ' + escapeHtml(String(tp1.elapsedMin)) + '분 도달</span>'.replace('🎯', '·'));
+    } else {
+      statusParts.push('<span class="muted">· TP1 미달</span>');
+    }
+    
+    html += '<div class="progress-status">' + statusParts.join(' ') + '</div>';
+    
+    // 펼치기 영역 (samples 있을 때만)
+    if (samples && samples.length > 0 && openPrice) {
+      // 현재까지의 maxRise / maxDrawdown
+      var pricesArr = samples.map(function(s){ return s.price; }).filter(function(p){ return typeof p === 'number'; });
+      if (pricesArr.length > 0) {
+        var maxP = Math.max.apply(null, pricesArr);
+        var minP = Math.min.apply(null, pricesArr);
+        var maxRiseSoFar = ((maxP - openPrice) / openPrice) * 100;
+        var maxDDSoFar = ((minP - openPrice) / openPrice) * 100;
+        
+        html += '<details>'
+              + '<summary>상세 진행 상황</summary>'
+              + '<div>'
+              + '<div class="summary-row" style="font-size:11px">'
+              +   '<span>현재까지 최고 <b class="ok-text">' + (maxRiseSoFar >= 0 ? '+' : '') + maxRiseSoFar.toFixed(2) + '%</b></span>'
+              +   '<span>최저 <b class="neg-text">' + maxDDSoFar.toFixed(2) + '%</b></span>'
+              + '</div>';
+        
+        // 미니 가격 곡선 (현재까지)
+        var partialSummary = { closeReturn: currentPct || 0 };
+        html += renderTimeflowChart(samples, openPrice, partialSummary, thresholds, tp1);
+        
+        // 도달 시점들 (현재까지)
+        if (reachedList.length > 0 || (tp1 && tp1.reached)) {
+          html += '<div class="events-box">'
+                + '<div class="events-title">⏱ 지금까지 도달</div>';
+          reachedList.forEach(function(t){
+            var r = thresholds[t];
+            var pct = parseFloat(t);
+            var pctCls2 = pct > 0 ? 'up' : 'down';
+            html += '<div class="event-row">'
+                  + '<span class="event-time">' + escapeHtml(formatMinSinceAlarm(r.elapsedMin)) + '</span>'
+                  + '<span class="event-label">' + escapeHtml(t) + '% 도달</span>'
+                  + '<span class="event-value ' + pctCls2 + '">' + escapeHtml(formatPct(pct)) + '</span>'
+                  + '</div>';
+          });
+          if (tp1 && tp1.reached) {
+            var tp1Pct = ((tp1.priceAtReach - openPrice) / openPrice) * 100;
+            html += '<div class="event-row">'
+                  + '<span class="event-time">' + escapeHtml(formatMinSinceAlarm(tp1.elapsedMin)) + '</span>'
+                  + '<span class="event-label">TP1 도달</span>'
+                  + '<span class="event-value up">' + escapeHtml(formatPct(tp1Pct)) + '</span>'
+                  + '</div>';
+          }
+          html += '</div>';
+        }
+        
+        // BTC 메타 (있으면)
+        if (meta.marketContext && typeof meta.marketContext.btcSnapshotPrice === 'number') {
+          html += '<div style="margin:6px 0;font-size:11px">'
+                + '<span class="label">📍 알람 시점 BTC:</span> '
+                + escapeHtml(String(meta.marketContext.btcSnapshotPrice))
+                + '</div>';
+        }
+        
+        html += '</div></details>';
+      }
+    }
+    
+    html += '</div>';
+    return html;
   }
   
   function renderMeasuringCard(meta) {
@@ -7262,7 +7535,7 @@ window.addEventListener('load', async function(){
     var dq = trackingData.dataQuality;
     var samples = trackingData.samples;  // Phase 3.5: includeSamples=1 시 포함
     
-    if (meta.status === 'active') return renderInProgressCard(meta);
+    if (meta.status === 'active') return renderInProgressCard(meta, trackingData);
     if (meta.status === 'expired_partial') return renderExpiredCard(meta, dq);
     if (meta.status === 'measurement_done') return renderMeasuringCard(meta);
     
@@ -7814,7 +8087,8 @@ window.addEventListener('load', async function(){
                      + 'Tier C: ' + (byTier.C || 0)
                      + '</div>';
       var fetchPromises = active.map(function(item){
-        return fetchTrackingData(item.id, false).then(function(td){
+        // 추적 중 알람은 진행 상황 표시 위해 includeSamples=1 로 fetch
+        return fetchTrackingData(item.id, true).then(function(td){
           if (!td) {
             return {
               meta: {
@@ -7826,6 +8100,7 @@ window.addEventListener('load', async function(){
               }
             };
           }
+          // status 가 KV 의 meta 에서 오는데, active 면 그대로 (분석 미완료)
           return td;
         });
       });
