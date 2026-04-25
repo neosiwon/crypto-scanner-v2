@@ -2593,6 +2593,173 @@ body.scan-complete .main-logo,
 
 /* [END MODULE: ui_compact_v401] */
 
+/* ══════════════════════════════════════════════════════════════════
+   [MODULE: phase34_analyzer_css] — 분석기 카드 다크 테마 (Phase 3.4)
+   기존 디자인 토큰 사용 (--bg-card, --border, --text-primary 등)
+   ══════════════════════════════════════════════════════════════════ */
+.analyzer-section {
+  margin-top: 16px;
+  padding: 12px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.analyzer-section-title {
+  font-size: .72rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+  letter-spacing: .03em;
+  text-transform: uppercase;
+}
+.analyzer-section-title .ko {
+  color: var(--text-secondary);
+  font-weight: 400;
+  margin-left: 6px;
+  letter-spacing: 0;
+}
+.analyzer-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px;
+  margin: 8px 0;
+  color: var(--text-primary);
+  font-size: 13px;
+}
+.analyzer-card .header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.analyzer-card .header-title {
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--text-primary);
+}
+.analyzer-card .symbol {
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-family: var(--mono);
+}
+.analyzer-card .summary-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  margin: 10px 0;
+  padding: 8px;
+  background: var(--bg-panel);
+  border-radius: 6px;
+}
+.analyzer-card .summary-row b { font-weight: 700; }
+.analyzer-card details {
+  margin-top: 8px;
+}
+.analyzer-card details > summary {
+  cursor: pointer;
+  color: var(--text-secondary);
+  font-size: 13px;
+  user-select: none;
+  padding: 4px 0;
+}
+.analyzer-card details[open] > summary { color: var(--accent-cyan); }
+.analyzer-card details > div {
+  padding: 8px 0;
+  border-top: 1px solid var(--border);
+  margin-top: 8px;
+  font-size: 13px;
+}
+.analyzer-card details .label { color: var(--text-secondary); }
+.analyzer-card .pattern-badge {
+  display: inline-block;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.analyzer-card .confidence {
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-left: 6px;
+}
+.analyzer-card .tier-badge {
+  padding: 2px 6px;
+  border-radius: 3px;
+  color: white;
+  font-size: 10px;
+  font-weight: 600;
+  font-family: var(--mono);
+}
+.analyzer-card .usable-ok { color: var(--accent-green); }
+.analyzer-card .usable-no { color: var(--text-secondary); }
+.analyzer-card .ok-text  { color: var(--accent-green); }
+.analyzer-card .neg-text { color: var(--accent-orange); }
+.analyzer-card .muted    { color: var(--text-muted); }
+.analyzer-card .small    { font-size: 11px; color: var(--text-secondary); }
+.analyzer-progress {
+  background: rgba(0, 212, 255, 0.05);
+  border: 1px solid rgba(0, 212, 255, 0.3);
+  border-radius: 8px;
+  padding: 12px;
+  margin: 8px 0;
+  font-size: 13px;
+  color: var(--accent-cyan);
+}
+.analyzer-measuring {
+  background: rgba(255, 214, 0, 0.05);
+  border: 1px solid rgba(255, 214, 0, 0.3);
+  border-radius: 8px;
+  padding: 12px;
+  margin: 8px 0;
+  font-size: 13px;
+  color: var(--accent-yellow);
+}
+.analyzer-expired {
+  background: rgba(255, 69, 96, 0.05);
+  border: 1px solid rgba(255, 69, 96, 0.3);
+  border-radius: 8px;
+  padding: 12px;
+  margin: 8px 0;
+  font-size: 13px;
+  color: var(--accent-red);
+}
+.analyzer-empty {
+  color: var(--text-muted);
+  padding: 12px;
+  font-size: 13px;
+  text-align: center;
+}
+.analyzer-loading {
+  color: var(--text-secondary);
+  padding: 12px;
+  font-size: 13px;
+  text-align: center;
+}
+.analyzer-card svg {
+  display: block;
+  margin: 8px auto;
+  background: var(--bg-panel);
+  border-radius: 6px;
+}
+.analyzer-card .threshold-row {
+  margin: 6px 0 6px 8px;
+  font-family: var(--mono);
+  font-size: 12px;
+}
+.analyzer-card .threshold-row span {
+  margin-right: 10px;
+}
+.analyzer-card .threshold-row .reached  { color: var(--text-primary); }
+.analyzer-card .threshold-row .pending  { color: var(--text-muted); }
+@media (max-width: 600px) {
+  .analyzer-card .summary-row { font-size: 12px; padding: 6px; }
+  .analyzer-section-title { font-size: .68rem; }
+}
+/* [END MODULE: phase34_analyzer_css] */
+
 </style>
 </head>
 <body>
@@ -2965,6 +3132,18 @@ body.scan-complete .main-logo,
       <span class="outcome-meta-text" id="outcomeMetaText">-</span>
       <button class="outcome-refresh-btn" onclick="refreshOutcomeDashboard(true)">↺ 새로고침</button>
     </div>
+
+    <!-- [MODULE: phase34_analyzer_html] — 분석기 섹션 (Phase 3.4) -->
+    <div class="analyzer-section" id="analyzerSection">
+      <div class="analyzer-section-title">
+        📊 분석기
+        <span class="ko">— v1.3 패턴 분석 (R1: 평가 X, 사후 기록만)</span>
+      </div>
+      <div id="analyzerContent">
+        <div class="analyzer-loading">분석기 로드 중...</div>
+      </div>
+    </div>
+    <!-- [END MODULE: phase34_analyzer_html] -->
 
     <!-- 동적 콘텐츠 컨테이너 -->
     <div id="outcomeContent">
@@ -6138,6 +6317,378 @@ window.addEventListener('load', async function(){
     document.getElementById('liveStatus').textContent='CACHED ('+state.coins.length+')';
   }
 });
+
+/* ══════════════════════════════════════════════════════════════════
+   [MODULE: phase34_analyzer_js] — 분석기 UI 모듈 (Phase 3.4)
+   기반: Phase 3.2-C (패턴 분류 + Summary + finalizeTracking)
+   v1.3 철학 100% 준수:
+     R1: SUCCESS/FAIL/적중 등 평가성 표현 X
+     R6: marketContext / endMomentum / patternConfidence 표시
+     R7: 단일 패턴 1회 결정 (분석기에서 박제된 값 사용)
+   ══════════════════════════════════════════════════════════════════ */
+(function(global) {
+  'use strict';
+  
+  var WORKER_URL = 'https://auto-alert-worker-v3.neosiwon.workers.dev';
+  
+  // ── 패턴별 색상 + 한국어 보조 라벨 (R1 정합성: 객관적 분류명) ──
+  var PATTERN_META = {
+    'EXPLOSIVE':     { bg: '#10b981', fg: 'white',   ko: '급등형' },
+    'STEADY_UP':     { bg: '#10b981', fg: 'white',   ko: '꾸준한 상승' },
+    'PUMP_DUMP':     { bg: '#f59e0b', fg: 'white',   ko: '급등 후 반락' },
+    'CRASH':         { bg: '#f59e0b', fg: 'white',   ko: '급락' },
+    'RANGE_BOUND':   { bg: '#9ca3af', fg: 'white',   ko: '박스권' },
+    'BREAKOUT_FAIL': { bg: '#9ca3af', fg: 'white',   ko: '돌파 후 후퇴' },
+    'SLOW_BLEED':    { bg: '#9ca3af', fg: 'white',   ko: '느린 하락' },
+    'UNCLASSIFIED':  { bg: '#475569', fg: '#cbd5e1', ko: '미분류' },
+  };
+  
+  // Tier 별 메타 + 한국어 보조 (Tier C: inferred + 1h × 24 제한 명시)
+  var TIER_META = {
+    'A': { bg: '#7c3aed', label: 'Tier A · precise',  ko: '정밀 추적 (54 sample)' },
+    'B': { bg: '#2563eb', label: 'Tier B · precise',  ko: '표준 추적 (21 sample)' },
+    'C': { bg: '#6b7280', label: 'Tier C · inferred', ko: '최소 측정 (1h × 24)' },
+  };
+  
+  // [원칙 7] XSS 방지
+  function escapeHtml(s) {
+    if (s == null) return '';
+    return String(s).replace(/[&<>"']/g, function(c){
+      return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+    });
+  }
+  
+  function formatPct(n) {
+    if (n == null || isNaN(n)) return '-';
+    return (n >= 0 ? '+' : '') + n.toFixed(2) + '%';
+  }
+  
+  function formatElapsed(ms) {
+    if (!ms || ms < 0) return '-';
+    var h = Math.floor(ms / 3600000);
+    var m = Math.floor((ms % 3600000) / 60000);
+    if (h === 0) return m + '분';
+    return h + '시간 ' + m + '분';
+  }
+  
+  // 패턴 배지 (색상 + 한국어 라벨)
+  function renderPatternBadge(pattern, confidence) {
+    var meta = PATTERN_META[pattern] || PATTERN_META['UNCLASSIFIED'];
+    return '<span class="pattern-badge" style="background:' + meta.bg + ';color:' + meta.fg + '">'
+         + escapeHtml(pattern) + ' · ' + escapeHtml(meta.ko)
+         + '</span>'
+         + '<span class="confidence">(' + escapeHtml(confidence) + ')</span>';
+  }
+  
+  // Tier 배지 (Tier 차등 + 한국어)
+  function renderTierBadge(tier) {
+    var meta = TIER_META[tier] || TIER_META['C'];
+    return '<span class="tier-badge" style="background:' + meta.bg + '" title="' + escapeHtml(meta.ko) + '">'
+         + escapeHtml(meta.label) + '</span>';
+  }
+  
+  // 미니 차트 (SVG 인라인, 외부 의존성 0)
+  function renderMiniChart(samples, openPrice, summary) {
+    if (!samples || samples.length === 0 || !openPrice) return '';
+    var W = 260, H = 70, P = 4;
+    var prices = [];
+    for (var i = 0; i < samples.length; i++) {
+      if (typeof samples[i].price === 'number') prices.push(samples[i].price);
+    }
+    if (prices.length === 0) return '';
+    var minP = Math.min.apply(null, prices.concat([openPrice]));
+    var maxP = Math.max.apply(null, prices.concat([openPrice]));
+    var range = (maxP - minP) || 1;
+    var pts = [];
+    for (var j = 0; j < samples.length; j++) {
+      var s = samples[j];
+      if (typeof s.price !== 'number') continue;
+      var x = P + (j / (samples.length - 1 || 1)) * (W - 2 * P);
+      var y = H - P - ((s.price - minP) / range) * (H - 2 * P);
+      pts.push(x.toFixed(1) + ',' + y.toFixed(1));
+    }
+    var yOpen = H - P - ((openPrice - minP) / range) * (H - 2 * P);
+    var lineColor = (summary && summary.closeReturn >= 0) ? '#00e676' : '#ff8c42';
+    return '<svg width="' + W + '" height="' + H + '" role="img" aria-label="가격 곡선">'
+         + '<line x1="' + P + '" y1="' + yOpen.toFixed(1) + '" '
+         + 'x2="' + (W - P) + '" y2="' + yOpen.toFixed(1) + '" '
+         + 'stroke="#3d5a72" stroke-dasharray="2,2" stroke-width="0.5" />'
+         + '<polyline points="' + pts.join(' ') + '" fill="none" '
+         + 'stroke="' + lineColor + '" stroke-width="1.5" />'
+         + '</svg>';
+  }
+  
+  // Threshold 도달 (R1: 객관적 시간 정보)
+  function renderThresholds(thresholds) {
+    if (!thresholds) return '<span class="muted">-</span>';
+    var labels = ['+3', '+5', '+10', '-5'];
+    var parts = [];
+    for (var i = 0; i < labels.length; i++) {
+      var t = labels[i];
+      var r = thresholds[t];
+      if (r && r.reached) {
+        parts.push('<span class="reached"><b>' + escapeHtml(t) + '</b>: ' + escapeHtml(String(r.elapsedMin)) + '분</span>');
+      } else {
+        parts.push('<span class="pending"><b>' + escapeHtml(t) + '</b>: -</span>');
+      }
+    }
+    return '<div class="threshold-row">' + parts.join('') + '</div>';
+  }
+  
+  // TP1 도달 (R1: 도달 사실만, ✓ 는 Boolean 표시)
+  function renderTP1(tp1) {
+    if (!tp1 || !tp1.reached) return '<span class="muted">미도달</span>';
+    return '<span class="ok-text">'
+         + '✓ ' + escapeHtml(String(tp1.elapsedMin)) + '분'
+         + ' <span class="small">(가격 ' + escapeHtml(String(tp1.priceAtReach)) + ')</span>'
+         + '</span>';
+  }
+  
+  // dataQuality 표시 (R1: 평가가 아닌 데이터 품질 상태)
+  function renderUsable(dataQuality) {
+    if (!dataQuality) return '<span class="muted">데이터 없음</span>';
+    var usable = dataQuality.usable;
+    var completeness = dataQuality.completeness;
+    var fetchErrors = dataQuality.fetchErrors;
+    var statusText = usable
+      ? '<span class="usable-ok">✓ usable</span>'
+      : '<span class="usable-no">non-usable</span>';
+    var detail = '';
+    if (completeness !== undefined) {
+      detail += ' <span class="small">completeness ' + (completeness * 100).toFixed(0) + '%';
+      if (fetchErrors !== undefined) detail += ', errors ' + fetchErrors;
+      detail += '</span>';
+    }
+    return statusText + detail;
+  }
+  
+  function renderInProgressCard(meta) {
+    var elapsedMs = Date.now() - (meta.tierAssignedAt || 0);
+    var symbol = meta.base || meta.snapshotId || '';
+    return '<div class="analyzer-progress">'
+         + '<b>' + escapeHtml(symbol) + '</b> · '
+         + '추적 중 — ' + renderTierBadge(meta.tier)
+         + ' · ' + escapeHtml(formatElapsed(elapsedMs)) + ' 경과'
+         + '</div>';
+  }
+  
+  function renderMeasuringCard(meta) {
+    var symbol = meta.base || meta.snapshotId || '';
+    return '<div class="analyzer-measuring">'
+         + '<b>' + escapeHtml(symbol) + '</b> · '
+         + '분석 대기 — ' + renderTierBadge(meta.tier)
+         + ' · 다음 Cron 에서 결과 생성'
+         + '</div>';
+  }
+  
+  function renderExpiredCard(meta, dataQuality) {
+    var symbol = meta.base || meta.snapshotId || '';
+    var completenessText = '';
+    if (dataQuality && dataQuality.completeness !== undefined) {
+      completenessText = ' (' + (dataQuality.completeness * 100).toFixed(0) + '% 데이터)';
+    }
+    return '<div class="analyzer-expired">'
+         + '<b>' + escapeHtml(symbol) + '</b> · '
+         + '측정 미완료' + escapeHtml(completenessText) + ' — non-usable · ' + renderTierBadge(meta.tier)
+         + '</div>';
+  }
+  
+  // 메인 카드 (점진 표시 — 1차 간략, 펼침 시 상세)
+  function renderAnalyzerCard(trackingData, samples) {
+    if (!trackingData || !trackingData.meta) {
+      return '<div class="analyzer-empty">분석 데이터 없음</div>';
+    }
+    var meta = trackingData.meta;
+    var summary = trackingData.summary;
+    var thresholds = trackingData.thresholds;
+    var tp1 = trackingData.tp1;
+    var dq = trackingData.dataQuality;
+    
+    if (meta.status === 'active') return renderInProgressCard(meta);
+    if (meta.status === 'expired_partial') return renderExpiredCard(meta, dq);
+    if (meta.status === 'measurement_done') return renderMeasuringCard(meta);
+    
+    if (!summary) {
+      return '<div class="analyzer-empty">summary 없음 (분석 미완료)</div>';
+    }
+    
+    var pattern = meta.pattern || summary.pattern || 'UNCLASSIFIED';
+    var confidence = meta.patternConfidence || summary.patternConfidence || 'inferred';
+    var symbol = meta.base || meta.snapshotId || '';
+    
+    var html = '<div class="analyzer-card">'
+      + '<div class="header">'
+      +   '<div>'
+      +     '<span class="header-title">' + escapeHtml(symbol) + '</span> '
+      +     '<span class="symbol">' + escapeHtml(meta.snapshotId || '') + '</span>'
+      +   '</div>'
+      +   renderTierBadge(meta.tier)
+      + '</div>'
+      + '<div style="margin:8px 0">' + renderPatternBadge(pattern, confidence) + '</div>'
+      + '<div style="margin:6px 0;font-size:12px">' + renderUsable(dq) + '</div>'
+      + '<div class="summary-row">'
+      +   '<span>최고 <b class="ok-text">' + escapeHtml(formatPct(summary.maxRise)) + '</b></span>'
+      +   '<span>최저 <b class="neg-text">' + escapeHtml(formatPct(summary.maxDrawdown)) + '</b></span>'
+      +   '<span>마감 <b class="' + (summary.closeReturn >= 0 ? 'ok-text' : 'neg-text') + '">'
+      +     escapeHtml(formatPct(summary.closeReturn)) + '</b></span>'
+      + '</div>'
+      + '<details>'
+      +   '<summary>상세 펼치기</summary>'
+      +   '<div>'
+      +     '<div style="margin:6px 0">'
+      +       '<span class="label">Threshold 도달:</span>'
+      +       renderThresholds(thresholds)
+      +     '</div>'
+      +     '<div style="margin:6px 0">'
+      +       '<span class="label">TP1:</span> ' + renderTP1(tp1)
+      +     '</div>';
+    
+    if (summary.marketContext && typeof summary.marketContext.btc24hDelta === 'number') {
+      html += '<div style="margin:6px 0">'
+            + '<span class="label">📍 BTC 24h:</span> '
+            + '<b>' + escapeHtml(formatPct(summary.marketContext.btc24hDelta)) + '</b>'
+            + '</div>';
+    }
+    if (summary.endMomentum && typeof summary.endMomentum.last2hSlope === 'number') {
+      html += '<div style="margin:6px 0">'
+            + '<span class="label">⏱ 마지막 2h slope:</span> '
+            + '<b>' + escapeHtml(formatPct(summary.endMomentum.last2hSlope)) + '</b>'
+            + '</div>';
+    }
+    if (samples && samples.length > 0) {
+      html += renderMiniChart(samples, summary.openPrice, summary);
+    }
+    html += '</div></details></div>';
+    return html;
+  }
+  
+  function fetchTrackingActive() {
+    return fetch(WORKER_URL + '/tracking/active')
+      .then(function(r){ return r.ok ? r.json() : null; })
+      .catch(function(){ return null; });
+  }
+  
+  function fetchTrackingData(snapshotId) {
+    return fetch(WORKER_URL + '/tracking/' + encodeURIComponent(snapshotId))
+      .then(function(r) {
+        if (!r.ok) return null;
+        return r.json();
+      })
+      .catch(function(){ return null; });
+  }
+  
+  // 모든 추적 알람의 카드 동시 렌더
+  function renderAllAnalyzerCards() {
+    var container = document.getElementById('analyzerContent');
+    if (!container) return;
+    
+    container.innerHTML = '<div class="analyzer-loading">분석기 로드 중...</div>';
+    
+    return fetchTrackingActive().then(function(activeData) {
+      if (!activeData || !activeData.active) {
+        container.innerHTML = '<div class="analyzer-empty">현재 추적 중인 알람 없음</div>';
+        return;
+      }
+      
+      var active = activeData.active;
+      var count = activeData.count || active.length;
+      
+      if (count === 0) {
+        container.innerHTML = '<div class="analyzer-empty">현재 추적 중인 알람 없음</div>';
+        return;
+      }
+      
+      // 카운트 정보 + Tier 분포
+      var byTier = activeData.byTier || {};
+      var headerHtml = '<div class="small" style="margin-bottom:8px">'
+                     + '추적 중 <b>' + count + '</b>건 · '
+                     + 'Tier A: ' + (byTier.A || 0) + ' / '
+                     + 'Tier B: ' + (byTier.B || 0) + ' / '
+                     + 'Tier C: ' + (byTier.C || 0)
+                     + '</div>';
+      
+      // 각 알람의 상세 데이터 fetch (병렬)
+      var fetchPromises = active.map(function(item){
+        return fetchTrackingData(item.id).then(function(td) {
+          // td 가 null 이면 active 정보만 사용
+          if (!td) {
+            return {
+              meta: { 
+                tier: item.tier, 
+                status: 'active', 
+                tierAssignedAt: item.tierAssignedAt,
+                snapshotId: item.id,
+                base: (item.id || '').split('_')[0],
+              },
+            };
+          }
+          return td;
+        });
+      });
+      
+      return Promise.all(fetchPromises).then(function(results) {
+        var cardsHtml = results.map(function(td) {
+          return renderAnalyzerCard(td, null);
+        }).join('');
+        container.innerHTML = headerHtml + cardsHtml;
+      });
+    });
+  }
+  
+  global.WOOS_ANALYZER = {
+    BUILD_TAG: 'phase3.4-analyzer-ui-v3.4.0',
+    renderAll: renderAllAnalyzerCards,
+    render: function(snapshotId) {
+      return fetchTrackingData(snapshotId).then(function(td) {
+        var c = document.getElementById('analyzerContent');
+        if (c) c.innerHTML = renderAnalyzerCard(td || { meta: null }, null);
+      });
+    },
+    _components: {
+      renderAnalyzerCard: renderAnalyzerCard,
+      renderPatternBadge: renderPatternBadge,
+      renderTierBadge: renderTierBadge,
+      renderMiniChart: renderMiniChart,
+      renderThresholds: renderThresholds,
+      renderTP1: renderTP1,
+      renderUsable: renderUsable,
+      escapeHtml: escapeHtml,
+    },
+  };
+  
+  // 24H Outcome 탭 진입 시 + 새로고침 시 자동 호출
+  // 기존 switchTab 함수와 refreshOutcomeDashboard 함수를 건드리지 않고 hook
+  function tryInitAnalyzer() {
+    // outcome 탭이 active 면 즉시 렌더
+    var outcomeTab = document.getElementById('tab-outcome');
+    if (outcomeTab && outcomeTab.classList.contains('active')) {
+      renderAllAnalyzerCards();
+    }
+  }
+  
+  // DOM 준비되면 outcome 탭 클릭 시 / 새로고침 시 자동 호출 hook
+  document.addEventListener('DOMContentLoaded', function() {
+    // outcome 탭 버튼 클릭 시 hook
+    var outcomeBtn = document.querySelector('[data-tab="outcome"]');
+    if (outcomeBtn) {
+      outcomeBtn.addEventListener('click', function() {
+        // 약간의 지연 후 (탭 전환 애니메이션 완료 대기)
+        setTimeout(renderAllAnalyzerCards, 100);
+      });
+    }
+    // 새로고침 버튼 hook
+    var refreshBtn = document.querySelector('.outcome-refresh-btn');
+    if (refreshBtn) {
+      refreshBtn.addEventListener('click', function() {
+        setTimeout(renderAllAnalyzerCards, 200);
+      });
+    }
+    // 페이지 로드 시 outcome 탭이 이미 active 이면 즉시 렌더
+    tryInitAnalyzer();
+  });
+  
+})(typeof window !== 'undefined' ? window : this);
+/* [END MODULE: phase34_analyzer_js] */
 
 </script>
 </body>
