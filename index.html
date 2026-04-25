@@ -2610,7 +2610,7 @@ body.scan-complete .main-logo,
       </div>
       <div class="logo-sub">
         UPBIT · BITHUMB · BINANCE · REAL-TIME
-        <span class="build-badge" id="buildBadge" onclick="showBuildInfo()" title="빌드 정보 상세 보기">v4.1.0 · p3.1</span>
+        <span class="build-badge" id="buildBadge" onclick="showBuildInfo()" title="빌드 정보 상세 보기">v4.1.1 · p3.1.1</span>
       </div>
       <div class="woos-hero-status">
         <div class="live-indicator">
@@ -2931,13 +2931,14 @@ body.scan-complete .main-logo,
     </div>
     <div id="snapshotTabContainer">
       <!-- snapshotPanel 의 복사본 역할. 실제 렌더는 renderSnapshotPanel() 이 처리 -->
-      <div class="snapshot-panel" style="position:relative;display:block;margin:0;border-radius:12px">
-        <div class="snapshot-search-wrap" style="margin-top:0">
+      <!-- [Phase 3.1.1] 모바일 호환: position:relative + height:auto + width:100% (.snapshot-panel 의 fixed/100vh override) -->
+      <div class="snapshot-panel" style="position:relative !important;display:block;margin:0;border-radius:12px;width:100%;max-width:100%;height:auto;right:auto;top:auto;border-left:none;box-shadow:none">
+        <div class="snapshot-search-wrap" style="margin-top:0;border-bottom:1px solid var(--border)">
           <input id="snapshotSearchInputTab" class="ctrl-input"
             placeholder="코인명 또는 snapshot ID 검색"
             oninput="renderSnapshotPanel(this.value, 'tab')">
         </div>
-        <div id="snapshotListTab" class="snapshot-list"></div>
+        <div id="snapshotListTab" class="snapshot-list" style="max-height:none;overflow-y:visible"></div>
       </div>
     </div>
   </div>
@@ -3574,7 +3575,7 @@ async function opsDashboard() {
 // 탭 시 상세 팝업
 // ═══════════════════════════════════════════════════════════════
 
-var HTML_VERSION = 'v4.1.0';  // Phase 3.1 — 분석기 인프라 (이름 통일 + 스냅샷 fallback)
+var HTML_VERSION = 'v4.1.1';  // Phase 3.1.1 — snapshot hotfix (gradeLabel/exchange/price fallback + outcome card clickable + tab CSS)
 var _cachedBuildInfo = null;
 
 async function fetchBuildInfo() {
@@ -4042,7 +4043,13 @@ function _renderRecentCard(r) {
   if (r.strategyTp1Reached === true) tp1Info = ' · TP1 ✓';
   else if (r.strategyTp1Reached === false) tp1Info = ' · TP1 ✗';
 
-  return '<div class="recent-outcome-card">'
+  // [Phase 3.1.1] outcome 카드 클릭 시 해당 snapshot 모드로 진입
+  // r.snapshotId 있으면 onclick 추가, 없으면 일반 카드
+  var clickAttr = r.snapshotId
+    ? ' onclick="_outcomeCardClick(\'' + _outcomeEsc(r.snapshotId).replace(/'/g, "\\'") + '\')" style="cursor:pointer"'
+    : '';
+
+  return '<div class="recent-outcome-card"' + clickAttr + '>'
     + '<div class="ro-grade" style="' + gradeColor + '">' + _outcomeEsc(r.grade || '?') + '</div>'
     + '<div class="ro-main">'
     +   '<div class="ro-coin">' + _outcomeEsc(r.base || '?') + ' <span style="color:var(--text-muted);font-size:.58rem;font-weight:400">· ' + _outcomeEsc(r.exchange || '') + '</span></div>'
@@ -4053,6 +4060,20 @@ function _renderRecentCard(r) {
     +   '<div class="ro-rt" style="' + rtColor + '">' + _outcomeEsc(rt) + '</div>'
     + '</div>'
     + '</div>';
+}
+
+// [Phase 3.1.1] outcome 카드 클릭 핸들러
+async function _outcomeCardClick(snapshotId) {
+  if (!snapshotId) return;
+  try {
+    if (typeof openSnapshotById === 'function') {
+      await openSnapshotById(snapshotId);
+      // 스냅샷 모드 진입 후 스캐너 탭으로 이동
+      if (typeof switchTab === 'function') switchTab('scanner');
+    }
+  } catch(e) {
+    if (typeof addLog === 'function') addLog('[OUTCOME] snapshot 진입 실패: '+e.message, 'err');
+  }
 }
 
 function setOutcomeUnit(unit) {
@@ -4810,7 +4831,7 @@ async function renderSnapshotPanel(query, context) {
       : (src === 'workers_auto' || s.source == null
           ? '<span class="snap-src-badge snap-src-auto">자동</span>'
           : '<span class="snap-src-badge">'+escapeHtml(src)+'</span>');
-    var gradeRaw  = s.gradeLabel || s.gradeCode || '-';
+    var gradeRaw  = s.gradeLabel || (typeof formatGradeLabel === 'function' ? formatGradeLabel(s.gradeCode) : s.gradeCode) || '-';
     var exch      = s.exchange || s.representativeExchange || '-';
     var alertType = s.alertType ? ' · ' + escapeHtml(s.alertType) : '';
     var ts = s.timestamp ? (typeof s.timestamp === 'number' ? s.timestamp : new Date(s.timestamp).getTime()) : 0;
@@ -4841,26 +4862,42 @@ function restoreSnapshotMode(snapshot) {
     var el=document.getElementById(id); if(el) el.classList.add('visible');
   });
   // Snapshot을 현재 코인 구조처럼 최소 변환
+  // [Phase 3.1.1] 기존 KV에 저장된 snapshot에 누락 필드 fallback
+  // (Workers buildSnapshotData v3.1.0 이전 데이터 호환)
+  var fallbackGradeColor = {
+    'SPLUS': 'var(--grade-sp)', 'S': 'var(--grade-s)',
+    'A': 'var(--grade-a)', 'B': 'var(--grade-b)', 'C': 'var(--grade-c)'
+  };
+  var snapPrice = (typeof snapshot.price === 'number' && snapshot.price > 0)
+    ? snapshot.price
+    : (snapshot.alertPrice || snapshot.entryPrice || 0);
+  var snapExchange = snapshot.representativeExchange
+    || snapshot.exchange
+    || (snapshot.existsIn && snapshot.existsIn[0])
+    || '-';
+  var snapGradeLabel = snapshot.gradeLabel
+    || (typeof formatGradeLabel === 'function' ? formatGradeLabel(snapshot.gradeCode) : (snapshot.gradeCode === 'SPLUS' ? 'S+' : snapshot.gradeCode));
+
   var coin = {
     base: snapshot.base,
     representative: {
       base: snapshot.base,
-      exchange: snapshot.representativeExchange,
+      exchange: snapExchange,
       gradeCode: snapshot.gradeCode,
-      gradeLabel: snapshot.gradeLabel,
-      gradeColor: snapshot.gradeCode === 'SPLUS' ? 'var(--grade-sp)' : snapshot.gradeCode === 'S' ? 'var(--grade-s)' : snapshot.gradeCode === 'A' ? 'var(--grade-a)' : snapshot.gradeCode === 'B' ? 'var(--grade-b)' : 'var(--grade-c)',
+      gradeLabel: snapGradeLabel,
+      gradeColor: fallbackGradeColor[snapshot.gradeCode] || 'var(--grade-c)',
       total: snapshot.total,
       scoreSummary: snapshot.scoreSummary || '',
-      price: snapshot.price || 0,
-      changeRate: snapshot.changeRate || 0,
-      rsi: snapshot.rsi || 50,
-      mfi: snapshot.mfi || 50,
+      price: snapPrice,
+      changeRate: typeof snapshot.changeRate === 'number' ? snapshot.changeRate : 0,
+      rsi: typeof snapshot.rsi === 'number' ? snapshot.rsi : 50,
+      mfi: typeof snapshot.mfi === 'number' ? snapshot.mfi : 50,
       vol: { ratio: snapshot.volRatio || 1, accel: snapshot.volAccel || 1 },
       obv: { trend: snapshot.obvTrend || 'flat' },
-      box: { low: snapshot.stopLoss || snapshot.boxLow || 0, isBreakout:false, breakoutStrength:0, isNearTop:false, distanceToTop:0, isSideways:true, rangePercent:0 },
+      box: { low: snapshot.stopLoss || snapshot.boxLow || 0, high: snapshot.boxHigh || 0, isBreakout:false, breakoutStrength:0, isNearTop:false, distanceToTop:0, isSideways:true, rangePercent:0 },
       smc: { direction:'bull' },
-      prePump: snapshot.alertType && snapshot.alertType.indexOf('PREPUMP') >= 0,
-      isEntryReady: snapshot.alertType === 'ENTRY' || snapshot.alertType === 'ENTRY_READY',
+      prePump: snapshot.prePump === true || (snapshot.alertType && snapshot.alertType.indexOf('PREPUMP') >= 0),
+      isEntryReady: snapshot.isEntryReady === true || snapshot.alertType === 'ENTRY' || snapshot.alertType === 'ENTRY_READY',
       action: snapshot.action || '관찰',
       actionDesc: snapshot.actionDesc || '',
       accumulationStrength: snapshot.accumulationStrength || {},
@@ -4875,10 +4912,10 @@ function restoreSnapshotMode(snapshot) {
       priceGap: snapshot.priceGap,
       gapStatus: snapshot.gapStatus || ''
     },
-    exchanges: (snapshot.existsIn || [snapshot.representativeExchange]).map(function(ex){
-      return { exchange: ex, gradeLabel: snapshot.gradeLabel, total: snapshot.total };
+    exchanges: (snapshot.existsIn || [snapExchange]).map(function(ex){
+      return { exchange: ex, gradeLabel: snapGradeLabel, total: snapshot.total };
     }),
-    existsIn: snapshot.existsIn || [snapshot.representativeExchange],
+    existsIn: snapshot.existsIn || [snapExchange],
     syncStatus: { type:'solo', cls:'sync-solo', label:'Snapshot 복구' },
     priceGap: snapshot.priceGap,
     gapStatus: snapshot.gapStatus || ''
