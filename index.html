@@ -2760,6 +2760,385 @@ body.scan-complete .main-logo,
 }
 /* [END MODULE: phase34_analyzer_css] */
 
+/* ══════════════════════════════════════════════════════════════════
+   [MODULE: phase35_visualization_css] — 시각화 + 비교 + 시간 흐름 (Phase 3.5)
+   - 24H 테스트1 흔적 숨김 (TASK-1)
+   - 알람 테이블 (3-A)
+   - 대시보드 (3-B)
+   - 카드 강화: 평균 비교, 시간 흐름, 마커 (3-C)
+   ══════════════════════════════════════════════════════════════════ */
+
+/* TASK-1: 24H 테스트1 흔적 숨김 */
+.outcome-disclaimer { display: none !important; }
+.outcome-kpi-grid { display: none !important; }
+.outcome-dist { display: none !important; }
+.outcome-error { display: none !important; }
+.outcome-loading { display: none !important; }
+.outcome-unit-toggle { display: none !important; }
+/* outcome 동적 콘텐츠가 outcome-section 으로 채워지면 숨김 (분석기 영역 제외) */
+#outcomeContent .outcome-section { display: none !important; }
+
+/* ── TASK-3-A: 알람 테이블 ────────────────────────── */
+.alarm-table-section {
+  margin-top: 16px;
+  padding: 12px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.alarm-table-title {
+  font-size: .72rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+  letter-spacing: .03em;
+  text-transform: uppercase;
+}
+.alarm-table-title .ko {
+  color: var(--text-secondary);
+  font-weight: 400;
+  margin-left: 6px;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.alarm-table-filter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 8px 0;
+}
+.alarm-table-filter-btn {
+  padding: 4px 10px;
+  font-size: 11px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  border-radius: 12px;
+  cursor: pointer;
+  font-family: var(--mono);
+  transition: all .15s;
+}
+.alarm-table-filter-btn:hover {
+  border-color: var(--border-bright);
+  color: var(--text-primary);
+}
+.alarm-table-filter-btn.active {
+  background: var(--accent-cyan);
+  border-color: var(--accent-cyan);
+  color: var(--bg-primary);
+}
+.alarm-table-wrapper {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  border-radius: 6px;
+  background: var(--bg-card);
+}
+.alarm-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+  font-family: var(--mono);
+}
+.alarm-table thead {
+  background: var(--bg-panel);
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+.alarm-table th {
+  padding: 8px 6px;
+  text-align: left;
+  font-weight: 600;
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+}
+.alarm-table th:hover { color: var(--text-primary); }
+.alarm-table th.sorted { color: var(--accent-cyan); }
+.alarm-table td {
+  padding: 8px 6px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+.alarm-table tr:last-child td { border-bottom: none; }
+.alarm-table tbody tr {
+  cursor: pointer;
+  transition: background .1s;
+}
+.alarm-table tbody tr:hover {
+  background: var(--bg-panel);
+}
+.alarm-table tbody tr.expanded {
+  background: var(--bg-panel);
+}
+.alarm-table .col-mfe { color: var(--accent-green); }
+.alarm-table .col-mae { color: var(--accent-orange); }
+.alarm-table .col-pending { color: var(--text-muted); font-style: italic; }
+.alarm-table .grade-splus { color: #ff4560; font-weight: 700; }
+.alarm-table .grade-s     { color: #ff8c42; font-weight: 600; }
+.alarm-table .grade-a     { color: #ffd600; font-weight: 600; }
+.alarm-table .grade-b     { color: var(--text-secondary); }
+.alarm-table-detail-row td {
+  background: var(--bg-secondary);
+  padding: 0;
+}
+.alarm-table-empty {
+  padding: 24px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+/* ── TASK-3-B: 대시보드 ────────────────────────── */
+.dashboard-section {
+  margin-top: 16px;
+  padding: 12px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.dashboard-title {
+  font-size: .72rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+  letter-spacing: .03em;
+  text-transform: uppercase;
+}
+.dashboard-title .ko {
+  color: var(--text-secondary);
+  font-weight: 400;
+  margin-left: 6px;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+  margin-top: 8px;
+}
+@media (min-width: 600px) {
+  .dashboard-grid { grid-template-columns: 1fr 1fr; }
+}
+.dashboard-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px;
+}
+.dashboard-card-title {
+  font-size: .66rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: .02em;
+  margin-bottom: 8px;
+}
+.dashboard-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 5px 0;
+  font-size: 11px;
+  font-family: var(--mono);
+  border-bottom: 1px dashed var(--border);
+}
+.dashboard-row:last-child { border-bottom: none; }
+.dashboard-row .row-label {
+  color: var(--text-primary);
+  font-weight: 600;
+  flex: 0 0 auto;
+}
+.dashboard-row .row-count {
+  color: var(--text-secondary);
+  font-size: 10px;
+  margin-left: 4px;
+}
+.dashboard-row .row-stats {
+  color: var(--text-secondary);
+  text-align: right;
+}
+.dashboard-row .stat-mfe { color: var(--accent-green); }
+.dashboard-row .stat-mae { color: var(--accent-orange); }
+.dashboard-empty {
+  padding: 16px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+/* ── TASK-3-C: 카드 강화 (평균 비교, 시간 흐름, 주요 시점) ────────── */
+.analyzer-card .compare-box {
+  margin-top: 8px;
+  padding: 8px;
+  background: var(--bg-panel);
+  border-radius: 6px;
+  font-size: 11px;
+}
+.analyzer-card .compare-line {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 3px 0;
+  font-family: var(--mono);
+}
+.analyzer-card .compare-line .compare-label {
+  color: var(--text-secondary);
+  flex: 0 0 auto;
+}
+.analyzer-card .compare-line .compare-value {
+  color: var(--text-primary);
+  flex: 1;
+  text-align: right;
+}
+.analyzer-card .compare-line .compare-delta {
+  margin-left: 6px;
+  font-size: 10px;
+  padding: 1px 5px;
+  border-radius: 3px;
+}
+.analyzer-card .compare-line .compare-delta.up {
+  background: rgba(0, 230, 118, 0.15);
+  color: var(--accent-green);
+}
+.analyzer-card .compare-line .compare-delta.down {
+  background: rgba(255, 140, 66, 0.15);
+  color: var(--accent-orange);
+}
+.analyzer-card .compare-line .compare-delta.neutral {
+  background: rgba(122, 154, 184, 0.15);
+  color: var(--text-secondary);
+}
+
+/* 시간 흐름 영역 */
+.analyzer-card .timeflow-box {
+  margin-top: 8px;
+  padding: 8px;
+  background: var(--bg-panel);
+  border-radius: 6px;
+}
+.analyzer-card .timeflow-title {
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+}
+.analyzer-card .timeflow-svg-wrap {
+  background: var(--bg-card);
+  border-radius: 4px;
+  padding: 4px 0;
+}
+.analyzer-card .timeflow-svg-wrap svg {
+  display: block;
+  margin: 0 auto;
+  background: transparent;
+}
+.analyzer-card .timeflow-marker-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 10px;
+  color: var(--text-secondary);
+  margin-top: 4px;
+  justify-content: center;
+}
+.analyzer-card .timeflow-marker-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+.analyzer-card .timeflow-marker-legend .dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+/* 주요 시점 카드 */
+.analyzer-card .events-box {
+  margin-top: 8px;
+}
+.analyzer-card .events-title {
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+}
+.analyzer-card .event-row {
+  display: flex;
+  align-items: center;
+  padding: 4px 8px;
+  margin: 2px 0;
+  background: var(--bg-panel);
+  border-radius: 4px;
+  font-family: var(--mono);
+  font-size: 11px;
+  gap: 8px;
+}
+.analyzer-card .event-row .event-time {
+  color: var(--text-secondary);
+  min-width: 64px;
+  font-weight: 600;
+}
+.analyzer-card .event-row .event-label {
+  color: var(--text-primary);
+  flex: 1;
+}
+.analyzer-card .event-row .event-value {
+  text-align: right;
+  font-weight: 700;
+}
+.analyzer-card .event-row .event-value.up { color: var(--accent-green); }
+.analyzer-card .event-row .event-value.down { color: var(--accent-orange); }
+.analyzer-card .event-row .event-value.neutral { color: var(--text-secondary); }
+
+/* firstMajorEvent 라벨 */
+.analyzer-card .first-event-badge {
+  display: inline-block;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 10px;
+  font-weight: 600;
+  font-family: var(--mono);
+  margin-left: 6px;
+}
+.analyzer-card .first-event-badge.up {
+  background: rgba(0, 230, 118, 0.15);
+  color: var(--accent-green);
+}
+.analyzer-card .first-event-badge.down {
+  background: rgba(255, 69, 96, 0.15);
+  color: var(--accent-red);
+}
+.analyzer-card .first-event-badge.neutral {
+  background: rgba(122, 154, 184, 0.15);
+  color: var(--text-secondary);
+}
+
+/* Tier 신뢰도 시각 차등 */
+.analyzer-card[data-tier="C"] .summary-row {
+  opacity: 0.85;
+  border-left: 3px solid var(--text-muted);
+}
+.analyzer-card[data-tier="A"] {
+  border-left: 3px solid #7c3aed;
+}
+.analyzer-card[data-tier="B"] {
+  border-left: 3px solid #2563eb;
+}
+
+/* 모바일 최적화 */
+@media (max-width: 600px) {
+  .alarm-table { font-size: 10px; }
+  .alarm-table th, .alarm-table td { padding: 6px 4px; }
+  .dashboard-row { font-size: 10px; }
+  .analyzer-card .event-row { font-size: 10px; }
+  .analyzer-card .event-row .event-time { min-width: 56px; }
+}
+/* [END MODULE: phase35_visualization_css] */
+
 </style>
 </head>
 <body>
@@ -3149,6 +3528,38 @@ body.scan-complete .main-logo,
     <div id="outcomeContent">
       <div class="outcome-loading">⏳ 대시보드 로드 중...</div>
     </div>
+
+    <!-- [MODULE: phase35_visualization_html] — 알람 테이블 + 대시보드 (Phase 3.5) -->
+    <div class="alarm-table-section" id="alarmTableSection">
+      <div class="alarm-table-title">
+        📋 알람 목록
+        <span class="ko">— 모든 알람 한눈에 (정렬 / 필터)</span>
+      </div>
+      <div class="alarm-table-filter" id="alarmTableFilter">
+        <button class="alarm-table-filter-btn active" data-filter="all">전체</button>
+        <button class="alarm-table-filter-btn" data-filter="completed">분석완료</button>
+        <button class="alarm-table-filter-btn" data-filter="active">추적중</button>
+        <button class="alarm-table-filter-btn" data-filter="grade-SPLUS">S+</button>
+        <button class="alarm-table-filter-btn" data-filter="grade-S">S</button>
+        <button class="alarm-table-filter-btn" data-filter="grade-A">A</button>
+      </div>
+      <div class="alarm-table-wrapper" id="alarmTableWrapper">
+        <div class="alarm-table-empty">로딩 중...</div>
+      </div>
+    </div>
+    <!-- [END MODULE: phase35_visualization_html] -->
+
+    <!-- [MODULE: phase35_dashboard_html] — 통계 대시보드 (Phase 3.5) -->
+    <div class="dashboard-section" id="dashboardSection">
+      <div class="dashboard-title">
+        📊 통계
+        <span class="ko">— 분석 완료된 알람 기준 (baseline 비교용)</span>
+      </div>
+      <div class="dashboard-grid" id="dashboardGrid">
+        <div class="dashboard-empty">로딩 중...</div>
+      </div>
+    </div>
+    <!-- [END MODULE: phase35_dashboard_html] -->
   </div>
   <!-- [END MODULE: phase22_outcome_html] -->
 
@@ -6319,19 +6730,25 @@ window.addEventListener('load', async function(){
 });
 
 /* ══════════════════════════════════════════════════════════════════
-   [MODULE: phase34_analyzer_js] — 분석기 UI 모듈 (Phase 3.4)
-   기반: Phase 3.2-C (패턴 분류 + Summary + finalizeTracking)
+   [MODULE: phase35_analyzer_js] — 분석기 UI 강화 (Phase 3.5)
+   - Phase 3.4 분석기 카드 + 평균 비교 + 시간 흐름 + 주요 시점
+   - 알람 테이블 (모든 알람 한눈에)
+   - 통계 대시보드 (등급별/패턴별/시간대별/거래소별)
+   - MFE/MAE 라벨, firstMajorEvent
+   
    v1.3 철학 100% 준수:
      R1: SUCCESS/FAIL/적중 등 평가성 표현 X
      R6: marketContext / endMomentum / patternConfidence 표시
      R7: 단일 패턴 1회 결정 (분석기에서 박제된 값 사용)
+   
+   BUILD_TAG: phase3.5-visualization-v3.5.0
    ══════════════════════════════════════════════════════════════════ */
 (function(global) {
   'use strict';
   
   var WORKER_URL = 'https://auto-alert-worker-v3.neosiwon.workers.dev';
   
-  // ── 패턴별 색상 + 한국어 보조 라벨 (R1 정합성: 객관적 분류명) ──
+  // ══ 상수 ══════════════════════════════════════════════
   var PATTERN_META = {
     'EXPLOSIVE':     { bg: '#10b981', fg: 'white',   ko: '급등형' },
     'STEADY_UP':     { bg: '#10b981', fg: 'white',   ko: '꾸준한 상승' },
@@ -6343,14 +6760,33 @@ window.addEventListener('load', async function(){
     'UNCLASSIFIED':  { bg: '#475569', fg: '#cbd5e1', ko: '미분류' },
   };
   
-  // Tier 별 메타 + 한국어 보조 (Tier C: inferred + 1h × 24 제한 명시)
   var TIER_META = {
     'A': { bg: '#7c3aed', label: 'Tier A · precise',  ko: '정밀 추적 (54 sample)' },
     'B': { bg: '#2563eb', label: 'Tier B · precise',  ko: '표준 추적 (21 sample)' },
     'C': { bg: '#6b7280', label: 'Tier C · inferred', ko: '최소 측정 (1h × 24)' },
   };
   
-  // [원칙 7] XSS 방지
+  // KST 시간대 분류
+  function classifyKstSession(timestamp) {
+    if (!timestamp) return 'unknown';
+    var d = new Date(timestamp);
+    // KST = UTC+9
+    var kstHour = (d.getUTCHours() + 9) % 24;
+    if (kstHour < 6) return 'dawn';      // 새벽 00-06
+    if (kstHour < 12) return 'morning';   // 오전 06-12
+    if (kstHour < 18) return 'afternoon'; // 오후 12-18
+    return 'evening';                      // 저녁 18-24
+  }
+  
+  var SESSION_KO = {
+    'dawn':      '새벽(00-06)',
+    'morning':   '오전(06-12)',
+    'afternoon': '오후(12-18)',
+    'evening':   '저녁(18-24)',
+    'unknown':   '미분류',
+  };
+  
+  // ══ 유틸 ══════════════════════════════════════════════
   function escapeHtml(s) {
     if (s == null) return '';
     return String(s).replace(/[&<>"']/g, function(c){
@@ -6360,7 +6796,8 @@ window.addEventListener('load', async function(){
   
   function formatPct(n) {
     if (n == null || isNaN(n)) return '-';
-    return (n >= 0 ? '+' : '') + n.toFixed(2) + '%';
+    var sign = n >= 0 ? '+' : '';
+    return sign + n.toFixed(2) + '%';
   }
   
   function formatElapsed(ms) {
@@ -6371,7 +6808,27 @@ window.addEventListener('load', async function(){
     return h + '시간 ' + m + '분';
   }
   
-  // 패턴 배지 (색상 + 한국어 라벨)
+  function formatMinSinceAlarm(elapsedMin) {
+    if (elapsedMin == null || elapsedMin < 0) return '-';
+    if (elapsedMin < 60) return elapsedMin + '분';
+    var h = Math.floor(elapsedMin / 60);
+    var m = elapsedMin % 60;
+    return m === 0 ? h + '시간' : h + '시간 ' + m + '분';
+  }
+  
+  function formatShortTime(timestamp) {
+    if (!timestamp) return '-';
+    var d = new Date(timestamp);
+    // KST 변환 (UTC+9)
+    var kst = new Date(d.getTime() + 9 * 3600 * 1000);
+    var mm = String(kst.getUTCMonth() + 1).padStart(2, '0');
+    var dd = String(kst.getUTCDate()).padStart(2, '0');
+    var hh = String(kst.getUTCHours()).padStart(2, '0');
+    var mi = String(kst.getUTCMinutes()).padStart(2, '0');
+    return mm + '/' + dd + ' ' + hh + ':' + mi;
+  }
+  
+  // ══ 컴포넌트: 패턴 / Tier 배지 ══════════════════════════════
   function renderPatternBadge(pattern, confidence) {
     var meta = PATTERN_META[pattern] || PATTERN_META['UNCLASSIFIED'];
     return '<span class="pattern-badge" style="background:' + meta.bg + ';color:' + meta.fg + '">'
@@ -6380,45 +6837,346 @@ window.addEventListener('load', async function(){
          + '<span class="confidence">(' + escapeHtml(confidence) + ')</span>';
   }
   
-  // Tier 배지 (Tier 차등 + 한국어)
   function renderTierBadge(tier) {
     var meta = TIER_META[tier] || TIER_META['C'];
     return '<span class="tier-badge" style="background:' + meta.bg + '" title="' + escapeHtml(meta.ko) + '">'
          + escapeHtml(meta.label) + '</span>';
   }
   
-  // 미니 차트 (SVG 인라인, 외부 의존성 0)
-  function renderMiniChart(samples, openPrice, summary) {
+  // ══ Phase 3.5 신규: firstMajorEvent 계산 ════════════════════
+  // 가장 먼저 도달한 임계값 ('+3', '+5', '+10', '-5', 'none')
+  function calcFirstMajorEvent(thresholds) {
+    if (!thresholds) return { type: 'none', elapsedMin: null, direction: 'neutral' };
+    var keys = ['+3', '+5', '+10', '-5'];
+    var first = null;
+    var firstMin = Infinity;
+    keys.forEach(function(k){
+      var r = thresholds[k];
+      if (r && r.reached && typeof r.elapsedMin === 'number' && r.elapsedMin < firstMin) {
+        first = k;
+        firstMin = r.elapsedMin;
+      }
+    });
+    if (!first) return { type: 'none', elapsedMin: null, direction: 'neutral' };
+    // direction
+    var direction = 'neutral';
+    if (first === '+3' || first === '+5' || first === '+10') direction = 'up';
+    else if (first === '-5') direction = 'down';
+    return { type: first, elapsedMin: firstMin, direction: direction };
+  }
+  
+  function renderFirstMajorEvent(thresholds) {
+    var fme = calcFirstMajorEvent(thresholds);
+    if (fme.type === 'none') {
+      return '<span class="first-event-badge neutral">first: 없음</span>';
+    }
+    var cls = fme.direction === 'up' ? 'up' : (fme.direction === 'down' ? 'down' : 'neutral');
+    return '<span class="first-event-badge ' + cls + '">'
+         + 'first: ' + escapeHtml(fme.type) + ' (' + escapeHtml(String(fme.elapsedMin)) + '분)'
+         + '</span>';
+  }
+  
+  // ══ 시간 흐름 시각화 (강화된 SVG) ══════════════════════════════
+  function renderTimeflowChart(samples, openPrice, summary, thresholds, tp1) {
     if (!samples || samples.length === 0 || !openPrice) return '';
-    var W = 260, H = 70, P = 4;
+    
+    var W = 280, H = 100, P = 8;
     var prices = [];
     for (var i = 0; i < samples.length; i++) {
       if (typeof samples[i].price === 'number') prices.push(samples[i].price);
     }
     if (prices.length === 0) return '';
+    
     var minP = Math.min.apply(null, prices.concat([openPrice]));
     var maxP = Math.max.apply(null, prices.concat([openPrice]));
     var range = (maxP - minP) || 1;
-    var pts = [];
+    
+    // 가격 곡선 points
+    var pointsArr = [];
+    var pointObjs = [];
     for (var j = 0; j < samples.length; j++) {
       var s = samples[j];
       if (typeof s.price !== 'number') continue;
       var x = P + (j / (samples.length - 1 || 1)) * (W - 2 * P);
       var y = H - P - ((s.price - minP) / range) * (H - 2 * P);
-      pts.push(x.toFixed(1) + ',' + y.toFixed(1));
+      pointsArr.push(x.toFixed(1) + ',' + y.toFixed(1));
+      pointObjs.push({ x: x, y: y, idx: j, price: s.price, t: s.t });
     }
+    
     var yOpen = H - P - ((openPrice - minP) / range) * (H - 2 * P);
     var lineColor = (summary && summary.closeReturn >= 0) ? '#00e676' : '#ff8c42';
-    return '<svg width="' + W + '" height="' + H + '" role="img" aria-label="가격 곡선">'
-         + '<line x1="' + P + '" y1="' + yOpen.toFixed(1) + '" '
-         + 'x2="' + (W - P) + '" y2="' + yOpen.toFixed(1) + '" '
-         + 'stroke="#3d5a72" stroke-dasharray="2,2" stroke-width="0.5" />'
-         + '<polyline points="' + pts.join(' ') + '" fill="none" '
-         + 'stroke="' + lineColor + '" stroke-width="1.5" />'
-         + '</svg>';
+    
+    // 마커 5개 계산
+    var markers = [];
+    
+    // +3 도달
+    if (thresholds && thresholds['+3'] && thresholds['+3'].reached) {
+      var price3 = openPrice * 1.03;
+      var x3 = pointObjs.find(function(p){ return p.price >= price3; });
+      if (x3) markers.push({ x: x3.x, y: x3.y, color: '#00e676', label: '+3' });
+    }
+    
+    // TP1 도달
+    if (tp1 && tp1.reached && typeof tp1.priceAtReach === 'number') {
+      var xTP1 = pointObjs.find(function(p){ return p.price >= tp1.priceAtReach; });
+      if (xTP1) markers.push({ x: xTP1.x, y: xTP1.y, color: '#7dd3fc', label: 'TP1' });
+    }
+    
+    // MFE peak
+    if (summary && typeof summary.maxRise === 'number') {
+      var mfePrice = openPrice * (1 + summary.maxRise / 100);
+      var xMFE = null;
+      for (var k = 0; k < pointObjs.length; k++) {
+        if (Math.abs(pointObjs[k].price - mfePrice) / mfePrice < 0.005) {
+          xMFE = pointObjs[k];
+          break;
+        }
+      }
+      if (!xMFE) {
+        // 가장 가까운 것
+        var best = pointObjs[0], bestDiff = Math.abs(pointObjs[0].price - mfePrice);
+        for (var l = 1; l < pointObjs.length; l++) {
+          var d = Math.abs(pointObjs[l].price - mfePrice);
+          if (d < bestDiff) { best = pointObjs[l]; bestDiff = d; }
+        }
+        xMFE = best;
+      }
+      if (xMFE) markers.push({ x: xMFE.x, y: xMFE.y, color: '#10b981', label: 'MFE' });
+    }
+    
+    // MAE bottom
+    if (summary && typeof summary.maxDrawdown === 'number' && summary.maxDrawdown < 0) {
+      var maePrice = openPrice * (1 + summary.maxDrawdown / 100);
+      var xMAE = null;
+      var bestM = pointObjs[0], bestDiffM = Math.abs(pointObjs[0].price - maePrice);
+      for (var m = 1; m < pointObjs.length; m++) {
+        var dM = Math.abs(pointObjs[m].price - maePrice);
+        if (dM < bestDiffM) { bestM = pointObjs[m]; bestDiffM = dM; }
+      }
+      xMAE = bestM;
+      if (xMAE) markers.push({ x: xMAE.x, y: xMAE.y, color: '#ff8c42', label: 'MAE' });
+    }
+    
+    // 마감 (마지막 sample)
+    if (pointObjs.length > 0) {
+      var lastP = pointObjs[pointObjs.length - 1];
+      markers.push({ x: lastP.x, y: lastP.y, color: '#7a9ab8', label: '마감' });
+    }
+    
+    var svg = '<svg width="' + W + '" height="' + H + '" role="img" aria-label="시간 흐름">'
+            // 기준선 (open)
+            + '<line x1="' + P + '" y1="' + yOpen.toFixed(1) + '" '
+            + 'x2="' + (W - P) + '" y2="' + yOpen.toFixed(1) + '" '
+            + 'stroke="#3d5a72" stroke-dasharray="2,2" stroke-width="0.5" />'
+            // 가격 곡선
+            + '<polyline points="' + pointsArr.join(' ') + '" fill="none" '
+            + 'stroke="' + lineColor + '" stroke-width="1.5" />';
+    
+    // 마커 (원)
+    markers.forEach(function(mk){
+      svg += '<circle cx="' + mk.x.toFixed(1) + '" cy="' + mk.y.toFixed(1) + '" '
+           + 'r="3" fill="' + mk.color + '" stroke="#0c1420" stroke-width="1" />';
+    });
+    
+    svg += '</svg>';
+    
+    // 레전드
+    var legendHtml = '<div class="timeflow-marker-legend">';
+    var seen = {};
+    markers.forEach(function(mk){
+      if (seen[mk.label]) return;
+      seen[mk.label] = true;
+      legendHtml += '<span><span class="dot" style="background:' + mk.color + '"></span>' + escapeHtml(mk.label) + '</span>';
+    });
+    legendHtml += '</div>';
+    
+    return '<div class="timeflow-box">'
+         + '<div class="timeflow-title">📈 시간 흐름</div>'
+         + '<div class="timeflow-svg-wrap">' + svg + '</div>'
+         + legendHtml
+         + '</div>';
   }
   
-  // Threshold 도달 (R1: 객관적 시간 정보)
+  // ══ 주요 시점 카드 ══════════════════════════════
+  function renderMajorEvents(summary, thresholds, tp1, openPrice, alarmTime) {
+    var events = [];
+    
+    // 알람 시점
+    events.push({ time: 0, label: '알람', price: openPrice, pct: 0 });
+    
+    // threshold 도달
+    if (thresholds) {
+      ['+3', '+5', '+10', '-5'].forEach(function(t){
+        var r = thresholds[t];
+        if (r && r.reached) {
+          var pct = parseFloat(t);
+          events.push({
+            time: r.elapsedMin,
+            label: t + '% 도달',
+            price: openPrice * (1 + pct / 100),
+            pct: pct
+          });
+        }
+      });
+    }
+    
+    // TP1 도달
+    if (tp1 && tp1.reached) {
+      var tp1Pct = ((tp1.priceAtReach - openPrice) / openPrice * 100);
+      events.push({
+        time: tp1.elapsedMin,
+        label: 'TP1 도달',
+        price: tp1.priceAtReach,
+        pct: tp1Pct
+      });
+    }
+    
+    // MFE peak
+    if (summary && typeof summary.maxRise === 'number' && summary.maxRise > 0) {
+      events.push({
+        time: null,
+        label: 'MFE peak',
+        price: openPrice * (1 + summary.maxRise / 100),
+        pct: summary.maxRise,
+        sortKey: 9999
+      });
+    }
+    
+    // MAE bottom
+    if (summary && typeof summary.maxDrawdown === 'number' && summary.maxDrawdown < 0) {
+      events.push({
+        time: null,
+        label: 'MAE bottom',
+        price: openPrice * (1 + summary.maxDrawdown / 100),
+        pct: summary.maxDrawdown,
+        sortKey: 9998
+      });
+    }
+    
+    // 마감
+    if (summary && typeof summary.closePrice === 'number') {
+      events.push({
+        time: 24 * 60,
+        label: '마감',
+        price: summary.closePrice,
+        pct: summary.closeReturn
+      });
+    }
+    
+    if (events.length === 0) return '';
+    
+    // 정렬: time 있는 것은 시간순, 없는 것 (MFE/MAE) 은 끝에
+    events.sort(function(a, b){
+      var ta = a.time !== null ? a.time : (a.sortKey || 99999);
+      var tb = b.time !== null ? b.time : (b.sortKey || 99999);
+      return ta - tb;
+    });
+    
+    var rows = events.map(function(e){
+      var timeStr = e.time === null ? '-' : (e.time === 0 ? '00:00' : formatMinSinceAlarm(e.time));
+      var pctCls = e.pct > 0 ? 'up' : (e.pct < 0 ? 'down' : 'neutral');
+      var priceStr = e.price.toFixed(e.price < 1 ? 6 : (e.price < 100 ? 4 : 2));
+      return '<div class="event-row">'
+           + '<span class="event-time">' + escapeHtml(timeStr) + '</span>'
+           + '<span class="event-label">' + escapeHtml(e.label) + '</span>'
+           + '<span class="event-value ' + pctCls + '">'
+           + escapeHtml(priceStr) + ' (' + escapeHtml(formatPct(e.pct)) + ')'
+           + '</span>'
+           + '</div>';
+    }).join('');
+    
+    return '<div class="events-box">'
+         + '<div class="events-title">⏱ 주요 시점</div>'
+         + rows
+         + '</div>';
+  }
+  
+  // ══ 평균 비교 (baseline) ══════════════════════════════
+  function renderCompare(summary, baseline, grade, pattern, session) {
+    if (!summary || !baseline || !baseline.overall) return '';
+    
+    var lines = [];
+    
+    // 전체 평균 대비
+    if (baseline.overall.count > 0) {
+      var diffMFE = summary.maxRise - baseline.overall.avgMFE;
+      var cls = diffMFE > 0.5 ? 'up' : (diffMFE < -0.5 ? 'down' : 'neutral');
+      var deltaText = (diffMFE >= 0 ? '+' : '') + diffMFE.toFixed(2) + '%';
+      lines.push(
+        '<div class="compare-line">'
+        + '<span class="compare-label">전체 MFE 평균:</span>'
+        + '<span class="compare-value">' + escapeHtml(formatPct(baseline.overall.avgMFE)) + '</span>'
+        + '<span class="compare-delta ' + cls + '">' + escapeHtml(deltaText) + '</span>'
+        + '</div>'
+      );
+      var diffMAE = summary.maxDrawdown - baseline.overall.avgMAE;
+      // MAE 는 음수가 작을수록 좋음 (절대값 작음)
+      var clsMAE = Math.abs(summary.maxDrawdown) < Math.abs(baseline.overall.avgMAE) - 0.3 ? 'up'
+                 : Math.abs(summary.maxDrawdown) > Math.abs(baseline.overall.avgMAE) + 0.3 ? 'down' : 'neutral';
+      var deltaTextMAE = (diffMAE >= 0 ? '+' : '') + diffMAE.toFixed(2) + '%';
+      lines.push(
+        '<div class="compare-line">'
+        + '<span class="compare-label">전체 MAE 평균:</span>'
+        + '<span class="compare-value">' + escapeHtml(formatPct(baseline.overall.avgMAE)) + '</span>'
+        + '<span class="compare-delta ' + clsMAE + '">' + escapeHtml(deltaTextMAE) + '</span>'
+        + '</div>'
+      );
+    }
+    
+    // 등급별 평균 대비
+    if (grade && baseline.byGrade && baseline.byGrade[grade] && baseline.byGrade[grade].count > 0) {
+      var bg = baseline.byGrade[grade];
+      var diffG = summary.maxRise - bg.avgMFE;
+      var clsG = diffG > 0.5 ? 'up' : (diffG < -0.5 ? 'down' : 'neutral');
+      var deltaG = (diffG >= 0 ? '+' : '') + diffG.toFixed(2) + '%';
+      lines.push(
+        '<div class="compare-line">'
+        + '<span class="compare-label">' + escapeHtml(grade) + ' 평균 MFE:</span>'
+        + '<span class="compare-value">' + escapeHtml(formatPct(bg.avgMFE)) + ' <small>(' + bg.count + '건)</small></span>'
+        + '<span class="compare-delta ' + clsG + '">' + escapeHtml(deltaG) + '</span>'
+        + '</div>'
+      );
+    }
+    
+    // 패턴별 평균 대비
+    if (pattern && pattern !== 'UNCLASSIFIED' && baseline.byPattern && baseline.byPattern[pattern] && baseline.byPattern[pattern].count > 0) {
+      var bp = baseline.byPattern[pattern];
+      var diffP = summary.maxRise - bp.avgMFE;
+      var clsP = diffP > 0.5 ? 'up' : (diffP < -0.5 ? 'down' : 'neutral');
+      var deltaP = (diffP >= 0 ? '+' : '') + diffP.toFixed(2) + '%';
+      lines.push(
+        '<div class="compare-line">'
+        + '<span class="compare-label">' + escapeHtml(pattern) + ' 평균 MFE:</span>'
+        + '<span class="compare-value">' + escapeHtml(formatPct(bp.avgMFE)) + ' <small>(' + bp.count + '건)</small></span>'
+        + '<span class="compare-delta ' + clsP + '">' + escapeHtml(deltaP) + '</span>'
+        + '</div>'
+      );
+    }
+    
+    // 시간대별 평균 대비
+    if (session && baseline.bySession && baseline.bySession[session] && baseline.bySession[session].count > 0) {
+      var bs = baseline.bySession[session];
+      var diffS = summary.maxRise - bs.avgMFE;
+      var clsS = diffS > 0.5 ? 'up' : (diffS < -0.5 ? 'down' : 'neutral');
+      var deltaS = (diffS >= 0 ? '+' : '') + diffS.toFixed(2) + '%';
+      lines.push(
+        '<div class="compare-line">'
+        + '<span class="compare-label">' + escapeHtml(SESSION_KO[session] || session) + ' 평균:</span>'
+        + '<span class="compare-value">' + escapeHtml(formatPct(bs.avgMFE)) + ' <small>(' + bs.count + '건)</small></span>'
+        + '<span class="compare-delta ' + clsS + '">' + escapeHtml(deltaS) + '</span>'
+        + '</div>'
+      );
+    }
+    
+    if (lines.length === 0) return '';
+    
+    return '<div class="compare-box">'
+         + '<div style="font-size:11px;color:var(--text-secondary);margin-bottom:4px">📊 평균 비교 (baseline)</div>'
+         + lines.join('')
+         + '</div>';
+  }
+  
+  // ══ Threshold 도달 표시 ══════════════════════════════
   function renderThresholds(thresholds) {
     if (!thresholds) return '<span class="muted">-</span>';
     var labels = ['+3', '+5', '+10', '-5'];
@@ -6435,7 +7193,6 @@ window.addEventListener('load', async function(){
     return '<div class="threshold-row">' + parts.join('') + '</div>';
   }
   
-  // TP1 도달 (R1: 도달 사실만, ✓ 는 Boolean 표시)
   function renderTP1(tp1) {
     if (!tp1 || !tp1.reached) return '<span class="muted">미도달</span>';
     return '<span class="ok-text">'
@@ -6444,7 +7201,6 @@ window.addEventListener('load', async function(){
          + '</span>';
   }
   
-  // dataQuality 표시 (R1: 평가가 아닌 데이터 품질 상태)
   function renderUsable(dataQuality) {
     if (!dataQuality) return '<span class="muted">데이터 없음</span>';
     var usable = dataQuality.usable;
@@ -6462,6 +7218,7 @@ window.addEventListener('load', async function(){
     return statusText + detail;
   }
   
+  // ══ status 별 카드 분기 ══════════════════════════════
   function renderInProgressCard(meta) {
     var elapsedMs = Date.now() - (meta.tierAssignedAt || 0);
     var symbol = meta.base || meta.snapshotId || '';
@@ -6493,8 +7250,8 @@ window.addEventListener('load', async function(){
          + '</div>';
   }
   
-  // 메인 카드 (점진 표시 — 1차 간략, 펼침 시 상세)
-  function renderAnalyzerCard(trackingData, samples) {
+  // ══ 메인 카드 (Phase 3.5 강화) ══════════════════════════════
+  function renderAnalyzerCard(trackingData, baseline) {
     if (!trackingData || !trackingData.meta) {
       return '<div class="analyzer-empty">분석 데이터 없음</div>';
     }
@@ -6503,6 +7260,7 @@ window.addEventListener('load', async function(){
     var thresholds = trackingData.thresholds;
     var tp1 = trackingData.tp1;
     var dq = trackingData.dataQuality;
+    var samples = trackingData.samples;  // Phase 3.5: includeSamples=1 시 포함
     
     if (meta.status === 'active') return renderInProgressCard(meta);
     if (meta.status === 'expired_partial') return renderExpiredCard(meta, dq);
@@ -6515,8 +7273,12 @@ window.addEventListener('load', async function(){
     var pattern = meta.pattern || summary.pattern || 'UNCLASSIFIED';
     var confidence = meta.patternConfidence || summary.patternConfidence || 'inferred';
     var symbol = meta.base || meta.snapshotId || '';
+    var grade = meta.gradeCode || meta.grade;
+    var alarmTime = meta.tierAssignedAt;
+    var session = classifyKstSession(alarmTime);
+    var openPrice = summary.openPrice;
     
-    var html = '<div class="analyzer-card">'
+    var html = '<div class="analyzer-card" data-tier="' + escapeHtml(meta.tier || 'C') + '">'
       + '<div class="header">'
       +   '<div>'
       +     '<span class="header-title">' + escapeHtml(symbol) + '</span> '
@@ -6524,14 +7286,18 @@ window.addEventListener('load', async function(){
       +   '</div>'
       +   renderTierBadge(meta.tier)
       + '</div>'
-      + '<div style="margin:8px 0">' + renderPatternBadge(pattern, confidence) + '</div>'
+      + '<div style="margin:8px 0">' + renderPatternBadge(pattern, confidence) + renderFirstMajorEvent(thresholds) + '</div>'
       + '<div style="margin:6px 0;font-size:12px">' + renderUsable(dq) + '</div>'
+      // MFE/MAE 라벨 (Phase 3.5)
       + '<div class="summary-row">'
-      +   '<span>최고 <b class="ok-text">' + escapeHtml(formatPct(summary.maxRise)) + '</b></span>'
-      +   '<span>최저 <b class="neg-text">' + escapeHtml(formatPct(summary.maxDrawdown)) + '</b></span>'
+      +   '<span>MFE <b class="ok-text">' + escapeHtml(formatPct(summary.maxRise)) + '</b></span>'
+      +   '<span>MAE <b class="neg-text">' + escapeHtml(formatPct(summary.maxDrawdown)) + '</b></span>'
       +   '<span>마감 <b class="' + (summary.closeReturn >= 0 ? 'ok-text' : 'neg-text') + '">'
       +     escapeHtml(formatPct(summary.closeReturn)) + '</b></span>'
       + '</div>'
+      // 평균 비교
+      + renderCompare(summary, baseline, grade, pattern, session)
+      // 펼치기
       + '<details>'
       +   '<summary>상세 펼치기</summary>'
       +   '<div>'
@@ -6555,11 +7321,394 @@ window.addEventListener('load', async function(){
             + '<b>' + escapeHtml(formatPct(summary.endMomentum.last2hSlope)) + '</b>'
             + '</div>';
     }
+    
+    // 시간 흐름 (samples 있을 때만)
     if (samples && samples.length > 0) {
-      html += renderMiniChart(samples, summary.openPrice, summary);
+      html += renderTimeflowChart(samples, openPrice, summary, thresholds, tp1);
     }
+    
+    // 주요 시점 카드
+    html += renderMajorEvents(summary, thresholds, tp1, openPrice, alarmTime);
+    
     html += '</div></details></div>';
     return html;
+  }
+  
+  // ══ baseline 계산 ══════════════════════════════════════════════
+  function calcBaseline(allTrackingData) {
+    var completed = (allTrackingData || []).filter(function(td){
+      return td && td.meta && td.meta.status === 'completed' && td.summary;
+    });
+    
+    var baseline = {
+      overall: { count: 0, avgMFE: 0, avgMAE: 0, plus3Rate: 0, plus5Rate: 0 },
+      byGrade: {},
+      byPattern: {},
+      bySession: {},
+      byExchange: {},
+    };
+    
+    if (completed.length === 0) return baseline;
+    
+    // overall
+    var sumMFE = 0, sumMAE = 0, plus3Count = 0, plus5Count = 0;
+    completed.forEach(function(td){
+      sumMFE += td.summary.maxRise;
+      sumMAE += td.summary.maxDrawdown;
+      if (td.thresholds && td.thresholds['+3'] && td.thresholds['+3'].reached) plus3Count++;
+      if (td.thresholds && td.thresholds['+5'] && td.thresholds['+5'].reached) plus5Count++;
+    });
+    baseline.overall = {
+      count: completed.length,
+      avgMFE: sumMFE / completed.length,
+      avgMAE: sumMAE / completed.length,
+      plus3Rate: plus3Count / completed.length,
+      plus5Rate: plus5Count / completed.length,
+    };
+    
+    // 그룹화 헬퍼
+    function groupAvg(items, keyFn) {
+      var groups = {};
+      items.forEach(function(td){
+        var k = keyFn(td);
+        if (!k) return;
+        if (!groups[k]) groups[k] = { count: 0, sumMFE: 0, sumMAE: 0, plus3: 0, plus5: 0 };
+        var g = groups[k];
+        g.count++;
+        g.sumMFE += td.summary.maxRise;
+        g.sumMAE += td.summary.maxDrawdown;
+        if (td.thresholds && td.thresholds['+3'] && td.thresholds['+3'].reached) g.plus3++;
+        if (td.thresholds && td.thresholds['+5'] && td.thresholds['+5'].reached) g.plus5++;
+      });
+      var result = {};
+      for (var k in groups) {
+        var g = groups[k];
+        result[k] = {
+          count: g.count,
+          avgMFE: g.sumMFE / g.count,
+          avgMAE: g.sumMAE / g.count,
+          plus3Rate: g.plus3 / g.count,
+          plus5Rate: g.plus5 / g.count,
+        };
+      }
+      return result;
+    }
+    
+    baseline.byGrade = groupAvg(completed, function(td){
+      return td.meta.gradeCode || td.meta.grade;
+    });
+    baseline.byPattern = groupAvg(completed, function(td){
+      return td.meta.pattern || (td.summary && td.summary.pattern);
+    });
+    baseline.bySession = groupAvg(completed, function(td){
+      return classifyKstSession(td.meta.tierAssignedAt);
+    });
+    baseline.byExchange = groupAvg(completed, function(td){
+      return td.meta.exchange;
+    });
+    
+    return baseline;
+  }
+  
+  // ══ 알람 테이블 렌더링 ══════════════════════════════════════
+  var _allItems = [];   // 전체 알람 목록 (table + dashboard 공유)
+  var _trackingMap = {};  // snapshotId -> tracking data (cache)
+  var _baseline = null;
+  var _currentFilter = 'all';
+  var _currentSort = { col: 'time', dir: 'desc' };
+  
+  function renderAlarmTable(items) {
+    var wrapper = document.getElementById('alarmTableWrapper');
+    if (!wrapper) return;
+    
+    if (!items || items.length === 0) {
+      wrapper.innerHTML = '<div class="alarm-table-empty">알람 없음</div>';
+      return;
+    }
+    
+    // 필터 적용
+    var filtered = items.filter(function(it){
+      if (_currentFilter === 'all') return true;
+      if (_currentFilter === 'completed') {
+        var td = _trackingMap[it.snapshotId];
+        return td && td.meta && td.meta.status === 'completed';
+      }
+      if (_currentFilter === 'active') {
+        var tdA = _trackingMap[it.snapshotId];
+        return tdA && tdA.meta && tdA.meta.status === 'active';
+      }
+      if (_currentFilter.indexOf('grade-') === 0) {
+        var g = _currentFilter.substring(6);
+        return it.gradeCode === g;
+      }
+      return true;
+    });
+    
+    // 정렬
+    filtered.sort(function(a, b){
+      var col = _currentSort.col;
+      var dir = _currentSort.dir === 'asc' ? 1 : -1;
+      var va, vb;
+      if (col === 'time') {
+        va = new Date(a.timestamp || 0).getTime();
+        vb = new Date(b.timestamp || 0).getTime();
+      } else if (col === 'grade') {
+        var gOrder = { 'SPLUS': 4, 'S': 3, 'A': 2, 'B': 1, 'C': 0 };
+        va = gOrder[a.gradeCode] || 0;
+        vb = gOrder[b.gradeCode] || 0;
+      } else if (col === 'mfe') {
+        var ta = _trackingMap[a.snapshotId];
+        var tb = _trackingMap[b.snapshotId];
+        va = (ta && ta.summary) ? ta.summary.maxRise : -9999;
+        vb = (tb && tb.summary) ? tb.summary.maxRise : -9999;
+      } else if (col === 'mae') {
+        var taM = _trackingMap[a.snapshotId];
+        var tbM = _trackingMap[b.snapshotId];
+        va = (taM && taM.summary) ? taM.summary.maxDrawdown : 9999;
+        vb = (tbM && tbM.summary) ? tbM.summary.maxDrawdown : 9999;
+      } else if (col === 'coin') {
+        va = a.base || '';
+        vb = b.base || '';
+        return dir * va.localeCompare(vb);
+      } else if (col === 'exchange') {
+        va = a.exchange || '';
+        vb = b.exchange || '';
+        return dir * va.localeCompare(vb);
+      }
+      return dir * (va < vb ? -1 : va > vb ? 1 : 0);
+    });
+    
+    if (filtered.length === 0) {
+      wrapper.innerHTML = '<div class="alarm-table-empty">필터 결과 없음</div>';
+      return;
+    }
+    
+    var headerCells = [
+      { key: 'time',     label: '시간' },
+      { key: 'coin',     label: '코인' },
+      { key: 'grade',    label: '등급' },
+      { key: 'exchange', label: '거래소' },
+      { key: 'mfe',      label: 'MFE' },
+      { key: 'mae',      label: 'MAE' },
+      { key: 'first',    label: 'First' },
+      { key: 'pattern',  label: '패턴' },
+    ];
+    
+    var thead = '<thead><tr>' + headerCells.map(function(h){
+      var cls = (_currentSort.col === h.key) ? ' class="sorted"' : '';
+      var arrow = (_currentSort.col === h.key) ? (_currentSort.dir === 'asc' ? ' ↑' : ' ↓') : '';
+      return '<th data-sort="' + h.key + '"' + cls + '>' + escapeHtml(h.label + arrow) + '</th>';
+    }).join('') + '</tr></thead>';
+    
+    var tbody = '<tbody>';
+    filtered.forEach(function(it){
+      var td = _trackingMap[it.snapshotId];
+      var status = (td && td.meta) ? td.meta.status : 'unknown';
+      var summary = (td && td.summary) || null;
+      var thresholds = (td && td.thresholds) || null;
+      
+      var mfeCell = summary ? '<td class="col-mfe">' + escapeHtml(formatPct(summary.maxRise)) + '</td>'
+                            : '<td class="col-pending">' + (status === 'active' ? '추적중' : '-') + '</td>';
+      var maeCell = summary ? '<td class="col-mae">' + escapeHtml(formatPct(summary.maxDrawdown)) + '</td>'
+                            : '<td class="col-pending">-</td>';
+      
+      var fme = calcFirstMajorEvent(thresholds);
+      var firstCell = fme.type === 'none' ? '-' : fme.type;
+      
+      var pattern = (td && td.meta && td.meta.pattern) || (summary && summary.pattern) || '-';
+      var patternKo = PATTERN_META[pattern] ? PATTERN_META[pattern].ko : '';
+      
+      var gradeCls = 'grade-' + (it.gradeCode || '').toLowerCase();
+      
+      tbody += '<tr data-snapshot-id="' + escapeHtml(it.snapshotId) + '">'
+            + '<td>' + escapeHtml(formatShortTime(it.timestamp)) + '</td>'
+            + '<td><b>' + escapeHtml(it.base || '-') + '</b></td>'
+            + '<td><span class="' + gradeCls + '">' + escapeHtml(it.gradeCode || '-') + '</span></td>'
+            + '<td>' + escapeHtml(it.exchange || '-') + '</td>'
+            + mfeCell
+            + maeCell
+            + '<td>' + escapeHtml(firstCell) + '</td>'
+            + '<td>' + escapeHtml(patternKo || pattern) + '</td>'
+            + '</tr>';
+    });
+    tbody += '</tbody>';
+    
+    wrapper.innerHTML = '<table class="alarm-table">' + thead + tbody + '</table>';
+    
+    // 행 클릭 → 카드 펼침/접기
+    var rows = wrapper.querySelectorAll('tbody tr');
+    rows.forEach(function(row){
+      row.addEventListener('click', function(){
+        var sid = row.getAttribute('data-snapshot-id');
+        // 다음 형제가 detail row 면 제거
+        var next = row.nextElementSibling;
+        if (next && next.classList.contains('alarm-table-detail-row')) {
+          next.remove();
+          row.classList.remove('expanded');
+          return;
+        }
+        // 다른 detail row 들 모두 제거
+        wrapper.querySelectorAll('.alarm-table-detail-row').forEach(function(r){ r.remove(); });
+        wrapper.querySelectorAll('tbody tr.expanded').forEach(function(r){ r.classList.remove('expanded'); });
+        // 새 detail row 추가
+        var td = _trackingMap[sid];
+        if (!td) {
+          fetchTrackingData(sid, true).then(function(data){
+            if (data) {
+              _trackingMap[sid] = data;
+              insertDetailRow(row, data);
+            }
+          });
+        } else {
+          // samples 가 없으면 다시 fetch
+          if (!td.samples) {
+            fetchTrackingData(sid, true).then(function(data){
+              if (data) {
+                _trackingMap[sid] = data;
+                insertDetailRow(row, data);
+              }
+            });
+          } else {
+            insertDetailRow(row, td);
+          }
+        }
+        row.classList.add('expanded');
+      });
+    });
+    
+    // th 클릭 → 정렬
+    var ths = wrapper.querySelectorAll('thead th');
+    ths.forEach(function(th){
+      th.addEventListener('click', function(){
+        var col = th.getAttribute('data-sort');
+        if (!col) return;
+        if (_currentSort.col === col) {
+          _currentSort.dir = _currentSort.dir === 'asc' ? 'desc' : 'asc';
+        } else {
+          _currentSort.col = col;
+          _currentSort.dir = 'desc';
+        }
+        renderAlarmTable(_allItems);
+      });
+    });
+  }
+  
+  function insertDetailRow(row, td) {
+    var detailRow = document.createElement('tr');
+    detailRow.className = 'alarm-table-detail-row';
+    var cell = document.createElement('td');
+    cell.colSpan = 8;
+    cell.innerHTML = renderAnalyzerCard(td, _baseline);
+    detailRow.appendChild(cell);
+    row.parentNode.insertBefore(detailRow, row.nextSibling);
+  }
+  
+  // ══ 대시보드 렌더링 ══════════════════════════════════════
+  function renderDashboard(baseline) {
+    var grid = document.getElementById('dashboardGrid');
+    if (!grid) return;
+    
+    if (!baseline || baseline.overall.count === 0) {
+      grid.innerHTML = '<div class="dashboard-empty">분석 완료된 알람 없음 (24h 후 자동 분석)</div>';
+      return;
+    }
+    
+    function renderCard(title, data, formatter) {
+      var rows = '';
+      var keys = Object.keys(data);
+      if (keys.length === 0) {
+        rows = '<div class="dashboard-empty">데이터 없음</div>';
+      } else {
+        rows = keys.map(function(k){
+          return formatter(k, data[k]);
+        }).join('');
+      }
+      return '<div class="dashboard-card">'
+           + '<div class="dashboard-card-title">' + escapeHtml(title) + '</div>'
+           + rows
+           + '</div>';
+    }
+    
+    function gradeRow(grade, stats) {
+      return '<div class="dashboard-row">'
+           + '<span class="row-label">' + escapeHtml(grade) + '</span>'
+           + '<span class="row-count">' + stats.count + '건</span>'
+           + '<span class="row-stats">'
+           + '<span class="stat-mfe">MFE ' + escapeHtml(formatPct(stats.avgMFE)) + '</span>'
+           + ' · '
+           + '<span class="stat-mae">MAE ' + escapeHtml(formatPct(stats.avgMAE)) + '</span>'
+           + '</span>'
+           + '</div>';
+    }
+    
+    function patternRow(pattern, stats) {
+      var ko = PATTERN_META[pattern] ? PATTERN_META[pattern].ko : pattern;
+      return '<div class="dashboard-row">'
+           + '<span class="row-label">' + escapeHtml(ko) + '</span>'
+           + '<span class="row-count">' + stats.count + '건</span>'
+           + '<span class="row-stats">'
+           + '<span class="stat-mfe">MFE ' + escapeHtml(formatPct(stats.avgMFE)) + '</span>'
+           + '</span>'
+           + '</div>';
+    }
+    
+    function sessionRow(session, stats) {
+      var ko = SESSION_KO[session] || session;
+      return '<div class="dashboard-row">'
+           + '<span class="row-label">' + escapeHtml(ko) + '</span>'
+           + '<span class="row-count">' + stats.count + '건</span>'
+           + '<span class="row-stats">'
+           + '<span class="stat-mfe">MFE ' + escapeHtml(formatPct(stats.avgMFE)) + '</span>'
+           + '</span>'
+           + '</div>';
+    }
+    
+    function exchangeRow(exchange, stats) {
+      return '<div class="dashboard-row">'
+           + '<span class="row-label">' + escapeHtml(exchange) + '</span>'
+           + '<span class="row-count">' + stats.count + '건</span>'
+           + '<span class="row-stats">'
+           + '<span class="stat-mfe">MFE ' + escapeHtml(formatPct(stats.avgMFE)) + '</span>'
+           + '</span>'
+           + '</div>';
+    }
+    
+    var html = '';
+    
+    // 전체 평균 카드
+    html += '<div class="dashboard-card">'
+         + '<div class="dashboard-card-title">전체 평균 (' + baseline.overall.count + '건)</div>'
+         + '<div class="dashboard-row">'
+         + '<span class="row-label">평균 MFE</span>'
+         + '<span class="row-stats stat-mfe">' + escapeHtml(formatPct(baseline.overall.avgMFE)) + '</span>'
+         + '</div>'
+         + '<div class="dashboard-row">'
+         + '<span class="row-label">평균 MAE</span>'
+         + '<span class="row-stats stat-mae">' + escapeHtml(formatPct(baseline.overall.avgMAE)) + '</span>'
+         + '</div>'
+         + '<div class="dashboard-row">'
+         + '<span class="row-label">+3 도달률</span>'
+         + '<span class="row-stats">' + (baseline.overall.plus3Rate * 100).toFixed(0) + '%</span>'
+         + '</div>'
+         + '<div class="dashboard-row">'
+         + '<span class="row-label">+5 도달률</span>'
+         + '<span class="row-stats">' + (baseline.overall.plus5Rate * 100).toFixed(0) + '%</span>'
+         + '</div>'
+         + '</div>';
+    
+    html += renderCard('등급별', baseline.byGrade, gradeRow);
+    html += renderCard('패턴별', baseline.byPattern, patternRow);
+    html += renderCard('시간대별 (KST)', baseline.bySession, sessionRow);
+    html += renderCard('거래소별', baseline.byExchange, exchangeRow);
+    
+    grid.innerHTML = html;
+  }
+  
+  // ══ 데이터 fetch ══════════════════════════════════════════════
+  function fetchSnapshotsList() {
+    return fetch(WORKER_URL + '/snapshots?limit=100')
+      .then(function(r){ return r.ok ? r.json() : null; })
+      .catch(function(){ return null; });
   }
   
   function fetchTrackingActive() {
@@ -6568,37 +7717,95 @@ window.addEventListener('load', async function(){
       .catch(function(){ return null; });
   }
   
-  function fetchTrackingData(snapshotId) {
-    return fetch(WORKER_URL + '/tracking/' + encodeURIComponent(snapshotId))
-      .then(function(r) {
-        if (!r.ok) return null;
-        return r.json();
-      })
+  function fetchTrackingData(snapshotId, includeSamples) {
+    var url = WORKER_URL + '/tracking/' + encodeURIComponent(snapshotId);
+    if (includeSamples) url += '?includeSamples=1';
+    return fetch(url)
+      .then(function(r){ return r.ok ? r.json() : null; })
       .catch(function(){ return null; });
   }
   
-  // 모든 추적 알람의 카드 동시 렌더
-  function renderAllAnalyzerCards() {
+  // ══ 메인 진입점 (모든 데이터 로드 + 렌더) ══════════════════════
+  function loadAndRenderAll() {
+    // 1. 활성 추적 카드 (분석기 영역)
+    renderAnalyzerSection();
+    
+    // 2. 전체 알람 목록 + 추적 데이터
+    var snapshotsP = fetchSnapshotsList();
+    var activeP = fetchTrackingActive();
+    
+    return Promise.all([snapshotsP, activeP]).then(function(results){
+      var snapshotsData = results[0];
+      var activeData = results[1];
+      
+      if (!snapshotsData || !snapshotsData.items) {
+        var w = document.getElementById('alarmTableWrapper');
+        if (w) w.innerHTML = '<div class="alarm-table-empty">스냅샷 로드 실패</div>';
+        return;
+      }
+      
+      _allItems = snapshotsData.items;
+      
+      // 활성 추적 데이터 캐싱
+      if (activeData && activeData.active) {
+        activeData.active.forEach(function(item){
+          if (!_trackingMap[item.id]) {
+            _trackingMap[item.id] = {
+              meta: {
+                tier: item.tier,
+                status: 'active',
+                tierAssignedAt: item.tierAssignedAt,
+                snapshotId: item.id,
+                base: (item.id || '').split('_')[0],
+              }
+            };
+          }
+        });
+      }
+      
+      // 각 스냅샷의 tracking 데이터 fetch (병렬, 일부만 — 성능 고려)
+      // 우선 처음 30건 (테이블 표시 우선) → baseline 계산은 그 후
+      var topItems = _allItems.slice(0, 30);
+      var trackPromises = topItems.map(function(item){
+        if (_trackingMap[item.snapshotId] && _trackingMap[item.snapshotId].summary) return null;
+        return fetchTrackingData(item.snapshotId, false).then(function(td){
+          if (td) _trackingMap[item.snapshotId] = td;
+          return td;
+        });
+      }).filter(Boolean);
+      
+      // 테이블 즉시 렌더 (tracking 데이터 없어도)
+      renderAlarmTable(_allItems);
+      
+      return Promise.all(trackPromises).then(function(){
+        // baseline 계산
+        var allTracking = Object.values(_trackingMap);
+        _baseline = calcBaseline(allTracking);
+        renderDashboard(_baseline);
+        // 테이블 다시 렌더 (MFE/MAE 정보 추가됨)
+        renderAlarmTable(_allItems);
+      });
+    });
+  }
+  
+  // ══ 분석기 섹션 (Phase 3.4 호환) ══════════════════════════════
+  function renderAnalyzerSection() {
     var container = document.getElementById('analyzerContent');
     if (!container) return;
     
     container.innerHTML = '<div class="analyzer-loading">분석기 로드 중...</div>';
     
-    return fetchTrackingActive().then(function(activeData) {
+    return fetchTrackingActive().then(function(activeData){
       if (!activeData || !activeData.active) {
         container.innerHTML = '<div class="analyzer-empty">현재 추적 중인 알람 없음</div>';
         return;
       }
-      
       var active = activeData.active;
       var count = activeData.count || active.length;
-      
       if (count === 0) {
         container.innerHTML = '<div class="analyzer-empty">현재 추적 중인 알람 없음</div>';
         return;
       }
-      
-      // 카운트 정보 + Tier 분포
       var byTier = activeData.byTier || {};
       var headerHtml = '<div class="small" style="margin-bottom:8px">'
                      + '추적 중 <b>' + count + '</b>건 · '
@@ -6606,89 +7813,89 @@ window.addEventListener('load', async function(){
                      + 'Tier B: ' + (byTier.B || 0) + ' / '
                      + 'Tier C: ' + (byTier.C || 0)
                      + '</div>';
-      
-      // 각 알람의 상세 데이터 fetch (병렬)
       var fetchPromises = active.map(function(item){
-        return fetchTrackingData(item.id).then(function(td) {
-          // td 가 null 이면 active 정보만 사용
+        return fetchTrackingData(item.id, false).then(function(td){
           if (!td) {
             return {
-              meta: { 
-                tier: item.tier, 
-                status: 'active', 
+              meta: {
+                tier: item.tier,
+                status: 'active',
                 tierAssignedAt: item.tierAssignedAt,
                 snapshotId: item.id,
                 base: (item.id || '').split('_')[0],
-              },
+              }
             };
           }
           return td;
         });
       });
-      
-      return Promise.all(fetchPromises).then(function(results) {
-        var cardsHtml = results.map(function(td) {
-          return renderAnalyzerCard(td, null);
+      return Promise.all(fetchPromises).then(function(results){
+        var cardsHtml = results.map(function(td){
+          return renderAnalyzerCard(td, _baseline);
         }).join('');
         container.innerHTML = headerHtml + cardsHtml;
       });
     });
   }
   
+  // ══ 외부 노출 ══════════════════════════════════════════════
   global.WOOS_ANALYZER = {
-    BUILD_TAG: 'phase3.4-analyzer-ui-v3.4.0',
-    renderAll: renderAllAnalyzerCards,
-    render: function(snapshotId) {
-      return fetchTrackingData(snapshotId).then(function(td) {
-        var c = document.getElementById('analyzerContent');
-        if (c) c.innerHTML = renderAnalyzerCard(td || { meta: null }, null);
-      });
-    },
+    BUILD_TAG: 'phase3.5-visualization-v3.5.0',
+    loadAndRenderAll: loadAndRenderAll,
+    renderAnalyzerSection: renderAnalyzerSection,
+    renderAlarmTable: function(){ renderAlarmTable(_allItems); },
+    renderDashboard: function(){ renderDashboard(_baseline); },
     _components: {
       renderAnalyzerCard: renderAnalyzerCard,
-      renderPatternBadge: renderPatternBadge,
-      renderTierBadge: renderTierBadge,
-      renderMiniChart: renderMiniChart,
-      renderThresholds: renderThresholds,
-      renderTP1: renderTP1,
-      renderUsable: renderUsable,
+      renderTimeflowChart: renderTimeflowChart,
+      renderMajorEvents: renderMajorEvents,
+      renderCompare: renderCompare,
+      calcFirstMajorEvent: calcFirstMajorEvent,
+      calcBaseline: calcBaseline,
+      classifyKstSession: classifyKstSession,
       escapeHtml: escapeHtml,
     },
   };
   
-  // 24H Outcome 탭 진입 시 + 새로고침 시 자동 호출
-  // 기존 switchTab 함수와 refreshOutcomeDashboard 함수를 건드리지 않고 hook
-  function tryInitAnalyzer() {
-    // outcome 탭이 active 면 즉시 렌더
-    var outcomeTab = document.getElementById('tab-outcome');
-    if (outcomeTab && outcomeTab.classList.contains('active')) {
-      renderAllAnalyzerCards();
-    }
-  }
-  
-  // DOM 준비되면 outcome 탭 클릭 시 / 새로고침 시 자동 호출 hook
-  document.addEventListener('DOMContentLoaded', function() {
-    // outcome 탭 버튼 클릭 시 hook
+  // ══ 자동 호출 hook ══════════════════════════════════════════════
+  document.addEventListener('DOMContentLoaded', function(){
     var outcomeBtn = document.querySelector('[data-tab="outcome"]');
     if (outcomeBtn) {
-      outcomeBtn.addEventListener('click', function() {
-        // 약간의 지연 후 (탭 전환 애니메이션 완료 대기)
-        setTimeout(renderAllAnalyzerCards, 100);
+      outcomeBtn.addEventListener('click', function(){
+        setTimeout(loadAndRenderAll, 100);
       });
     }
-    // 새로고침 버튼 hook
     var refreshBtn = document.querySelector('.outcome-refresh-btn');
     if (refreshBtn) {
-      refreshBtn.addEventListener('click', function() {
-        setTimeout(renderAllAnalyzerCards, 200);
+      refreshBtn.addEventListener('click', function(){
+        setTimeout(loadAndRenderAll, 200);
       });
     }
-    // 페이지 로드 시 outcome 탭이 이미 active 이면 즉시 렌더
-    tryInitAnalyzer();
+    // 필터 버튼
+    var filterContainer = document.getElementById('alarmTableFilter');
+    if (filterContainer) {
+      filterContainer.addEventListener('click', function(e){
+        var btn = e.target.closest('.alarm-table-filter-btn');
+        if (!btn) return;
+        var f = btn.getAttribute('data-filter');
+        _currentFilter = f;
+        // active 클래스 갱신
+        filterContainer.querySelectorAll('.alarm-table-filter-btn').forEach(function(b){
+          b.classList.remove('active');
+        });
+        btn.classList.add('active');
+        renderAlarmTable(_allItems);
+      });
+    }
+    // 페이지 로드 시 outcome 탭이 active 면 즉시 렌더
+    var outcomeTab = document.getElementById('tab-outcome');
+    if (outcomeTab && outcomeTab.classList.contains('active')) {
+      loadAndRenderAll();
+    }
   });
   
 })(typeof window !== 'undefined' ? window : this);
-/* [END MODULE: phase34_analyzer_js] */
+/* [END MODULE: phase35_analyzer_js] */
 
 </script>
 </body>
