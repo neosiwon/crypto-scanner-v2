@@ -3369,6 +3369,77 @@ details.analyzer-progress-card details.progress-deeper > div {
   border-top: 1px solid var(--border);
   margin-top: 8px;
 }
+
+/* ════════════════ [Phase 4.0] WOOS_ANALYZER Realtime Graph CSS ════════════════ */
+/* dot 색상 — 기존 .coin-dot 와 호환 (.coin-dot.woos-dot-XXX 같이 사용) */
+.coin-dot.woos-dot-cyan,
+.woos-dot-cyan { background: #00d4ff !important; box-shadow: 0 0 8px #00d4ff; animation: woos-pulse-slow 2.5s infinite; }
+.coin-dot.woos-dot-green,
+.woos-dot-green { background: #00e676 !important; box-shadow: 0 0 8px #00e676; animation: woos-pulse-fast 1.2s infinite; }
+.coin-dot.woos-dot-orange,
+.woos-dot-orange { background: #ff7849 !important; box-shadow: 0 0 8px #ff7849; animation: woos-pulse-urgent 0.7s infinite; }
+.coin-dot.woos-dot-gray,
+.woos-dot-gray { background: #4b5563 !important; box-shadow: none; animation: none; }
+@keyframes woos-pulse-slow { 0%, 100% { opacity: 1 } 50% { opacity: 0.4 } }
+@keyframes woos-pulse-fast { 0%, 100% { opacity: 1 } 50% { opacity: 0.45 } }
+@keyframes woos-pulse-urgent { 0%, 100% { opacity: 1 } 50% { opacity: 0.5 } }
+
+/* 변화율 */
+.woos-pct { font-weight: 700; font-size: 0.85rem; margin-right: 8px; }
+.woos-pct-up   { color: #00e676; }
+.woos-pct-down { color: #ff4560; }
+.woos-pct.woos-empty { color: #6b7280; font-weight: 400; font-style: italic; }
+
+/* 펼친 본문 — 기존 progress-rich-body 안에 들어가는 새 영역 */
+.progress-rich-body.woos-body { padding: 14px 16px 16px; }
+.woos-pseudo-mark { display: inline-block; color: #fbbf24; font-size: 0.7rem; margin-bottom: 8px; }
+
+/* 진행률 (펼친 본문 내) */
+.woos-body .woos-progress { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+.woos-body .woos-progress-bar { flex: 1; height: 6px; background: rgba(255,255,255,0.06); border-radius: 3px; overflow: hidden; }
+.woos-body .woos-progress-fill { height: 100%; background: linear-gradient(90deg, #00d4ff, #00e676); border-radius: 3px; transition: width 0.3s; }
+.woos-body .woos-progress-pct { font-size: 0.78rem; color: #9ca3af; min-width: 36px; text-align: right; }
+
+/* 3축 지표 */
+.woos-metrics-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin: 12px 0; }
+.woos-metrics-row.woos-empty { display: block; padding: 10px; text-align: center; color: #6b7280; font-style: italic; background: rgba(255,255,255,0.02); border-radius: 8px; }
+.woos-metric { background: rgba(255,255,255,0.03); border-radius: 8px; padding: 10px 6px; text-align: center; }
+.woos-metric-label { font-size: 0.7rem; color: #6b7280; margin-bottom: 4px; }
+.woos-metric-value { font-size: 0.82rem; color: #e5e7eb; font-weight: 600; }
+
+/* 현재가 강조 */
+.woos-current-big { font-size: 1.4rem; font-weight: 700; text-align: center; margin: 14px 0; padding: 8px; border-radius: 8px; background: rgba(255,255,255,0.02); }
+.woos-current-up   { color: #00e676; }
+.woos-current-down { color: #ff4560; }
+.woos-current-big.woos-empty { color: #6b7280; font-weight: 400; font-size: 0.9rem; font-style: italic; }
+
+/* SVG 차트 영역 (모바일 100% / 데스크톱 max-width 480px) */
+.woos-graph-wrap { width: 100%; max-width: 480px; margin: 12px auto; }
+.woos-svg { width: 100%; height: auto; display: block; }
+.woos-empty-graph { padding: 30px; text-align: center; color: #6b7280; background: rgba(255,255,255,0.02); border-radius: 8px; font-style: italic; }
+
+/* 전략 A/B */
+.woos-strategies { display: flex; flex-direction: column; gap: 8px; margin-top: 14px; }
+.woos-strategy { background: rgba(255,255,255,0.03); border-radius: 8px; padding: 10px 12px; }
+.woos-strategy-title { font-size: 0.72rem; color: #9ca3af; margin-bottom: 4px; font-weight: 600; }
+.woos-strategy-body { font-size: 0.82rem; color: #e5e7eb; }
+.woos-strategy-body.woos-empty { color: #6b7280; font-style: italic; }
+
+/* 그룹 카드 */
+details.progress-rich-card.woos-group { border-color: rgba(124, 58, 237, 0.35); }
+details.progress-rich-card.woos-group[open] { border-color: rgba(124, 58, 237, 0.6); }
+.woos-summary .woos-group-badge { display: inline-block; padding: 1px 6px; border-radius: 4px; font-size: 0.65rem; background: rgba(124, 58, 237, 0.2); color: #c4b5fd; margin-left: 6px; font-weight: 600; }
+.woos-group-flow { font-size: 0.75rem; color: #9ca3af; margin-bottom: 8px; padding: 4px 0; }
+.woos-group-others-label,
+.woos-group-rep-label { font-size: 0.7rem; color: #6b7280; margin: 12px 0 6px; padding-bottom: 4px; border-bottom: 1px dashed rgba(255,255,255,0.08); }
+.woos-group-others { display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px; }
+.woos-mini-card { display: flex; align-items: center; gap: 8px; padding: 8px 10px; background: rgba(255,255,255,0.02); border-radius: 6px; font-size: 0.75rem; }
+.woos-mini-card .coin-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.woos-mini-grade { padding: 1px 6px; border-radius: 3px; background: rgba(0, 212, 255, 0.1); color: #7dd3fc; font-size: 0.65rem; font-weight: 600; }
+.woos-mini-time { color: #9ca3af; flex: 1; }
+.woos-group-rep { padding-top: 8px; }
+/* ════════════════════════════════════════════════════════════════════════════ */
+
 /* ────────────── Phase 3.7: 추적 카드 풍부한 디자인 ────────────── */
 details.progress-rich-card {
   margin: 8px 0;
@@ -4929,7 +5000,7 @@ async function opsDashboard() {
 // 탭 시 상세 팝업
 // ═══════════════════════════════════════════════════════════════
 
-var HTML_VERSION = 'v4.11.0';  // Phase 3.11 — 신호 강도별 dot 펄스 + Tier 필터 + 카드 변화율 강조 (Phase 3.6~3.10 누적)
+var HTML_VERSION = 'v4.12.0';  // Phase 4.0 — Realtime graph + 그룹 카드 (Phase 3.6~3.11 누적)
 var _cachedBuildInfo = null;
 
 async function fetchBuildInfo() {
@@ -9073,18 +9144,30 @@ window.addEventListener('load', async function(){
         ? '<div class="analyzer-empty">검색 결과 없음 (' + escapeHtml(_activeSearchQuery) + ')</div>'
         : '<div class="analyzer-empty">표시할 추적 항목 없음</div>';
     } else {
-      cardsHtml = displayItems.map(function(item){
-        var td = _trackingMap[item.id] || {
-          meta: {
-            tier: item.tier,
-            status: 'active',
-            tierAssignedAt: item.tierAssignedAt,
-            snapshotId: item.id,
-            base: item.base,
-          }
-        };
-        return renderAnalyzerCard(td, _baseline);
-      }).join('');
+      // [Phase 4.0] 그룹화 + 그룹 카드 렌더 (검색/정렬/Tier 필터 후 displayItems 기준)
+      var v40 = global.WOOS_ANALYZER;
+      if (v40 && typeof v40.groupTracks === 'function' && typeof v40.buildGroupCardHTML === 'function') {
+        var tracksToRender = displayItems.map(function(item){
+          var td = _trackingMap[item.id] || {
+            meta: { tier: item.tier, status: 'active', tierAssignedAt: item.tierAssignedAt, snapshotId: item.id, base: item.base, exchange: item.exchange }
+          };
+          return v40.adaptItemToTrack(item, td);
+        });
+        var groups = v40.groupTracks(tracksToRender);
+        cardsHtml = groups.map(function(g){
+          var first = v40.isFirstRender(g.key);
+          v40.markRendered(g.key);
+          return v40.buildGroupCardHTML(g, { isFirstRender: first });
+        }).join('');
+      } else {
+        // [Phase 3.x fallback] WOOS_ANALYZER v4.0 미로드 시 기존 카드 렌더
+        cardsHtml = displayItems.map(function(item){
+          var td = _trackingMap[item.id] || {
+            meta: { tier: item.tier, status: 'active', tierAssignedAt: item.tierAssignedAt, snapshotId: item.id, base: item.base }
+          };
+          return renderAnalyzerCard(td, _baseline);
+        }).join('');
+      }
     }
     
     // 더보기 버튼 (검색 X + 더 표시할 것 있을 때만)
@@ -9166,6 +9249,23 @@ window.addEventListener('load', async function(){
         _backgroundFetchVisible();
       });
     }
+    // [Phase 4.0] details 펼침 상태 → sessionStorage 저장 + 렌더 직후 복원
+    var v40 = global.WOOS_ANALYZER;
+    if (v40 && typeof v40.setExpanded === 'function' && typeof v40.isExpanded === 'function') {
+      // 1. sessionStorage 에서 펼침 상태 복원 (DOM 갱신 후)
+      var allDetails = document.querySelectorAll('details.progress-rich-card.woos-card');
+      allDetails.forEach(function(d){
+        var key = d.getAttribute('data-group-key');
+        if (!key) return;
+        if (v40.isExpanded(key)) {
+          d.open = true;
+        }
+        // 2. 토글 이벤트로 sessionStorage 갱신
+        d.addEventListener('toggle', function(){
+          v40.setExpanded(key, d.open);
+        });
+      });
+    }
   }
   
   // [Phase 3.9] 캐시 데이터로 다시 렌더 (전체 데이터 fetch X)
@@ -9228,7 +9328,7 @@ window.addEventListener('load', async function(){
   
   // ══ 외부 노출 ══════════════════════════════════════════════
   global.WOOS_ANALYZER = {
-    BUILD_TAG: 'phase3.11-signal-dots-tier-filter-v3.11.0',
+    BUILD_TAG: 'phase4.0-realtime-graph-v4.0.0',
     loadAndRenderAll: loadAndRenderAll,
     renderAnalyzerSection: renderAnalyzerSection,
     renderAlarmTable: function(){ renderAlarmTable(_allItems); },
@@ -9244,6 +9344,498 @@ window.addEventListener('load', async function(){
       escapeHtml: escapeHtml,
     },
   };
+  
+  /* ═══════════════════════════════════════════════════════════════
+   * [Phase 4.0] Realtime Graph 분석기 모듈 (인라인 통합)
+   * BUILD: phase4.0-realtime-graph-v4.0.0
+   * 블록 2: Front live metrics engine
+   * 블록 3: Bezier SVG graph (monotone cubic)
+   * 블록 4: Grouped tracking card UI
+   * 기존 WOOS_ANALYZER 객체에 Object.assign 으로 확장 (덮어쓰지 않음)
+   * R1 준수: 평가 라벨 사용 금지 (도달/미도달/관찰 중 등 사실 기반 표현만 사용)
+   * ═══════════════════════════════════════════════════════════════ */
+  (function(globalScope) {
+    'use strict';
+    var WOOS_V40_VERSION = 'phase4.0-realtime-graph-v4.0.0';
+    
+    /* ── 블록 2: Front live metrics engine ────────────────── */
+    function v40_normalizeSamples(track) {
+      if (!track) return [];
+      var raw = [];
+      function harvest(arr, defaultPhase) {
+        if (!Array.isArray(arr)) return;
+        for (var i = 0; i < arr.length; i++) {
+          var s = arr[i];
+          if (!s || s.missing === true) continue;
+          var price = (s.price != null) ? Number(s.price) : null;
+          if (price == null || !isFinite(price) || price <= 0) continue;
+          var ts = s.t || s.ts || s.timestamp || null;
+          if (ts == null) continue;
+          raw.push({ ts: Number(ts), price: price, idx: (s.idx != null) ? Number(s.idx) : -1, phase: s.phase || defaultPhase || 'unknown' });
+        }
+      }
+      if (track.keys) {
+        if (track.keys.samples_t1 && Array.isArray(track.keys.samples_t1.items)) harvest(track.keys.samples_t1.items, 'tier1');
+        if (track.keys.samples_t2 && Array.isArray(track.keys.samples_t2.items)) harvest(track.keys.samples_t2.items, 'tier2');
+      }
+      if (raw.length === 0) {
+        if (Array.isArray(track.samples_t1)) harvest(track.samples_t1, 'tier1');
+        if (Array.isArray(track.samples_t2)) harvest(track.samples_t2, 'tier2');
+      }
+      if (raw.length === 0) {
+        if (track.tier1 && Array.isArray(track.tier1.samples)) harvest(track.tier1.samples, 'tier1');
+        if (track.tier2 && Array.isArray(track.tier2.samples)) harvest(track.tier2.samples, 'tier2');
+      }
+      if (raw.length === 0 && Array.isArray(track.samples)) harvest(track.samples);
+      raw.sort(function(a, b) { return a.ts - b.ts; });
+      return raw;
+    }
+    
+    function v40_resolveEntryPrice(track, samples) {
+      if (!track) return { value: null, source: 'none', isPseudo: false };
+      samples = samples || [];
+      var meta = track.meta || (track.keys && track.keys.meta && track.keys.meta.value) || {};
+      if (track.entryPrice != null && track.entryPrice > 0) {
+        return { value: Number(track.entryPrice), source: 'track.entryPrice', isPseudo: false };
+      }
+      if (track.scanner && track.scanner.price != null && track.scanner.price > 0) {
+        return { value: Number(track.scanner.price), source: 'scanner.price', isPseudo: false };
+      }
+      if (meta.openPrice != null && meta.openPrice > 0) {
+        var isPseudo = meta.pseudoOpenPrice === true;
+        return { value: Number(meta.openPrice), source: isPseudo ? 'meta.openPrice (pseudo)' : 'meta.openPrice', isPseudo: isPseudo };
+      }
+      if (samples.length > 0) return { value: samples[0].price, source: 'firstSample (fallback)', isPseudo: true };
+      return { value: null, source: 'none', isPseudo: false };
+    }
+    
+    function v40_computeLiveMetrics(samples, entryPrice, levels) {
+      levels = levels || {};
+      if (!samples || samples.length === 0 || !entryPrice || entryPrice <= 0) {
+        return { hasData: false, sampleCount: 0, currentPct: null, mfe: null, mae: null,
+          plus3Hit: false, plus5Hit: false, tp1Hit: false, tp2Hit: false, stopHit: false,
+          currentPoint: null, mfePoint: null, maePoint: null, firstMajorEvent: null };
+      }
+      var pcts = samples.map(function(s) { return ((s.price - entryPrice) / entryPrice) * 100; });
+      var currentPct = pcts[pcts.length - 1];
+      var mfe = pcts[0], mfeIdx = 0, mae = pcts[0], maeIdx = 0;
+      for (var i = 1; i < pcts.length; i++) {
+        if (pcts[i] > mfe) { mfe = pcts[i]; mfeIdx = i; }
+        if (pcts[i] < mae) { mae = pcts[i]; maeIdx = i; }
+      }
+      var plus3Hit = false, plus5Hit = false, tp1Hit = false, tp2Hit = false, stopHit = false, firstMajorEvent = null;
+      for (var j = 0; j < samples.length; j++) {
+        var p = samples[j].price, pct = pcts[j];
+        if (!plus3Hit && pct >= 3) { plus3Hit = true; if (!firstMajorEvent) firstMajorEvent = { type: '+3', at: samples[j].ts, sampleIdx: j }; }
+        if (!plus5Hit && pct >= 5) { plus5Hit = true; if (!firstMajorEvent || firstMajorEvent.type === '+3') firstMajorEvent = { type: '+5', at: samples[j].ts, sampleIdx: j }; }
+        if (!tp1Hit && levels.tp1 != null && p >= levels.tp1) { tp1Hit = true; if (!firstMajorEvent || firstMajorEvent.type === '+3' || firstMajorEvent.type === '+5') firstMajorEvent = { type: 'TP1', at: samples[j].ts, sampleIdx: j }; }
+        if (!tp2Hit && levels.tp2 != null && p >= levels.tp2) { tp2Hit = true; firstMajorEvent = { type: 'TP2', at: samples[j].ts, sampleIdx: j }; }
+        if (!stopHit && levels.boxLow != null && p <= levels.boxLow) { stopHit = true; firstMajorEvent = { type: 'STOP', at: samples[j].ts, sampleIdx: j }; }
+      }
+      return { hasData: true, sampleCount: samples.length, currentPct: currentPct, mfe: mfe, mae: mae,
+        plus3Hit: plus3Hit, plus5Hit: plus5Hit, tp1Hit: tp1Hit, tp2Hit: tp2Hit, stopHit: stopHit,
+        currentPoint: { ts: samples[samples.length - 1].ts, price: samples[samples.length - 1].price, pct: currentPct },
+        mfePoint: { ts: samples[mfeIdx].ts, price: samples[mfeIdx].price, pct: mfe },
+        maePoint: { ts: samples[maeIdx].ts, price: samples[maeIdx].price, pct: mae },
+        firstMajorEvent: firstMajorEvent };
+    }
+    
+    /* ── 블록 3: Bezier SVG graph ────────────────── */
+    function v40_generateSmoothPath(points) {
+      if (!points || points.length === 0) return '';
+      if (points.length === 1) return 'M ' + points[0].x.toFixed(2) + ' ' + points[0].y.toFixed(2);
+      if (points.length === 2) return 'M ' + points[0].x.toFixed(2) + ' ' + points[0].y.toFixed(2) + ' L ' + points[1].x.toFixed(2) + ' ' + points[1].y.toFixed(2);
+      var n = points.length, dx = new Array(n - 1), dy = new Array(n - 1), m = new Array(n - 1);
+      for (var i = 0; i < n - 1; i++) { dx[i] = points[i + 1].x - points[i].x; dy[i] = points[i + 1].y - points[i].y; m[i] = dx[i] === 0 ? 0 : dy[i] / dx[i]; }
+      var tangents = new Array(n);
+      tangents[0] = m[0]; tangents[n - 1] = m[n - 2];
+      for (var k = 1; k < n - 1; k++) tangents[k] = (m[k - 1] * m[k] <= 0) ? 0 : (m[k - 1] + m[k]) / 2;
+      for (var l = 0; l < n - 1; l++) {
+        if (m[l] === 0) { tangents[l] = 0; tangents[l + 1] = 0; }
+        else { var a = tangents[l] / m[l], b = tangents[l + 1] / m[l], h = a * a + b * b;
+          if (h > 9) { var t = 3 / Math.sqrt(h); tangents[l] = t * a * m[l]; tangents[l + 1] = t * b * m[l]; } }
+      }
+      var d = 'M ' + points[0].x.toFixed(2) + ' ' + points[0].y.toFixed(2);
+      for (var s = 0; s < n - 1; s++) {
+        var dxs = dx[s], x1 = points[s].x + dxs / 3, y1 = points[s].y + tangents[s] * dxs / 3;
+        var x2 = points[s + 1].x - dxs / 3, y2 = points[s + 1].y - tangents[s + 1] * dxs / 3;
+        d += ' C ' + x1.toFixed(2) + ' ' + y1.toFixed(2) + ' ' + x2.toFixed(2) + ' ' + y2.toFixed(2) + ' ' + points[s + 1].x.toFixed(2) + ' ' + points[s + 1].y.toFixed(2);
+      }
+      return d;
+    }
+    
+    var V40_SVG = { VB_W: 360, VB_H: 220, PAD_T: 22, PAD_B: 24, PAD_L: 16, PAD_R: 48 };
+    
+    function v40_escapeHtml(s) {
+      if (s == null) return '';
+      return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+    
+    function v40_generateTrackingSVGChart(track, samples, metrics, entryInfo, levels, opts) {
+      opts = opts || {}; levels = levels || {};
+      var isFirstRender = !!opts.isFirstRender;
+      var snapshotId = (track && track.snapshotId) || (track && track.id) || 'svg';
+      var safeId = ('woos-svg-' + snapshotId).replace(/[^a-zA-Z0-9_-]/g, '_');
+      if (!samples || samples.length < 2 || !metrics || !metrics.hasData) {
+        return '<div class="woos-empty-graph">데이터 수집 중</div>';
+      }
+      var startedAt = (track.startedAt) || (track.meta && track.meta.windowStart) || (track.meta && track.meta.tierAssignedAt) || samples[0].ts;
+      var elapsedMin = (Date.now() - startedAt) / 60000;
+      var xRangeMin = Math.max(elapsedMin, 360);
+      if (xRangeMin <= 0) xRangeMin = 360;
+      var entryPrice = entryInfo && entryInfo.value;
+      var tp1Pct = (levels.tp1 != null && entryPrice) ? ((levels.tp1 - entryPrice) / entryPrice) * 100 : null;
+      var tp2Pct = (levels.tp2 != null && entryPrice) ? ((levels.tp2 - entryPrice) / entryPrice) * 100 : null;
+      var stopPct = (levels.boxLow != null && entryPrice) ? ((levels.boxLow - entryPrice) / entryPrice) * 100 : null;
+      var yMaxCandidates = [metrics.mfe, 5];
+      if (tp1Pct != null) yMaxCandidates.push(tp1Pct);
+      if (tp2Pct != null) yMaxCandidates.push(tp2Pct);
+      var yMax = Math.max.apply(null, yMaxCandidates) + 1.5;
+      var yMinCandidates = [metrics.mae, -5];
+      if (stopPct != null) yMinCandidates.push(stopPct);
+      var yMin = Math.min.apply(null, yMinCandidates) - 1.5;
+      var plotW = V40_SVG.VB_W - V40_SVG.PAD_L - V40_SVG.PAD_R;
+      var plotH = V40_SVG.VB_H - V40_SVG.PAD_T - V40_SVG.PAD_B;
+      function xMap(ts) { var tMin = (ts - startedAt) / 60000, pct = Math.max(0, Math.min(1, tMin / xRangeMin)); return V40_SVG.PAD_L + pct * plotW; }
+      function yMap(pct) { var n = (pct - yMin) / (yMax - yMin); return V40_SVG.PAD_T + (1 - n) * plotH; }
+      var pts = samples.map(function(s) { var pct = ((s.price - entryPrice) / entryPrice) * 100; return { x: xMap(s.ts), y: yMap(pct), s: s, pct: pct }; });
+      var pathD = v40_generateSmoothPath(pts);
+      var guides = [
+        { name: '0%', value: 0, color: '#9fb3c8' }, { name: '+3%', value: 3, color: '#7dd3fc' },
+        { name: '+5%', value: 5, color: '#00e676' }, { name: '-5%', value: -5, color: '#ff4560' }
+      ];
+      if (tp1Pct != null) guides.push({ name: 'TP1', value: tp1Pct, color: '#7dd3fc' });
+      if (tp2Pct != null) guides.push({ name: 'TP2', value: tp2Pct, color: '#a78bfa' });
+      if (stopPct != null) guides.push({ name: 'STOP', value: stopPct, color: '#ff4560' });
+      if (levels.atrPct != null && levels.atrPct > 0) {
+        guides.push({ name: '+1ATR', value: levels.atrPct, color: '#3b82f6', dim: true });
+        guides.push({ name: '+2ATR', value: levels.atrPct * 2, color: '#3b82f6', dim: true });
+        guides.push({ name: '-1ATR', value: -levels.atrPct, color: '#f97316', dim: true });
+        guides.push({ name: '-2ATR', value: -levels.atrPct * 2, color: '#f97316', dim: true });
+      }
+      var svg = [];
+      svg.push('<svg class="woos-svg" viewBox="0 0 ' + V40_SVG.VB_W + ' ' + V40_SVG.VB_H + '" preserveAspectRatio="xMidYMid meet" role="img" aria-label="가격 흐름 그래프">');
+      svg.push('<defs><linearGradient id="' + safeId + '-grad" x1="0" x2="1" y1="0" y2="0"><stop offset="0%" stop-color="#00d4ff"/><stop offset="100%" stop-color="#00e676"/></linearGradient><filter id="' + safeId + '-glow" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="2.5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>');
+      svg.push('<g class="woos-guides">');
+      for (var gi = 0; gi < guides.length; gi++) {
+        var g = guides[gi];
+        if (g.value > yMax || g.value < yMin) continue;
+        var gy = yMap(g.value), op = g.dim ? '0.25' : '0.55';
+        svg.push('<line x1="' + V40_SVG.PAD_L + '" y1="' + gy.toFixed(2) + '" x2="' + (V40_SVG.VB_W - V40_SVG.PAD_R) + '" y2="' + gy.toFixed(2) + '" stroke="' + g.color + '" stroke-width="1" stroke-dasharray="3 3" opacity="' + op + '"/>');
+        svg.push('<text x="' + (V40_SVG.VB_W - V40_SVG.PAD_R + 4) + '" y="' + (gy + 3).toFixed(2) + '" fill="' + g.color + '" font-size="9" opacity="' + op + '">' + v40_escapeHtml(g.name) + '</text>');
+      }
+      svg.push('</g><g class="woos-curve">');
+      if (isFirstRender && pathD) {
+        svg.push('<path d="' + pathD + '" fill="none" stroke="url(#' + safeId + '-grad)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" filter="url(#' + safeId + '-glow)" stroke-dasharray="800" stroke-dashoffset="800"><animate attributeName="stroke-dashoffset" from="800" to="0" dur="0.9s" fill="freeze"/></path>');
+      } else {
+        svg.push('<path d="' + pathD + '" fill="none" stroke="url(#' + safeId + '-grad)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" filter="url(#' + safeId + '-glow)"/>');
+      }
+      svg.push('</g><g class="woos-points">');
+      var cur = metrics.currentPoint, mfeP = metrics.mfePoint, maeP = metrics.maePoint;
+      function drawPoint(point, color, label, r, glow) {
+        if (!point) return;
+        var px = xMap(point.ts), py = yMap(point.pct), glowAttr = glow ? ' filter="url(#' + safeId + '-glow)"' : '';
+        svg.push('<circle cx="' + px.toFixed(2) + '" cy="' + py.toFixed(2) + '" r="' + r + '" fill="' + color + '"' + glowAttr + '/>');
+        if (label) svg.push('<text x="' + (px + 6).toFixed(2) + '" y="' + (py - 6).toFixed(2) + '" fill="' + color + '" font-size="10" font-weight="600">' + v40_escapeHtml(label) + '</text>');
+      }
+      if (maeP && maeP.pct < -0.1) drawPoint(maeP, '#ff4560', 'MAE ' + maeP.pct.toFixed(1) + '%', 3, false);
+      if (mfeP && mfeP.pct > 0.1) drawPoint(mfeP, '#00e676', 'MFE ' + mfeP.pct.toFixed(1) + '%', 3, false);
+      if (cur) { var sign = cur.pct >= 0 ? '+' : ''; drawPoint(cur, '#00d4ff', sign + cur.pct.toFixed(2) + '%', 4, true); }
+      svg.push('</g></svg>');
+      return svg.join('');
+    }
+    
+    /* ── 블록 4: Tracking card UI ────────────────── */
+    function v40_decideDotColor(track, metrics, levels) {
+      var status = (track.status) || (track.meta && track.meta.status) || 'active';
+      if (status === 'terminated' || status === 'completed' || status === 'expired_partial' || status === 'measurement_done') return 'gray';
+      if (!metrics || !metrics.hasData) return 'cyan';
+      var atrPct = (levels && levels.atrPct != null && levels.atrPct > 0) ? levels.atrPct : null;
+      var maeTriggered = (metrics.mae <= -3) || (atrPct != null && metrics.mae <= -2 * atrPct);
+      if (maeTriggered) return 'orange';
+      var mfeTriggered = (metrics.mfe >= 5) || (metrics.currentPct >= 5) || (atrPct != null && (metrics.mfe >= 2 * atrPct || metrics.currentPct >= 2 * atrPct));
+      if (mfeTriggered) return 'green';
+      return 'cyan';
+    }
+    
+    function v40_resolveLevels(track, entryPrice) {
+      var meta = track.meta || (track.keys && track.keys.meta && track.keys.meta.value) || {};
+      var atr = meta.atr != null ? meta.atr : null;
+      var atrPct = (atr != null && entryPrice != null && entryPrice > 0) ? (atr / entryPrice) * 100 : null;
+      return { tp1: meta.tp1Price != null ? meta.tp1Price : null, tp2: meta.tp2Price != null ? meta.tp2Price : null,
+        boxLow: meta.boxLow != null ? meta.boxLow : null, boxHigh: meta.boxHigh != null ? meta.boxHigh : null,
+        atr: atr, atrPct: atrPct };
+    }
+    
+    function v40_computeProgressPct(track) {
+      var meta = track.meta || (track.keys && track.keys.meta && track.keys.meta.value) || {};
+      var startedAt = track.startedAt || meta.windowStart || meta.tierAssignedAt;
+      var windowEnd = track.windowEnd || meta.windowEnd;
+      if (!startedAt || !windowEnd || windowEnd <= startedAt) return 0;
+      var now = Date.now();
+      if (now <= startedAt) return 0;
+      if (now >= windowEnd) return 100;
+      return ((now - startedAt) / (windowEnd - startedAt)) * 100;
+    }
+    
+    function v40_formatElapsed(ms) {
+      if (ms == null || ms < 0) return '-';
+      var totalMin = Math.floor(ms / 60000), h = Math.floor(totalMin / 60), m = totalMin - h * 60;
+      return h > 0 ? (h + 'h ' + m + 'm') : (m + 'm');
+    }
+    
+    /* 펼친 카드의 본문 (summary 제외) — 기존 details/summary 구조에 끼워 넣기용 */
+    function v40_buildExpandedBody(track, samples, metrics, entryInfo, levels) {
+      var meta = track.meta || (track.keys && track.keys.meta && track.keys.meta.value) || {};
+      var progressPct = v40_computeProgressPct(track);
+      var pseudoMark = (entryInfo && entryInfo.isPseudo) ? '<span class="woos-pseudo-mark">※ 첫 샘플 기준</span>' : '';
+      var curBig = '';
+      if (metrics && metrics.hasData && metrics.currentPct != null) {
+        var sign = metrics.currentPct >= 0 ? '+' : '';
+        var dir = metrics.currentPct >= 0 ? 'up' : 'down';
+        curBig = '<div class="woos-current-big woos-current-' + dir + '">현재가 ' + sign + metrics.currentPct.toFixed(2) + '%</div>';
+      } else {
+        curBig = '<div class="woos-current-big woos-empty">데이터 수집 중</div>';
+      }
+      var metricsHtml;
+      if (!metrics || !metrics.hasData) {
+        metricsHtml = '<div class="woos-metrics-row woos-empty">데이터 수집 중</div>';
+      } else {
+        var atrPct = levels.atrPct;
+        var speed = metrics.plus5Hit ? '+5 도달' : (metrics.plus3Hit ? '+3 도달' : '관찰 중');
+        var stability = metrics.mae.toFixed(2) + '%' + ((atrPct != null && atrPct > 0) ? (' · ' + (Math.abs(metrics.mae) / atrPct).toFixed(1) + 'ATR') : '');
+        var rise = (metrics.mfe >= 0 ? '+' : '') + metrics.mfe.toFixed(2) + '%' + ((atrPct != null && atrPct > 0) ? (' · ' + (metrics.mfe / atrPct).toFixed(1) + 'ATR') : '');
+        metricsHtml = '<div class="woos-metrics-row"><div class="woos-metric"><div class="woos-metric-label">속도</div><div class="woos-metric-value">' + v40_escapeHtml(speed) + '</div></div><div class="woos-metric"><div class="woos-metric-label">안정성</div><div class="woos-metric-value">' + v40_escapeHtml(stability) + '</div></div><div class="woos-metric"><div class="woos-metric-label">상승폭</div><div class="woos-metric-value">' + v40_escapeHtml(rise) + '</div></div></div>';
+      }
+      var svgChart = v40_generateTrackingSVGChart(track, samples, metrics, entryInfo, levels, { isFirstRender: false });
+      var stratA, stratB;
+      var aHasData = (levels.tp1 != null) || (levels.tp2 != null) || (levels.boxLow != null);
+      if (!aHasData || !metrics || !metrics.hasData) {
+        stratA = '<div class="woos-strategy"><div class="woos-strategy-title">전략 A · 구조 기반 분할</div><div class="woos-strategy-body woos-empty">데이터 수집 중</div></div>';
+      } else {
+        var aRows = [];
+        if (levels.tp1 != null) aRows.push('TP1 ' + (metrics.tp1Hit ? '도달' : '미도달'));
+        if (levels.tp2 != null) aRows.push('TP2 ' + (metrics.tp2Hit ? '도달' : '미도달'));
+        if (levels.boxLow != null) aRows.push('STOP ' + (metrics.stopHit ? '도달' : '미도달'));
+        stratA = '<div class="woos-strategy"><div class="woos-strategy-title">전략 A · 구조 기반 분할</div><div class="woos-strategy-body">' + aRows.map(v40_escapeHtml).join(' · ') + '</div></div>';
+      }
+      var bHasData = (levels.atr != null && levels.atr > 0);
+      if (!bHasData || !metrics || !metrics.hasData) {
+        stratB = '<div class="woos-strategy"><div class="woos-strategy-title">전략 B · ATR 트레일링</div><div class="woos-strategy-body woos-empty">데이터 수집 중</div></div>';
+      } else {
+        var atrPct2 = levels.atrPct;
+        var trailNote = '+2ATR (' + (atrPct2 * 2).toFixed(2) + '%) · -2ATR (' + (-atrPct2 * 2).toFixed(2) + '%)';
+        var state = (metrics.mfe >= atrPct2 * 2) ? 'trailing 활성' : (metrics.mae <= -atrPct2 * 2) ? '하단 이탈' : '관찰 중';
+        stratB = '<div class="woos-strategy"><div class="woos-strategy-title">전략 B · ATR 트레일링</div><div class="woos-strategy-body">' + v40_escapeHtml(trailNote) + ' · ' + v40_escapeHtml(state) + '</div></div>';
+      }
+      return '<div class="progress-rich-body woos-body">' + pseudoMark +
+        '<div class="woos-progress"><div class="woos-progress-bar"><div class="woos-progress-fill" style="width:' + progressPct.toFixed(0) + '%"></div></div><div class="woos-progress-pct">' + progressPct.toFixed(0) + '%</div></div>' +
+        metricsHtml + curBig +
+        '<div class="woos-graph-wrap">' + svgChart + '</div>' +
+        '<div class="woos-strategies">' + stratA + stratB + '</div>' +
+        '</div>';
+    }
+    
+    /* 닫힌 summary (기존 progress-compact-summary 구조 유지) */
+    function v40_buildCompactSummary(track, metrics, dotColor, opts) {
+      opts = opts || {};
+      var meta = track.meta || (track.keys && track.keys.meta && track.keys.meta.value) || {};
+      var base = track.base || meta.base || '?';
+      var tier = track.tier || meta.tier || 'B';
+      var startedAt = track.startedAt || meta.windowStart || meta.tierAssignedAt || Date.now();
+      var elapsedStr = v40_formatElapsed(Date.now() - startedAt);
+      var progressPct = v40_computeProgressPct(track);
+      var pctLabel = '';
+      if (metrics && metrics.hasData && metrics.currentPct != null) {
+        var sign = metrics.currentPct >= 0 ? '+' : '';
+        pctLabel = '<span class="woos-pct woos-pct-' + (metrics.currentPct >= 0 ? 'up' : 'down') + '">' + sign + metrics.currentPct.toFixed(2) + '%</span>';
+      }
+      var groupBadge = '';
+      if (opts.groupCount && opts.groupCount > 1) {
+        groupBadge = '<span class="woos-group-badge">' + opts.groupCount + ' signals</span>';
+      }
+      return '<summary class="progress-compact-summary woos-summary">'
+        + '<div class="compact-bg-progress" style="width:' + progressPct.toFixed(1) + '%"></div>'
+        + '<div class="compact-content">'
+        +   '<div class="progress-summary-left">'
+        +     '<span class="coin-dot woos-dot-' + dotColor + '"></span>'
+        +     '<b>' + v40_escapeHtml(base) + '</b>'
+        +     groupBadge
+        +     '<span class="tier-pill tier-' + v40_escapeHtml(tier).toLowerCase() + '">Tier ' + v40_escapeHtml(tier) + '</span>'
+        +   '</div>'
+        +   '<div class="progress-summary-right">'
+        +     pctLabel
+        +     '<span class="elapsed-text">' + v40_escapeHtml(elapsedStr) + '</span>'
+        +     '<span class="progress-text">' + progressPct.toFixed(0) + '%</span>'
+        +   '</div>'
+        + '</div>'
+        + '<div class="compact-bar-thin"><div class="compact-bar-thin-fill" style="width:' + progressPct.toFixed(1) + '%"></div></div>'
+        + '</summary>';
+    }
+    
+    /* 단일 추적의 세트 (summary + body) — details 안에 들어갈 내용 */
+    function v40_buildTrackInner(track, opts) {
+      opts = opts || {};
+      var samples = v40_normalizeSamples(track);
+      var entryInfo = v40_resolveEntryPrice(track, samples);
+      var levels = v40_resolveLevels(track, entryInfo.value);
+      var metrics = v40_computeLiveMetrics(samples, entryInfo.value, levels);
+      var dotColor = v40_decideDotColor(track, metrics, levels);
+      return {
+        summary: v40_buildCompactSummary(track, metrics, dotColor, opts),
+        body: v40_buildExpandedBody(track, samples, metrics, entryInfo, levels),
+        dotColor: dotColor,
+        metrics: metrics,
+      };
+    }
+    
+    /* 그룹화 */
+    function v40_groupTracks(tracks) {
+      if (!Array.isArray(tracks)) return [];
+      var map = {};
+      for (var i = 0; i < tracks.length; i++) {
+        var t = tracks[i]; if (!t) continue;
+        var base = t.base || (t.meta && t.meta.base) || (function(){ var sid = t.snapshotId || t.id || ''; var p = sid.split('_'); return p.length >= 4 ? p[0] : '?'; })();
+        var exch = t.exchange || (t.meta && t.meta.exchange) || (function(){ var sid = t.snapshotId || t.id || ''; var p = sid.split('_'); return p.length >= 4 ? p[p.length - 1] : '?'; })();
+        var key = base + '__' + exch;
+        if (!map[key]) map[key] = { key: key, base: base, exchange: exch, items: [] };
+        map[key].items.push(t);
+      }
+      var groups = [];
+      Object.keys(map).forEach(function(k){
+        var g = map[k];
+        g.items.sort(function(a, b){ var aT = a.startedAt || (a.meta && a.meta.windowStart) || a.tierAssignedAt || 0; var bT = b.startedAt || (b.meta && b.meta.windowStart) || b.tierAssignedAt || 0; return aT - bT; });
+        g.representative = g.items[g.items.length - 1];
+        g.gradeFlow = g.items.map(function(it){ return it.gradeLabel || it.gradeCode || (it.meta && (it.meta.gradeLabel || it.meta.gradeCode)) || '?'; });
+        groups.push(g);
+      });
+      return groups;
+    }
+    
+    /* 그룹 카드 또는 단독 카드의 details 전체 빌드 */
+    function v40_buildGroupCardHTML(group, opts) {
+      opts = opts || {};
+      if (!group || !group.items || group.items.length === 0) return '';
+      var rep = group.representative;
+      if (group.items.length === 1) {
+        // 단독: 일반 details 카드
+        var inner = v40_buildTrackInner(rep);
+        var attrs = 'data-snapshot-id="' + v40_escapeHtml(rep.snapshotId || rep.id || '') + '" data-tier="' + v40_escapeHtml(rep.tier || (rep.meta && rep.meta.tier) || 'B') + '" data-group-key="' + v40_escapeHtml(group.key) + '"';
+        return '<details class="progress-rich-card woos-card" ' + attrs + '>' + inner.summary + inner.body + '</details>';
+      }
+      // 그룹 카드 (size >= 2)
+      var repInner = v40_buildTrackInner(rep, { groupCount: group.items.length });
+      var others = group.items.slice(0, -1);
+      var minisHtml = others.map(function(it){
+        var oSamples = v40_normalizeSamples(it);
+        var oEntry = v40_resolveEntryPrice(it, oSamples);
+        var oLevels = v40_resolveLevels(it, oEntry.value);
+        var oMetrics = v40_computeLiveMetrics(oSamples, oEntry.value, oLevels);
+        var oDot = v40_decideDotColor(it, oMetrics, oLevels);
+        var oMeta = it.meta || {};
+        var oStart = it.startedAt || oMeta.windowStart || oMeta.tierAssignedAt || Date.now();
+        var oElapsed = v40_formatElapsed(Date.now() - oStart);
+        var oGrade = it.gradeLabel || it.gradeCode || (oMeta.gradeLabel || oMeta.gradeCode) || '';
+        var oPct = (oMetrics && oMetrics.hasData && oMetrics.currentPct != null)
+          ? '<span class="woos-pct woos-pct-' + (oMetrics.currentPct >= 0 ? 'up' : 'down') + '">' + (oMetrics.currentPct >= 0 ? '+' : '') + oMetrics.currentPct.toFixed(2) + '%</span>'
+          : '<span class="woos-pct woos-empty">수집 중</span>';
+        return '<div class="woos-mini-card" data-snapshot-id="' + v40_escapeHtml(it.snapshotId || it.id || '') + '">'
+             + '<span class="coin-dot woos-dot-' + oDot + '"></span>'
+             + (oGrade ? '<span class="woos-mini-grade">' + v40_escapeHtml(oGrade) + '</span>' : '')
+             + '<span class="woos-mini-time">' + v40_escapeHtml(oElapsed) + '</span>'
+             + oPct
+             + '</div>';
+      }).join('');
+      var flow = group.gradeFlow.map(v40_escapeHtml).join(' → ');
+      var groupAttrs = 'data-snapshot-id="' + v40_escapeHtml(rep.snapshotId || rep.id || '') + '" data-tier="' + v40_escapeHtml(rep.tier || (rep.meta && rep.meta.tier) || 'B') + '" data-group-key="' + v40_escapeHtml(group.key) + '" data-group-size="' + group.items.length + '"';
+      return '<details class="progress-rich-card woos-card woos-group" ' + groupAttrs + '>'
+           + repInner.summary
+           + '<div class="progress-rich-body woos-body woos-group-body">'
+           +   '<div class="woos-group-flow">흐름 ' + flow + '</div>'
+           +   '<div class="woos-group-others-label">이전 알람 ' + others.length + '건</div>'
+           +   '<div class="woos-group-others">' + minisHtml + '</div>'
+           +   '<div class="woos-group-rep-label">대표 (최신)</div>'
+           +   repInner.body.replace('progress-rich-body woos-body', 'progress-rich-body woos-body woos-group-rep')
+           + '</details>';
+    }
+    
+    /* 어댑터: _activeItemsCache 의 item + _trackingMap 의 td → 단일 track 객체 */
+    function v40_adaptItemToTrack(item, td) {
+      td = td || {};
+      var meta = td.meta || {};
+      return {
+        snapshotId: item.id, id: item.id,
+        base: item.base || meta.base || '',
+        exchange: item.exchange || meta.exchange || '',
+        tier: item.tier || meta.tier || 'B',
+        gradeCode: item.gradeCode || meta.gradeCode || null,
+        gradeLabel: item.gradeLabel || meta.gradeLabel || null,
+        startedAt: item.startedAt || item.tierAssignedAt || meta.windowStart || meta.tierAssignedAt,
+        windowEnd: item.windowEnd || meta.windowEnd,
+        status: meta.status || 'active',
+        meta: meta,
+        samples: td.samples || [],
+        thresholds: td.thresholds || null,
+        tp1: td.tp1 || null,
+      };
+    }
+    
+    /* sessionStorage 펼침 상태 관리 */
+    var V40_SS_KEY = 'woos-v40-expanded-groups';
+    function v40_loadExpandedSet() {
+      try { var raw = sessionStorage.getItem(V40_SS_KEY); if (!raw) return {}; var obj = JSON.parse(raw); return (obj && typeof obj === 'object') ? obj : {}; } catch(e) { return {}; }
+    }
+    function v40_saveExpandedSet(map) {
+      try { sessionStorage.setItem(V40_SS_KEY, JSON.stringify(map)); } catch(e) { /* quota / 비활성화 시 무시 */ }
+    }
+    function v40_setExpanded(key, isOpen) {
+      var m = v40_loadExpandedSet();
+      if (isOpen) m[key] = 1; else delete m[key];
+      v40_saveExpandedSet(m);
+    }
+    function v40_isExpanded(key) {
+      var m = v40_loadExpandedSet();
+      return !!m[key];
+    }
+    
+    /* 첫 렌더 추적 (애니메이션 1회) — 페이지 라이프 동안만 */
+    var V40_RENDERED_KEYS = {};
+    function v40_isFirstRender(key) { return !V40_RENDERED_KEYS[key]; }
+    function v40_markRendered(key) { V40_RENDERED_KEYS[key] = 1; }
+    
+    /* Object.assign 으로 기존 WOOS_ANALYZER 에 추가 (덮어쓰기 X) */
+    if (!globalScope.WOOS_ANALYZER) globalScope.WOOS_ANALYZER = {};
+    Object.assign(globalScope.WOOS_ANALYZER, {
+      VERSION_PHASE_4_0: WOOS_V40_VERSION,
+      // 블록 2
+      normalizeSamples: v40_normalizeSamples,
+      resolveEntryPrice: v40_resolveEntryPrice,
+      computeLiveMetrics: v40_computeLiveMetrics,
+      // 블록 3
+      generateSmoothPath: v40_generateSmoothPath,
+      generateTrackingSVGChart: v40_generateTrackingSVGChart,
+      // 블록 4
+      decideDotColor: v40_decideDotColor,
+      resolveLevels: v40_resolveLevels,
+      computeProgressPct: v40_computeProgressPct,
+      groupTracks: v40_groupTracks,
+      buildGroupCardHTML: v40_buildGroupCardHTML,
+      buildTrackInner: v40_buildTrackInner,
+      buildExpandedBody: v40_buildExpandedBody,
+      buildCompactSummary: v40_buildCompactSummary,
+      adaptItemToTrack: v40_adaptItemToTrack,
+      // 펼침 상태
+      isExpanded: v40_isExpanded,
+      setExpanded: v40_setExpanded,
+      isFirstRender: v40_isFirstRender,
+      markRendered: v40_markRendered,
+      // 상수
+      SVG: V40_SVG,
+    });
+  })(typeof window !== 'undefined' ? window : (typeof globalThis !== 'undefined' ? globalThis : this));
+  /* ═══════════════════════════════════════════════════════════════
+   * [Phase 4.0] 모듈 끝
+   * ═══════════════════════════════════════════════════════════════ */
   
   // ══ 자동 호출 hook ══════════════════════════════════════════════
   document.addEventListener('DOMContentLoaded', function(){
