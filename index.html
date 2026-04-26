@@ -3440,6 +3440,120 @@ details.progress-rich-card.woos-group[open] { border-color: rgba(124, 58, 237, 0
 .woos-group-rep { padding-top: 8px; }
 /* ════════════════════════════════════════════════════════════════════════════ */
 
+/* ════════════════════ [Phase 4.5] 추가 CSS ════════════════════ */
+/* ⭐ Watchlist 버튼 (헤더 좌측, 코인명 옆) */
+.woos-watch-btn { background: none; border: none; padding: 2px 6px; cursor: pointer; font-size: 1.05rem; line-height: 1; color: #4b5563; transition: all 0.2s; -webkit-tap-highlight-color: transparent; user-select: none; flex-shrink: 0; }
+.woos-watch-btn:hover { color: #fbbf24; transform: scale(1.15); }
+.woos-watch-btn.woos-watch-on { color: #fbbf24; text-shadow: 0 0 6px rgba(251, 191, 36, 0.5); }
+.woos-watch-btn:active { transform: scale(0.92); }
+
+/* 같은 코인 오버레이 차트 */
+.woos-overlay-wrap { margin: 12px 0; padding: 10px 4px; background: rgba(0, 212, 255, 0.03); border: 1px solid rgba(0, 212, 255, 0.12); border-radius: 8px; }
+.woos-overlay-title { font-size: 0.72rem; color: #7dd3fc; font-weight: 600; margin-bottom: 6px; padding: 0 8px; }
+.woos-overlay-svg { width: 100%; max-width: 480px; height: auto; display: block; margin: 0 auto; }
+/* ════════════════════════════════════════════════════════════════ */
+
+/* ════════════════════ [Phase 4.4] 추가 CSS ════════════════════ */
+/* 통계 배지 (S급 N회 / 다중 알람 / 관심 코인) */
+.woos-stats-badges { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 10px; }
+.woos-stats-badge { font-size: 0.7rem; padding: 3px 8px; border-radius: 12px; font-weight: 600; }
+.woos-stats-s { background: rgba(245, 158, 11, 0.18); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.3); }
+.woos-stats-multi { background: rgba(124, 58, 237, 0.15); color: #c4b5fd; border: 1px solid rgba(124, 58, 237, 0.3); }
+.woos-stats-watchlist { background: rgba(0, 212, 255, 0.15); color: #00d4ff; border: 1px solid rgba(0, 212, 255, 0.3); }
+
+/* 동적 브리핑 */
+.woos-briefing { margin: 12px 0; padding: 12px 14px; background: linear-gradient(135deg, rgba(0,212,255,0.06), rgba(124,58,237,0.04)); border-left: 3px solid #00d4ff; border-radius: 8px; }
+.woos-briefing-title { font-size: 0.78rem; color: #7dd3fc; font-weight: 700; margin-bottom: 6px; }
+.woos-briefing-body { font-size: 0.85rem; color: #e5e7eb; line-height: 1.55; word-break: keep-all; }
+.woos-briefing-action { margin-top: 8px; padding-top: 8px; border-top: 1px dashed rgba(255,255,255,0.06); font-size: 0.78rem; color: #fbbf24; line-height: 1.5; }
+
+/* Tier 필터 헤더 (시안 스타일) */
+.woos-tier-header-44 { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; padding: 10px 14px; background: rgba(255,255,255,0.02); border: 1px solid rgba(0,212,255,0.15); border-radius: 18px; margin: 0 0 12px; font-size: 0.82rem; color: #9ca3af; justify-content: center; }
+.woos-tier-header-44 b { color: #00d4ff; font-weight: 700; margin: 0 2px; }
+.woos-th-sep { color: #4b5563; }
+.woos-tier-header-44 .tier-pill { font-size: 0.72rem; padding: 2px 8px; }
+
+/* 스캐너 점수 시각화 */
+.woos-score-viz { margin: 14px 0; padding: 14px; background: linear-gradient(135deg, rgba(124,58,237,0.04), rgba(0,212,255,0.03)); border: 1px solid rgba(124,58,237,0.2); border-radius: 10px; }
+.woos-score-viz.woos-empty { padding: 16px; text-align: center; color: #6b7280; font-style: italic; }
+.woos-score-header { font-size: 0.85rem; font-weight: 700; color: #c4b5fd; margin-bottom: 8px; }
+.woos-score-total { font-size: 0.78rem; color: #9ca3af; margin-bottom: 10px; }
+.woos-score-total b { color: #00d4ff; font-weight: 700; font-size: 1rem; }
+.woos-score-items { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
+.woos-score-item { padding: 4px 0; }
+.woos-score-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; font-size: 0.78rem; }
+.woos-score-label { color: #e5e7eb; font-weight: 600; }
+.woos-score-value { font-weight: 700; }
+.woos-score-pos .woos-score-value { color: #00e676; }
+.woos-score-neg .woos-score-value { color: #ff4560; }
+.woos-score-bar { height: 4px; background: rgba(255,255,255,0.06); border-radius: 2px; overflow: hidden; }
+.woos-score-bar-fill { height: 100%; border-radius: 2px; }
+.woos-score-pos .woos-score-bar-fill { background: linear-gradient(90deg, #00d4ff, #00e676); }
+.woos-score-neg .woos-score-bar-fill { background: linear-gradient(90deg, #ff7849, #ff4560); }
+.woos-score-strengths, .woos-score-weaknesses { margin-top: 10px; padding-top: 10px; border-top: 1px dashed rgba(255,255,255,0.06); }
+.woos-score-section-title { font-size: 0.72rem; color: #9ca3af; font-weight: 700; margin-bottom: 4px; }
+.woos-score-strengths .woos-score-section-title { color: #00e676; }
+.woos-score-weaknesses .woos-score-section-title { color: #ff7849; }
+.woos-score-viz ul { margin: 0; padding-left: 20px; }
+.woos-score-viz li { font-size: 0.78rem; color: #e5e7eb; line-height: 1.55; padding: 1px 0; }
+.woos-score-conclusion { margin-top: 10px; padding-top: 10px; border-top: 1px dashed rgba(255,255,255,0.06); font-size: 0.85rem; color: #e5e7eb; line-height: 1.5; font-weight: 500; font-style: italic; text-align: center; }
+/* ════════════════════════════════════════════════════════════════ */
+
+/* ════════════════════ [Phase 4.3] 추가 CSS ════════════════════ */
+/* 3축 컬러 (시안 톤) — 한글 우선 + 영문 부제 */
+.woos-metric-en { font-size: 0.6rem; color: #6b7280; font-weight: 400; margin-left: 4px; }
+.woos-metric-speed .woos-metric-value { color: #00d4ff; }
+.woos-metric-stability .woos-metric-value { color: #ff7849; }
+.woos-metric-opportunity .woos-metric-value { color: #00e676; }
+
+/* 현재가 시안 톤 강화 (큰 폰트) */
+.woos-current-big { font-size: 1.6rem; }
+.woos-current-up   { color: #00e676; text-shadow: 0 0 12px rgba(0, 230, 118, 0.4); }
+.woos-current-down { color: #ff4560; text-shadow: 0 0 12px rgba(255, 69, 96, 0.4); }
+
+/* 도달 타임라인 */
+.woos-timeline { margin: 12px auto; max-width: 480px; padding: 12px 8px; position: relative; }
+.woos-tl-line { position: absolute; top: 22px; left: 8%; right: 8%; height: 2px; background: rgba(255,255,255,0.08); border-radius: 1px; z-index: 0; }
+.woos-tl-items { display: flex; justify-content: space-between; align-items: flex-start; position: relative; z-index: 1; }
+.woos-tl-item { display: flex; flex-direction: column; align-items: center; flex: 1; min-width: 0; }
+.woos-tl-dot { width: 12px; height: 12px; border-radius: 50%; background: rgba(255,255,255,0.15); margin-bottom: 6px; transition: all 0.3s; }
+.woos-tl-dot-reached { background: #00d4ff; box-shadow: 0 0 6px #00d4ff; }
+.woos-tl-dot-pending { background: rgba(255,255,255,0.15); }
+.woos-tl-label { font-size: 0.65rem; color: #9ca3af; text-align: center; line-height: 1.2; margin-bottom: 2px; }
+.woos-tl-time { font-size: 0.7rem; color: #e5e7eb; font-weight: 600; }
+
+/* 스캐너 채점표 */
+.woos-scoring { margin: 14px 0; padding: 14px; background: linear-gradient(135deg, rgba(0,212,255,0.05), rgba(124,58,237,0.05)); border: 1px solid rgba(0,212,255,0.2); border-radius: 10px; }
+.woos-scoring-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+.woos-scoring-title { font-size: 0.85rem; font-weight: 700; color: #e5e7eb; }
+.woos-scoring-status { font-size: 0.65rem; padding: 3px 8px; border-radius: 10px; font-weight: 600; }
+.woos-status-provisional { background: rgba(251, 191, 36, 0.15); color: #fbbf24; }
+.woos-status-confirmed { background: rgba(0, 230, 118, 0.15); color: #00e676; }
+.woos-scoring-progress { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+.woos-scoring-progress-bar { flex: 1; height: 4px; background: rgba(255,255,255,0.06); border-radius: 2px; overflow: hidden; }
+.woos-scoring-progress-fill { height: 100%; background: linear-gradient(90deg, #00d4ff, #00e676); border-radius: 2px; }
+.woos-scoring-progress-label { font-size: 0.7rem; color: #9ca3af; min-width: 70px; text-align: right; }
+
+.woos-scoring-axes { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 12px; }
+.woos-axis { background: rgba(255,255,255,0.02); border-radius: 8px; padding: 8px 6px; text-align: center; }
+.woos-axis-title { font-size: 0.7rem; color: #9ca3af; margin-bottom: 4px; font-weight: 600; }
+.woos-axis-en { font-size: 0.55rem; color: #6b7280; font-weight: 400; }
+.woos-axis-value { font-size: 0.95rem; font-weight: 700; margin-bottom: 2px; }
+.woos-axis-detail { font-size: 0.65rem; color: #9ca3af; }
+.woos-axis-speed .woos-axis-value { color: #00d4ff; }
+.woos-axis-stability .woos-axis-value { color: #ff7849; }
+.woos-axis-opportunity .woos-axis-value { color: #00e676; }
+
+.woos-scoring-meta { display: flex; flex-direction: column; gap: 4px; margin-bottom: 10px; padding: 8px 0; border-top: 1px dashed rgba(255,255,255,0.06); border-bottom: 1px dashed rgba(255,255,255,0.06); }
+.woos-scoring-pattern { font-size: 0.78rem; color: #c4b5fd; }
+.woos-scoring-pattern b { color: #e5e7eb; }
+.woos-scoring-numbers { font-size: 0.78rem; color: #9ca3af; }
+.woos-scoring-numbers b { color: #00d4ff; }
+
+.woos-scoring-assessment { font-size: 0.85rem; color: #e5e7eb; line-height: 1.5; padding: 8px 4px; font-weight: 500; text-align: center; font-style: italic; }
+.woos-scoring.woos-empty { padding: 16px; text-align: center; color: #6b7280; font-style: italic; }
+/* ════════════════════════════════════════════════════════════════ */
+
 /* ════════════════════ [Phase 4.2] 추가 CSS ════════════════════ */
 /* liveTier flow (그룹 카드의 시계열) */
 .woos-flow-label { color: #6b7280; font-weight: 600; margin-right: 4px; font-size: 0.7rem; }
@@ -5008,12 +5122,12 @@ async function opsDashboard() {
           + '  total: ' + a.total + ' (pending: ' + (a.pending||0) + ')\n'
           + '  SUCCESS: ' + a.success + ' / WATCH: ' + a.watch
           + ' / FLAT: ' + a.flat + ' / FAIL: ' + a.fail + ' / ORPHAN: ' + (a.orphaned||0) + '\n'
-          + '  성공률: ' + a.successRate + '% · Watch+: ' + a.watchOrBetter + '%\n'
+          + '  도달률: ' + a.successRate + '% · Watch+: ' + a.watchOrBetter + '%\n'
           + '  평균 MaxRise: ' + (a.avgMaxRise||0) + '% · MaxDraw: ' + (a.avgMaxDrawdown||0) + '%\n\n'
           + '[코인 단위]\n'
           + '  total: ' + (c.total||0)
           + ' / SUCCESS: ' + (c.success||0) + ' / FAIL: ' + (c.fail||0) + '\n'
-          + '  성공률: ' + (c.successRate||0) + '%\n\n'
+          + '  도달률: ' + (c.successRate||0) + '%\n\n'
           + 'coinEvolution: ' + ((data.coinEvolution||[]).length) + '개 코인 추적 중';
     } else {
       hdr = '<span style="color:#f87171">❌ 대시보드 응답 형식 이상</span>';
@@ -5039,7 +5153,7 @@ async function opsDashboard() {
 // 탭 시 상세 팝업
 // ═══════════════════════════════════════════════════════════════
 
-var HTML_VERSION = 'v4.14.0';  // Phase 4.2 — liveTier 시계열 + 알람 디테일 + 그룹 dot 동기화
+var HTML_VERSION = 'v4.17.0';  // Phase 4.5 — 같은코인 오버레이 + Watchlist UI + 관심코인 상단 고정
 var _cachedBuildInfo = null;
 
 async function fetchBuildInfo() {
@@ -5205,7 +5319,7 @@ function switchTab(tabName) {
 //
 // 표시 내용:
 //   1) 디스클레이머 배너 (고정)
-//   2) 요약 KPI 4카드 (Total / Success / Watch+ / 성공률)
+//   2) 요약 KPI 4카드 (Total / Success / Watch+ / 도달률)
 //   3) 결과 분포 가로 막대
 //   4) 알람/코인 단위 토글
 //   5) 거래소별 성과 (BITHUMB + UPBIT 메인, BINANCE 참고)
@@ -5293,7 +5407,7 @@ function renderOutcomeDashboard(data) {
     + _kpiCard('Total', stats.total || 0, '')
     + _kpiCard('Success', stats.success || 0, 'success')
     + _kpiCard('Watch+', ((stats.success || 0) + (stats.watch || 0)), 'warn')
-    + _kpiCard('성공률', (stats.successRate != null ? stats.successRate + '%' : '-'), 'rate')
+    + _kpiCard('도달률', (stats.successRate != null ? stats.successRate + '%' : '-'), 'rate')
     + '</div>';
 
   // 2) 결과 분포 막대
@@ -9157,11 +9271,38 @@ window.addEventListener('load', async function(){
       sorted.sort(function(a, b){ return a.tierAssignedAt - b.tierAssignedAt; });
     }
     
+    // [Phase 4.5] 관심 코인 상단 고정 (정렬 결과 위에 추가 우선순위)
+    if (typeof window !== 'undefined' && window.WOOS_ANALYZER && window.WOOS_ANALYZER.sortWithWatchlistPin) {
+      sorted = window.WOOS_ANALYZER.sortWithWatchlistPin(sorted, null);
+    }
+    
     // 페이지화 (검색 X 시만)
     var displayItems = _activeSearchQuery ? sorted : sorted.slice(0, _activeDisplayLimit);
     
+    // [Phase 4.4 작업 5 초석] window.__woosActiveTracks 에 전체 active 등록
+    // 분석기 카드 내부에서 코인 통계 자체 계산 시 사용
+    try {
+      if (typeof window !== 'undefined' && window.WOOS_ANALYZER && window.WOOS_ANALYZER.adaptItemToTrack) {
+        // active 리스트 전체를 track 형태로 변환하여 캐시
+        window.__woosActiveTracks = _activeItemsCache.map(function(it){
+          return window.WOOS_ANALYZER.adaptItemToTrack(it, null) || it;
+        });
+      }
+      // [Phase 4.5] 글로벌 토글 핸들러용 — _activeItemsCache + _renderActiveTrackingList 전역 노출
+      if (typeof window !== 'undefined') {
+        window._activeItemsCache = _activeItemsCache;
+        window._renderActiveTrackingList = _renderActiveTrackingList;
+      }
+    } catch(e) {}
+    
+    // [Phase 4.4 작업 3] Tier 필터 헤더 시안 — Tracking N coins · Tier A x · ...
+    var tierHeaderHtml = '';
+    if (typeof window !== 'undefined' && window.WOOS_ANALYZER && window.WOOS_ANALYZER.buildTierHeader) {
+      tierHeaderHtml = window.WOOS_ANALYZER.buildTierHeader(totalCount, byTier);
+    }
+    
     // 헤더 (전체 카운트)
-    var headerHtml = '<div class="analyzer-tracking-header">'
+    var headerHtml = tierHeaderHtml + '<div class="analyzer-tracking-header">'
                    + '<div class="tracking-count-line">'
                    +   '추적 중 <b>' + totalCount + '</b>건 · '
                    +   'Tier A: ' + (byTier.A || 0) + ' / '
@@ -9382,7 +9523,7 @@ window.addEventListener('load', async function(){
   
   // ══ 외부 노출 ══════════════════════════════════════════════
   global.WOOS_ANALYZER = {
-    BUILD_TAG: 'phase4.2-liveTier-flow-alarm-detail-group-dot-v4.2.0',
+    BUILD_TAG: 'phase4.5-overlay-watchlist-pin-v4.5.0',
     loadAndRenderAll: loadAndRenderAll,
     renderAnalyzerSection: renderAnalyzerSection,
     renderAlarmTable: function(){ renderAlarmTable(_allItems); },
@@ -9631,711 +9772,567 @@ window.addEventListener('load', async function(){
       return svg.join('');
     }
     
+    /* ═══════════════════════════════════════════════════════════════
+     * [Phase 4.3] 스캐너 채점기 (속도/안정성/기회 + 패턴 + 타임라인)
+     * ═══════════════════════════════════════════════════════════════ */
+    
+    /* [Phase 4.3] 24h 윈도우 기준 시간 계산 (분 단위) */
+    function v43_minutesFromStart(track, ts) {
+      var meta = track.meta || (track.keys && track.keys.meta && track.keys.meta.value) || {};
+      var startedAt = track.startedAt || meta.windowStart || meta.tierAssignedAt || ts;
+      return (ts - startedAt) / 60000;
+    }
+    
+    /* [Phase 4.3] 진보된 metrics 산출 — Phase 4.0 metrics + 12개 신규 */
+    function v43_computeAdvancedMetrics(track, samples, entryPrice, levels, baseMetrics) {
+      var meta = track.meta || (track.keys && track.keys.meta && track.keys.meta.value) || {};
+      
+      if (!baseMetrics || !baseMetrics.hasData || !samples || samples.length === 0 || !entryPrice) {
+        return null;
+      }
+      
+      // 시간 변환
+      var startedAt = track.startedAt || meta.windowStart || meta.tierAssignedAt || samples[0].ts;
+      var windowEnd = track.windowEnd || meta.windowEnd || (startedAt + 24 * 3600 * 1000);
+      var totalMin = (windowEnd - startedAt) / 60000;  // 보통 1440 (24h)
+      
+      // 각 sample 의 (분, %) 정규화
+      var pcts = samples.map(function(s){
+        return {
+          tMin: (s.ts - startedAt) / 60000,
+          pct: ((s.price - entryPrice) / entryPrice) * 100,
+          ts: s.ts,
+          price: s.price,
+        };
+      });
+      
+      // timeTo3 / timeTo5 / timeToPeak
+      var timeTo3 = null, timeTo5 = null;
+      for (var i = 0; i < pcts.length; i++) {
+        if (timeTo3 == null && pcts[i].pct >= 3) timeTo3 = pcts[i].tMin;
+        if (timeTo5 == null && pcts[i].pct >= 5) timeTo5 = pcts[i].tMin;
+      }
+      var mfeIdx = 0; var mfeMaxLocal = pcts[0].pct;
+      for (var j = 1; j < pcts.length; j++) {
+        if (pcts[j].pct > mfeMaxLocal) { mfeMaxLocal = pcts[j].pct; mfeIdx = j; }
+      }
+      var timeToPeak = pcts[mfeIdx].tMin;
+      
+      // earlyMFE: 0~6h (360분) 내 MFE
+      var earlyMFE = 0;
+      for (var k = 0; k < pcts.length; k++) {
+        if (pcts[k].tMin <= 360 && pcts[k].pct > earlyMFE) earlyMFE = pcts[k].pct;
+      }
+      
+      // closeReturn / peakHoldRatio
+      var lastTMin = pcts[pcts.length - 1].tMin;
+      var isProvisional = lastTMin < totalMin - 5;  // 5분 여유 (24h 막바지는 확정)
+      var closeReturn = baseMetrics.currentPct;  // 진행중이면 currentPct
+      var peakHoldRatio = baseMetrics.mfe > 0 ? closeReturn / baseMetrics.mfe : 0;
+      
+      // drawdown / recovery
+      var drawdown = baseMetrics.mfe - baseMetrics.currentPct;
+      var maeIdx = pcts.length - 1; var maeMin = pcts[pcts.length - 1].pct;
+      for (var L = 0; L < pcts.length; L++) {
+        if (pcts[L].pct < maeMin) { maeMin = pcts[L].pct; maeIdx = L; }
+      }
+      var recovery = baseMetrics.mae < -0.5 && baseMetrics.currentPct > baseMetrics.mae + 1;
+      
+      // 손익비 (R-multiple, 사용자 명: "손익비")
+      var profitLossRatio = baseMetrics.mae < 0 ? baseMetrics.mfe / Math.abs(baseMetrics.mae) : null;
+      
+      // 트래킹점수 (raw) = MFE + earlyMFE - |MAE * 1.5|
+      var trackingScore = baseMetrics.mfe + earlyMFE - Math.abs(baseMetrics.mae * 1.5);
+      
+      return {
+        timeTo3: timeTo3,
+        timeTo5: timeTo5,
+        timeToPeak: timeToPeak,
+        timeToMaeBottom: pcts[maeIdx].tMin,
+        earlyMFE: earlyMFE,
+        closeReturn: closeReturn,
+        peakHoldRatio: peakHoldRatio,
+        drawdown: drawdown,
+        recovery: recovery,
+        profitLossRatio: profitLossRatio,
+        trackingScore: trackingScore,
+        isProvisional: isProvisional,
+        progressMin: lastTMin,
+        totalMin: totalMin,
+      };
+    }
+    
+    /* [Phase 4.3] 속도 라벨 (Q7=C ATR 기반 + <=60 빠름) */
+    function v43_computeSpeedLabel(advanced, atrPct) {
+      if (!advanced) return { label: '측정 중', detail: '' };
+      var t3 = advanced.timeTo3;
+      var early = advanced.earlyMFE;
+      
+      function fmtMin(m) {
+        if (m == null) return '미도달';
+        if (m < 60) return Math.round(m) + '분';
+        var h = Math.floor(m / 60); var mm = Math.round(m - h * 60);
+        return h + 'h ' + (mm > 0 ? mm + 'm' : '');
+      }
+      
+      var detail = '+3 ' + fmtMin(t3);
+      
+      if (atrPct && atrPct > 0) {
+        if (t3 != null && t3 <= 60 && early >= atrPct) return { label: '빠름', detail: detail };
+        if ((t3 != null && t3 <= 360) || early >= atrPct / 2) return { label: '보통', detail: detail };
+        return { label: '느림', detail: detail };
+      } else {
+        if (t3 != null && t3 <= 60) return { label: '빠름', detail: detail };
+        if (t3 != null && t3 <= 360) return { label: '보통', detail: detail };
+        return { label: '느림', detail: detail };
+      }
+    }
+    
+    /* [Phase 4.3] 안정성 라벨 (Q8=C 둘 다 엄격한 쪽) */
+    function v43_computeStabilityLabel(baseMetrics, atrPct) {
+      if (!baseMetrics || !baseMetrics.hasData) return { label: '측정 중', detail: '' };
+      var absMae = Math.abs(baseMetrics.mae);
+      
+      var pctRank = absMae < 1 ? 1 : (absMae < 3 ? 2 : 3);
+      var atrRank = pctRank;  // fallback
+      if (atrPct && atrPct > 0) {
+        var atrRatio = absMae / atrPct;
+        atrRank = atrRatio < 0.5 ? 1 : (atrRatio < 1 ? 2 : 3);
+      }
+      var rank = Math.max(pctRank, atrRank);  // 더 엄격한 (큰) 쪽
+      var labels = { 1: '매우안정', 2: '양호', 3: '위험' };
+      var detail = 'MAE ' + baseMetrics.mae.toFixed(2) + '%';
+      if (atrPct && atrPct > 0) detail += ' · ' + (absMae / atrPct).toFixed(1) + 'ATR';
+      return { label: labels[rank], detail: detail };
+    }
+    
+    /* [Phase 4.3] 기회 라벨 (MFE 기반) */
+    function v43_computeOpportunityLabel(baseMetrics) {
+      if (!baseMetrics || !baseMetrics.hasData) return { label: '측정 중', detail: '' };
+      var mfe = baseMetrics.mfe;
+      var label = mfe >= 5 ? '강함' : (mfe >= 3 ? '보통' : (mfe >= 1 ? '약함' : '미발생'));
+      var detail = 'MFE +' + mfe.toFixed(2) + '%';
+      return { label: label, detail: detail };
+    }
+    
+    /* [Phase 4.3] 패턴 분류 (Q9=C 자동, PUMP_DUMP 우선) */
+    function v43_computePattern(baseMetrics, advanced) {
+      if (!baseMetrics || !baseMetrics.hasData || !advanced) return { code: 'PENDING', kr: '측정 중' };
+      var mfe = baseMetrics.mfe;
+      var mae = baseMetrics.mae;
+      var absMae = Math.abs(mae);
+      var earlyMFE = advanced.earlyMFE;
+      var closeReturn = advanced.closeReturn;
+      
+      if (earlyMFE >= 10) return { code: 'EXPLOSIVE', kr: '폭발' };
+      if (mfe >= 5 && closeReturn <= 1) return { code: 'PUMP_DUMP', kr: '펌프덤프' };
+      if (mfe >= 3 && mfe <= 10 && absMae < 3) return { code: 'STEADY_UP', kr: '꾸준 상승' };
+      if (mfe < 3 && absMae < 3) return { code: 'RANGE_BOUND', kr: '박스권' };
+      if (mfe < 3 && absMae >= 3) return { code: 'SLOW_BLEED', kr: '하락' };
+      return { code: 'MIXED', kr: '혼합' };
+    }
+    
+    /* [Phase 4.3] 종합 평가 텍스트 (R1 폐기 — 해석 표현 허용) */
+    function v43_buildAssessment(pattern) {
+      var m = {
+        EXPLOSIVE: '스캐너 예측 강하게 적중 — 빠른 폭발적 상승',
+        PUMP_DUMP: '초기 상승 후 되돌림 — 진입 타이밍 중요',
+        STEADY_UP: '안정적 상승 흐름, 스캐너 예측대로 진행',
+        RANGE_BOUND: '박스권 유지 — 돌파 미발생, 관망 구간',
+        SLOW_BLEED: '예측 빗나감 — 하방 우세 구간',
+        MIXED: '혼합 흐름 — 추가 관찰 필요',
+        PENDING: '측정 데이터 누적 중',
+      };
+      return m[pattern.code] || '판단 보류';
+    }
+    
+    /* [Phase 4.3] 스캐너 채점표 HTML */
+    function v43_buildScoringTable(baseMetrics, advanced, levels) {
+      if (!baseMetrics || !baseMetrics.hasData) {
+        return '<div class="woos-scoring woos-empty">스캐너 채점 — 데이터 수집 중</div>';
+      }
+      var atrPct = levels && levels.atrPct;
+      var speed = v43_computeSpeedLabel(advanced, atrPct);
+      var stability = v43_computeStabilityLabel(baseMetrics, atrPct);
+      var opportunity = v43_computeOpportunityLabel(baseMetrics);
+      var pattern = v43_computePattern(baseMetrics, advanced);
+      var assessment = v43_buildAssessment(pattern);
+      
+      // 진행 바 (잠정 vs 확정)
+      var progressPct = advanced ? Math.min(100, (advanced.progressMin / advanced.totalMin) * 100) : 0;
+      var statusLabel = (advanced && advanced.isProvisional) ? '잠정' : '확정';
+      var progressMin = advanced ? Math.floor(advanced.progressMin / 60) + 'h ' + Math.round(advanced.progressMin % 60) + 'm' : '-';
+      var totalH = advanced ? Math.floor(advanced.totalMin / 60) : 24;
+      
+      // 손익비 / 트래킹점수
+      var ratio = (advanced && advanced.profitLossRatio != null) ? advanced.profitLossRatio.toFixed(2) : '-';
+      var score = advanced ? (advanced.trackingScore >= 0 ? '+' : '') + advanced.trackingScore.toFixed(2) : '-';
+      
+      return '<div class="woos-scoring">'
+        + '<div class="woos-scoring-header">'
+        +   '<span class="woos-scoring-title">🎯 스캐너 채점</span>'
+        +   '<span class="woos-scoring-status woos-status-' + (advanced && advanced.isProvisional ? 'provisional' : 'confirmed') + '">' + v40_escapeHtml(statusLabel) + '</span>'
+        + '</div>'
+        + '<div class="woos-scoring-progress">'
+        +   '<div class="woos-scoring-progress-bar"><div class="woos-scoring-progress-fill" style="width:' + progressPct.toFixed(0) + '%"></div></div>'
+        +   '<span class="woos-scoring-progress-label">' + v40_escapeHtml(progressMin) + ' / ' + totalH + 'h</span>'
+        + '</div>'
+        + '<div class="woos-scoring-axes">'
+        +   '<div class="woos-axis woos-axis-speed"><div class="woos-axis-title">속도 <span class="woos-axis-en">Speed</span></div><div class="woos-axis-value">' + v40_escapeHtml(speed.label) + '</div><div class="woos-axis-detail">' + v40_escapeHtml(speed.detail) + '</div></div>'
+        +   '<div class="woos-axis woos-axis-stability"><div class="woos-axis-title">안정성 <span class="woos-axis-en">Stability</span></div><div class="woos-axis-value">' + v40_escapeHtml(stability.label) + '</div><div class="woos-axis-detail">' + v40_escapeHtml(stability.detail) + '</div></div>'
+        +   '<div class="woos-axis woos-axis-opportunity"><div class="woos-axis-title">기회 <span class="woos-axis-en">Opportunity</span></div><div class="woos-axis-value">' + v40_escapeHtml(opportunity.label) + '</div><div class="woos-axis-detail">' + v40_escapeHtml(opportunity.detail) + '</div></div>'
+        + '</div>'
+        + '<div class="woos-scoring-meta">'
+        +   '<div class="woos-scoring-pattern">패턴 <b>' + v40_escapeHtml(pattern.code) + '</b> · ' + v40_escapeHtml(pattern.kr) + '</div>'
+        +   '<div class="woos-scoring-numbers">손익비 <b>' + v40_escapeHtml(ratio) + '</b> · 트래킹점수 <b>' + v40_escapeHtml(score) + '</b></div>'
+        + '</div>'
+        + '<div class="woos-scoring-assessment">' + v40_escapeHtml(assessment) + '</div>'
+        + '</div>';
+    }
+    
+    /* [Phase 4.3] 도달 타임라인 시각화 (시안 디자인) */
+    function v43_buildTimeline(baseMetrics, advanced, levels) {
+      if (!baseMetrics || !baseMetrics.hasData || !advanced) {
+        return '';
+      }
+      var events = [
+        { key: '+3', label: '+3 도달', time: advanced.timeTo3, reached: baseMetrics.plus3Hit, color: '#7dd3fc' },
+        { key: '+5', label: '+5 도달', time: advanced.timeTo5, reached: baseMetrics.plus5Hit, color: '#00e676' },
+        { key: 'TP1', label: 'TP1 도달', time: null, reached: baseMetrics.tp1Hit, color: '#a78bfa' },
+        { key: 'MFE', label: 'MFE 최고', time: advanced.timeToPeak, reached: baseMetrics.mfe > 0, color: '#00e676' },
+        { key: 'MAE', label: 'MAE 최저', time: advanced.timeToMaeBottom, reached: baseMetrics.mae < 0, color: '#ff7849' },
+      ];
+      
+      function fmtMin(m) {
+        if (m == null) return '-';
+        if (m < 60) return Math.round(m) + 'm';
+        var h = Math.floor(m / 60); return h + 'h';
+      }
+      
+      var dotsHtml = events.map(function(ev){
+        var dotClass = ev.reached ? 'woos-tl-dot-reached' : 'woos-tl-dot-pending';
+        var timeText = ev.reached ? fmtMin(ev.time) : '미도달';
+        return '<div class="woos-tl-item">'
+          + '<div class="woos-tl-dot ' + dotClass + '" style="' + (ev.reached ? 'background:' + ev.color + ';box-shadow:0 0 6px ' + ev.color : '') + '"></div>'
+          + '<div class="woos-tl-label">' + v40_escapeHtml(ev.label) + '</div>'
+          + '<div class="woos-tl-time">' + v40_escapeHtml(timeText) + '</div>'
+          + '</div>';
+      }).join('');
+      
+      return '<div class="woos-timeline"><div class="woos-tl-line"></div><div class="woos-tl-items">' + dotsHtml + '</div></div>';
+    }
+    
     /* ── 블록 4: Tracking card UI ────────────────── */
     
-    /* [Phase 4.1] alertSnapshot 추출 헬퍼 — meta.alertSnapshot 또는 track.alertSnapshot */
-    function v41_getAlertSnapshot(track) {
-      if (!track) return null;
-      if (track.alertSnapshot && typeof track.alertSnapshot === 'object') return track.alertSnapshot;
-      var meta = track.meta || (track.keys && track.keys.meta && track.keys.meta.value) || {};
-      if (meta.alertSnapshot && typeof meta.alertSnapshot === 'object') return meta.alertSnapshot;
-      return null;
-    }
+    /* ═══════════════════════════════════════════════════════════════
+     * [Phase 4.4] 점수시각화 + 동적브리핑 + Tier헤더 + Watchlist 초석
+     * ═══════════════════════════════════════════════════════════════ */
     
-    /* [Phase 4.1] B2 권장: ATR 통합 임계값으로 동적 등급 산출 */
-    function v41_computeLiveTier(metrics, alertSnapshot, levels) {
-      // metrics 없거나 hasData=false → fallback: gradeCode (스캐너 등급) 또는 'B'
-      if (!metrics || !metrics.hasData) {
-        if (alertSnapshot && alertSnapshot.gradeCode) return alertSnapshot.gradeCode;
-        return 'B';
+    /* [Phase 4.4 작업 1] 스캐너 점수 시각화 — scoreSummary 파싱 */
+    function v44_parseScoreSummary(scoreSummary) {
+      if (!scoreSummary || typeof scoreSummary !== 'string') return [];
+      var items = [];
+      var parts = scoreSummary.split('/');
+      for (var i = 0; i < parts.length; i++) {
+        var part = parts[i].trim();
+        // "+3 PRE-PUMP" / "+1 OBV" / "-1 OVERHEAT"
+        var m = part.match(/([+-]?\d+)\s+(.+)/);
+        if (m) {
+          var score = parseInt(m[1], 10);
+          var label = m[2].trim();
+          items.push({ score: score, label: label, isPositive: score > 0 });
+        }
       }
-      var atrPct = (levels && levels.atrPct != null && levels.atrPct > 0) ? levels.atrPct : null;
-      var sThreshold = atrPct != null ? Math.max(5, 2 * atrPct) : 5;
-      var aThreshold = atrPct != null ? Math.max(3, atrPct) : 3;
-      if (metrics.mfe >= sThreshold || metrics.plus5Hit) return 'S';
-      if (metrics.mfe >= aThreshold || metrics.plus3Hit) return 'A';
-      return 'B';
+      return items;
     }
     
-    /* [Phase 4.1] D2 권장: alertSnapshot 사실 그대로 4줄 텍스트 */
-    function v41_deriveForceContext(alertSnapshot) {
-      if (!alertSnapshot) return null;
-      var s = alertSnapshot.structure || {};
-      var v = alertSnapshot.volume || {};
-      var m = alertSnapshot.momentum || {};
-      var i = alertSnapshot.indicators || {};
-      var lines = [];
-      // 구조
-      var structParts = [];
-      if (s.type) structParts.push(String(s.type));
-      if (s.position) structParts.push(String(s.position));
-      if (s.breakoutState) structParts.push(String(s.breakoutState));
-      if (structParts.length > 0) lines.push({ key: 'structure', label: '구조', body: structParts.join(' · ') });
-      // 수급
-      var volParts = [];
-      if (v.ratio != null) volParts.push('거래량 ' + Number(v.ratio).toFixed(2) + '배');
-      if (v.acceleration != null) volParts.push('가속 ' + Number(v.acceleration).toFixed(2));
-      if (v.quoteVolume != null) volParts.push('금액 ' + (Number(v.quoteVolume) >= 1e6 ? (v.quoteVolume / 1e6).toFixed(1) + 'M' : Math.round(v.quoteVolume).toLocaleString()));
-      if (volParts.length > 0) lines.push({ key: 'volume', label: '수급', body: volParts.join(' · ') });
-      // 모멘텀
-      var momParts = [];
-      function fmtPct(x) { var n = Number(x); return (n >= 0 ? '+' : '') + n.toFixed(2) + '%'; }
-      if (m.change15m != null) momParts.push('15m ' + fmtPct(m.change15m));
-      if (m.change1h != null) momParts.push('1h ' + fmtPct(m.change1h));
-      if (m.change4h != null) momParts.push('4h ' + fmtPct(m.change4h));
-      if (momParts.length > 0) lines.push({ key: 'momentum', label: '모멘텀', body: momParts.join(' · ') });
-      // 보조지표
-      var indParts = [];
-      if (i.rsi != null) indParts.push('RSI ' + Math.round(Number(i.rsi)));
-      if (i.obvTrend) indParts.push('OBV ' + String(i.obvTrend));
-      if (i.macdState) indParts.push('MACD ' + String(i.macdState));
-      if (indParts.length > 0) lines.push({ key: 'indicators', label: '보조', body: indParts.join(' · ') });
-      return lines.length > 0 ? lines : null;
-    }
-    
-    /* [Phase 4.1] 신호 근거 블록 HTML (C2 권장: 데이터 있는 줄만) */
-    function v41_buildSignalReasonBlock(alertSnapshot) {
-      var lines = v41_deriveForceContext(alertSnapshot);
-      if (!lines) {
-        return '<div class="woos-reason"><div class="woos-reason-title">신호 근거</div><div class="woos-reason-body woos-empty">데이터 수집 중</div></div>';
-      }
-      var rowsHtml = lines.map(function(L){
-        return '<div class="woos-reason-row"><span class="woos-reason-label">' + v40_escapeHtml(L.label) + '</span><span class="woos-reason-body">' + v40_escapeHtml(L.body) + '</span></div>';
-      }).join('');
-      // reason 배열도 있으면 추가
-      var extra = '';
-      if (alertSnapshot && Array.isArray(alertSnapshot.reason) && alertSnapshot.reason.length > 0) {
-        extra = '<div class="woos-reason-tags">' + alertSnapshot.reason.map(function(r){
-          return '<span class="woos-reason-tag">' + v40_escapeHtml(String(r)) + '</span>';
-        }).join('') + '</div>';
-      }
-      return '<div class="woos-reason"><div class="woos-reason-title">신호 근거</div>' + rowsHtml + extra + '</div>';
-    }
-    
-    /* [Phase 4.1] 세력 판단 레이어 — alertSnapshot 데이터로 4줄 가공 */
-    function v41_buildForceContextBlock(alertSnapshot) {
+    /* [Phase 4.4 작업 1] 스캐너 점수 시각화 HTML */
+    function v44_buildScoreVisualization(alertSnapshot) {
       if (!alertSnapshot) {
-        return '<div class="woos-force"><div class="woos-force-title">세력 판단</div><div class="woos-force-body woos-empty">데이터 수집 중</div></div>';
+        return '<div class="woos-score-viz woos-empty">📊 스캐너 점수 — 데이터 수집 중</div>';
       }
-      var s = alertSnapshot.structure || {};
-      var v = alertSnapshot.volume || {};
-      var m = alertSnapshot.momentum || {};
-      var rows = [];
-      // 구조 가공
-      if (s.position) {
-        var posMap = { 'top_compression': '상단 압축', 'middle': '박스 중단', 'bottom': '하단 지지', 'breakout': '돌파 진행', 'pullback': '되돌림 구간' };
-        rows.push({ label: '구조', body: posMap[s.position] || String(s.position) });
+      // alertSnapshot 안에 total / scoreSummary / strengths / weaknesses / conclusion 박제됨
+      // (Phase 4.1 이후 박제, 또는 사용자 운영 데이터에서 직접 접근)
+      var total = alertSnapshot.total != null ? alertSnapshot.total : (alertSnapshot.score != null ? alertSnapshot.score : null);
+      var summary = alertSnapshot.scoreSummary || '';
+      var conclusion = (alertSnapshot.analysis && alertSnapshot.analysis.conclusion) || alertSnapshot.conclusion || '';
+      var strengths = (alertSnapshot.analysis && alertSnapshot.analysis.strengths) || alertSnapshot.strengths || [];
+      var weaknesses = (alertSnapshot.analysis && alertSnapshot.analysis.weaknesses) || alertSnapshot.weaknesses || [];
+      
+      if (total == null && !summary && !conclusion && (!strengths || strengths.length === 0)) {
+        return '<div class="woos-score-viz woos-empty">📊 스캐너 점수 — 데이터 수집 중</div>';
       }
-      // 수급 가공
-      if (v.ratio != null) {
-        var ratioVal = Number(v.ratio);
-        var volText = ratioVal >= 2.0 ? '거래량 급증' : ratioVal >= 1.3 ? '거래량 증가' : '거래량 평균';
-        rows.push({ label: '수급', body: volText });
-      }
-      // 관리 가공 (변동성)
-      if (m.change1h != null) {
-        var ch1h = Math.abs(Number(m.change1h));
-        var mgmtText = ch1h < 1 ? '변동성 낮음' : ch1h < 3 ? '변동성 보통' : '변동성 높음';
-        rows.push({ label: '관리', body: mgmtText });
-      }
-      // 리스크 가공 (breakoutState)
-      if (s.breakoutState) {
-        var rMap = { 'pending': '돌파 전 대기 구간', 'confirmed': '돌파 확인 구간', 'failed': '돌파 미확인 구간', 'pullback': '되돌림 진행 구간' };
-        rows.push({ label: '리스크', body: rMap[s.breakoutState] || String(s.breakoutState) });
-      }
-      if (rows.length === 0) {
-        return '<div class="woos-force"><div class="woos-force-title">세력 판단</div><div class="woos-force-body woos-empty">데이터 수집 중</div></div>';
-      }
-      var rowsHtml = rows.map(function(r){
-        return '<div class="woos-force-row"><span class="woos-force-label">' + v40_escapeHtml(r.label) + '</span><span class="woos-force-body">' + v40_escapeHtml(r.body) + '</span></div>';
+      
+      var parsed = v44_parseScoreSummary(summary);
+      var maxAbsScore = parsed.reduce(function(mx, it){ return Math.max(mx, Math.abs(it.score)); }, 1);
+      
+      // 점수 막대
+      var scoreItemsHtml = parsed.map(function(it){
+        var widthPct = (Math.abs(it.score) / maxAbsScore * 100).toFixed(0);
+        var sign = it.score > 0 ? '+' : '';
+        var cls = it.isPositive ? 'woos-score-pos' : 'woos-score-neg';
+        return '<div class="woos-score-item ' + cls + '">'
+          + '<div class="woos-score-row">'
+          +   '<span class="woos-score-label">' + v40_escapeHtml(it.label) + '</span>'
+          +   '<span class="woos-score-value">' + sign + it.score + '</span>'
+          + '</div>'
+          + '<div class="woos-score-bar"><div class="woos-score-bar-fill" style="width:' + widthPct + '%"></div></div>'
+          + '</div>';
       }).join('');
-      return '<div class="woos-force"><div class="woos-force-title">세력 판단</div>' + rowsHtml + '</div>';
+      
+      // 강점/약점
+      var strengthsHtml = '';
+      if (strengths.length > 0) {
+        strengthsHtml = '<div class="woos-score-strengths"><div class="woos-score-section-title">✅ 강점 ' + strengths.length + '건</div><ul>'
+          + strengths.slice(0, 5).map(function(s){ return '<li>' + v40_escapeHtml(s) + '</li>'; }).join('')
+          + '</ul></div>';
+      }
+      var weaknessesHtml = '';
+      if (weaknesses.length > 0) {
+        weaknessesHtml = '<div class="woos-score-weaknesses"><div class="woos-score-section-title">⚠️ 약점 ' + weaknesses.length + '건</div><ul>'
+          + weaknesses.slice(0, 5).map(function(w){ return '<li>' + v40_escapeHtml(w) + '</li>'; }).join('')
+          + '</ul></div>';
+      }
+      var conclusionHtml = conclusion ? '<div class="woos-score-conclusion">📋 ' + v40_escapeHtml(conclusion) + '</div>' : '';
+      
+      var totalHtml = total != null ? '<div class="woos-score-total">스캐너 점수 <b>' + total + '</b></div>' : '';
+      
+      return '<div class="woos-score-viz">'
+        + '<div class="woos-score-header">🎯 스캐너 점수 시각화</div>'
+        + totalHtml
+        + (parsed.length > 0 ? '<div class="woos-score-items">' + scoreItemsHtml + '</div>' : '')
+        + strengthsHtml + weaknessesHtml + conclusionHtml
+        + '</div>';
     }
     
-    function v40_decideDotColor(track, metrics, levels) {
-      var status = (track.status) || (track.meta && track.meta.status) || 'active';
-      if (status === 'terminated' || status === 'completed' || status === 'expired_partial' || status === 'measurement_done') return 'gray';
-      if (!metrics || !metrics.hasData) return 'cyan';
-      var atrPct = (levels && levels.atrPct != null && levels.atrPct > 0) ? levels.atrPct : null;
-      var maeTriggered = (metrics.mae <= -3) || (atrPct != null && metrics.mae <= -2 * atrPct);
-      if (maeTriggered) return 'orange';
-      var mfeTriggered = (metrics.mfe >= 5) || (metrics.currentPct >= 5) || (atrPct != null && (metrics.mfe >= 2 * atrPct || metrics.currentPct >= 2 * atrPct));
-      if (mfeTriggered) return 'green';
-      return 'cyan';
-    }
-    
-    function v40_resolveLevels(track, entryPrice) {
+    /* [Phase 4.4 작업 2] 종합 브리핑 동적 생성 (M3=B 항상 동적) */
+    function v44_generateDynamicBriefing(track, alertSnapshot, baseMetrics, advanced, levels) {
       var meta = track.meta || (track.keys && track.keys.meta && track.keys.meta.value) || {};
-      var atr = meta.atr != null ? meta.atr : null;
-      var atrPct = (atr != null && entryPrice != null && entryPrice > 0) ? (atr / entryPrice) * 100 : null;
-      return { tp1: meta.tp1Price != null ? meta.tp1Price : null, tp2: meta.tp2Price != null ? meta.tp2Price : null,
-        boxLow: meta.boxLow != null ? meta.boxLow : null, boxHigh: meta.boxHigh != null ? meta.boxHigh : null,
-        atr: atr, atrPct: atrPct };
-    }
-    
-    function v40_computeProgressPct(track) {
-      var meta = track.meta || (track.keys && track.keys.meta && track.keys.meta.value) || {};
-      var startedAt = track.startedAt || meta.windowStart || meta.tierAssignedAt;
-      var windowEnd = track.windowEnd || meta.windowEnd;
-      if (!startedAt || !windowEnd || windowEnd <= startedAt) return 0;
-      var now = Date.now();
-      if (now <= startedAt) return 0;
-      if (now >= windowEnd) return 100;
-      return ((now - startedAt) / (windowEnd - startedAt)) * 100;
-    }
-    
-    function v40_formatElapsed(ms) {
-      if (ms == null || ms < 0) return '-';
-      var totalMin = Math.floor(ms / 60000), h = Math.floor(totalMin / 60), m = totalMin - h * 60;
-      return h > 0 ? (h + 'h ' + m + 'm') : (m + 'm');
-    }
-    
-    /* 펼친 카드의 본문 (summary 제외) — 기존 details/summary 구조에 끼워 넣기용 */
-    function v40_buildExpandedBody(track, samples, metrics, entryInfo, levels) {
-      var meta = track.meta || (track.keys && track.keys.meta && track.keys.meta.value) || {};
-      var progressPct = v40_computeProgressPct(track);
-      var pseudoMark = (entryInfo && entryInfo.isPseudo) ? '<span class="woos-pseudo-mark">※ 첫 샘플 기준</span>' : '';
-      
-      // [Phase 4.1] alertSnapshot + liveTier
-      var alertSnap = v41_getAlertSnapshot(track);
-      var liveTier = v41_computeLiveTier(metrics, alertSnap, levels);
-      var gradeCode = (alertSnap && alertSnap.gradeCode) || track.gradeCode || meta.gradeCode || '';
-      
-      // [Phase 4.1] E2 권장: 펼친 헤더 — "스캐너: B  ·  현재: A" 분리 표시
-      var liveTierHeader = '';
-      if (gradeCode || liveTier) {
-        liveTierHeader = '<div class="woos-tier-header">'
-                       + '<span class="woos-tier-scanner">스캐너: <b>' + v40_escapeHtml(gradeCode || '?') + '</b></span>'
-                       + '<span class="woos-tier-sep">·</span>'
-                       + '<span class="woos-tier-live">현재: <b>' + v40_escapeHtml(liveTier || '?') + '</b></span>'
-                       + '</div>';
-      }
-      
-      var curBig = '';
-      if (metrics && metrics.hasData && metrics.currentPct != null) {
-        var sign = metrics.currentPct >= 0 ? '+' : '';
-        var dir = metrics.currentPct >= 0 ? 'up' : 'down';
-        curBig = '<div class="woos-current-big woos-current-' + dir + '">현재가 ' + sign + metrics.currentPct.toFixed(2) + '%</div>';
-      } else {
-        curBig = '<div class="woos-current-big woos-empty">데이터 수집 중</div>';
-      }
-      
-      var metricsHtml;
-      if (!metrics || !metrics.hasData) {
-        metricsHtml = '<div class="woos-metrics-row woos-empty">데이터 수집 중</div>';
-      } else {
-        var atrPct = levels.atrPct;
-        var speed = metrics.plus5Hit ? '+5 도달' : (metrics.plus3Hit ? '+3 도달' : '관찰 중');
-        var stability = metrics.mae.toFixed(2) + '%' + ((atrPct != null && atrPct > 0) ? (' · ' + (Math.abs(metrics.mae) / atrPct).toFixed(1) + 'ATR') : '');
-        var rise = (metrics.mfe >= 0 ? '+' : '') + metrics.mfe.toFixed(2) + '%' + ((atrPct != null && atrPct > 0) ? (' · ' + (metrics.mfe / atrPct).toFixed(1) + 'ATR') : '');
-        metricsHtml = '<div class="woos-metrics-row"><div class="woos-metric"><div class="woos-metric-label">속도</div><div class="woos-metric-value">' + v40_escapeHtml(speed) + '</div></div><div class="woos-metric"><div class="woos-metric-label">안정성</div><div class="woos-metric-value">' + v40_escapeHtml(stability) + '</div></div><div class="woos-metric"><div class="woos-metric-label">상승폭</div><div class="woos-metric-value">' + v40_escapeHtml(rise) + '</div></div></div>';
-      }
-      
-      var svgChart = v40_generateTrackingSVGChart(track, samples, metrics, entryInfo, levels, { isFirstRender: false });
-      
-      var stratA, stratB;
-      var aHasData = (levels.tp1 != null) || (levels.tp2 != null) || (levels.boxLow != null);
-      if (!aHasData || !metrics || !metrics.hasData) {
-        stratA = '<div class="woos-strategy"><div class="woos-strategy-title">전략 A · 구조 기반 분할</div><div class="woos-strategy-body woos-empty">데이터 수집 중</div></div>';
-      } else {
-        var aRows = [];
-        if (levels.tp1 != null) aRows.push('TP1 ' + (metrics.tp1Hit ? '도달' : '미도달'));
-        if (levels.tp2 != null) aRows.push('TP2 ' + (metrics.tp2Hit ? '도달' : '미도달'));
-        if (levels.boxLow != null) aRows.push('STOP ' + (metrics.stopHit ? '도달' : '미도달'));
-        stratA = '<div class="woos-strategy"><div class="woos-strategy-title">전략 A · 구조 기반 분할</div><div class="woos-strategy-body">' + aRows.map(v40_escapeHtml).join(' · ') + '</div></div>';
-      }
-      var bHasData = (levels.atr != null && levels.atr > 0);
-      if (!bHasData || !metrics || !metrics.hasData) {
-        stratB = '<div class="woos-strategy"><div class="woos-strategy-title">전략 B · ATR 트레일링</div><div class="woos-strategy-body woos-empty">데이터 수집 중</div></div>';
-      } else {
-        var atrPct2 = levels.atrPct;
-        var trailNote = '+2ATR (' + (atrPct2 * 2).toFixed(2) + '%) · -2ATR (' + (-atrPct2 * 2).toFixed(2) + '%)';
-        var state = (metrics.mfe >= atrPct2 * 2) ? 'trailing 활성' : (metrics.mae <= -atrPct2 * 2) ? '하단 이탈' : '관찰 중';
-        stratB = '<div class="woos-strategy"><div class="woos-strategy-title">전략 B · ATR 트레일링</div><div class="woos-strategy-body">' + v40_escapeHtml(trailNote) + ' · ' + v40_escapeHtml(state) + '</div></div>';
-      }
-      
-      // [Phase 4.1] 명세 13 의 순서대로 재배치:
-      // 1. 헤더 (summary) → 2. 진행률 → 3. 신호 근거 → 4. 3축 → 5. 현재가 → 6. SVG → 7. 세력 판단 → 8. 전략 A/B
-      return '<div class="progress-rich-body woos-body">' + pseudoMark + liveTierHeader +
-        '<div class="woos-progress"><div class="woos-progress-bar"><div class="woos-progress-fill" style="width:' + progressPct.toFixed(0) + '%"></div></div><div class="woos-progress-pct">' + progressPct.toFixed(0) + '%</div></div>' +
-        v41_buildSignalReasonBlock(alertSnap) +    /* [Phase 4.1] 신호 근거 */
-        metricsHtml + curBig +
-        '<div class="woos-graph-wrap">' + svgChart + '</div>' +
-        v41_buildForceContextBlock(alertSnap) +    /* [Phase 4.1] 세력 판단 */
-        '<div class="woos-strategies">' + stratA + stratB + '</div>' +
-        '</div>';
-    }
-    
-    /* 닫힌 summary (기존 progress-compact-summary 구조 유지) */
-    function v40_buildCompactSummary(track, metrics, dotColor, opts) {
-      opts = opts || {};
-      var meta = track.meta || (track.keys && track.keys.meta && track.keys.meta.value) || {};
-      var base = track.base || meta.base || '?';
-      var tier = track.tier || meta.tier || 'B';
       var startedAt = track.startedAt || meta.windowStart || meta.tierAssignedAt || Date.now();
-      var elapsedStr = v40_formatElapsed(Date.now() - startedAt);
-      var progressPct = v40_computeProgressPct(track);
-      var pctLabel = '';
-      if (metrics && metrics.hasData && metrics.currentPct != null) {
-        var sign = metrics.currentPct >= 0 ? '+' : '';
-        pctLabel = '<span class="woos-pct woos-pct-' + (metrics.currentPct >= 0 ? 'up' : 'down') + '">' + sign + metrics.currentPct.toFixed(2) + '%</span>';
-      }
-      var groupBadge = '';
-      if (opts.groupCount && opts.groupCount > 1) {
-        groupBadge = '<span class="woos-group-badge">' + opts.groupCount + ' signals</span>';
-      }
-      // [Phase 4.1] liveTier 표시 (E2 권장: gradeCode → liveTier 화살표)
-      var alertSnap = v41_getAlertSnapshot(track);
-      var levelsForTier = v40_resolveLevels(track, v40_resolveEntryPrice(track, v40_normalizeSamples(track)).value);
-      var liveTier = v41_computeLiveTier(metrics, alertSnap, levelsForTier);
-      var gradeCode = (alertSnap && alertSnap.gradeCode) || track.gradeCode || meta.gradeCode || tier;
-      var tierDisplay = '';
-      if (gradeCode && liveTier && gradeCode !== liveTier) {
-        tierDisplay = '<span class="tier-pill tier-' + v40_escapeHtml(liveTier).toLowerCase() + ' woos-live-tier">'
-                    + v40_escapeHtml(gradeCode) + ' → ' + v40_escapeHtml(liveTier) + '</span>';
+      var elapsedMs = Date.now() - startedAt;
+      var elapsedMin = Math.floor(elapsedMs / 60000);
+      
+      var parts = [];
+      
+      // 1. 진행 시간
+      var h = Math.floor(elapsedMin / 60);
+      var m = elapsedMin % 60;
+      var timeStr = h > 0 ? (h + '시간 ' + (m > 0 ? m + '분' : '')) : (m + '분');
+      parts.push('추적 ' + timeStr.trim() + ' 진행 중');
+      
+      // 2. 패턴 (있으면)
+      if (advanced && baseMetrics && baseMetrics.hasData) {
+        var pattern = v43_computePattern(baseMetrics, advanced);
+        if (pattern && pattern.code !== 'PENDING') {
+          parts.push('현재 흐름은 ' + pattern.kr);
+        }
       } else {
-        tierDisplay = '<span class="tier-pill tier-' + v40_escapeHtml(tier).toLowerCase() + '">Tier ' + v40_escapeHtml(tier) + '</span>';
+        parts.push('데이터 누적 중');
       }
-      return '<summary class="progress-compact-summary woos-summary">'
-        + '<div class="compact-bg-progress" style="width:' + progressPct.toFixed(1) + '%"></div>'
-        + '<div class="compact-content">'
-        +   '<div class="progress-summary-left">'
-        +     '<span class="coin-dot woos-dot-' + dotColor + '"></span>'
-        +     '<b>' + v40_escapeHtml(base) + '</b>'
-        +     groupBadge
-        +     tierDisplay
-        +   '</div>'
-        +   '<div class="progress-summary-right">'
-        +     pctLabel
-        +     '<span class="elapsed-text">' + v40_escapeHtml(elapsedStr) + '</span>'
-        +     '<span class="progress-text">' + progressPct.toFixed(0) + '%</span>'
-        +   '</div>'
-        + '</div>'
-        + '<div class="compact-bar-thin"><div class="compact-bar-thin-fill" style="width:' + progressPct.toFixed(1) + '%"></div></div>'
-        + '</summary>';
-    }
-    
-    /* 단일 추적의 세트 (summary + body) — details 안에 들어갈 내용 */
-    function v40_buildTrackInner(track, opts) {
-      opts = opts || {};
-      var samples = v40_normalizeSamples(track);
-      var entryInfo = v40_resolveEntryPrice(track, samples);
-      var levels = v40_resolveLevels(track, entryInfo.value);
-      var metrics = v40_computeLiveMetrics(samples, entryInfo.value, levels);
-      // [Phase 4.2 작업 E] overrideDotColor 가 있으면 (그룹 dot 동기화 시 대표 카드용) 사용
-      var dotColor = opts.overrideDotColor || v40_decideDotColor(track, metrics, levels);
-      return {
-        summary: v40_buildCompactSummary(track, metrics, dotColor, opts),
-        body: v40_buildExpandedBody(track, samples, metrics, entryInfo, levels),
-        dotColor: dotColor,
-        metrics: metrics,
-      };
-    }
-    
-    /* 그룹화 */
-    function v40_groupTracks(tracks) {
-      if (!Array.isArray(tracks)) return [];
-      var map = {};
-      for (var i = 0; i < tracks.length; i++) {
-        var t = tracks[i]; if (!t) continue;
-        var base = t.base || (t.meta && t.meta.base) || (function(){ var sid = t.snapshotId || t.id || ''; var p = sid.split('_'); return p.length >= 4 ? p[0] : '?'; })();
-        var exch = t.exchange || (t.meta && t.meta.exchange) || (function(){ var sid = t.snapshotId || t.id || ''; var p = sid.split('_'); return p.length >= 4 ? p[p.length - 1] : '?'; })();
-        var key = base + '__' + exch;
-        if (!map[key]) map[key] = { key: key, base: base, exchange: exch, items: [] };
-        map[key].items.push(t);
-      }
-      var groups = [];
-      Object.keys(map).forEach(function(k){
-        var g = map[k];
-        g.items.sort(function(a, b){ var aT = a.startedAt || (a.meta && a.meta.windowStart) || a.tierAssignedAt || 0; var bT = b.startedAt || (b.meta && b.meta.windowStart) || b.tierAssignedAt || 0; return aT - bT; });
-        g.representative = g.items[g.items.length - 1];
-        g.gradeFlow = g.items.map(function(it){ return it.gradeLabel || it.gradeCode || (it.meta && (it.meta.gradeLabel || it.meta.gradeCode)) || '?'; });
-        // [Phase 4.2 작업 B] liveTierFlow — 각 추적의 현재 반응 등급 시계열
-        g.liveTierFlow = g.items.map(function(it){
-          var s = v40_normalizeSamples(it);
-          var e = v40_resolveEntryPrice(it, s);
-          var lv = v40_resolveLevels(it, e.value);
-          var m = v40_computeLiveMetrics(s, e.value, lv);
-          var alertSnap = v41_getAlertSnapshot(it);
-          return v41_computeLiveTier(m, alertSnap, lv);
-        });
-        // [Phase 4.2 작업 E] 그룹 dot — 우선순위: orange (가장 위험) > green (가장 강세) > cyan > gray
-        // 그룹 안의 모든 추적의 dot 색상을 본 후 가장 우선순위 높은 것을 그룹 dot 으로
-        var dotColors = g.items.map(function(it){
-          var s = v40_normalizeSamples(it);
-          var e = v40_resolveEntryPrice(it, s);
-          var lv = v40_resolveLevels(it, e.value);
-          var m = v40_computeLiveMetrics(s, e.value, lv);
-          return v40_decideDotColor(it, m, lv);
-        });
-        var priority = { 'orange': 4, 'green': 3, 'cyan': 2, 'gray': 1 };
-        var groupDot = 'cyan';
-        var maxP = 0;
-        for (var di = 0; di < dotColors.length; di++) {
-          var p = priority[dotColors[di]] || 0;
-          if (p > maxP) { maxP = p; groupDot = dotColors[di]; }
-        }
-        g.groupDotColor = groupDot;
-        g.itemDotColors = dotColors;  // 미니 카드용
-        groups.push(g);
-      });
-      return groups;
-    }
-    
-    /* 그룹 카드 또는 단독 카드의 details 전체 빌드 */
-    function v40_buildGroupCardHTML(group, opts) {
-      opts = opts || {};
-      if (!group || !group.items || group.items.length === 0) return '';
-      var rep = group.representative;
-      if (group.items.length === 1) {
-        // 단독: 일반 details 카드
-        var inner = v40_buildTrackInner(rep);
-        var attrs = 'data-snapshot-id="' + v40_escapeHtml(rep.snapshotId || rep.id || '') + '" data-tier="' + v40_escapeHtml(rep.tier || (rep.meta && rep.meta.tier) || 'B') + '" data-group-key="' + v40_escapeHtml(group.key) + '"';
-        return '<details class="progress-rich-card woos-card" ' + attrs + '>' + inner.summary + inner.body + '</details>';
-      }
-      // 그룹 카드 (size >= 2)
-      // [Phase 4.2 작업 E] 그룹 dot 동기화: 대표가 아닌 그룹 전체 우선순위로
-      var repInner = v40_buildTrackInner(rep, { groupCount: group.items.length, overrideDotColor: group.groupDotColor });
-      var others = group.items.slice(0, -1);
-      var minisHtml = others.map(function(it, mIdx){
-        var oSamples = v40_normalizeSamples(it);
-        var oEntry = v40_resolveEntryPrice(it, oSamples);
-        var oLevels = v40_resolveLevels(it, oEntry.value);
-        var oMetrics = v40_computeLiveMetrics(oSamples, oEntry.value, oLevels);
-        var oDot = (group.itemDotColors && group.itemDotColors[mIdx]) || v40_decideDotColor(it, oMetrics, oLevels);
-        var oMeta = it.meta || {};
-        var oStart = it.startedAt || oMeta.windowStart || oMeta.tierAssignedAt || Date.now();
-        var oElapsed = v40_formatElapsed(Date.now() - oStart);
-        var oGrade = it.gradeLabel || it.gradeCode || (oMeta.gradeLabel || oMeta.gradeCode) || '';
-        // [Phase 4.2 작업 B] 미니 카드에도 liveTier 표시
-        var oAlertSnap = v41_getAlertSnapshot(it);
-        var oLiveTier = v41_computeLiveTier(oMetrics, oAlertSnap, oLevels);
-        var oTierLabel = (oGrade && oLiveTier && oGrade !== oLiveTier) ? (v40_escapeHtml(oGrade) + ' → ' + v40_escapeHtml(oLiveTier)) : v40_escapeHtml(oGrade || oLiveTier || '');
-        var oPct = (oMetrics && oMetrics.hasData && oMetrics.currentPct != null)
-          ? '<span class="woos-pct woos-pct-' + (oMetrics.currentPct >= 0 ? 'up' : 'down') + '">' + (oMetrics.currentPct >= 0 ? '+' : '') + oMetrics.currentPct.toFixed(2) + '%</span>'
-          : '<span class="woos-pct woos-empty">수집 중</span>';
-        return '<div class="woos-mini-card" data-snapshot-id="' + v40_escapeHtml(it.snapshotId || it.id || '') + '">'
-             + '<span class="coin-dot woos-dot-' + oDot + '"></span>'
-             + (oTierLabel ? '<span class="woos-mini-grade">' + oTierLabel + '</span>' : '')
-             + '<span class="woos-mini-time">' + v40_escapeHtml(oElapsed) + '</span>'
-             + oPct
-             + '</div>';
-      }).join('');
-      // [Phase 4.2 작업 B] 흐름 표시 — 스캐너 등급 + liveTier 둘 다
-      var gradeFlowStr = group.gradeFlow.map(v40_escapeHtml).join(' → ');
-      var liveTierFlowStr = (group.liveTierFlow && group.liveTierFlow.length > 0)
-        ? group.liveTierFlow.map(v40_escapeHtml).join(' → ')
-        : null;
-      var flowsHtml = '<div class="woos-group-flow"><span class="woos-flow-label">스캐너:</span> ' + gradeFlowStr + '</div>';
-      if (liveTierFlowStr && liveTierFlowStr !== gradeFlowStr) {
-        flowsHtml += '<div class="woos-group-flow woos-group-flow-live"><span class="woos-flow-label">현재:</span> ' + liveTierFlowStr + '</div>';
-      }
-      var groupAttrs = 'data-snapshot-id="' + v40_escapeHtml(rep.snapshotId || rep.id || '') + '" data-tier="' + v40_escapeHtml(rep.tier || (rep.meta && rep.meta.tier) || 'B') + '" data-group-key="' + v40_escapeHtml(group.key) + '" data-group-size="' + group.items.length + '"';
-      return '<details class="progress-rich-card woos-card woos-group" ' + groupAttrs + '>'
-           + repInner.summary
-           + '<div class="progress-rich-body woos-body woos-group-body">'
-           +   flowsHtml
-           +   '<div class="woos-group-others-label">이전 알람 ' + others.length + '건</div>'
-           +   '<div class="woos-group-others">' + minisHtml + '</div>'
-           +   '<div class="woos-group-rep-label">대표 (최신)</div>'
-           +   repInner.body.replace('progress-rich-body woos-body', 'progress-rich-body woos-body woos-group-rep')
-           + '</details>';
-    }
-    
-    /* 어댑터: _activeItemsCache 의 item + _trackingMap 의 td → 단일 track 객체 */
-    function v40_adaptItemToTrack(item, td) {
-      td = td || {};
-      var meta = td.meta || {};
-      return {
-        snapshotId: item.id, id: item.id,
-        base: item.base || meta.base || '',
-        exchange: item.exchange || meta.exchange || '',
-        tier: item.tier || meta.tier || 'B',
-        gradeCode: item.gradeCode || meta.gradeCode || null,
-        gradeLabel: item.gradeLabel || meta.gradeLabel || null,
-        startedAt: item.startedAt || item.tierAssignedAt || meta.windowStart || meta.tierAssignedAt,
-        windowEnd: item.windowEnd || meta.windowEnd,
-        status: meta.status || 'active',
-        meta: meta,
-        samples: td.samples || [],
-        thresholds: td.thresholds || null,
-        tp1: td.tp1 || null,
-      };
-    }
-    
-    /* sessionStorage 펼침 상태 관리 */
-    var V40_SS_KEY = 'woos-v40-expanded-groups';
-    function v40_loadExpandedSet() {
-      try { var raw = sessionStorage.getItem(V40_SS_KEY); if (!raw) return {}; var obj = JSON.parse(raw); return (obj && typeof obj === 'object') ? obj : {}; } catch(e) { return {}; }
-    }
-    function v40_saveExpandedSet(map) {
-      try { sessionStorage.setItem(V40_SS_KEY, JSON.stringify(map)); } catch(e) { /* quota / 비활성화 시 무시 */ }
-    }
-    function v40_setExpanded(key, isOpen) {
-      var m = v40_loadExpandedSet();
-      if (isOpen) m[key] = 1; else delete m[key];
-      v40_saveExpandedSet(m);
-    }
-    function v40_isExpanded(key) {
-      var m = v40_loadExpandedSet();
-      return !!m[key];
-    }
-    
-    /* 첫 렌더 추적 (애니메이션 1회) — 페이지 라이프 동안만 */
-    var V40_RENDERED_KEYS = {};
-    function v40_isFirstRender(key) { return !V40_RENDERED_KEYS[key]; }
-    function v40_markRendered(key) { V40_RENDERED_KEYS[key] = 1; }
-    
-    /* Object.assign 으로 기존 WOOS_ANALYZER 에 추가 (덮어쓰기 X) */
-    if (!globalScope.WOOS_ANALYZER) globalScope.WOOS_ANALYZER = {};
-    Object.assign(globalScope.WOOS_ANALYZER, {
-      VERSION_PHASE_4_0: WOOS_V40_VERSION,
-      VERSION_PHASE_4_1: 'phase4.1-alertSnapshot-liveTier-v4.1.0',
-      // 블록 2
-      normalizeSamples: v40_normalizeSamples,
-      resolveEntryPrice: v40_resolveEntryPrice,
-      computeLiveMetrics: v40_computeLiveMetrics,
-      // 블록 3
-      generateSmoothPath: v40_generateSmoothPath,
-      generateTrackingSVGChart: v40_generateTrackingSVGChart,
-      // 블록 4
-      decideDotColor: v40_decideDotColor,
-      resolveLevels: v40_resolveLevels,
-      computeProgressPct: v40_computeProgressPct,
-      groupTracks: v40_groupTracks,
-      buildGroupCardHTML: v40_buildGroupCardHTML,
-      buildTrackInner: v40_buildTrackInner,
-      buildExpandedBody: v40_buildExpandedBody,
-      buildCompactSummary: v40_buildCompactSummary,
-      adaptItemToTrack: v40_adaptItemToTrack,
-      // [Phase 4.1] alertSnapshot + liveTier
-      getAlertSnapshot: v41_getAlertSnapshot,
-      computeLiveTier: v41_computeLiveTier,
-      deriveForceContext: v41_deriveForceContext,
-      buildSignalReasonBlock: v41_buildSignalReasonBlock,
-      buildForceContextBlock: v41_buildForceContextBlock,
-      // 펼침 상태
-      isExpanded: v40_isExpanded,
-      setExpanded: v40_setExpanded,
-      isFirstRender: v40_isFirstRender,
-      markRendered: v40_markRendered,
-      // 상수
-      SVG: V40_SVG,
-    });
-  })(typeof window !== 'undefined' ? window : (typeof globalThis !== 'undefined' ? globalThis : this));
-  /* ═══════════════════════════════════════════════════════════════
-   * [Phase 4.0] 모듈 끝
-   * ═══════════════════════════════════════════════════════════════ */
-  
-  // ══ 자동 호출 hook ══════════════════════════════════════════════
-  document.addEventListener('DOMContentLoaded', function(){
-    var outcomeBtn = document.querySelector('[data-tab="outcome"]');
-    if (outcomeBtn) {
-      outcomeBtn.addEventListener('click', function(){
-        setTimeout(loadAndRenderAll, 100);
-      });
-    }
-    var refreshBtn = document.querySelector('.outcome-refresh-btn');
-    if (refreshBtn) {
-      refreshBtn.addEventListener('click', function(){
-        setTimeout(loadAndRenderAll, 200);
-      });
-    }
-    // 필터 버튼
-    var filterContainer = document.getElementById('alarmTableFilter');
-    if (filterContainer) {
-      filterContainer.addEventListener('click', function(e){
-        var btn = e.target.closest('.alarm-table-filter-btn');
-        if (!btn) return;
-        var f = btn.getAttribute('data-filter');
-        _currentFilter = f;
-        _displayLimit = 20; // [Phase 3.8] 필터 변경 시 페이지화 리셋
-        // active 클래스 갱신
-        filterContainer.querySelectorAll('.alarm-table-filter-btn').forEach(function(b){
-          b.classList.remove('active');
-        });
-        btn.classList.add('active');
-        renderAlarmTable(_allItems);
-      });
-    }
-    // [Phase 3.7] 검색 입력 이벤트
-    var searchInput = document.getElementById('alarmTableSearch');
-    var searchClearBtn = document.getElementById('alarmTableSearchClear');
-    var alarmTableSection = document.getElementById('alarmTableSection');
-    if (searchInput) {
-      searchInput.addEventListener('input', function(e){
-        _searchQuery = e.target.value.trim();
-        // 검색어 입력 시 자동으로 토글 펼침
-        if (_searchQuery && alarmTableSection && !alarmTableSection.open) {
-          alarmTableSection.open = true;
-        }
-        renderAlarmTable(_allItems);
-      });
-    }
-    if (searchClearBtn) {
-      searchClearBtn.addEventListener('click', function(){
-        if (searchInput) searchInput.value = '';
-        _searchQuery = '';
-        renderAlarmTable(_allItems);
-      });
-    }
-    // 페이지 로드 시 outcome 탭이 active 면 즉시 렌더
-    var outcomeTab = document.getElementById('tab-outcome');
-    if (outcomeTab && outcomeTab.classList.contains('active')) {
-      loadAndRenderAll();
-    }
-    
-    // [Phase 3.9] 추적 카드 펼침 즉시 fetch (이벤트 위임)
-    document.addEventListener('toggle', function(e){
-      var card = e.target;
-      if (!card || !card.classList || !card.classList.contains('progress-rich-card')) return;
-      if (!card.open) return;  // 닫힐 때는 무시
       
-      var sid = card.getAttribute('data-snapshot-id');
-      if (!sid) return;
-      
-      // 캐시 우선 표시 (이미 렌더되어 있음 — 사용자에게 즉시 보임)
-      // 백그라운드에서 최신 fetch
-      fetchTrackingData(sid, true).then(function(td){
-        if (td) {
-          _trackingMap[sid] = td;
-          _updateExpandedCard(sid);
+      // 3. 이격도 / 현재 위치
+      if (baseMetrics && baseMetrics.hasData && baseMetrics.currentPct != null) {
+        var cp = baseMetrics.currentPct;
+        if (Math.abs(cp) < 0.5) {
+          parts.push('진입가 근처 안정적 추이');
+        } else if (cp > 0) {
+          parts.push('진입가 대비 +' + cp.toFixed(2) + '% 이격');
+        } else {
+          parts.push('진입가 대비 ' + cp.toFixed(2) + '% 이격');
         }
-      }).catch(function(){
-        // silent fail
-      });
-    }, true);  // capture phase (details toggle 이벤트는 bubbling X)
-    
-    // [Phase 3.8] 60초 자동 갱신 — 추적 분석 탭이 보일 때만
-    var _autoRefreshTimer = null;
-    var _isPageVisible = !document.hidden;
-    
-    function isAnalyzerTabActive() {
-      var tab = document.getElementById('tab-outcome');
-      return tab && tab.classList.contains('active');
+      }
+      
+      // 4. MFE/MAE 강조 (진행 데이터 있으면)
+      if (baseMetrics && baseMetrics.hasData) {
+        if (baseMetrics.mfe >= 5) {
+          parts.push('최고 +' + baseMetrics.mfe.toFixed(1) + '% 도달 이력');
+        }
+        if (baseMetrics.mae <= -3) {
+          parts.push('최저 ' + baseMetrics.mae.toFixed(1) + '% 하락 이력');
+        }
+      }
+      
+      // 5. 단계 라벨 (스캐너 박제, alertSnapshot.currentPhase.label)
+      var phaseLabel = (alertSnapshot && alertSnapshot.currentPhase && alertSnapshot.currentPhase.label)
+                    || (alertSnapshot && alertSnapshot.phaseLabel) || '';
+      if (phaseLabel) {
+        parts.push('단계: ' + phaseLabel);
+      }
+      
+      // 6. 스캐너 결론 (analysis.conclusion 또는 reason 첫 항목)
+      var conclusion = (alertSnapshot && alertSnapshot.analysis && alertSnapshot.analysis.conclusion)
+                    || (alertSnapshot && alertSnapshot.conclusion) || '';
+      if (conclusion) {
+        parts.push('스캐너 시점: ' + conclusion);
+      }
+      
+      return parts.length > 0 ? parts.join('. ') + '.' : '추적 진행 중. 데이터 누적 중입니다.';
     }
     
-    function autoRefreshTracking() {
-      if (!_isPageVisible || !isAnalyzerTabActive()) return;
+    /* [Phase 4.4 작업 2] 종합 브리핑 HTML */
+    function v44_buildBriefingBlock(track, alertSnapshot, baseMetrics, advanced, levels) {
+      var briefing = v44_generateDynamicBriefing(track, alertSnapshot, baseMetrics, advanced, levels);
+      // [Phase 4.4 작업 2] actionDesc 박제 보강 (있으면)
+      var actionDesc = (alertSnapshot && alertSnapshot.actionDesc) || '';
+      var actionHtml = actionDesc ? '<div class="woos-briefing-action">💡 ' + v40_escapeHtml(actionDesc) + '</div>' : '';
       
-      // 펼친 카드 ID 수집 (복원용)
-      var openCardIds = [];
+      return '<div class="woos-briefing">'
+        + '<div class="woos-briefing-title">▶ 종합 브리핑</div>'
+        + '<div class="woos-briefing-body">' + v40_escapeHtml(briefing) + '</div>'
+        + actionHtml
+        + '</div>';
+    }
+    
+    /* [Phase 4.4 작업 3] Tier 필터 헤더 시안 (Tracking N coins · Tier A x · ...) */
+    function v44_buildTierHeader(activeCount, byTier) {
+      byTier = byTier || {};
+      var sCount = byTier.S || 0;
+      var aCount = byTier.A || 0;
+      var bCount = byTier.B || 0;
+      var cCount = byTier.C || 0;
+      var parts = ['Tracking <b>' + activeCount + '</b> coins'];
+      if (sCount > 0) parts.push('<span class="tier-pill tier-s">Tier S <b>' + sCount + '</b></span>');
+      parts.push('<span class="tier-pill tier-a">Tier A <b>' + aCount + '</b></span>');
+      parts.push('<span class="tier-pill tier-b">Tier B <b>' + bCount + '</b></span>');
+      parts.push('<span class="tier-pill tier-c">Tier C <b>' + cCount + '</b></span>');
+      return '<div class="woos-tier-header-44">' + parts.join(' <span class="woos-th-sep">·</span> ') + '</div>';
+    }
+    
+    /* [Phase 4.4 작업 5 초석] 코인 통계 자체 계산 (Worker 무수정) */
+    function v44_computeCoinStats(activeList, targetBase) {
+      if (!Array.isArray(activeList)) return { totalCount: 0, sCount: 0, aCount: 0, bCount: 0 };
+      var matching = activeList.filter(function(t){
+        var b = t.base || (t.meta && t.meta.base) || '';
+        return b === targetBase;
+      });
+      var s = 0, a = 0, b = 0;
+      for (var i = 0; i < matching.length; i++) {
+        var g = (matching[i].gradeCode || (matching[i].meta && matching[i].meta.gradeCode) || '').toUpperCase();
+        if (g === 'S') s++;
+        else if (g === 'A') a++;
+        else if (g === 'B') b++;
+      }
+      return { totalCount: matching.length, sCount: s, aCount: a, bCount: b };
+    }
+    
+    /* [Phase 4.4 작업 5 초석] Watchlist 관리 (localStorage) */
+    var V44_WATCHLIST_KEY = 'woos_v44_watchlist';
+    function v44_getWatchlist() {
       try {
-        var openCards = document.querySelectorAll('details.progress-rich-card[open]');
-        openCards.forEach(function(c){
-          var sid = c.getAttribute('data-snapshot-id');
-          if (sid) openCardIds.push(sid);
-        });
-      } catch(e) {}
-      
-      // 펼친 카드 samples 재요청 (캐시 무효화)
-      var samplePromises = openCardIds.map(function(sid){
-        return fetchTrackingData(sid, true).then(function(td){
-          if (td) _trackingMap[sid] = td;
-          return td;
-        });
-      });
-      
-      // 활성 추적 목록 갱신
-      var activeP = fetchTrackingActive();
-      
-      Promise.all([activeP].concat(samplePromises)).then(function(results){
-        var activeData = results[0];
-        if (activeData && activeData.active) {
-          // [Phase 3.9] _activeItemsCache 갱신 (정렬/검색용)
-          _activeItemsCache = activeData.active.map(function(item){
-            var elapsedMs = Date.now() - (item.tierAssignedAt || 0);
-            var progress = Math.min(100, Math.max(0, (elapsedMs / (24*3600*1000)) * 100));
-            return {
-              id: item.id,
-              base: (item.id || '').split('_')[0],
-              tier: item.tier,
-              tierAssignedAt: item.tierAssignedAt,
-              progress: progress,
-            };
-          });
-          
-          activeData.active.forEach(function(item){
-            if (!_trackingMap[item.id]) {
-              _trackingMap[item.id] = {
-                meta: {
-                  tier: item.tier,
-                  status: 'active',
-                  tierAssignedAt: item.tierAssignedAt,
-                  snapshotId: item.id,
-                  base: (item.id || '').split('_')[0],
-                }
-              };
-            } else if (_trackingMap[item.id].meta) {
-              _trackingMap[item.id].meta.tier = item.tier;
-              _trackingMap[item.id].meta.tierAssignedAt = item.tierAssignedAt;
-            }
-          });
-        }
-        
-        // [Phase 3.9] 캐시 기반 다시 렌더 (정렬/검색/페이지화 유지)
-        _rerenderActiveTrackingFromCache();
-        
-        // 펼친 상태 복원
-        setTimeout(function(){
-          openCardIds.forEach(function(sid){
-            try {
-              var card = document.querySelector('details.progress-rich-card[data-snapshot-id="' + sid + '"]');
-              if (card) card.open = true;
-            } catch(e) {}
-          });
-        }, 50);
-      }).catch(function(){
-        // silent fail (다음 갱신 때 재시도)
-      });
+        var raw = (typeof localStorage !== 'undefined') ? localStorage.getItem(V44_WATCHLIST_KEY) : null;
+        if (!raw) return [];
+        var list = JSON.parse(raw);
+        return Array.isArray(list) ? list : [];
+      } catch(e) { return []; }
     }
-    
-    function startAutoRefresh() {
-      if (_autoRefreshTimer) return;
-      _autoRefreshTimer = setInterval(autoRefreshTracking, 60 * 1000);
+    function v44_isWatchlist(base) {
+      if (!base) return false;
+      var list = v44_getWatchlist();
+      return list.indexOf(String(base).toUpperCase()) >= 0;
     }
-    
-    function stopAutoRefresh() {
-      if (_autoRefreshTimer) {
-        clearInterval(_autoRefreshTimer);
-        _autoRefreshTimer = null;
-      }
-    }
-    
-    // Page Visibility API — 탭 안 보이면 갱신 X
-    document.addEventListener('visibilitychange', function(){
-      _isPageVisible = !document.hidden;
-      if (_isPageVisible && isAnalyzerTabActive()) {
-        startAutoRefresh();
+    function v44_toggleWatchlist(base) {
+      if (!base) return false;
+      var b = String(base).toUpperCase();
+      var list = v44_getWatchlist();
+      var idx = list.indexOf(b);
+      if (idx >= 0) {
+        list.splice(idx, 1);
       } else {
-        stopAutoRefresh();
+        list.push(b);
       }
-    });
-    
-    // 페이지 진입 후 outcome 탭이면 자동 갱신 시작
-    if (isAnalyzerTabActive()) {
-      startAutoRefresh();
+      try {
+        if (typeof localStorage !== 'undefined') localStorage.setItem(V44_WATCHLIST_KEY, JSON.stringify(list));
+      } catch(e) {}
+      return list.indexOf(b) >= 0;  // 토글 후 상태 반환
     }
     
-    // 탭 전환 시 (스캐너 ↔ 추적 분석)
-    var allTabs = document.querySelectorAll('.woos-tab');
-    allTabs.forEach(function(tab){
-      tab.addEventListener('click', function(){
-        // 탭 변경 직후 active 상태 확인
-        setTimeout(function(){
-          if (isAnalyzerTabActive() && _isPageVisible) {
-            startAutoRefresh();
-          } else {
-            stopAutoRefresh();
-          }
-        }, 100);
-      });
-    });
-  });
-  
-})(typeof window !== 'undefined' ? window : this);
-/* [END MODULE: phase35_analyzer_js] */
-
-</script>
-</body>
-</html>
+    /* [Phase 4.4 작업 5 초석] 코인 통계 + Watchlist 배지 HTML */
+    function v44_buildCoinStatsBadge(track, allActiveTracks) {
+      var meta = track.meta || (track.keys && track.keys.meta && track.keys.meta.value) || {};
+      var base = track.base || meta.base || '';
+      if (!base) return '';
+      
+      var stats = v44_computeCoinStats(allActiveTracks || [], base);
+      var isW = v44_isWatchlist(base);
+      
+      var badges = [];
+      if (stats.sCount > 0) {
+        badges.push('<span class="woos-stats-badge woos-stats-s">S급 ' + stats.sCount + '회</span>');
+      }
+      if (stats.totalCount >= 3) {
+        badges.push('<span class="woos-stats-badge woos-stats-multi">' + stats.totalCount + '회 알람</span>');
+      }
+      if (isW) {
+        badges.push('<span class="woos-stats-badge woos-stats-watchlist">⭐ 관심</span>');
+      }
+      if (badges.length === 0) return '';
+      return '<div class="woos-stats-badges">' + badges.join('') + '</div>';
+    }
+    
+    /* ═══════════════════════════════════════════════════════════════
+     * [Phase 4.5] 같은 코인 오버레이 + Watchlist UI + 관심 상단 고정
+     * ═══════════════════════════════════════════════════════════════ */
+    
+    /* [Phase 4.5 작업 1] 그룹 오버레이 SVG — T=0 정렬로 모든 추적 곡선 겹침 */
+    function v45_generateOverlayChart(group) {
+      if (!group || !group.items || group.items.length === 0) return '';
+      var items = group.items;
+      var n = items.length;
+      
+      // 각 추적을 T=0 (각 추적의 startedAt) 기준으로 정규화
+      var allCurves = [];
+      var maxTMin = 0;
+      var maxAbsPct = 0;
+      
+      for (var i = 0; i < n; i++) {
+        var t = items[i];
+        var samples = v40_normalizeSamples(t);
+        var entryInfo = v40_resolveEntryPrice(t, samples);
+        if (!samples || samples.length === 0 || !entryInfo.value) continue;
+        var meta = t.meta || {};
+        var startedAt = t.startedAt || meta.windowStart || meta.tierAssignedAt || (samples[0] && samples[0].ts) || Date.now();
+        
+        var pcts = samples.map(function(s){
+          return {
+            tMin: (s.ts - startedAt) / 60000,
+            pct: ((s.price - entryInfo.value) / entryInfo.value) * 100,
+          };
+        });
+        // 시작점 (T=0, 0%) 강제 추가
+        if (pcts.length > 0 && pcts[0].tMin > 0.5) {
+          pcts.unshift({ tMin: 0, pct: 0 });
+        }
+        for (var j = 0; j < pcts.length; j++) {
+          if (pcts[j].tMin > maxTMin) maxTMin = pcts[j].tMin;
+          var abs = Math.abs(pcts[j].pct);
+          if (abs > maxAbsPct) maxAbsPct = abs;
+        }
+        allCurves.push({ pcts: pcts, isRep: (i === n - 1), idx: i, base: t.base || (meta.base || '?') });
+      }
+      
+      if (allCurves.length === 0) return '';
+      
+      var W = 360, H = 220;
+      var padL = 48, padR = 16, padT = 22, padB = 24;
+      var plotW = W - padL - padR;
+      var plotH = H - padT - padB;
+      var timeMaxMin = Math.max(60, maxTMin);
+      var pctRange = Math.max(5, maxAbsPct * 1.2);
+      var pctMin = -pctRange, pctMax = pctRange;
+      
+      function xMap(tMin) { return padL + (tMin / timeMaxMin) * plotW; }
+      function yMap(pct) { return padT + ((pctMax - pct) / (pctMax - pctMin)) * plotH; }
+      
+      var svg = [];
+      svg.push('<svg class="woos-overlay-svg" viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">');
+      svg.push('<defs><filter id="ov-glow" x="-50%" y="-50%" width="200%" height="200%">'
+             + '<feGaussianBlur stdDeviation="2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>'
+             + '</filter></defs>');
+      
+      // 가이드 라인 (0% / 격자)
+      svg.push('<g class="woos-overlay-grid">');
+      var zeroY = yMap(0);
+      svg.push('<line x1="' + padL + '" y1="' + zeroY.toFixed(1) + '" x2="' + (padL + plotW) + '" y2="' + zeroY.toFixed(1) + '" stroke="rgba(255,255,255,0.1)" stroke-width="1" stroke-dasharray="2,2"/>');
+      svg.push('<text x="' + (padL - 6) + '" y="' + (zeroY + 3).toFixed(1) + '" fill="#6b7280" font-size="9" text-anchor="end">0%</text>');
+      // X 축 라벨
+      var xTicks
