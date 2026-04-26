@@ -3443,10 +3443,53 @@ details.progress-rich-card[open] > summary { background: rgba(0, 212, 255, 0.06)
 }
 .coin-dot {
   display: inline-block;
-  width: 8px;
-  height: 8px;
+  width: 9px;
+  height: 9px;
   border-radius: 50%;
+  flex-shrink: 0;
 }
+
+/* [Phase 3.11] Dot 신호 강도별 색상 + 펄스 애니메이션 */
+/* 원칙: 색은 "판단" 이 아니라 "우선순위 힌트" (R1 정책) */
+@keyframes wso-dot-pulse-cyan {
+  0%, 100% { box-shadow: 0 0 4px rgba(0, 212, 255, 0.5); transform: scale(1); }
+  50%      { box-shadow: 0 0 10px rgba(0, 212, 255, 0.9); transform: scale(1.15); }
+}
+@keyframes wso-dot-pulse-green {
+  0%, 100% { box-shadow: 0 0 6px rgba(0, 230, 118, 0.6); transform: scale(1); }
+  50%      { box-shadow: 0 0 14px rgba(0, 230, 118, 1); transform: scale(1.20); }
+}
+@keyframes wso-dot-pulse-orange {
+  0%, 100% { box-shadow: 0 0 6px rgba(255, 140, 66, 0.7); transform: scale(1); }
+  50%      { box-shadow: 0 0 16px rgba(255, 140, 66, 1); transform: scale(1.25); }
+}
+
+.coin-dot.dot-cyan {
+  background: #00d4ff;
+  animation: wso-dot-pulse-cyan 2.5s ease-in-out infinite;
+}
+.coin-dot.dot-green {
+  background: #00e676;
+  animation: wso-dot-pulse-green 1.2s ease-in-out infinite;
+}
+.coin-dot.dot-orange {
+  background: #ff8c42;
+  animation: wso-dot-pulse-orange 0.7s ease-in-out infinite;
+}
+.coin-dot.dot-gray {
+  background: #6b7280;
+}
+
+/* [Phase 3.11] 카드 변화율 강조 (|현재pct| >= 3) — "지금 움직이는" 카드 부각 */
+details.progress-rich-card.active-glow {
+  border-color: rgba(0, 212, 255, 0.4);
+  box-shadow: 0 0 16px rgba(0, 212, 255, 0.12);
+}
+details.progress-rich-card.active-glow[data-tier="A"] {
+  border-color: rgba(124, 58, 237, 0.5);
+  box-shadow: 0 0 16px rgba(124, 58, 237, 0.15);
+}
+
 .tier-pill {
   font-size: 9px;
   padding: 2px 7px;
@@ -3751,6 +3794,50 @@ details.alarm-table-section[open] > summary::after { transform: rotate(180deg); 
   display: flex;
   gap: 6px;
   flex-wrap: wrap;
+}
+
+/* [Phase 3.11] Tier 필터 버튼 */
+.tracking-tier-row {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+.tracking-tier-btn {
+  flex: 1;
+  min-width: 60px;
+  padding: 6px 8px;
+  font-size: 11px;
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all .12s;
+}
+.tracking-tier-btn:hover {
+  color: var(--text-primary);
+}
+.tracking-tier-btn.active {
+  background: rgba(0, 212, 255, 0.1);
+  color: var(--accent-cyan);
+  border-color: var(--accent-cyan);
+}
+.tracking-tier-btn.tier-a-btn.active {
+  background: rgba(124, 58, 237, 0.15);
+  color: #a78bfa;
+  border-color: #a78bfa;
+}
+.tracking-tier-btn.tier-b-btn.active {
+  background: rgba(37, 99, 235, 0.15);
+  color: #60a5fa;
+  border-color: #60a5fa;
+}
+.tracking-tier-btn.tier-c-btn.active {
+  background: rgba(107, 114, 128, 0.15);
+  color: #9ca3af;
+  border-color: #9ca3af;
 }
 .tracking-sort-btn {
   flex: 1;
@@ -4842,7 +4929,7 @@ async function opsDashboard() {
 // 탭 시 상세 팝업
 // ═══════════════════════════════════════════════════════════════
 
-var HTML_VERSION = 'v4.9.0';  // Phase 3.9 — 실시간 fetch + 추적 카드 검색/정렬/페이지화 (Phase 3.6/3.7/3.8 누적)
+var HTML_VERSION = 'v4.11.0';  // Phase 3.11 — 신호 강도별 dot 펄스 + Tier 필터 + 카드 변화율 강조 (Phase 3.6~3.10 누적)
 var _cachedBuildInfo = null;
 
 async function fetchBuildInfo() {
@@ -7921,6 +8008,46 @@ window.addEventListener('load', async function(){
   }
   
   // ══ status 별 카드 분기 ══════════════════════════════
+  // [Phase 3.11] Dot 상태 결정 — 매매 판단 우선순위 힌트
+  // 원칙: 색은 "판단" 이 아니라 "우선순위 힌트" (R1 정책)
+  // 우선순위: orange(위험) > green(강한 신호) > cyan(보통) > gray(완료)
+  function getDotState(meta, trackingData) {
+    if (!meta) return { color: 'cyan', pulseClass: 'dot-cyan' };
+    
+    // 24h 종료 → gray (정적)
+    if (meta.status === 'completed') {
+      return { color: 'gray', pulseClass: 'dot-gray' };
+    }
+    
+    // samples 기반 MFE / MAE / 현재 변화율 계산
+    var samples = (trackingData && trackingData.samples) || null;
+    var openPrice = meta.openPrice || (samples && samples[0] && samples[0].price) || null;
+    var mfe = null, mae = null, currentPct = null;
+    
+    if (samples && samples.length > 0 && openPrice) {
+      var prices = samples.map(function(s){ return s.price; })
+                          .filter(function(p){ return typeof p === 'number'; });
+      if (prices.length > 0) {
+        mfe = ((Math.max.apply(null, prices) - openPrice) / openPrice) * 100;
+        mae = ((Math.min.apply(null, prices) - openPrice) / openPrice) * 100;
+        currentPct = ((prices[prices.length - 1] - openPrice) / openPrice) * 100;
+      }
+    }
+    
+    // 우선순위 1: orange (MAE -3 근접 = 위험)
+    if (mae !== null && mae <= -3) {
+      return { color: 'orange', pulseClass: 'dot-orange', currentPct: currentPct };
+    }
+    
+    // 우선순위 2: green (MFE +5 이상 또는 현재 +5 이상)
+    if ((mfe !== null && mfe >= 5) || (currentPct !== null && currentPct >= 5)) {
+      return { color: 'green', pulseClass: 'dot-green', currentPct: currentPct };
+    }
+    
+    // 우선순위 3: cyan (보통 추적 중)
+    return { color: 'cyan', pulseClass: 'dot-cyan', currentPct: currentPct };
+  }
+  
   function renderInProgressCard(meta, trackingData) {
     var elapsedMs = Date.now() - (meta.tierAssignedAt || 0);
     var symbol = meta.base || meta.snapshotId || '';
@@ -7946,12 +8073,17 @@ window.addEventListener('load', async function(){
       return h + 'h ' + m + 'm';
     })();
     
+    // [Phase 3.11] Dot 상태 결정 (신호 강도별)
+    var dotState = getDotState(meta, trackingData);
+    var cardActiveGlow = (dotState.currentPct !== null && Math.abs(dotState.currentPct) >= 3) ? ' active-glow' : '';
+    
     // [Phase 3.8] 컴팩트 헤더 — 닫힌 상태에도 진행률 바 표시 (사진의 ZAMA 카드처럼)
+    // [Phase 3.11] coin-dot 에 신호 강도 클래스 적용
     var compactHeader = '<summary class="progress-compact-summary">'
       + '<div class="compact-bg-progress" style="width:' + progress.toFixed(1) + '%"></div>'
       + '<div class="compact-content">'
       +   '<div class="progress-summary-left">'
-      +     '<span class="coin-dot" style="background:' + (meta.tier === 'A' ? '#7c3aed' : meta.tier === 'B' ? '#2563eb' : '#6b7280') + '"></span>'
+      +     '<span class="coin-dot ' + dotState.pulseClass + '"></span>'
       +     '<b>' + escapeHtml(symbol) + '</b>'
       +     '<span class="tier-pill tier-' + escapeHtml(meta.tier || 'B').toLowerCase() + '">Tier ' + escapeHtml(meta.tier || 'B') + '</span>'
       +   '</div>'
@@ -7966,7 +8098,7 @@ window.addEventListener('load', async function(){
       + '</summary>';
     
     // 펼침 시 보이는 본문 (한 번에 모든 정보)
-    var html = '<details class="progress-rich-card" data-tier="' + escapeHtml(meta.tier || 'B') + '" data-snapshot-id="' + escapeHtml(meta.snapshotId || '') + '">'
+    var html = '<details class="progress-rich-card' + cardActiveGlow + '" data-tier="' + escapeHtml(meta.tier || 'B') + '" data-snapshot-id="' + escapeHtml(meta.snapshotId || '') + '">'
       + compactHeader
       + '<div class="progress-rich-body">'
       // 1. 진행률 바 (그라데이션)
@@ -8820,6 +8952,7 @@ window.addEventListener('load', async function(){
   // [Phase 3.9] 추적 카드 검색/정렬/페이지화 상태
   var _activeSearchQuery = '';
   var _activeSortBy = 'progress';   // 'progress' | 'name' | 'time-new' | 'time-old'
+  var _activeTierFilter = 'all';     // [Phase 3.11] 'all' | 'A' | 'B' | 'C'
   var _activeDisplayLimit = 10;      // 기본 10개
   var _activeDisplayStep = 10;       // 더보기 클릭 시 추가량
   var _activeItemsCache = [];        // 추적 중 활성 목록 캐시 (정렬/검색용)
@@ -8880,6 +9013,13 @@ window.addEventListener('load', async function(){
       });
     }
     
+    // [Phase 3.11] Tier 필터
+    if (_activeTierFilter !== 'all') {
+      filtered = filtered.filter(function(it){
+        return it.tier === _activeTierFilter;
+      });
+    }
+    
     // 정렬
     var sorted = filtered.slice();
     if (_activeSortBy === 'progress') {
@@ -8911,6 +9051,12 @@ window.addEventListener('load', async function(){
                     +   '<input type="text" class="tracking-search-input" id="trackingSearchInput" '
                     +     'placeholder="🔍 코인명 검색" autocomplete="off" value="' + escapeHtml(_activeSearchQuery) + '"/>'
                     +   '<button class="tracking-search-clear" id="trackingSearchClear" type="button" aria-label="검색 지우기">✕</button>'
+                    + '</div>'
+                    + '<div class="tracking-tier-row">'
+                    +   '<button class="tracking-tier-btn ' + (_activeTierFilter === 'all' ? 'active' : '') + '" data-tier="all">전체 ' + totalCount + '</button>'
+                    +   '<button class="tracking-tier-btn tier-a-btn ' + (_activeTierFilter === 'A' ? 'active' : '') + '" data-tier="A">A ' + (byTier.A || 0) + '</button>'
+                    +   '<button class="tracking-tier-btn tier-b-btn ' + (_activeTierFilter === 'B' ? 'active' : '') + '" data-tier="B">B ' + (byTier.B || 0) + '</button>'
+                    +   '<button class="tracking-tier-btn tier-c-btn ' + (_activeTierFilter === 'C' ? 'active' : '') + '" data-tier="C">C ' + (byTier.C || 0) + '</button>'
                     + '</div>'
                     + '<div class="tracking-sort-row">'
                     +   '<button class="tracking-sort-btn ' + (_activeSortBy === 'progress' ? 'active' : '') + '" data-sort="progress">진행률순</button>'
@@ -9002,6 +9148,15 @@ window.addEventListener('load', async function(){
         _rerenderActiveTrackingFromCache();
       });
     });
+    // [Phase 3.11] Tier 필터 버튼 이벤트
+    var tierBtns = document.querySelectorAll('.tracking-tier-btn');
+    tierBtns.forEach(function(btn){
+      btn.addEventListener('click', function(){
+        _activeTierFilter = btn.getAttribute('data-tier');
+        _activeDisplayLimit = 10;
+        _rerenderActiveTrackingFromCache();
+      });
+    });
     var moreBtn = document.getElementById('trackingMoreBtn');
     if (moreBtn) {
       moreBtn.addEventListener('click', function(){
@@ -9073,7 +9228,7 @@ window.addEventListener('load', async function(){
   
   // ══ 외부 노출 ══════════════════════════════════════════════
   global.WOOS_ANALYZER = {
-    BUILD_TAG: 'phase3.9-rich-realtime-search-v3.9.0',
+    BUILD_TAG: 'phase3.11-signal-dots-tier-filter-v3.11.0',
     loadAndRenderAll: loadAndRenderAll,
     renderAnalyzerSection: renderAnalyzerSection,
     renderAlarmTable: function(){ renderAlarmTable(_allItems); },
