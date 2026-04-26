@@ -3387,14 +3387,49 @@ details.progress-rich-card[open] { border-color: rgba(0, 212, 255, 0.5); }
 details.progress-rich-card > summary.progress-compact-summary {
   list-style: none;
   cursor: pointer;
-  padding: 12px 14px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+  padding: 12px 14px 0;
+  display: block;
   user-select: none;
   font-size: 13px;
   color: var(--text-primary);
   transition: background .12s;
+  position: relative;
+  overflow: hidden;
+}
+
+/* [Phase 3.8] 닫힌 카드 배경 진행률 (사진의 ZAMA 스타일) */
+.compact-bg-progress {
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  background: linear-gradient(90deg, rgba(0,212,255,0.08), rgba(0,230,118,0.10));
+  pointer-events: none;
+  transition: width .3s ease;
+  z-index: 0;
+}
+.compact-content {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 10px;
+}
+
+/* [Phase 3.8] 얇은 진행률 바 (카드 하단) */
+.compact-bar-thin {
+  position: relative;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.06);
+  margin: 0 -14px;
+  overflow: hidden;
+  z-index: 1;
+}
+.compact-bar-thin-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent-cyan), var(--accent-green));
+  transition: width .3s ease;
 }
 details.progress-rich-card > summary::-webkit-details-marker { display: none; }
 details.progress-rich-card > summary::marker { display: none; }
@@ -3637,6 +3672,32 @@ details.alarm-table-section[open] > summary::after { transform: rotate(180deg); 
   padding: 4px;
 }
 .alarm-table-search-clear:hover { color: var(--text-primary); }
+
+/* [Phase 3.8] 더보기 버튼 */
+.alarm-table-more-row {
+  padding: 12px;
+  text-align: center;
+  border-top: 1px solid var(--border);
+}
+.alarm-table-more-btn {
+  width: 100%;
+  padding: 10px 16px;
+  background: var(--bg-card);
+  color: var(--accent-cyan);
+  border: 1px solid rgba(0, 212, 255, 0.3);
+  border-radius: 6px;
+  font-size: 12px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all .15s;
+}
+.alarm-table-more-btn:hover {
+  background: rgba(0, 212, 255, 0.08);
+  border-color: var(--accent-cyan);
+}
+.alarm-table-more-btn:active {
+  transform: scale(0.98);
+}
 /* [END MODULE: phase35_visualization_css] */
 
 </style>
@@ -7780,21 +7841,27 @@ window.addEventListener('load', async function(){
       return h + 'h ' + m + 'm';
     })();
     
-    // 컴팩트 헤더 (닫힘 시 보이는 한 줄)
+    // [Phase 3.8] 컴팩트 헤더 — 닫힌 상태에도 진행률 바 표시 (사진의 ZAMA 카드처럼)
     var compactHeader = '<summary class="progress-compact-summary">'
-      + '<div class="progress-summary-left">'
-      +   '<span class="coin-dot" style="background:' + (meta.tier === 'A' ? '#7c3aed' : meta.tier === 'B' ? '#2563eb' : '#6b7280') + '"></span>'
-      +   '<b>' + escapeHtml(symbol) + '</b>'
-      +   '<span class="tier-pill tier-' + escapeHtml(meta.tier || 'B').toLowerCase() + '">Tier ' + escapeHtml(meta.tier || 'B') + '</span>'
+      + '<div class="compact-bg-progress" style="width:' + progress.toFixed(1) + '%"></div>'
+      + '<div class="compact-content">'
+      +   '<div class="progress-summary-left">'
+      +     '<span class="coin-dot" style="background:' + (meta.tier === 'A' ? '#7c3aed' : meta.tier === 'B' ? '#2563eb' : '#6b7280') + '"></span>'
+      +     '<b>' + escapeHtml(symbol) + '</b>'
+      +     '<span class="tier-pill tier-' + escapeHtml(meta.tier || 'B').toLowerCase() + '">Tier ' + escapeHtml(meta.tier || 'B') + '</span>'
+      +   '</div>'
+      +   '<div class="progress-summary-right">'
+      +     '<span class="elapsed-text">' + escapeHtml(elapsedShort) + '</span>'
+      +     '<span class="progress-text">' + progress.toFixed(0) + '%</span>'
+      +   '</div>'
       + '</div>'
-      + '<div class="progress-summary-right">'
-      +   '<span class="elapsed-text">' + escapeHtml(elapsedShort) + '</span>'
-      +   '<span class="progress-text">' + progress.toFixed(0) + '%</span>'
+      + '<div class="compact-bar-thin">'
+      +   '<div class="compact-bar-thin-fill" style="width:' + progress.toFixed(1) + '%"></div>'
       + '</div>'
       + '</summary>';
     
     // 펼침 시 보이는 본문 (한 번에 모든 정보)
-    var html = '<details class="progress-rich-card" data-tier="' + escapeHtml(meta.tier || 'B') + '">'
+    var html = '<details class="progress-rich-card" data-tier="' + escapeHtml(meta.tier || 'B') + '" data-snapshot-id="' + escapeHtml(meta.snapshotId || '') + '">'
       + compactHeader
       + '<div class="progress-rich-body">'
       // 1. 진행률 바 (그라데이션)
@@ -8228,6 +8295,8 @@ window.addEventListener('load', async function(){
   var _baseline = null;
   var _currentFilter = 'all';
   var _searchQuery = '';
+  var _displayLimit = 20;     // [Phase 3.8] 알람 목록 페이지화 (기본 20개)
+  var _displayStep = 20;      // [Phase 3.8] 더보기 클릭 시 추가량
   var _currentSort = { col: 'time', dir: 'desc' };
   
   function renderAlarmTable(items) {
@@ -8332,7 +8401,9 @@ window.addEventListener('load', async function(){
     }).join('') + '</tr></thead>';
     
     var tbody = '<tbody>';
-    filtered.forEach(function(it){
+    // [Phase 3.8] 페이지화: 검색 X 시 displayLimit 만큼만 표시, 검색 O 시 전체
+    var displayItems = _searchQuery ? filtered : filtered.slice(0, _displayLimit);
+    displayItems.forEach(function(it){
       var td = _trackingMap[it.snapshotId];
       var status = (td && td.meta) ? td.meta.status : 'unknown';
       var summary = (td && td.summary) || null;
@@ -8364,7 +8435,28 @@ window.addEventListener('load', async function(){
     });
     tbody += '</tbody>';
     
-    wrapper.innerHTML = '<table class="alarm-table">' + thead + tbody + '</table>';
+    // [Phase 3.8] 더보기 버튼 (검색 X + 더 표시할 항목 있을 때만)
+    var moreBtnHtml = '';
+    if (!_searchQuery && filtered.length > _displayLimit) {
+      var remaining = filtered.length - _displayLimit;
+      var nextBatch = Math.min(_displayStep, remaining);
+      moreBtnHtml = '<div class="alarm-table-more-row">'
+        + '<button class="alarm-table-more-btn" id="alarmTableMoreBtn">'
+        + '더보기 (+' + nextBatch + ' / 남은 ' + remaining + '건)'
+        + '</button>'
+        + '</div>';
+    }
+    
+    wrapper.innerHTML = '<table class="alarm-table">' + thead + tbody + '</table>' + moreBtnHtml;
+    
+    // [Phase 3.8] 더보기 버튼 핸들러
+    var moreBtn = document.getElementById('alarmTableMoreBtn');
+    if (moreBtn) {
+      moreBtn.addEventListener('click', function(){
+        _displayLimit += _displayStep;
+        renderAlarmTable(_allItems);
+      });
+    }
     
     // 행 클릭 → 카드 펼침/접기
     var rows = wrapper.querySelectorAll('tbody tr');
@@ -8712,6 +8804,7 @@ window.addEventListener('load', async function(){
         if (!btn) return;
         var f = btn.getAttribute('data-filter');
         _currentFilter = f;
+        _displayLimit = 20; // [Phase 3.8] 필터 변경 시 페이지화 리셋
         // active 클래스 갱신
         filterContainer.querySelectorAll('.alarm-table-filter-btn').forEach(function(b){
           b.classList.remove('active');
@@ -8746,6 +8839,119 @@ window.addEventListener('load', async function(){
     if (outcomeTab && outcomeTab.classList.contains('active')) {
       loadAndRenderAll();
     }
+    
+    // [Phase 3.8] 60초 자동 갱신 — 추적 분석 탭이 보일 때만
+    var _autoRefreshTimer = null;
+    var _isPageVisible = !document.hidden;
+    
+    function isAnalyzerTabActive() {
+      var tab = document.getElementById('tab-outcome');
+      return tab && tab.classList.contains('active');
+    }
+    
+    function autoRefreshTracking() {
+      if (!_isPageVisible || !isAnalyzerTabActive()) return;
+      
+      // 펼친 카드 ID 수집 (복원용)
+      var openCardIds = [];
+      try {
+        var openCards = document.querySelectorAll('details.progress-rich-card[open]');
+        openCards.forEach(function(c){
+          var sid = c.getAttribute('data-snapshot-id');
+          if (sid) openCardIds.push(sid);
+        });
+      } catch(e) {}
+      
+      // 펼친 카드 samples 재요청 (캐시 무효화)
+      var samplePromises = openCardIds.map(function(sid){
+        return fetchTrackingData(sid, true).then(function(td){
+          if (td) _trackingMap[sid] = td;
+          return td;
+        });
+      });
+      
+      // 활성 추적 목록 갱신
+      var activeP = fetchTrackingActive();
+      
+      Promise.all([activeP].concat(samplePromises)).then(function(results){
+        var activeData = results[0];
+        if (activeData && activeData.active) {
+          activeData.active.forEach(function(item){
+            if (!_trackingMap[item.id]) {
+              _trackingMap[item.id] = {
+                meta: {
+                  tier: item.tier,
+                  status: 'active',
+                  tierAssignedAt: item.tierAssignedAt,
+                  snapshotId: item.id,
+                  base: (item.id || '').split('_')[0],
+                }
+              };
+            } else if (_trackingMap[item.id].meta) {
+              _trackingMap[item.id].meta.tier = item.tier;
+              _trackingMap[item.id].meta.tierAssignedAt = item.tierAssignedAt;
+            }
+          });
+        }
+        
+        // 분석기 섹션 다시 렌더
+        renderAnalyzerSection();
+        
+        // 펼친 상태 복원
+        setTimeout(function(){
+          openCardIds.forEach(function(sid){
+            try {
+              var card = document.querySelector('details.progress-rich-card[data-snapshot-id="' + sid + '"]');
+              if (card) card.open = true;
+            } catch(e) {}
+          });
+        }, 50);
+      }).catch(function(){
+        // silent fail (다음 갱신 때 재시도)
+      });
+    }
+    
+    function startAutoRefresh() {
+      if (_autoRefreshTimer) return;
+      _autoRefreshTimer = setInterval(autoRefreshTracking, 60 * 1000);
+    }
+    
+    function stopAutoRefresh() {
+      if (_autoRefreshTimer) {
+        clearInterval(_autoRefreshTimer);
+        _autoRefreshTimer = null;
+      }
+    }
+    
+    // Page Visibility API — 탭 안 보이면 갱신 X
+    document.addEventListener('visibilitychange', function(){
+      _isPageVisible = !document.hidden;
+      if (_isPageVisible && isAnalyzerTabActive()) {
+        startAutoRefresh();
+      } else {
+        stopAutoRefresh();
+      }
+    });
+    
+    // 페이지 진입 후 outcome 탭이면 자동 갱신 시작
+    if (isAnalyzerTabActive()) {
+      startAutoRefresh();
+    }
+    
+    // 탭 전환 시 (스캐너 ↔ 추적 분석)
+    var allTabs = document.querySelectorAll('.woos-tab');
+    allTabs.forEach(function(tab){
+      tab.addEventListener('click', function(){
+        // 탭 변경 직후 active 상태 확인
+        setTimeout(function(){
+          if (isAnalyzerTabActive() && _isPageVisible) {
+            startAutoRefresh();
+          } else {
+            stopAutoRefresh();
+          }
+        }, 100);
+      });
+    });
   });
   
 })(typeof window !== 'undefined' ? window : this);
