@@ -2775,6 +2775,8 @@ body.scan-complete .main-logo,
 .outcome-error { display: none !important; }
 .outcome-loading { display: none !important; }
 .outcome-unit-toggle { display: none !important; }
+/* [Phase 3.6] outcome-meta-text 숨김 — "오류" 텍스트 제거 */
+.outcome-meta-text { display: none !important; }
 /* outcome 동적 콘텐츠가 outcome-section 으로 채워지면 숨김 (분석기 영역 제외) */
 #outcomeContent .outcome-section { display: none !important; }
 
@@ -3275,6 +3277,98 @@ body.scan-complete .main-logo,
   background: var(--bg-card);
   border-radius: 4px;
 }
+
+/* [Phase 3.6] 컴팩트 모드 — details 기반 한 줄 요약 */
+details.analyzer-progress-card {
+  padding: 0;
+  margin: 4px 0;
+  background: var(--bg-card);
+  border: 1px solid rgba(0, 212, 255, 0.2);
+  border-radius: 6px;
+  overflow: hidden;
+}
+details.analyzer-progress-card[data-tier="A"] { border-left: 3px solid #7c3aed; }
+details.analyzer-progress-card[data-tier="B"] { border-left: 3px solid #2563eb; }
+details.analyzer-progress-card[data-tier="C"] { border-left: 3px solid #6b7280; }
+
+details.analyzer-progress-card > summary.progress-compact-summary {
+  list-style: none;
+  cursor: pointer;
+  padding: 8px 12px;
+  font-size: 12px;
+  font-family: var(--mono);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  user-select: none;
+  color: var(--text-primary);
+  transition: background .12s;
+}
+details.analyzer-progress-card > summary::-webkit-details-marker { display: none; }
+details.analyzer-progress-card > summary::marker { display: none; }
+details.analyzer-progress-card > summary.progress-compact-summary:hover {
+  background: rgba(0, 212, 255, 0.05);
+}
+details.analyzer-progress-card[open] > summary.progress-compact-summary {
+  background: rgba(0, 212, 255, 0.05);
+  border-bottom: 1px solid var(--border);
+}
+details.analyzer-progress-card > summary.progress-compact-summary::after {
+  content: '▼';
+  margin-left: auto;
+  font-size: 9px;
+  color: var(--text-muted);
+  transition: transform .15s;
+}
+details.analyzer-progress-card[open] > summary.progress-compact-summary::after {
+  transform: rotate(180deg);
+}
+
+.analyzer-progress-card .tier-mini {
+  display: inline-block;
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-size: 9px;
+  font-weight: 700;
+  background: var(--bg-panel);
+  color: var(--text-secondary);
+}
+.analyzer-progress-card .tier-mini.tier-a { background: rgba(124, 58, 237, 0.2); color: #a78bfa; }
+.analyzer-progress-card .tier-mini.tier-b { background: rgba(37, 99, 235, 0.2); color: #60a5fa; }
+.analyzer-progress-card .tier-mini.tier-c { background: rgba(107, 114, 128, 0.2); color: #9ca3af; }
+
+.analyzer-progress-card .elapsed-mini {
+  font-size: 10px;
+  color: var(--text-secondary);
+}
+.analyzer-progress-card .progress-mini {
+  font-size: 10px;
+  color: var(--accent-cyan);
+  font-weight: 600;
+}
+
+.analyzer-progress-card .progress-detail-body {
+  padding: 12px;
+}
+
+/* Phase 3.5 의 내부 progress-* 요소들은 progress-detail-body 안에서 그대로 사용 */
+details.analyzer-progress-card details.progress-deeper {
+  margin-top: 8px;
+}
+details.analyzer-progress-card details.progress-deeper summary {
+  cursor: pointer;
+  color: var(--text-secondary);
+  font-size: 11px;
+  user-select: none;
+  padding: 4px 0;
+}
+details.analyzer-progress-card details.progress-deeper[open] > summary { color: var(--accent-cyan); }
+details.analyzer-progress-card details.progress-deeper > div {
+  padding: 8px 0;
+  border-top: 1px solid var(--border);
+  margin-top: 8px;
+}
 /* [END MODULE: phase35_visualization_css] */
 
 </style>
@@ -3313,10 +3407,10 @@ body.scan-complete .main-logo,
   <nav class="woos-tabs" id="woosTabs">
     <button class="woos-tab active" data-tab="scanner"
       onclick="switchTab('scanner')">📡 스캐너</button>
-    <button class="woos-tab" data-tab="snapshot"
+    <button class="woos-tab" data-tab="snapshot" style="display:none"
       onclick="switchTab('snapshot')">📷 스냅샷</button>
     <button class="woos-tab" data-tab="outcome"
-      onclick="switchTab('outcome')">📊 24H Outcome
+      onclick="switchTab('outcome')">📊 추적 분석
       <span class="woos-tab-badge" id="outcomeTabBadge" style="display:none">0</span>
     </button>
   </nav>
@@ -3653,8 +3747,7 @@ body.scan-complete .main-logo,
     <!-- [MODULE: phase34_analyzer_html] — 분석기 섹션 (Phase 3.4) -->
     <div class="analyzer-section" id="analyzerSection">
       <div class="analyzer-section-title">
-        📊 분석기
-        <span class="ko">— v1.3 패턴 분석 (R1: 평가 X, 사후 기록만)</span>
+        📊 추적 분석
       </div>
       <div id="analyzerContent">
         <div class="analyzer-loading">분석기 로드 중...</div>
@@ -5128,9 +5221,9 @@ function estimateAccumulationCostRange(candles, box, atr) {
   if (inner.length < 3) {
     var ctr = (box.high + box.low) / 2;
     return {
-      low:        parseFloat((ctr - atr * 0.5).toFixed(4)),
-      center:     parseFloat(ctr.toFixed(4)),
-      high:       parseFloat((ctr + atr * 0.5).toFixed(4)),
+      low:        smartFixed(ctr - atr * 0.5),
+      center:     smartFixed(ctr),
+      high:       smartFixed(ctr + atr * 0.5),
       confidence: '낮음'
     };
   }
@@ -5168,9 +5261,9 @@ function estimateAccumulationCostRange(candles, box, atr) {
   }
 
   return {
-    low:        parseFloat((center - atr * 0.5).toFixed(4)),
-    center:     parseFloat(center.toFixed(4)),
-    high:       parseFloat((center + atr * 0.5).toFixed(4)),
+    low:        smartFixed(center - atr * 0.5),
+    center:     smartFixed(center),
+    high:       smartFixed(center + atr * 0.5),
     confidence: conf
   };
 }
@@ -5192,9 +5285,9 @@ function estimateDistributionTargets(costCenter, atr, box) {
   var t3 = Math.max(costCenter * 2.10, t2 * 1.15);
 
   return {
-    target1: parseFloat(t1.toFixed(4)),
-    target2: parseFloat(t2.toFixed(4)),
-    target3: parseFloat(t3.toFixed(4)),
+    target1: smartFixed(t1),
+    target2: smartFixed(t2),
+    target3: smartFixed(t3),
     note:    '1차: 박스 상단 돌파 이후 / 2차: 메인 분배 / 3차: 과열 확장'
   };
 }
@@ -6819,18 +6912,49 @@ function formatPriceByExchange(value, exchange){
   if(value===null||value===undefined) return '-';
   var num = Number(value);
   if(isNaN(num)||!isFinite(num)) return '-';
+  var abs = Math.abs(num);
   if(exchange==='UPBIT'||exchange==='BITHUMB'){
+    // [Phase 3.6] 한국 거래소도 소수점 코인 대응
+    if (abs > 0 && abs < 1) {
+      if (abs >= 0.01) return num.toLocaleString('en-US',{minimumFractionDigits:4, maximumFractionDigits:4});
+      if (abs >= 0.0001) return num.toLocaleString('en-US',{minimumFractionDigits:6, maximumFractionDigits:6});
+      return num.toLocaleString('en-US',{minimumFractionDigits:8, maximumFractionDigits:8});
+    }
     return num.toLocaleString('en-US',{minimumFractionDigits:1, maximumFractionDigits:1});
   }
   if(exchange==='BINANCE'){
-    return num < 1
-      ? num.toLocaleString('en-US',{minimumFractionDigits:5, maximumFractionDigits:5})
-      : num.toLocaleString('en-US',{minimumFractionDigits:2, maximumFractionDigits:2});
+    // [Phase 3.6] 매우 작은 가격 (PEPE/SHIB 등) 대응
+    if (abs > 0 && abs < 0.0001) return num.toLocaleString('en-US',{minimumFractionDigits:8, maximumFractionDigits:8});
+    if (abs > 0 && abs < 0.01) return num.toLocaleString('en-US',{minimumFractionDigits:6, maximumFractionDigits:6});
+    if (abs > 0 && abs < 1) return num.toLocaleString('en-US',{minimumFractionDigits:5, maximumFractionDigits:5});
+    return num.toLocaleString('en-US',{minimumFractionDigits:2, maximumFractionDigits:2});
   }
   return num.toLocaleString('en-US',{minimumFractionDigits:2, maximumFractionDigits:4});
 }
 
-function formatPrice(p){if(!p||isNaN(p))return'-';if(p>=1000000)return p.toLocaleString('ko-KR',{maximumFractionDigits:0});if(p>=100)return p.toLocaleString('ko-KR',{maximumFractionDigits:2});if(p>=1)return p.toFixed(4);return p.toFixed(8);}
+function formatPrice(p){
+  if(!p||isNaN(p))return'-';
+  var abs = Math.abs(p);
+  if(p>=1000000)return p.toLocaleString('ko-KR',{maximumFractionDigits:0});
+  if(p>=100)return p.toLocaleString('ko-KR',{maximumFractionDigits:2});
+  if(p>=1)return p.toFixed(4);
+  // [Phase 3.6] 1 미만은 가격대별 동적 자릿수
+  if(abs>=0.01)return p.toFixed(6);
+  if(abs>=0.0001)return p.toFixed(8);
+  return p.toFixed(10);
+}
+
+// [Phase 3.6] 가격대별 동적 자릿수 (PEPE 같은 코인 대응)
+// estimateAccumulationCostRange / estimateDistributionTargets 의 toFixed(4) 대체
+function smartFixed(n) {
+  if (n == null || isNaN(n)) return n;
+  var abs = Math.abs(n);
+  if (abs === 0) return 0;
+  if (abs >= 1) return parseFloat(n.toFixed(4));
+  if (abs >= 0.01) return parseFloat(n.toFixed(6));
+  if (abs >= 0.0001) return parseFloat(n.toFixed(8));
+  return parseFloat(n.toFixed(10));
+}
 function formatPct(v){if(v===undefined||v===null||isNaN(v))return'-';v=parseFloat(v);return(v>=0?'+':'')+v.toFixed(2)+'%';}
 function escapeHtml(s){if(!s)return'';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 
@@ -7388,17 +7512,35 @@ window.addEventListener('load', async function(){
       });
     }
     
-    var html = '<div class="analyzer-progress-card" data-tier="' + escapeHtml(meta.tier || 'B') + '">'
-      + '<div class="progress-header">'
-      +   '<div>'
-      +     '<b>' + escapeHtml(symbol) + '</b> · 추적 중 '
-      +     renderTierBadge(meta.tier)
-      +   '</div>'
-      +   '<div class="progress-elapsed">'
-      +     escapeHtml(formatElapsed(elapsedMs)) + ' / 24h '
-      +     '<span class="progress-pct">(' + progress.toFixed(0) + '%)</span>'
-      +   '</div>'
-      + '</div>'
+    // [Phase 3.6] 컴팩트 모드 — 한 줄 요약 (details 닫힘 기본)
+    var pctSummary = '';
+    if (currentPct !== null) {
+      var pctStr = (currentPct >= 0 ? '+' : '') + currentPct.toFixed(2) + '%';
+      var pctCls = currentPct >= 0 ? 'ok-text' : 'neg-text';
+      pctSummary = ' <span class="' + pctCls + '">' + escapeHtml(pctStr) + '</span>';
+    }
+    var reachedSummary = reachedList.length > 0
+      ? ' <span class="ok-text">·' + reachedList.join('·') + '</span>'
+      : '';
+    var elapsedShort = (function(){
+      var h = Math.floor(elapsedMs / 3600000);
+      var m = Math.floor((elapsedMs % 3600000) / 60000);
+      return h + 'h' + m + 'm';
+    })();
+    
+    var compactHeader = '<summary class="progress-compact-summary">'
+      + '<b>' + escapeHtml(symbol) + '</b>'
+      + ' <span class="tier-mini tier-' + escapeHtml(meta.tier || 'B').toLowerCase() + '">' + escapeHtml(meta.tier || 'B') + '</span>'
+      + ' <span class="elapsed-mini">' + escapeHtml(elapsedShort) + '</span>'
+      + pctSummary
+      + reachedSummary
+      + ' <span class="progress-mini">(' + progress.toFixed(0) + '%)</span>'
+      + '</summary>';
+    
+    // 펼침 시 풍부한 정보 (Phase 3.5 핫픽스 내용)
+    var html = '<details class="analyzer-progress-card" data-tier="' + escapeHtml(meta.tier || 'B') + '">'
+      + compactHeader
+      + '<div class="progress-detail-body">'
       // 진행률 바
       + '<div class="progress-bar">'
       +   '<div class="progress-bar-fill" style="width:' + progress.toFixed(1) + '%"></div>'
@@ -7406,13 +7548,16 @@ window.addEventListener('load', async function(){
     
     // 현재 가격 정보
     if (currentPct !== null) {
-      var pctCls = currentPct >= 0 ? 'ok-text' : 'neg-text';
+      var pctCls2 = currentPct >= 0 ? 'ok-text' : 'neg-text';
       var sign = currentPct >= 0 ? '+' : '';
+      // Phase 3.6: 가격 표시는 formatPrice 활용 (PEPE 등 소수점 코인 정상)
+      var openStr = (typeof formatPrice === 'function') ? formatPrice(openPrice) : String(openPrice);
+      var curStr = (typeof formatPrice === 'function') ? formatPrice(currentPrice) : String(currentPrice);
       html += '<div class="progress-current">'
             + '<span class="label">현재:</span> '
-            + '<b class="' + pctCls + '">' + sign + currentPct.toFixed(2) + '%</b>'
+            + '<b class="' + pctCls2 + '">' + sign + currentPct.toFixed(2) + '%</b>'
             + ' <span class="small">'
-            + escapeHtml(String(openPrice)) + ' → ' + escapeHtml(String(currentPrice))
+            + escapeHtml(openStr) + ' → ' + escapeHtml(curStr)
             + '</span>'
             + '</div>';
     } else {
@@ -7432,16 +7577,15 @@ window.addEventListener('load', async function(){
     }
     
     if (tp1 && tp1.reached) {
-      statusParts.push('<span class="ok-text">🎯 TP1: ' + escapeHtml(String(tp1.elapsedMin)) + '분 도달</span>'.replace('🎯', '·'));
+      statusParts.push('<span class="ok-text">· TP1: ' + escapeHtml(String(tp1.elapsedMin)) + '분 도달</span>');
     } else {
       statusParts.push('<span class="muted">· TP1 미달</span>');
     }
     
     html += '<div class="progress-status">' + statusParts.join(' ') + '</div>';
     
-    // 펼치기 영역 (samples 있을 때만)
+    // 펼치기 영역 (samples 있을 때만) — 더 깊은 상세
     if (samples && samples.length > 0 && openPrice) {
-      // 현재까지의 maxRise / maxDrawdown
       var pricesArr = samples.map(function(s){ return s.price; }).filter(function(p){ return typeof p === 'number'; });
       if (pricesArr.length > 0) {
         var maxP = Math.max.apply(null, pricesArr);
@@ -7449,7 +7593,7 @@ window.addEventListener('load', async function(){
         var maxRiseSoFar = ((maxP - openPrice) / openPrice) * 100;
         var maxDDSoFar = ((minP - openPrice) / openPrice) * 100;
         
-        html += '<details>'
+        html += '<details class="progress-deeper">'
               + '<summary>상세 진행 상황</summary>'
               + '<div>'
               + '<div class="summary-row" style="font-size:11px">'
@@ -7468,11 +7612,11 @@ window.addEventListener('load', async function(){
           reachedList.forEach(function(t){
             var r = thresholds[t];
             var pct = parseFloat(t);
-            var pctCls2 = pct > 0 ? 'up' : 'down';
+            var pctCls3 = pct > 0 ? 'up' : 'down';
             html += '<div class="event-row">'
                   + '<span class="event-time">' + escapeHtml(formatMinSinceAlarm(r.elapsedMin)) + '</span>'
                   + '<span class="event-label">' + escapeHtml(t) + '% 도달</span>'
-                  + '<span class="event-value ' + pctCls2 + '">' + escapeHtml(formatPct(pct)) + '</span>'
+                  + '<span class="event-value ' + pctCls3 + '">' + escapeHtml(formatPct(pct)) + '</span>'
                   + '</div>';
           });
           if (tp1 && tp1.reached) {
@@ -7486,19 +7630,11 @@ window.addEventListener('load', async function(){
           html += '</div>';
         }
         
-        // BTC 메타 (있으면)
-        if (meta.marketContext && typeof meta.marketContext.btcSnapshotPrice === 'number') {
-          html += '<div style="margin:6px 0;font-size:11px">'
-                + '<span class="label">📍 알람 시점 BTC:</span> '
-                + escapeHtml(String(meta.marketContext.btcSnapshotPrice))
-                + '</div>';
-        }
-        
         html += '</div></details>';
       }
     }
     
-    html += '</div>';
+    html += '</div></details>';
     return html;
   }
   
