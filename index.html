@@ -3698,6 +3698,111 @@ details.alarm-table-section[open] > summary::after { transform: rotate(180deg); 
 .alarm-table-more-btn:active {
   transform: scale(0.98);
 }
+
+/* [Phase 3.9] 추적 분석 검색 + 정렬 + 페이지화 */
+.analyzer-tracking-header {
+  margin-bottom: 12px;
+}
+.tracking-count-line {
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-family: var(--mono);
+}
+.tracking-controls {
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px;
+  margin-bottom: 12px;
+}
+.tracking-search-row {
+  position: relative;
+  margin-bottom: 8px;
+}
+.tracking-search-input {
+  width: 100%;
+  padding: 8px 28px 8px 12px;
+  font-size: 13px;
+  background: var(--bg-card);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-family: inherit;
+  box-sizing: border-box;
+}
+.tracking-search-input:focus {
+  outline: none;
+  border-color: var(--accent-cyan);
+}
+.tracking-search-clear {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: transparent;
+  color: var(--text-muted);
+  border: none;
+  font-size: 14px;
+  cursor: pointer;
+  padding: 4px 8px;
+}
+.tracking-search-clear:hover { color: var(--text-primary); }
+.tracking-sort-row {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.tracking-sort-btn {
+  flex: 1;
+  min-width: 70px;
+  padding: 6px 8px;
+  font-size: 11px;
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all .12s;
+}
+.tracking-sort-btn:hover {
+  color: var(--text-primary);
+  border-color: rgba(0, 212, 255, 0.3);
+}
+.tracking-sort-btn.active {
+  background: rgba(0, 212, 255, 0.1);
+  color: var(--accent-cyan);
+  border-color: var(--accent-cyan);
+}
+.tracking-search-info {
+  margin-bottom: 8px;
+  padding: 6px 10px;
+  background: rgba(0, 212, 255, 0.06);
+  border-radius: 4px;
+  font-size: 11px;
+  color: var(--accent-cyan);
+}
+.tracking-more-row {
+  margin-top: 12px;
+  text-align: center;
+}
+.tracking-more-btn {
+  width: 100%;
+  padding: 10px 16px;
+  background: var(--bg-card);
+  color: var(--accent-cyan);
+  border: 1px solid rgba(0, 212, 255, 0.3);
+  border-radius: 6px;
+  font-size: 12px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all .15s;
+}
+.tracking-more-btn:hover {
+  background: rgba(0, 212, 255, 0.08);
+  border-color: var(--accent-cyan);
+}
+.tracking-more-btn:active { transform: scale(0.98); }
 /* [END MODULE: phase35_visualization_css] */
 
 </style>
@@ -4737,7 +4842,7 @@ async function opsDashboard() {
 // 탭 시 상세 팝업
 // ═══════════════════════════════════════════════════════════════
 
-var HTML_VERSION = 'v4.1.2';  // Phase 3.1.2 — UX hotfix (snapshot tab switch + state restore + ops cleanup + panel reorder)
+var HTML_VERSION = 'v4.9.0';  // Phase 3.9 — 실시간 fetch + 추적 카드 검색/정렬/페이지화 (Phase 3.6/3.7/3.8 누적)
 var _cachedBuildInfo = null;
 
 async function fetchBuildInfo() {
@@ -8711,12 +8816,21 @@ window.addEventListener('load', async function(){
     });
   }
   
-  // ══ 분석기 섹션 (Phase 3.4 호환) ══════════════════════════════
+  // ══ 분석기 섹션 (Phase 3.4 호환, Phase 3.9: 검색+정렬+페이지화) ══════════════════════════════
+  // [Phase 3.9] 추적 카드 검색/정렬/페이지화 상태
+  var _activeSearchQuery = '';
+  var _activeSortBy = 'progress';   // 'progress' | 'name' | 'time-new' | 'time-old'
+  var _activeDisplayLimit = 10;      // 기본 10개
+  var _activeDisplayStep = 10;       // 더보기 클릭 시 추가량
+  var _activeItemsCache = [];        // 추적 중 활성 목록 캐시 (정렬/검색용)
+  
   function renderAnalyzerSection() {
     var container = document.getElementById('analyzerContent');
     if (!container) return;
     
-    container.innerHTML = '<div class="analyzer-loading">분석기 로드 중...</div>';
+    if (!_activeItemsCache.length) {
+      container.innerHTML = '<div class="analyzer-loading">분석기 로드 중...</div>';
+    }
     
     return fetchTrackingActive().then(function(activeData){
       if (!activeData || !activeData.active) {
@@ -8730,42 +8844,236 @@ window.addEventListener('load', async function(){
         return;
       }
       var byTier = activeData.byTier || {};
-      var headerHtml = '<div class="small" style="margin-bottom:8px">'
-                     + '추적 중 <b>' + count + '</b>건 · '
-                     + 'Tier A: ' + (byTier.A || 0) + ' / '
-                     + 'Tier B: ' + (byTier.B || 0) + ' / '
-                     + 'Tier C: ' + (byTier.C || 0)
-                     + '</div>';
-      var fetchPromises = active.map(function(item){
-        // 추적 중 알람은 진행 상황 표시 위해 includeSamples=1 로 fetch
-        return fetchTrackingData(item.id, true).then(function(td){
-          if (!td) {
-            return {
-              meta: {
-                tier: item.tier,
-                status: 'active',
-                tierAssignedAt: item.tierAssignedAt,
-                snapshotId: item.id,
-                base: (item.id || '').split('_')[0],
-              }
-            };
-          }
-          // status 가 KV 의 meta 에서 오는데, active 면 그대로 (분석 미완료)
-          return td;
-        });
+      
+      // [Phase 3.9] active 항목 캐시 + 진행률 계산
+      _activeItemsCache = active.map(function(item){
+        var elapsedMs = Date.now() - (item.tierAssignedAt || 0);
+        var progress = Math.min(100, Math.max(0, (elapsedMs / (24*3600*1000)) * 100));
+        return {
+          id: item.id,
+          base: (item.id || '').split('_')[0],
+          tier: item.tier,
+          tierAssignedAt: item.tierAssignedAt,
+          progress: progress,
+        };
       });
-      return Promise.all(fetchPromises).then(function(results){
-        var cardsHtml = results.map(function(td){
-          return renderAnalyzerCard(td, _baseline);
-        }).join('');
-        container.innerHTML = headerHtml + cardsHtml;
+      
+      _renderActiveTrackingList(count, byTier);
+      
+      // 백그라운드에서 보이는 카드만 samples fetch (캐시 없는 것 우선)
+      _backgroundFetchVisible();
+    });
+  }
+  
+  // [Phase 3.9] 추적 중 목록 렌더 (검색+정렬+페이지화 적용)
+  function _renderActiveTrackingList(totalCount, byTier) {
+    var container = document.getElementById('analyzerContent');
+    if (!container) return;
+    
+    // 검색 필터
+    var filtered = _activeItemsCache;
+    if (_activeSearchQuery) {
+      var q = _activeSearchQuery.toUpperCase();
+      filtered = filtered.filter(function(it){
+        return (it.base || '').toUpperCase().indexOf(q) >= 0
+            || (it.id || '').toUpperCase().indexOf(q) >= 0;
+      });
+    }
+    
+    // 정렬
+    var sorted = filtered.slice();
+    if (_activeSortBy === 'progress') {
+      sorted.sort(function(a, b){ return b.progress - a.progress; });
+    } else if (_activeSortBy === 'name') {
+      sorted.sort(function(a, b){ return a.base.localeCompare(b.base); });
+    } else if (_activeSortBy === 'time-new') {
+      sorted.sort(function(a, b){ return b.tierAssignedAt - a.tierAssignedAt; });
+    } else if (_activeSortBy === 'time-old') {
+      sorted.sort(function(a, b){ return a.tierAssignedAt - b.tierAssignedAt; });
+    }
+    
+    // 페이지화 (검색 X 시만)
+    var displayItems = _activeSearchQuery ? sorted : sorted.slice(0, _activeDisplayLimit);
+    
+    // 헤더 (전체 카운트)
+    var headerHtml = '<div class="analyzer-tracking-header">'
+                   + '<div class="tracking-count-line">'
+                   +   '추적 중 <b>' + totalCount + '</b>건 · '
+                   +   'Tier A: ' + (byTier.A || 0) + ' / '
+                   +   'Tier B: ' + (byTier.B || 0) + ' / '
+                   +   'Tier C: ' + (byTier.C || 0)
+                   + '</div>'
+                   + '</div>';
+    
+    // 검색 + 정렬 컨트롤
+    var controlHtml = '<div class="tracking-controls">'
+                    + '<div class="tracking-search-row">'
+                    +   '<input type="text" class="tracking-search-input" id="trackingSearchInput" '
+                    +     'placeholder="🔍 코인명 검색" autocomplete="off" value="' + escapeHtml(_activeSearchQuery) + '"/>'
+                    +   '<button class="tracking-search-clear" id="trackingSearchClear" type="button" aria-label="검색 지우기">✕</button>'
+                    + '</div>'
+                    + '<div class="tracking-sort-row">'
+                    +   '<button class="tracking-sort-btn ' + (_activeSortBy === 'progress' ? 'active' : '') + '" data-sort="progress">진행률순</button>'
+                    +   '<button class="tracking-sort-btn ' + (_activeSortBy === 'name' ? 'active' : '') + '" data-sort="name">이름순</button>'
+                    +   '<button class="tracking-sort-btn ' + (_activeSortBy === 'time-new' ? 'active' : '') + '" data-sort="time-new">최신순</button>'
+                    +   '<button class="tracking-sort-btn ' + (_activeSortBy === 'time-old' ? 'active' : '') + '" data-sort="time-old">오래된순</button>'
+                    + '</div>'
+                    + '</div>';
+    
+    // 카드 렌더 (캐시된 trackingData 사용)
+    var cardsHtml;
+    if (displayItems.length === 0) {
+      cardsHtml = _activeSearchQuery
+        ? '<div class="analyzer-empty">검색 결과 없음 (' + escapeHtml(_activeSearchQuery) + ')</div>'
+        : '<div class="analyzer-empty">표시할 추적 항목 없음</div>';
+    } else {
+      cardsHtml = displayItems.map(function(item){
+        var td = _trackingMap[item.id] || {
+          meta: {
+            tier: item.tier,
+            status: 'active',
+            tierAssignedAt: item.tierAssignedAt,
+            snapshotId: item.id,
+            base: item.base,
+          }
+        };
+        return renderAnalyzerCard(td, _baseline);
+      }).join('');
+    }
+    
+    // 더보기 버튼 (검색 X + 더 표시할 것 있을 때만)
+    var moreBtnHtml = '';
+    if (!_activeSearchQuery && sorted.length > _activeDisplayLimit) {
+      var remaining = sorted.length - _activeDisplayLimit;
+      var nextBatch = Math.min(_activeDisplayStep, remaining);
+      moreBtnHtml = '<div class="tracking-more-row">'
+                  + '<button class="tracking-more-btn" id="trackingMoreBtn">'
+                  + '더보기 (+' + nextBatch + ' / 남은 ' + remaining + '건)'
+                  + '</button>'
+                  + '</div>';
+    }
+    
+    // 검색 결과 카운트
+    var searchInfo = '';
+    if (_activeSearchQuery) {
+      searchInfo = '<div class="tracking-search-info">'
+                 + '검색 결과 <b>' + filtered.length + '</b>건 / 전체 ' + totalCount + '건'
+                 + '</div>';
+    }
+    
+    container.innerHTML = headerHtml + controlHtml + searchInfo + cardsHtml + moreBtnHtml;
+    
+    // 이벤트 핸들러 바인딩
+    _bindActiveTrackingEvents();
+  }
+  
+  // [Phase 3.9] 검색 / 정렬 / 더보기 이벤트 바인딩
+  function _bindActiveTrackingEvents() {
+    var searchInput = document.getElementById('trackingSearchInput');
+    if (searchInput) {
+      // focus 유지: 입력 시점에 caret 위치 보존
+      searchInput.addEventListener('input', function(e){
+        _activeSearchQuery = e.target.value.trim();
+        _activeDisplayLimit = 10; // 검색 시작/변경 시 페이지화 리셋
+        // 헤더 정보가 필요한데 이미 알고 있는 캐시로 다시 그림
+        _rerenderActiveTrackingFromCache();
+        // focus 복원
+        var newInput = document.getElementById('trackingSearchInput');
+        if (newInput) {
+          newInput.focus();
+          var len = newInput.value.length;
+          newInput.setSelectionRange(len, len);
+        }
+      });
+    }
+    var searchClear = document.getElementById('trackingSearchClear');
+    if (searchClear) {
+      searchClear.addEventListener('click', function(){
+        _activeSearchQuery = '';
+        _activeDisplayLimit = 10;
+        _rerenderActiveTrackingFromCache();
+      });
+    }
+    var sortBtns = document.querySelectorAll('.tracking-sort-btn');
+    sortBtns.forEach(function(btn){
+      btn.addEventListener('click', function(){
+        _activeSortBy = btn.getAttribute('data-sort');
+        _activeDisplayLimit = 10;
+        _rerenderActiveTrackingFromCache();
       });
     });
+    var moreBtn = document.getElementById('trackingMoreBtn');
+    if (moreBtn) {
+      moreBtn.addEventListener('click', function(){
+        _activeDisplayLimit += _activeDisplayStep;
+        _rerenderActiveTrackingFromCache();
+        // 백그라운드 fetch (새로 보이는 카드들)
+        _backgroundFetchVisible();
+      });
+    }
+  }
+  
+  // [Phase 3.9] 캐시 데이터로 다시 렌더 (전체 데이터 fetch X)
+  function _rerenderActiveTrackingFromCache() {
+    if (!_activeItemsCache.length) return;
+    // tier 카운트 재계산
+    var byTier = { A: 0, B: 0, C: 0 };
+    _activeItemsCache.forEach(function(it){
+      if (byTier[it.tier] !== undefined) byTier[it.tier]++;
+    });
+    _renderActiveTrackingList(_activeItemsCache.length, byTier);
+  }
+  
+  // [Phase 3.9] 보이는 카드들 백그라운드 fetch
+  function _backgroundFetchVisible() {
+    // 화면에 펼쳐진 카드 우선
+    var openCards = document.querySelectorAll('details.progress-rich-card[open]');
+    var openIds = [];
+    openCards.forEach(function(c){
+      var sid = c.getAttribute('data-snapshot-id');
+      if (sid) openIds.push(sid);
+    });
+    
+    // 보이는 모든 카드 (펼친 + 닫힌)
+    var allCards = document.querySelectorAll('details.progress-rich-card');
+    var allIds = [];
+    allCards.forEach(function(c){
+      var sid = c.getAttribute('data-snapshot-id');
+      if (sid) allIds.push(sid);
+    });
+    
+    // 펼친 카드는 includeSamples=1, 닫힌 카드는 진행률만
+    openIds.forEach(function(sid){
+      fetchTrackingData(sid, true).then(function(td){
+        if (td) {
+          _trackingMap[sid] = td;
+          // 펼친 카드만 다시 렌더 (펼친 상태 유지)
+          _updateExpandedCard(sid);
+        }
+      }).catch(function(){});
+    });
+  }
+  
+  // [Phase 3.9] 단일 카드 갱신 (펼친 상태 유지)
+  function _updateExpandedCard(sid) {
+    var card = document.querySelector('details.progress-rich-card[data-snapshot-id="' + sid + '"]');
+    if (!card) return;
+    var td = _trackingMap[sid];
+    if (!td) return;
+    var wasOpen = card.open;
+    var newHtml = renderAnalyzerCard(td, _baseline);
+    var temp = document.createElement('div');
+    temp.innerHTML = newHtml;
+    var newCard = temp.firstElementChild;
+    if (newCard && card.parentNode) {
+      card.parentNode.replaceChild(newCard, card);
+      if (wasOpen) newCard.open = true;
+    }
   }
   
   // ══ 외부 노출 ══════════════════════════════════════════════
   global.WOOS_ANALYZER = {
-    BUILD_TAG: 'phase3.5-visualization-v3.5.0',
+    BUILD_TAG: 'phase3.9-rich-realtime-search-v3.9.0',
     loadAndRenderAll: loadAndRenderAll,
     renderAnalyzerSection: renderAnalyzerSection,
     renderAlarmTable: function(){ renderAlarmTable(_allItems); },
@@ -8840,6 +9148,27 @@ window.addEventListener('load', async function(){
       loadAndRenderAll();
     }
     
+    // [Phase 3.9] 추적 카드 펼침 즉시 fetch (이벤트 위임)
+    document.addEventListener('toggle', function(e){
+      var card = e.target;
+      if (!card || !card.classList || !card.classList.contains('progress-rich-card')) return;
+      if (!card.open) return;  // 닫힐 때는 무시
+      
+      var sid = card.getAttribute('data-snapshot-id');
+      if (!sid) return;
+      
+      // 캐시 우선 표시 (이미 렌더되어 있음 — 사용자에게 즉시 보임)
+      // 백그라운드에서 최신 fetch
+      fetchTrackingData(sid, true).then(function(td){
+        if (td) {
+          _trackingMap[sid] = td;
+          _updateExpandedCard(sid);
+        }
+      }).catch(function(){
+        // silent fail
+      });
+    }, true);  // capture phase (details toggle 이벤트는 bubbling X)
+    
     // [Phase 3.8] 60초 자동 갱신 — 추적 분석 탭이 보일 때만
     var _autoRefreshTimer = null;
     var _isPageVisible = !document.hidden;
@@ -8876,6 +9205,19 @@ window.addEventListener('load', async function(){
       Promise.all([activeP].concat(samplePromises)).then(function(results){
         var activeData = results[0];
         if (activeData && activeData.active) {
+          // [Phase 3.9] _activeItemsCache 갱신 (정렬/검색용)
+          _activeItemsCache = activeData.active.map(function(item){
+            var elapsedMs = Date.now() - (item.tierAssignedAt || 0);
+            var progress = Math.min(100, Math.max(0, (elapsedMs / (24*3600*1000)) * 100));
+            return {
+              id: item.id,
+              base: (item.id || '').split('_')[0],
+              tier: item.tier,
+              tierAssignedAt: item.tierAssignedAt,
+              progress: progress,
+            };
+          });
+          
           activeData.active.forEach(function(item){
             if (!_trackingMap[item.id]) {
               _trackingMap[item.id] = {
@@ -8894,8 +9236,8 @@ window.addEventListener('load', async function(){
           });
         }
         
-        // 분석기 섹션 다시 렌더
-        renderAnalyzerSection();
+        // [Phase 3.9] 캐시 기반 다시 렌더 (정렬/검색/페이지화 유지)
+        _rerenderActiveTrackingFromCache();
         
         // 펼친 상태 복원
         setTimeout(function(){
