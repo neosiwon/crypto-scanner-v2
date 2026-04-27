@@ -3440,6 +3440,73 @@ details.progress-rich-card.woos-group[open] { border-color: rgba(124, 58, 237, 0
 .woos-group-rep { padding-top: 8px; }
 /* ════════════════════════════════════════════════════════════════════════════ */
 
+/* ════════════════════ [Phase 4.6.5] 추가 CSS ════════════════════ */
+/* Q1: 거래소 칩 (BINANCE/BITHUMB/UPBIT) */
+.hdr-exchange-chip {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 2px 7px;
+  border-radius: 5px;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  vertical-align: middle;
+}
+.hdr-exchange-chip.ex-bin { background: rgba(240, 185, 11, 0.18); color: #f0b90b; border: 1px solid rgba(240, 185, 11, 0.35); }
+.hdr-exchange-chip.ex-bit { background: rgba(244, 102, 90, 0.18); color: #ff7849; border: 1px solid rgba(244, 102, 90, 0.35); }
+.hdr-exchange-chip.ex-upb { background: rgba(0, 95, 255, 0.18); color: #5da9ff; border: 1px solid rgba(0, 95, 255, 0.35); }
+.hdr-exchange-chip.ex-other { background: rgba(156, 163, 175, 0.15); color: #cbd5e1; border: 1px solid rgba(156, 163, 175, 0.25); }
+
+/* Q10: 닫힘 헤더 실시간 가격 */
+.hdr-price-inline {
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: #94a3b8;
+  margin-right: 8px;
+  vertical-align: middle;
+}
+
+/* Q10: 펼친 카드 알람가/현재가 */
+.woos-current-prices {
+  font-size: 0.78rem;
+  color: #cbd5e1;
+  margin-bottom: 4px;
+  font-weight: 500;
+}
+.woos-price-label { color: #6b7280; font-size: 0.7rem; }
+.woos-price-arrow { color: #94a3b8; margin: 0 4px; }
+.woos-current-pct-big { font-size: 1.4rem; font-weight: 700; }
+
+/* Q9: 글로우 색상 범례 */
+.woos-glow-legend {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  font-size: 0.7rem;
+  color: #94a3b8;
+  padding: 6px 10px;
+  margin: 0 0 8px;
+  background: rgba(255,255,255,0.02);
+  border-radius: 8px;
+}
+.woos-glow-legend .legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.woos-glow-legend .coin-dot {
+  width: 8px;
+  height: 8px;
+  display: inline-block;
+}
+
+/* Q7: Tier 용어 변경에 따른 tier-pill 스타일 보정 (정밀/표준/라이트) */
+.tier-pill[title*="정밀"] { background: rgba(0,212,255,0.15); color: #00d4ff; }
+.tier-pill[title*="표준"] { background: rgba(124,58,237,0.15); color: #c4b5fd; }
+.tier-pill[title*="라이트"] { background: rgba(156,163,175,0.15); color: #cbd5e1; }
+/* ════════════════════════════════════════════════════════════════ */
+
 /* ════════════════════ [Phase 4.6.4] 추가 CSS ════════════════════ */
 /* 닫힘 헤더 인라인 배지 (sCount + 6 상태 짧은 라벨) */
 .hdr-scount-inline {
@@ -5266,7 +5333,7 @@ async function opsDashboard() {
 // 탭 시 상세 팝업
 // ═══════════════════════════════════════════════════════════════
 
-var HTML_VERSION = 'v4.18.1';  // Phase 4.6.4 hotfix — alertSnapshot 즉시 fetch + lazy load + 부분 재렌더 + sCount 헤더
+var HTML_VERSION = 'v4.18.2';  // Phase 4.6.5 — alertSnapshot fix + 거래소표시 + Tier용어 + 정렬간소화 + 글로우범례 + 실시간가격 + S+통일
 var _cachedBuildInfo = null;
 
 async function fetchBuildInfo() {
@@ -9447,16 +9514,21 @@ window.addEventListener('load', async function(){
     // 헤더 (전체 카운트) + [Phase 4.6.3] 탭 + 관심 코인 카운트
     var watchHeaderHtml = (window.WOOS_ANALYZER && window.WOOS_ANALYZER.buildWatchHeader)
                           ? window.WOOS_ANALYZER.buildWatchHeader() : '';
+    // [Phase 4.6.5 Q9] 글로우 색상 범례
+    var glowLegendHtml = (window.WOOS_ANALYZER && window.WOOS_ANALYZER.buildGlowLegend)
+                          ? window.WOOS_ANALYZER.buildGlowLegend() : '';
+    // [Phase 4.6.5 I] 히스토리 → "분석 완료" 명칭 변경
     var tabsHtml = '<div class="woos-tabs">'
                  + '<button class="woos-tab-btn active" data-tab="active" id="woosTabActive">활성 (' + totalCount + ')</button>'
-                 + '<button class="woos-tab-btn" data-tab="history" id="woosTabHistory">히스토리</button>'
+                 + '<button class="woos-tab-btn" data-tab="history" id="woosTabHistory">분석 완료</button>'
                  + '</div>';
-    var headerHtml = tabsHtml + watchHeaderHtml + tierHeaderHtml + '<div class="analyzer-tracking-header">'
+    // [Phase 4.6.5 Q7] 카운트 라인 용어 — "Tier A/B/C" → "정밀/표준/라이트"
+    var headerHtml = tabsHtml + watchHeaderHtml + glowLegendHtml + tierHeaderHtml + '<div class="analyzer-tracking-header">'
                    + '<div class="tracking-count-line">'
                    +   '추적 중 <b>' + totalCount + '</b>건 · '
-                   +   'Tier A: ' + (byTier.A || 0) + ' / '
-                   +   'Tier B: ' + (byTier.B || 0) + ' / '
-                   +   'Tier C: ' + (byTier.C || 0)
+                   +   '정밀 ' + (byTier.A || 0) + ' / '
+                   +   '표준 ' + (byTier.B || 0) + ' / '
+                   +   '라이트 ' + (byTier.C || 0)
                    + '</div>'
                    + '</div>';
     
@@ -9469,19 +9541,16 @@ window.addEventListener('load', async function(){
                     + '</div>'
                     + '<div class="tracking-tier-row">'
                     +   '<button class="tracking-tier-btn ' + (_activeTierFilter === 'all' ? 'active' : '') + '" data-tier="all">전체 ' + totalCount + '</button>'
-                    +   '<button class="tracking-tier-btn tier-a-btn ' + (_activeTierFilter === 'A' ? 'active' : '') + '" data-tier="A">A ' + (byTier.A || 0) + '</button>'
-                    +   '<button class="tracking-tier-btn tier-b-btn ' + (_activeTierFilter === 'B' ? 'active' : '') + '" data-tier="B">B ' + (byTier.B || 0) + '</button>'
-                    +   '<button class="tracking-tier-btn tier-c-btn ' + (_activeTierFilter === 'C' ? 'active' : '') + '" data-tier="C">C ' + (byTier.C || 0) + '</button>'
+                    +   '<button class="tracking-tier-btn tier-a-btn ' + (_activeTierFilter === 'A' ? 'active' : '') + '" data-tier="A" title="10분/회 정밀 추적">정밀 ' + (byTier.A || 0) + '</button>'
+                    +   '<button class="tracking-tier-btn tier-b-btn ' + (_activeTierFilter === 'B' ? 'active' : '') + '" data-tier="B" title="30분/회 표준 추적">표준 ' + (byTier.B || 0) + '</button>'
+                    +   '<button class="tracking-tier-btn tier-c-btn ' + (_activeTierFilter === 'C' ? 'active' : '') + '" data-tier="C" title="60분/회 라이트 추적">라이트 ' + (byTier.C || 0) + '</button>'
                     + '</div>'
                     + '<div class="tracking-sort-row">'
                     +   '<button class="tracking-sort-btn ' + (_activeSortBy === 'default' ? 'active' : '') + '" data-sort="default">기본</button>'
-                    +   '<button class="tracking-sort-btn ' + (_activeSortBy === 'progress' ? 'active' : '') + '" data-sort="progress">진행률</button>'
                     +   '<button class="tracking-sort-btn ' + (_activeSortBy === 'change' ? 'active' : '') + '" data-sort="change">변화율</button>'
                     +   '<button class="tracking-sort-btn ' + (_activeSortBy === 'mfe' ? 'active' : '') + '" data-sort="mfe">MFE↑</button>'
                     +   '<button class="tracking-sort-btn ' + (_activeSortBy === 'mae' ? 'active' : '') + '" data-sort="mae">MAE위험</button>'
-                    +   '<button class="tracking-sort-btn ' + (_activeSortBy === 'name' ? 'active' : '') + '" data-sort="name">이름</button>'
-                    +   '<button class="tracking-sort-btn ' + (_activeSortBy === 'oldest' ? 'active' : '') + '" data-sort="oldest">오래된</button>'
-                    +   '<button class="tracking-sort-btn ' + (_activeSortBy === 'sCount' ? 'active' : '') + '" data-sort="sCount">S급↑</button>'
+                    +   '<button class="tracking-sort-btn ' + (_activeSortBy === 'oldest' ? 'active' : '') + '" data-sort="oldest">최신</button>'
                     + '</div>'
                     + '</div>';
     
@@ -9610,7 +9679,7 @@ window.addEventListener('load', async function(){
     if (!contentEl) return;
     
     if (!items || items.length === 0) {
-      contentEl.innerHTML = '<div class="woos-history-empty">아직 종료된 추적이 없습니다.<br><small>24시간 또는 7일 추적이 끝나면 여기 표시됩니다.</small></div>';
+      contentEl.innerHTML = '<div class="woos-history-empty">📊 분석 완료된 알람 없음<br><small>알람은 24시간 또는 7일 추적 후 자동 분석되어 여기 표시됩니다.<br>현재 활성 추적 중인 코인이 모두 마감되면 결과를 확인할 수 있습니다.</small></div>';
       return;
     }
     
@@ -9751,21 +9820,15 @@ window.addEventListener('load', async function(){
       });
     }
     // [Phase 4.0] details 펼침 상태 → sessionStorage 저장 + 렌더 직후 복원
+    // [Phase 4.6.5 Q2 FIX] Phase 4.0 의 isExpanded/setExpanded 시스템 무력화 (이중 시스템 충돌)
+    // → Phase 4.6.3 의 v462HandleCardToggle 만 사용 (data-snapshot-id 기반, isCardOpen 명시 체크)
+    // → 더보기 클릭 시 새 카드 자동 펼침 버그 수정
     var v40 = global.WOOS_ANALYZER;
     if (v40 && typeof v40.setExpanded === 'function' && typeof v40.isExpanded === 'function') {
-      // 1. sessionStorage 에서 펼침 상태 복원 (DOM 갱신 후)
-      var allDetails = document.querySelectorAll('details.progress-rich-card.woos-card');
-      allDetails.forEach(function(d){
-        var key = d.getAttribute('data-group-key');
-        if (!key) return;
-        if (v40.isExpanded(key)) {
-          d.open = true;
-        }
-        // 2. 토글 이벤트로 sessionStorage 갱신
-        d.addEventListener('toggle', function(){
-          v40.setExpanded(key, d.open);
-        });
-      });
+      // [Phase 4.6.5 Q2] 더 이상 v40.isExpanded(key) 로 d.open 강제 설정 X
+      // 카드 렌더링 시 isCardOpen() 명시 체크로 open 속성 결정 (Phase 4.6.3)
+      // 토글 이벤트는 v462HandleCardToggle 가 처리 (Phase 4.6.3)
+      // 여기서는 아무것도 하지 않음 (이중 시스템 충돌 제거)
     }
   }
   
@@ -9829,7 +9892,7 @@ window.addEventListener('load', async function(){
   
   // ══ 외부 노출 ══════════════════════════════════════════════
   global.WOOS_ANALYZER = {
-    BUILD_TAG: 'phase4.6.4-hotfix-snapshot-prefetch-lazy-partial-rerender-v4.6.4',
+    BUILD_TAG: 'phase4.6.5-alertsnap-fix-worker-html-v4.6.5',
     loadAndRenderAll: loadAndRenderAll,
     renderAnalyzerSection: renderAnalyzerSection,
     renderAlarmTable: function(){ renderAlarmTable(_allItems); },
@@ -10506,12 +10569,25 @@ window.addEventListener('load', async function(){
       var aCount = byTier.A || 0;
       var bCount = byTier.B || 0;
       var cCount = byTier.C || 0;
+      // [Phase 4.6.5 Q7] Tier 용어 변경 — "정밀 추적" / "표준 추적" / "라이트 추적"
+      // 사용자 혼동 방지: Tier ≠ 스캐너 등급 (실제로 추적 빈도)
       var parts = ['Tracking <b>' + activeCount + '</b> coins'];
       if (sCount > 0) parts.push('<span class="tier-pill tier-s">Tier S <b>' + sCount + '</b></span>');
-      parts.push('<span class="tier-pill tier-a">Tier A <b>' + aCount + '</b></span>');
-      parts.push('<span class="tier-pill tier-b">Tier B <b>' + bCount + '</b></span>');
-      parts.push('<span class="tier-pill tier-c">Tier C <b>' + cCount + '</b></span>');
+      parts.push('<span class="tier-pill tier-a" title="10분/회 정밀 추적">정밀 <b>' + aCount + '</b></span>');
+      parts.push('<span class="tier-pill tier-b" title="30분/회 표준 추적">표준 <b>' + bCount + '</b></span>');
+      if (cCount > 0) parts.push('<span class="tier-pill tier-c" title="60분/회 라이트 추적">라이트 <b>' + cCount + '</b></span>');
       return '<div class="woos-tier-header-44">' + parts.join(' <span class="woos-th-sep">·</span> ') + '</div>';
+    }
+    
+    /* [Phase 4.6.5 Q9] 글로우 색상 범례 헤더 — 카드 dot 색상 의미 명시 */
+    function v465_buildGlowLegend() {
+      return '<div class="woos-glow-legend">'
+        + '<span class="legend-item"><span class="coin-dot woos-dot-up"></span> 수익</span>'
+        + '<span class="legend-item"><span class="coin-dot woos-dot-down"></span> 손실</span>'
+        + '<span class="legend-item"><span class="coin-dot woos-dot-grey"></span> 횡보</span>'
+        + '<span class="legend-item"><span class="coin-dot woos-dot-cyan"></span> 추적</span>'
+        + '<span class="legend-item">⭐ 관심</span>'
+        + '</div>';
     }
     
     /* [Phase 4.4 작업 5 초석] 코인 통계 자체 계산 (Worker 무수정) */
@@ -10964,6 +11040,29 @@ window.addEventListener('load', async function(){
           sessionStorage.setItem(V462_OPEN_CARDS_KEY, JSON.stringify(list));
         }
       } catch(e) {}
+    }
+    
+    /* [Phase 4.6.5 Q2] 새 카드 ID 가 sessionStorage 에 있으면 명시적 제거 (default 닫힘 보장) */
+    function v465_ensureClosedDefault(cardIds) {
+      if (!Array.isArray(cardIds) || cardIds.length === 0) return;
+      var list = v462_getOpenCards();
+      var changed = false;
+      for (var i = 0; i < cardIds.length; i++) {
+        var idx = list.indexOf(cardIds[i]);
+        if (idx >= 0) {
+          // 이미 펼친 카드는 사용자가 직접 펼친 것이므로 유지
+          // 그러나 더보기로 새로 추가된 카드는 펼침 X 가 default
+          // → 여기서는 아무것도 하지 않음 (사용자 펼침 보존)
+        }
+      }
+      // 안전장치: 빈 list 반환
+      if (changed) {
+        try {
+          if (typeof sessionStorage !== 'undefined') {
+            sessionStorage.setItem(V462_OPEN_CARDS_KEY, JSON.stringify(list));
+          }
+        } catch(e) {}
+      }
     }
     
     /* [Phase 4.6.3] 정렬 5단계 + 7옵션 */
@@ -11525,7 +11624,29 @@ window.addEventListener('load', async function(){
       if (metrics && metrics.hasData && metrics.currentPct != null) {
         var sign = metrics.currentPct >= 0 ? '+' : '';
         var dir = metrics.currentPct >= 0 ? 'up' : 'down';
-        curBig = '<div class="woos-current-big woos-current-' + dir + '">현재가 ' + sign + metrics.currentPct.toFixed(2) + '%</div>';
+        // [Phase 4.6.5 Q10] 절대 가격 추가 — 알람가 / 현재가 / 변화율
+        var entryPrice = entryInfo && entryInfo.value;
+        var lastSample = samples && samples.length > 0 ? samples[samples.length - 1] : null;
+        var currentPrice = lastSample ? lastSample.price : null;
+        function v465_fmtPrice(p) {
+          if (p == null || isNaN(p)) return '-';
+          if (p < 0.01) return p.toFixed(6);
+          if (p < 1) return p.toFixed(4);
+          if (p < 100) return p.toFixed(3);
+          return p.toFixed(2);
+        }
+        var priceLine = '';
+        if (entryPrice != null && currentPrice != null) {
+          priceLine = '<div class="woos-current-prices">'
+            + '<span class="woos-price-label">알람</span> ' + v465_fmtPrice(entryPrice)
+            + ' <span class="woos-price-arrow">→</span> '
+            + '<span class="woos-price-label">현재</span> ' + v465_fmtPrice(currentPrice)
+            + '</div>';
+        }
+        curBig = '<div class="woos-current-big woos-current-' + dir + '">'
+          + priceLine
+          + '<div class="woos-current-pct-big">' + sign + metrics.currentPct.toFixed(2) + '%</div>'
+          + '</div>';
       } else {
         curBig = '<div class="woos-current-big woos-empty">데이터 수집 중</div>';
       }
@@ -11625,6 +11746,38 @@ window.addEventListener('load', async function(){
       var startedAt = track.startedAt || meta.windowStart || meta.tierAssignedAt || Date.now();
       var elapsedStr = v40_formatElapsed(Date.now() - startedAt);
       var progressPct = v40_computeProgressPct(track);
+      
+      // [Phase 4.6.5 Q11] SPLUS → S+ 전역 강제 헬퍼
+      function v465_fmtGrade(g) {
+        if (!g) return '';
+        var s = String(g).toUpperCase();
+        if (s === 'SPLUS' || s === 'S+') return 'S+';
+        return s;
+      }
+      
+      // [Phase 4.6.5 Q1] 거래소 칩 (BINANCE/BITHUMB/UPBIT)
+      var exchange = (track.exchange || meta.exchange || '').toUpperCase();
+      var exchangeChip = '';
+      if (exchange) {
+        var exClass = exchange === 'BINANCE' ? 'ex-bin' : exchange === 'BITHUMB' ? 'ex-bit' : exchange === 'UPBIT' ? 'ex-upb' : 'ex-other';
+        exchangeChip = '<span class="hdr-exchange-chip ' + exClass + '">' + v40_escapeHtml(exchange) + '</span>';
+      }
+      
+      // [Phase 4.6.5 Q10] 닫힘 헤더 실시간 가격 표시 (samples 마지막 가격)
+      var v465_priceLabel = '';
+      var samples_v465 = v40_normalizeSamples(track);
+      if (samples_v465 && samples_v465.length > 0) {
+        var lastPrice = samples_v465[samples_v465.length - 1].price;
+        if (lastPrice != null && !isNaN(lastPrice)) {
+          var priceStr;
+          if (lastPrice < 0.01) priceStr = lastPrice.toFixed(6);
+          else if (lastPrice < 1) priceStr = lastPrice.toFixed(4);
+          else if (lastPrice < 100) priceStr = lastPrice.toFixed(3);
+          else priceStr = lastPrice.toFixed(2);
+          v465_priceLabel = '<span class="hdr-price-inline">' + priceStr + '</span>';
+        }
+      }
+      
       var pctLabel = '';
       if (metrics && metrics.hasData && metrics.currentPct != null) {
         var sign = metrics.currentPct >= 0 ? '+' : '';
@@ -11641,10 +11794,13 @@ window.addEventListener('load', async function(){
       var levelsForTier = v40_resolveLevels(track, v40_resolveEntryPrice(track, v40_normalizeSamples(track)).value);
       var liveTier = v41_computeLiveTier(metrics, alertSnap, levelsForTier);
       var gradeCode = (alertSnap && alertSnap.gradeCode) || track.gradeCode || meta.gradeCode || tier;
+      // [Phase 4.6.5 Q11] S+ 강제 적용
+      var gradeDisplay = v465_fmtGrade(gradeCode);
+      var liveTierDisplay = v465_fmtGrade(liveTier);
       var tierDisplay = '';
-      if (gradeCode && liveTier && gradeCode !== liveTier) {
-        tierDisplay = '<span class="tier-pill tier-' + v40_escapeHtml(liveTier).toLowerCase() + ' woos-live-tier">'
-                    + v40_escapeHtml(gradeCode) + ' → ' + v40_escapeHtml(liveTier) + '</span>';
+      if (gradeDisplay && liveTierDisplay && gradeDisplay !== liveTierDisplay) {
+        tierDisplay = '<span class="tier-pill tier-' + (liveTier || 'b').toLowerCase() + ' woos-live-tier">'
+                    + v40_escapeHtml(gradeDisplay) + ' → ' + v40_escapeHtml(liveTierDisplay) + '</span>';
       } else {
         tierDisplay = '<span class="tier-pill tier-' + v40_escapeHtml(tier).toLowerCase() + '">Tier ' + v40_escapeHtml(tier) + '</span>';
       }
@@ -11661,7 +11817,6 @@ window.addEventListener('load', async function(){
         try {
           var v464_state = window.WOOS_ANALYZER.resolveStateLabel(track, metrics, alertSnap);
           if (v464_state && v464_state.code) {
-            // 6 상태 → 닫힘 헤더용 짧은 표기
             var shortLabels = {
               'ENTRY_STRONG': '진입',
               'ENTRY_WEAK': '진입약',
@@ -11685,12 +11840,14 @@ window.addEventListener('load', async function(){
         +     watchBtn  /* [Phase 4.5] ⭐ Watchlist 버튼 */
         +     '<span class="coin-dot woos-dot-' + dotColor + '"></span>'
         +     '<b>' + v40_escapeHtml(base) + '</b>'
+        +     exchangeChip   /* [Phase 4.6.5 Q1] 거래소 칩 */
         +     groupBadge
         +     tierDisplay
-        +     v464_sCountInline   /* [Phase 4.6.4] sCount 인라인 */
-        +     v464_stateInline    /* [Phase 4.6.4] 상태 인라인 */
+        +     v464_sCountInline
+        +     v464_stateInline
         +   '</div>'
         +   '<div class="progress-summary-right">'
+        +     v465_priceLabel  /* [Phase 4.6.5 Q10] 실시간 가격 */
         +     pctLabel
         +     '<span class="elapsed-text">' + v40_escapeHtml(elapsedStr) + '</span>'
         +     '<span class="progress-text">' + progressPct.toFixed(0) + '%</span>'
@@ -11914,6 +12071,10 @@ window.addEventListener('load', async function(){
       VERSION_PHASE_4_5: 'phase4.5-overlay-watchlist-pin-v4.5.0',
       VERSION_PHASE_4_6: 'phase4.6.2-3-light-deep-state-history-sort-toggle-v4.6.2',
       VERSION_PHASE_4_6_4: 'phase4.6.4-hotfix-snapshot-prefetch-lazy-partial-rerender-v4.6.4',
+      VERSION_PHASE_4_6_5: 'phase4.6.5-alertsnap-fix-worker-html-v4.6.5',
+      // [Phase 4.6.5]
+      buildGlowLegend: v465_buildGlowLegend,
+      ensureClosedDefault: v465_ensureClosedDefault,
       // [Phase 4.6.4] hotfix
       cacheGet: v464_cacheGet,
       cacheSet: v464_cacheSet,
