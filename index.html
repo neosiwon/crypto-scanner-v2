@@ -3440,6 +3440,44 @@ details.progress-rich-card.woos-group[open] { border-color: rgba(124, 58, 237, 0
 .woos-group-rep { padding-top: 8px; }
 /* ════════════════════════════════════════════════════════════════════════════ */
 
+/* ════════════════════ [Phase 4.6.4] 추가 CSS ════════════════════ */
+/* 닫힘 헤더 인라인 배지 (sCount + 6 상태 짧은 라벨) */
+.hdr-scount-inline {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 2px 6px;
+  border-radius: 6px;
+  background: rgba(245, 158, 11, 0.15);
+  color: #fbbf24;
+  font-size: 0.65rem;
+  font-weight: 700;
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  vertical-align: middle;
+}
+.hdr-state-inline {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 2px 6px;
+  border-radius: 6px;
+  font-size: 0.65rem;
+  font-weight: 700;
+  vertical-align: middle;
+}
+.hdr-state-inline.state-entry-strong { background: rgba(0,230,118,0.15); color: #00e676; border: 1px solid rgba(0,230,118,0.3); }
+.hdr-state-inline.state-entry-weak   { background: rgba(125,211,252,0.12); color: #7dd3fc; border: 1px solid rgba(125,211,252,0.25); }
+.hdr-state-inline.state-hold         { background: rgba(0,212,255,0.12); color: #00d4ff; border: 1px solid rgba(0,212,255,0.25); }
+.hdr-state-inline.state-wait         { background: rgba(156,163,175,0.10); color: #cbd5e1; border: 1px solid rgba(156,163,175,0.20); }
+.hdr-state-inline.state-risk         { background: rgba(255,152,0,0.15); color: #ffb74d; border: 1px solid rgba(255,152,0,0.30); }
+.hdr-state-inline.state-fake         { background: rgba(255,69,96,0.15); color: #ff7849; border: 1px solid rgba(255,69,96,0.30); }
+
+/* 4가지 상태 로딩 텍스트 */
+.woos-loading-state {
+  color: #94a3b8;
+  font-size: 0.78rem;
+  font-style: italic;
+}
+/* ════════════════════════════════════════════════════════════════ */
+
 /* ════════════════════ [Phase 4.6.2+3] 추가 CSS ════════════════════ */
 /* 6 상태 라벨 + 디테일 해석 */
 .woos-state-block { margin: 10px 0; padding: 10px 12px; border-radius: 8px; border-left: 3px solid; }
@@ -5228,7 +5266,7 @@ async function opsDashboard() {
 // 탭 시 상세 팝업
 // ═══════════════════════════════════════════════════════════════
 
-var HTML_VERSION = 'v4.18.0';  // Phase 4.6.2+3 — light/deep + 6상태 + 히스토리 + 정렬 + Tier하이브리드 + sessionStorage 토글
+var HTML_VERSION = 'v4.18.1';  // Phase 4.6.4 hotfix — alertSnapshot 즉시 fetch + lazy load + 부분 재렌더 + sCount 헤더
 var _cachedBuildInfo = null;
 
 async function fetchBuildInfo() {
@@ -5981,6 +6019,7 @@ function detectSMC(candles){
   var summary=signals.length===0?'〰️ SMC: 신호 없음':bull>bear?'📈 SMC: 상승 우세':bear>bull?'📉 SMC: 하락 우세':'〰️ SMC: 혼조';
   return{signals,summary,direction:bull>bear?'bull':bear>bull?'bear':'neutral'};
 }
+
 
 // ══════════════════════════════════════════════════════════════════
 // [v2 PATCH] 설명 레이어 함수 3개
@@ -9234,6 +9273,28 @@ window.addEventListener('load', async function(){
             };
           }
         });
+        
+        // [Phase 4.6.4] HOTFIX — 모든 active 코인 snapshotCache 에 prefetch (병렬)
+        // 사용자 운영 데이터: 51개 active 중 30개만 _trackingMap → 21개 빈 메타
+        // 해결: snapshotCache + prefetch 모든 active + lazy load on expand
+        if (typeof window !== 'undefined' && window.WOOS_ANALYZER && window.WOOS_ANALYZER.prefetchAllActive) {
+          window.WOOS_ANALYZER.prefetchAllActive(activeData.active).then(function(){
+            // prefetch 완료 시 cache 갱신됨 → 다음 카드 펼침/렌더 시 즉시 표시
+            // 추가로 active 카드 영역 재렌더 (한 번)
+            try {
+              if (typeof _renderActiveTrackingList === 'function' && _activeItemsCache && _activeItemsCache.length > 0) {
+                var byTier = { S: 0, A: 0, B: 0, C: 0 };
+                for (var k = 0; k < _activeItemsCache.length; k++) {
+                  var ti = _activeItemsCache[k].tier || 'B';
+                  byTier[ti] = (byTier[ti] || 0) + 1;
+                }
+                _renderActiveTrackingList(_activeItemsCache.length, byTier);
+              }
+            } catch(e) {
+              console.error('[v464_prefetch_render]', e);
+            }
+          });
+        }
       }
       
       // 각 스냅샷의 tracking 데이터 fetch (병렬, 일부만 — 성능 고려)
@@ -9372,6 +9433,8 @@ window.addEventListener('load', async function(){
       if (typeof window !== 'undefined') {
         window._activeItemsCache = _activeItemsCache;
         window._renderActiveTrackingList = _renderActiveTrackingList;
+        // [Phase 4.6.4] _trackingMap 전역 노출 — v464_rerenderSingleCard 가 접근
+        window._trackingMap = _trackingMap;
       }
     } catch(e) {}
     
@@ -9766,7 +9829,7 @@ window.addEventListener('load', async function(){
   
   // ══ 외부 노출 ══════════════════════════════════════════════
   global.WOOS_ANALYZER = {
-    BUILD_TAG: 'phase4.6.2-3-light-deep-state-history-sort-toggle-v4.6.2',
+    BUILD_TAG: 'phase4.6.4-hotfix-snapshot-prefetch-lazy-partial-rerender-v4.6.4',
     loadAndRenderAll: loadAndRenderAll,
     renderAnalyzerSection: renderAnalyzerSection,
     renderAlarmTable: function(){ renderAlarmTable(_allItems); },
@@ -10295,12 +10358,17 @@ window.addEventListener('load', async function(){
     }
     
     /* [Phase 4.4 작업 1] 스캐너 점수 시각화 HTML */
-    function v44_buildScoreVisualization(alertSnapshot) {
-      if (!alertSnapshot) {
-        return '<div class="woos-score-viz woos-empty">📊 스캐너 점수 — 데이터 수집 중</div>';
+    function v44_buildScoreVisualization(alertSnapshot, track) {
+      // [Phase 4.6.4] track 두 번째 인자 (snapshotId 추출용)
+      function _placeholder(what) {
+        var sid = track && (track.snapshotId || track.id || (track.meta && track.meta.snapshotId));
+        var ph = (sid && typeof v464_buildLoadingPlaceholder === 'function')
+          ? v464_buildLoadingPlaceholder(sid, what)
+          : (what + ' 수집 중');
+        return '<div class="woos-score-viz woos-empty">📊 ' + ph + '</div>';
       }
+      if (!alertSnapshot) return _placeholder('스캐너 점수');
       // alertSnapshot 안에 total / scoreSummary / strengths / weaknesses / conclusion 박제됨
-      // (Phase 4.1 이후 박제, 또는 사용자 운영 데이터에서 직접 접근)
       var total = alertSnapshot.total != null ? alertSnapshot.total : (alertSnapshot.score != null ? alertSnapshot.score : null);
       var summary = alertSnapshot.scoreSummary || '';
       var conclusion = (alertSnapshot.analysis && alertSnapshot.analysis.conclusion) || alertSnapshot.conclusion || '';
@@ -10308,7 +10376,7 @@ window.addEventListener('load', async function(){
       var weaknesses = (alertSnapshot.analysis && alertSnapshot.analysis.weaknesses) || alertSnapshot.weaknesses || [];
       
       if (total == null && !summary && !conclusion && (!strengths || strengths.length === 0)) {
-        return '<div class="woos-score-viz woos-empty">📊 스캐너 점수 — 데이터 수집 중</div>';
+        return _placeholder('스캐너 점수');
       }
       
       var parsed = v44_parseScoreSummary(summary);
@@ -11061,12 +11129,216 @@ window.addEventListener('load', async function(){
       return '';
     }
     
+    /* ═══════════════════════════════════════════════════════════════
+     * [Phase 4.6.4] snapshotCache + lazy load + 부분 재렌더 시스템
+     * 사용자 운영 데이터: 51개 active 중 30개만 _trackingMap → 21개 빈 메타
+     * 해결: 전역 snapshotCache + prefetch 모든 active + lazy load + 부분 재렌더
+     * ═══════════════════════════════════════════════════════════════ */
+    
+    /* 전역 snapshot cache — TTL 5분 */
+    var V464_CACHE_TTL_MS = 5 * 60 * 1000;
+    if (typeof window !== 'undefined') {
+      if (!window.__snapshotCache) window.__snapshotCache = {};
+      if (!window.__snapshotInflight) window.__snapshotInflight = {};
+    }
+    
+    function v464_cacheGet(snapshotId) {
+      if (typeof window === 'undefined' || !window.__snapshotCache) return null;
+      var entry = window.__snapshotCache[snapshotId];
+      if (!entry) return null;
+      // TTL 체크
+      if (Date.now() - entry.fetchedAt > V464_CACHE_TTL_MS) return null;
+      return entry.data;
+    }
+    
+    function v464_cacheSet(snapshotId, data) {
+      if (typeof window === 'undefined') return;
+      if (!window.__snapshotCache) window.__snapshotCache = {};
+      window.__snapshotCache[snapshotId] = {
+        data: data,
+        fetchedAt: Date.now(),
+      };
+    }
+    
+    function v464_cacheStatus(snapshotId) {
+      if (typeof window === 'undefined') return 'unknown';
+      var inflight = window.__snapshotInflight && window.__snapshotInflight[snapshotId];
+      if (inflight) return 'loading';
+      var cached = v464_cacheGet(snapshotId);
+      if (cached) {
+        var hasSnap = cached.meta && cached.meta.alertSnapshot;
+        return hasSnap ? 'loaded' : 'loaded-empty';
+      }
+      return 'unloaded';
+    }
+    
+    /* in-flight Promise 관리 — 동일 id 동시 fetch 충돌 방지 */
+    function v464_fetchSnapshot(snapshotId, opts) {
+      opts = opts || {};
+      if (typeof window === 'undefined' || !snapshotId) return Promise.resolve(null);
+      
+      // cache hit?
+      if (!opts.force) {
+        var cached = v464_cacheGet(snapshotId);
+        if (cached) return Promise.resolve(cached);
+      }
+      
+      // in-flight 동일 id Promise 있으면 재사용
+      if (window.__snapshotInflight && window.__snapshotInflight[snapshotId]) {
+        return window.__snapshotInflight[snapshotId];
+      }
+      
+      var workerBase = window.WORKER_BASE_URL || '';
+      // /tracking/{id}?includeSamples=1 으로 호출 (samples 포함 풀 데이터)
+      var url = workerBase + '/tracking/' + encodeURIComponent(snapshotId) + '?includeSamples=1';
+      
+      var promise = fetch(url)
+        .then(function(res){
+          if (!res.ok) throw new Error('HTTP ' + res.status);
+          return res.json();
+        })
+        .then(function(data){
+          if (data) v464_cacheSet(snapshotId, data);
+          if (window.__snapshotInflight) delete window.__snapshotInflight[snapshotId];
+          return data;
+        })
+        .catch(function(err){
+          if (window.__snapshotInflight) delete window.__snapshotInflight[snapshotId];
+          console.error('[v464_fetchSnapshot]', snapshotId, err);
+          return null;
+        });
+      
+      if (!window.__snapshotInflight) window.__snapshotInflight = {};
+      window.__snapshotInflight[snapshotId] = promise;
+      
+      return promise;
+    }
+    
+    /* 모든 active 코인 prefetch (병렬, 페이지 로드 직후 1회) */
+    function v464_prefetchAllActive(activeList) {
+      if (!Array.isArray(activeList) || activeList.length === 0) return Promise.resolve([]);
+      var promises = activeList.map(function(item){
+        var sid = item.id || item.snapshotId;
+        if (!sid) return null;
+        // cache miss 만 fetch
+        if (v464_cacheGet(sid)) return Promise.resolve(null);
+        return v464_fetchSnapshot(sid);
+      }).filter(Boolean);
+      return Promise.all(promises);
+    }
+    
+    /* 카드 부분 재렌더 — 단일 details outerHTML 교체 */
+    function v464_rerenderSingleCard(snapshotId) {
+      if (typeof document === 'undefined' || !snapshotId) return;
+      var detailsEl = document.querySelector('details[data-snapshot-id="' + snapshotId + '"]');
+      if (!detailsEl) {
+        // 그룹 키로도 시도
+        detailsEl = document.querySelector('details[data-group-key^="' + snapshotId + '"]');
+        if (!detailsEl) return;
+      }
+      // 펼침 상태 보존
+      var wasOpen = detailsEl.open === true;
+      
+      // 현재 cache 또는 _trackingMap 에서 데이터 조회
+      var cached = v464_cacheGet(snapshotId);
+      var trackingData = cached || (window._trackingMap && window._trackingMap[snapshotId]);
+      if (!trackingData) return;
+      
+      // active 리스트에서 item 찾기
+      var item = null;
+      var activeCache = window._activeItemsCache || [];
+      for (var i = 0; i < activeCache.length; i++) {
+        if (activeCache[i].id === snapshotId || activeCache[i].snapshotId === snapshotId) {
+          item = activeCache[i];
+          break;
+        }
+      }
+      if (!item) return;
+      
+      // _trackingMap 갱신 (cache 데이터 병합)
+      if (cached && window._trackingMap) {
+        var existingTd = window._trackingMap[snapshotId] || {};
+        window._trackingMap[snapshotId] = Object.assign({}, existingTd, cached, {
+          meta: Object.assign({}, existingTd.meta || {}, cached.meta || {}),
+        });
+      }
+      
+      // 카드 빌드
+      try {
+        var W = (typeof window !== 'undefined' && window.WOOS_ANALYZER) || null;
+        if (!W || typeof W.adaptItemToTrack !== 'function' || typeof W.groupTracks !== 'function' || typeof W.buildGroupCardHTML !== 'function') return;
+        
+        var td = window._trackingMap[snapshotId] || trackingData;
+        var track = W.adaptItemToTrack(item, td);
+        var groups = W.groupTracks([track]);
+        var newHTML = W.buildGroupCardHTML(groups[0], { isFirstRender: false });
+        
+        // outerHTML 교체
+        var temp = document.createElement('div');
+        temp.innerHTML = newHTML;
+        var newEl = temp.firstElementChild;
+        if (!newEl) return;
+        
+        // 펼침 상태 복원
+        if (wasOpen) newEl.setAttribute('open', '');
+        
+        detailsEl.parentNode.replaceChild(newEl, detailsEl);
+      } catch(e) {
+        console.error('[v464_rerenderSingleCard]', snapshotId, e);
+      }
+    }
+    
+    /* 카드 펼침 시 lazy load — cache miss 시 즉시 fetch + 재렌더 */
+    function v464_handleCardExpand(snapshotId) {
+      if (!snapshotId) return;
+      var cached = v464_cacheGet(snapshotId);
+      // cache hit + alertSnapshot 있으면 — 이미 최신
+      if (cached && cached.meta && cached.meta.alertSnapshot) return;
+      // 그 외에는 즉시 fetch + 재렌더
+      v464_fetchSnapshot(snapshotId).then(function(data){
+        if (data) v464_rerenderSingleCard(snapshotId);
+      });
+    }
+    
+    /* "데이터 수집 중" → 4가지 상태 텍스트 */
+    function v464_buildLoadingPlaceholder(snapshotId, what) {
+      what = what || '데이터';
+      var status = v464_cacheStatus(snapshotId);
+      if (status === 'loading') return '<span class="woos-loading-state">🔄 ' + v40_escapeHtml(what) + ' 로딩 중...</span>';
+      if (status === 'loaded-empty') return '<span class="woos-loading-state">' + v40_escapeHtml(what) + ' 정보 없음 (이전 추적)</span>';
+      if (status === 'unloaded') return '<span class="woos-loading-state">📡 ' + v40_escapeHtml(what) + ' 가져오는 중...</span>';
+      return '<span class="woos-loading-state">' + v40_escapeHtml(what) + ' 수집 중</span>';
+    }
+    
+    /* ═══════════════════════════════════════════════════════════════ */
+    
     /* ── Phase 4.0/4.1/4.2 함수들 ────────────── */
     function v41_getAlertSnapshot(track) {
       if (!track) return null;
+      // [Phase 4.1] track.alertSnapshot 직접 박제
       if (track.alertSnapshot && typeof track.alertSnapshot === 'object') return track.alertSnapshot;
       var meta = track.meta || (track.keys && track.keys.meta && track.keys.meta.value) || {};
+      // [Phase 4.1] meta.alertSnapshot 박제
       if (meta.alertSnapshot && typeof meta.alertSnapshot === 'object') return meta.alertSnapshot;
+      // [Phase 4.6.4] snapshotCache 조회 (cache hit 시 즉시 반환)
+      var sid = track.snapshotId || track.id || meta.snapshotId;
+      if (sid && typeof v464_cacheGet === 'function') {
+        var cached = v464_cacheGet(sid);
+        if (cached) {
+          var cmeta = cached.meta || {};
+          if (cmeta.alertSnapshot && typeof cmeta.alertSnapshot === 'object') return cmeta.alertSnapshot;
+          if (cached.alertSnapshot && typeof cached.alertSnapshot === 'object') return cached.alertSnapshot;
+        }
+        // [Phase 4.6.4] cache miss + 아직 fetch 안 함 → lazy fetch 트리거 (비동기, 결과는 다음 렌더에 반영)
+        if (typeof v464_fetchSnapshot === 'function' && typeof v464_cacheStatus === 'function') {
+          var status = v464_cacheStatus(sid);
+          if (status === 'unloaded') {
+            v464_fetchSnapshot(sid).then(function(data){
+              if (data && typeof v464_rerenderSingleCard === 'function') v464_rerenderSingleCard(sid);
+            });
+          }
+        }
+      }
       return null;
     }
     
@@ -11122,10 +11394,15 @@ window.addEventListener('load', async function(){
     }
     
     /* [Phase 4.1] 신호 근거 블록 HTML (C2 권장: 데이터 있는 줄만) */
-    function v41_buildSignalReasonBlock(alertSnapshot) {
+    function v41_buildSignalReasonBlock(alertSnapshot, track) {
       var lines = v41_deriveForceContext(alertSnapshot);
       if (!lines) {
-        return '<div class="woos-reason"><div class="woos-reason-title">신호 근거</div><div class="woos-reason-body woos-empty">데이터 수집 중</div></div>';
+        // [Phase 4.6.4] 4가지 상태 분기 (loading/unloaded/loaded-empty/unknown)
+        var sid = track && (track.snapshotId || track.id || (track.meta && track.meta.snapshotId));
+        var placeholder = (sid && typeof v464_buildLoadingPlaceholder === 'function')
+          ? v464_buildLoadingPlaceholder(sid, '신호 근거')
+          : '데이터 수집 중';
+        return '<div class="woos-reason"><div class="woos-reason-title">신호 근거</div><div class="woos-reason-body woos-empty">' + placeholder + '</div></div>';
       }
       var rowsHtml = lines.map(function(L){
         return '<div class="woos-reason-row"><span class="woos-reason-label">' + v40_escapeHtml(L.label) + '</span><span class="woos-reason-body">' + v40_escapeHtml(L.body) + '</span></div>';
@@ -11141,9 +11418,14 @@ window.addEventListener('load', async function(){
     }
     
     /* [Phase 4.1] 세력 판단 레이어 — alertSnapshot 데이터로 4줄 가공 */
-    function v41_buildForceContextBlock(alertSnapshot) {
+    function v41_buildForceContextBlock(alertSnapshot, track) {
       if (!alertSnapshot) {
-        return '<div class="woos-force"><div class="woos-force-title">세력 판단</div><div class="woos-force-body woos-empty">데이터 수집 중</div></div>';
+        // [Phase 4.6.4] 4가지 상태 분기
+        var sid = track && (track.snapshotId || track.id || (track.meta && track.meta.snapshotId));
+        var placeholder = (sid && typeof v464_buildLoadingPlaceholder === 'function')
+          ? v464_buildLoadingPlaceholder(sid, '세력 판단')
+          : '데이터 수집 중';
+        return '<div class="woos-force"><div class="woos-force-title">세력 판단</div><div class="woos-force-body woos-empty">' + placeholder + '</div></div>';
       }
       var s = alertSnapshot.structure || {};
       var v = alertSnapshot.volume || {};
@@ -11272,7 +11554,7 @@ window.addEventListener('load', async function(){
       var timelineHtml = v43_buildTimeline(metrics, advanced, levels);
       
       // [Phase 4.4] 점수 시각화 + 동적 브리핑 + 코인 통계 배지
-      var scoreVizHtml = v44_buildScoreVisualization(alertSnap);
+      var scoreVizHtml = v44_buildScoreVisualization(alertSnap, track);
       var briefingHtml = v44_buildBriefingBlock(track, alertSnap, metrics, advanced, levels);
       // 코인 통계 배지 — 전역 active 리스트 (window.__woosActiveTracks) 가 있으면 사용
       var allActive = (typeof window !== 'undefined' && window.__woosActiveTracks) ? window.__woosActiveTracks : [];
@@ -11323,13 +11605,13 @@ window.addEventListener('load', async function(){
         stateBlockHtml +                            /* [Phase 4.6.2] 6가지 상태 + 디테일 해석 */
         briefingHtml +                              /* [Phase 4.4] 동적 브리핑 (최상단) */
         '<div class="woos-progress"><div class="woos-progress-bar"><div class="woos-progress-fill" style="width:' + progressPct.toFixed(0) + '%"></div></div><div class="woos-progress-pct">' + progressPct.toFixed(0) + '%</div></div>' +
-        v41_buildSignalReasonBlock(alertSnap) +    /* [Phase 4.1] 신호 근거 */
+        v41_buildSignalReasonBlock(alertSnap, track) +    /* [Phase 4.1] 신호 근거 — Phase 4.6.4 track 추가 */
         metricsHtml + curBig +
         '<div class="woos-graph-wrap">' + svgChart + '</div>' +
         timelineHtml +                              /* [Phase 4.3] 도달 타임라인 */
         scoringTableHtml +                          /* [Phase 4.3] 스캐너 채점표 */
         scoreVizHtml +                              /* [Phase 4.4] 스캐너 점수 시각화 */
-        v41_buildForceContextBlock(alertSnap) +    /* [Phase 4.1] 세력 판단 */
+        v41_buildForceContextBlock(alertSnap, track) +    /* [Phase 4.1] 세력 판단 — Phase 4.6.4 track 추가 */
         '<div class="woos-strategies">' + stratA + stratB + '</div>' +
         '</div>';
     }
@@ -11366,6 +11648,36 @@ window.addEventListener('load', async function(){
       } else {
         tierDisplay = '<span class="tier-pill tier-' + v40_escapeHtml(tier).toLowerCase() + '">Tier ' + v40_escapeHtml(tier) + '</span>';
       }
+      // [Phase 4.6.4] 닫힘 헤더에 sCount 배지 표시 — Phase 4.6.1 박제값 활용
+      var v464_sCountInline = '';
+      var v464_sCount = meta.sCount24AtAlarm || 0;
+      if (v464_sCount >= 3) {
+        var v464_emoji = v464_sCount >= 5 ? ' 🔥' : '';
+        v464_sCountInline = '<span class="hdr-scount-inline">⚡S' + v464_sCount + v464_emoji + '</span>';
+      }
+      // [Phase 4.6.4] 닫힘 헤더에 6 상태 라벨 (간략 ver) — alertSnap 있을 때만
+      var v464_stateInline = '';
+      if (alertSnap && typeof window !== 'undefined' && window.WOOS_ANALYZER && window.WOOS_ANALYZER.resolveStateLabel) {
+        try {
+          var v464_state = window.WOOS_ANALYZER.resolveStateLabel(track, metrics, alertSnap);
+          if (v464_state && v464_state.code) {
+            // 6 상태 → 닫힘 헤더용 짧은 표기
+            var shortLabels = {
+              'ENTRY_STRONG': '진입',
+              'ENTRY_WEAK': '진입약',
+              'HOLD': '유지',
+              'WAIT': '대기',
+              'RISK': '위험',
+              'FAKE_PUMP': '주의',
+            };
+            var shortLabel = shortLabels[v464_state.code] || '';
+            if (shortLabel) {
+              v464_stateInline = '<span class="hdr-state-inline ' + v464_state.cls + '">' + v40_escapeHtml(shortLabel) + '</span>';
+            }
+          }
+        } catch(e) {}
+      }
+      
       return '<summary class="progress-compact-summary woos-summary">'
         + '<div class="compact-bg-progress" style="width:' + progressPct.toFixed(1) + '%"></div>'
         + '<div class="compact-content">'
@@ -11375,6 +11687,8 @@ window.addEventListener('load', async function(){
         +     '<b>' + v40_escapeHtml(base) + '</b>'
         +     groupBadge
         +     tierDisplay
+        +     v464_sCountInline   /* [Phase 4.6.4] sCount 인라인 */
+        +     v464_stateInline    /* [Phase 4.6.4] 상태 인라인 */
         +   '</div>'
         +   '<div class="progress-summary-right">'
         +     pctLabel
@@ -11599,6 +11913,16 @@ window.addEventListener('load', async function(){
       VERSION_PHASE_4_4: 'phase4.4-score-viz-briefing-tier-header-r1b-watchlist-v4.4.0',
       VERSION_PHASE_4_5: 'phase4.5-overlay-watchlist-pin-v4.5.0',
       VERSION_PHASE_4_6: 'phase4.6.2-3-light-deep-state-history-sort-toggle-v4.6.2',
+      VERSION_PHASE_4_6_4: 'phase4.6.4-hotfix-snapshot-prefetch-lazy-partial-rerender-v4.6.4',
+      // [Phase 4.6.4] hotfix
+      cacheGet: v464_cacheGet,
+      cacheSet: v464_cacheSet,
+      cacheStatus: v464_cacheStatus,
+      fetchSnapshot: v464_fetchSnapshot,
+      prefetchAllActive: v464_prefetchAllActive,
+      rerenderSingleCard: v464_rerenderSingleCard,
+      handleCardExpand: v464_handleCardExpand,
+      buildLoadingPlaceholder: v464_buildLoadingPlaceholder,
       // [Phase 4.6.2+3]
       hybridTier: v462_hybridTier,
       resolveTrackingMode: v462_resolveTrackingMode,
@@ -11732,6 +12056,10 @@ window.addEventListener('load', async function(){
         if (!window.WOOS_ANALYZER || typeof window.WOOS_ANALYZER.setCardOpen !== 'function') return;
         var isOpen = detailsEl.open === true;
         window.WOOS_ANALYZER.setCardOpen(cardId, isOpen);
+        // [Phase 4.6.4] 펼친 시점에 lazy load — cache miss 시 즉시 fetch + 부분 재렌더
+        if (isOpen && window.WOOS_ANALYZER.handleCardExpand) {
+          window.WOOS_ANALYZER.handleCardExpand(cardId);
+        }
       } catch(e) {
         console.error('[v462HandleCardToggle]', e);
       }
