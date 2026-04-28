@@ -3611,20 +3611,26 @@ details.progress-rich-card.woos-group[open] { border-color: rgba(124, 58, 237, 0
 .ct-mfe { color: #4ade80; }
 .ct-mae { color: #f87171; }
 
-/* ⓘ 아이콘 */
+/* ⓘ 아이콘 — [Phase 4.7 공사 4 — 3-3] 색상 #ffea00 + 글로우 */
 .info-icon {
   display: inline-flex; align-items: center; justify-content: center;
   width: 18px; height: 18px;
-  border: 1px solid rgba(125,211,252,0.4);
-  background: rgba(125,211,252,0.1);
-  color: #7dd3fc;
+  border: 1px solid rgba(255, 234, 0, 0.5);
+  background: rgba(255, 234, 0, 0.1);
+  color: #ffea00;
   border-radius: 50%;
   font-size: 0.7rem; font-weight: 700;
   cursor: pointer;
   padding: 0;
   margin-left: 4px;
+  text-shadow: 0 0 6px rgba(255, 234, 0, 0.6);
+  box-shadow: 0 0 4px rgba(255, 234, 0, 0.2);
+  transition: all 0.2s;
 }
-.info-icon:hover { background: rgba(125,211,252,0.25); }
+.info-icon:hover {
+  background: rgba(255, 234, 0, 0.25);
+  box-shadow: 0 0 10px rgba(255, 234, 0, 0.5);
+}
 
 /* Q11: ⓘ 모달 */
 .v47-info-modal-overlay {
@@ -3938,6 +3944,16 @@ details.progress-rich-card.woos-group[open] { border-color: rgba(124, 58, 237, 0
 /* 도달 타임라인 */
 .woos-timeline { margin: 12px auto; max-width: 480px; padding: 12px 8px; position: relative; }
 .woos-tl-line { position: absolute; top: 22px; left: 8%; right: 8%; height: 2px; background: rgba(255,255,255,0.08); border-radius: 1px; z-index: 0; }
+/* [Phase 4.7 공사 4 — 3-2] 도달 타임라인 헤더 (ⓘ 추가) */
+.woos-timeline-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+  font-size: 12px;
+  color: #94a3b8;
+  font-weight: 600;
+}
 .woos-tl-items { display: flex; justify-content: space-between; align-items: flex-start; position: relative; z-index: 1; }
 .woos-tl-item { display: flex; flex-direction: column; align-items: center; flex: 1; min-width: 0; }
 .woos-tl-dot { width: 12px; height: 12px; border-radius: 50%; background: rgba(255,255,255,0.15); margin-bottom: 6px; transition: all 0.3s; }
@@ -4079,6 +4095,142 @@ details.progress-rich-card > summary.progress-compact-summary {
   background: linear-gradient(90deg, var(--accent-cyan), var(--accent-green));
   transition: width .3s ease;
 }
+
+/* [Phase 4.7 공사 4 — 1-2] 관심 코인 진행률 바 — 네온 노랑 */
+.compact-bar-thin-fill.is-watch {
+  background: linear-gradient(90deg, #ffea00, #ffec40);
+  box-shadow: 0 0 6px rgba(255, 234, 0, 0.5);
+}
+
+/* [Phase 4.7 공사 4 — 1-1] "5분 전 데이터" 라벨 (헤더 작게) */
+.woos-sample-age {
+  display: inline-block;
+  font-size: 10px;
+  color: #6b7280;
+  margin-left: 6px;
+  font-weight: 400;
+  font-style: italic;
+}
+
+/* [Phase 4.7 공사 4 — 1-3] 관심 코인 잔여 시간 표시 */
+.woos-remaining-time {
+  display: inline-block;
+  font-size: 11px;
+  color: #ffea00;
+  margin-left: 6px;
+  font-weight: 600;
+  text-shadow: 0 0 4px rgba(255, 234, 0, 0.4);
+}
+.woos-remaining-time.woos-remaining-expired {
+  color: #ef4444;
+  text-shadow: 0 0 4px rgba(239, 68, 68, 0.4);
+}
+
+/* [Phase 4.7 공사 4 — 2-3] 가격 변화량 표시 (헤더) */
+.woos-price-delta {
+  display: inline-block;
+  font-size: 12px;
+  margin-right: 6px;
+  font-weight: 600;
+  font-family: var(--mono);
+}
+.woos-price-delta-up { color: #22c55e; }
+.woos-price-delta-down { color: #ef4444; }
+
+/* [Phase 4.7 공사 4 — 2-7] 자동 정밀 라벨 (헤더 작게, 회색) */
+.woos-auto-precise-label {
+  display: inline-block;
+  font-size: 10px;
+  color: #94a3b8;
+  margin-left: 4px;
+  font-weight: 400;
+  font-style: italic;
+  opacity: 0.85;
+}
+
+/* [Phase 4.7 공사 4 — 2-8] 모달 컴포넌트 (재사용 — 한도 알림 / 관심 OFF / ⓘ 정의)
+ * 사용자 결정 (P7=A): 같은 디자인 재사용
+ * z-index 10100 (기존 최대 10001 위)
+ */
+.woos-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  z-index: 10100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  animation: woos-modal-fade-in 0.2s ease-out;
+}
+@keyframes woos-modal-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.woos-modal-box {
+  background: linear-gradient(180deg, #1a1f2e, #0f1420);
+  border: 1px solid var(--accent-cyan);
+  border-radius: 12px;
+  padding: 20px;
+  max-width: 400px;
+  width: 100%;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5),
+              0 0 30px rgba(0, 212, 255, 0.2);
+  animation: woos-modal-slide-up 0.3s ease-out;
+}
+@keyframes woos-modal-slide-up {
+  from { transform: translateY(20px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+.woos-modal-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--accent-cyan);
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.woos-modal-message {
+  font-size: 14px;
+  color: #cbd5e1;
+  line-height: 1.6;
+  margin-bottom: 20px;
+}
+.woos-modal-btns {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+.woos-modal-btn {
+  padding: 10px 20px;
+  border-radius: 6px;
+  border: none;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.woos-modal-btn-cancel {
+  background: rgba(255, 255, 255, 0.06);
+  color: #cbd5e1;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+.woos-modal-btn-cancel:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+.woos-modal-btn-confirm {
+  background: var(--accent-cyan);
+  color: #0f1420;
+}
+.woos-modal-btn-confirm:hover {
+  background: #5cd6ff;
+}
+.woos-modal-btn-warn {
+  background: #f59e0b;
+  color: #0f1420;
+}
+
 details.progress-rich-card > summary::-webkit-details-marker { display: none; }
 details.progress-rich-card > summary::marker { display: none; }
 details.progress-rich-card > summary:hover { background: rgba(0, 212, 255, 0.04); }
@@ -5574,7 +5726,7 @@ async function opsDashboard() {
 // 탭 시 상세 팝업
 // ═══════════════════════════════════════════════════════════════
 
-var HTML_VERSION = 'v4.20.0';  // Phase 4.7 공사 2+3 — 그래프 + 시각화 + 분석 완료 강화
+var HTML_VERSION = 'v4.21.0';  // Phase 4.7 공사 4 라운드 1 — 헤더 정리 + 펼친 카드 정리 + 모달 컴포넌트
 var _cachedBuildInfo = null;
 
 async function fetchBuildInfo() {
@@ -5927,6 +6079,8 @@ function _renderSectionRow(label, row) {
   var s = row.success || 0, w = row.watch || 0, f = row.flat || 0, fa = row.fail || 0;
   var total = s + w + f + fa;
   var successRate = total > 0 ? ((s / total) * 100).toFixed(1) + '%' : '-';
+  // [Phase 4.7 공사 4 — 2-5] SPLUS → S+ 출력 표시 변환
+  var displayLabel = (label === 'SPLUS') ? 'S+' : label;
   var segs = '';
   if (total > 0) {
     if (s > 0)  segs += '<div style="flex:' + s  + ';background:#16a34a" title="SUCCESS ' + s + '"></div>';
@@ -5937,7 +6091,7 @@ function _renderSectionRow(label, row) {
     segs = '<div style="flex:1;background:rgba(0,0,0,.3)"></div>';
   }
   return '<div class="outcome-row">'
-    + '<div class="outcome-row-label">' + _outcomeEsc(label) + '</div>'
+    + '<div class="outcome-row-label">' + _outcomeEsc(displayLabel) + '</div>'
     + '<div class="outcome-row-bar">' + segs + '</div>'
     + '<div class="outcome-row-stats">' + total + '건 · ' + successRate + '</div>'
     + '</div>';
@@ -8195,9 +8349,10 @@ window.addEventListener('load', async function(){
   };
   
   var TIER_META = {
-    'A': { bg: '#7c3aed', label: 'Tier A · precise',  ko: '정밀 추적 (54 sample)' },
-    'B': { bg: '#2563eb', label: 'Tier B · precise',  ko: '표준 추적 (21 sample)' },
-    'C': { bg: '#6b7280', label: 'Tier C · inferred', ko: '최소 측정 (1h × 24)' },
+    // [Phase 4.7 공사 4 — 2-6] 영문 → 한글
+    'A': { bg: '#7c3aed', label: '정밀',  ko: '정밀 추적' },
+    'B': { bg: '#2563eb', label: '표준',  ko: '표준 추적' },
+    'C': { bg: '#6b7280', label: '라이트', ko: '라이트 (표시 X)' },
   };
   
   // KST 시간대 분류
@@ -9634,7 +9789,7 @@ window.addEventListener('load', async function(){
   // [Phase 3.9] 추적 카드 검색/정렬/페이지화 상태
   var _activeSearchQuery = '';
   var _activeSortBy = 'progress';   // [Phase 4.7 Q5] 'progress' | 'frequent' | 'rising' | 'falling' | 'sideways'
-  var _activeTierFilter = 'all';     // [Phase 3.11] 'all' | 'A' | 'B' | 'C'
+  var _activeTierFilter = 'all';     // [Phase 4.7 공사 4 — 2-2] 라이트(C) 삭제 — 'all' | 'A' | 'B'
   var _activeDisplayLimit = 10;      // 기본 10개
   var _activeDisplayStep = 10;       // 더보기 클릭 시 추가량
   var _activeItemsCache = [];        // 추적 중 활성 목록 캐시 (정렬/검색용)
@@ -9788,17 +9943,13 @@ window.addEventListener('load', async function(){
                  + '<button class="woos-tab-btn active" data-tab="active" id="woosTabActive">활성 (' + totalCount + ')</button>'
                  + '<button class="woos-tab-btn" data-tab="history" id="woosTabHistory">분석 완료</button>'
                  + '</div>';
-    // [Phase 4.6.5 Q7] 카운트 라인 용어 — "Tier A/B/C" → "정밀/표준/라이트"
-    var headerHtml = tabsHtml + watchHeaderHtml + glowLegendHtml + tierHeaderHtml + '<div class="analyzer-tracking-header">'
-                   + '<div class="tracking-count-line">'
-                   +   '추적 중 <b>' + totalCount + '</b>건 · '
-                   +   '정밀 ' + (byTier.A || 0) + ' / '
-                   +   '표준 ' + (byTier.B || 0) + ' / '
-                   +   '라이트 ' + (byTier.C || 0)
-                   + '</div>'
-                   + '</div>';
+    // [Phase 4.7 공사 4 — 2-1] 헤더 ⑤ "추적 중 N건 · 정밀/표준/라이트" 삭제
+    // 사용자 결정: ②④ 만 유지 (관심 코인 N개 / Tracking N coins · 정밀 N · 표준 N)
+    var headerHtml = tabsHtml + watchHeaderHtml + glowLegendHtml + tierHeaderHtml;
     
     // 검색 + 정렬 컨트롤
+    // [Phase 4.7 공사 4 — 2-2] 필터 라벨 — 라이트 삭제 (전체/정밀/표준만)
+    // 라이트 (Tier C) 는 1회 측정만이라 의미 X (사용자 결정)
     var controlHtml = '<div class="tracking-controls">'
                     + '<div class="tracking-search-row">'
                     +   '<input type="text" class="tracking-search-input" id="trackingSearchInput" '
@@ -9809,7 +9960,6 @@ window.addEventListener('load', async function(){
                     +   '<button class="tracking-tier-btn ' + (_activeTierFilter === 'all' ? 'active' : '') + '" data-tier="all">전체 ' + totalCount + '</button>'
                     +   '<button class="tracking-tier-btn tier-a-btn ' + (_activeTierFilter === 'A' ? 'active' : '') + '" data-tier="A" title="10분/회 정밀 추적">정밀 ' + (byTier.A || 0) + '</button>'
                     +   '<button class="tracking-tier-btn tier-b-btn ' + (_activeTierFilter === 'B' ? 'active' : '') + '" data-tier="B" title="30분/회 표준 추적">표준 ' + (byTier.B || 0) + '</button>'
-                    +   '<button class="tracking-tier-btn tier-c-btn ' + (_activeTierFilter === 'C' ? 'active' : '') + '" data-tier="C" title="60분/회 라이트 추적">라이트 ' + (byTier.C || 0) + '</button>'
                     + '</div>'
                     + '<div class="tracking-sort-row">'
                     +   '<button class="tracking-sort-btn ' + (_activeSortBy === 'progress' ? 'active' : '') + '" data-sort="progress">진행도</button>'
@@ -9885,6 +10035,21 @@ window.addEventListener('load', async function(){
     // 이벤트 핸들러 바인딩
     _bindActiveTrackingEvents();
     _bindTabEvents();
+    
+    // [Phase 4.7 공사 4 — 2-8] Tier A 한도 거부 모달 체크 (1회만)
+    // displayItems 중 tierARejected 있는 첫 카드 1개에 대해 모달 표시
+    try {
+      for (var trIdx = 0; trIdx < displayItems.length; trIdx++) {
+        var trItem = displayItems[trIdx];
+        if (trItem && trItem.tierARejected) {
+          if (typeof window !== 'undefined' && typeof window.WOOS_ANALYZER !== 'undefined' 
+              && typeof window.WOOS_ANALYZER.checkTierARejectedAndShowModal === 'function') {
+            window.WOOS_ANALYZER.checkTierARejectedAndShowModal(trItem);
+          }
+          break;  // 1개만
+        }
+      }
+    } catch(trErr) { /* 모달 실패 무시 */ }
   }
   
   // [Phase 4.6.3] 탭 전환 이벤트
@@ -10066,7 +10231,7 @@ window.addEventListener('load', async function(){
                        + '<div><b>스캐너 등급:</b> ' + escapeHtml(c.gradeCode || '?') + '</div>'
                        + (alertSnap.scoreSummary ? '<div><b>점수 요약:</b> ' + escapeHtml(alertSnap.scoreSummary) + '</div>' : '')
                        + '<div><b>추적 기간:</b> ' + (c.windowDays || 1) + '일</div>'
-                       + '<div><b>분석 모드:</b> ' + escapeHtml(c.trackingMode || 'light') + '</div>'
+                       + '<div><b>분석 모드:</b> ' + (c.trackingMode === 'deep' ? '정밀' : c.trackingMode === 'light' ? '라이트' : '표준') + '</div>'
                        + (alertSnap.analysis && alertSnap.analysis.conclusion ? '<div style="margin-top:8px;padding:8px;background:rgba(255,255,255,0.03);border-radius:6px"><b>스캐너 결론:</b> ' + escapeHtml(alertSnap.analysis.conclusion) + '</div>' : '')
                        + '</div>';
         bodyEl.innerHTML = detailHtml;
@@ -10115,7 +10280,10 @@ window.addEventListener('load', async function(){
     var tierBtns = document.querySelectorAll('.tracking-tier-btn');
     tierBtns.forEach(function(btn){
       btn.addEventListener('click', function(){
-        _activeTierFilter = btn.getAttribute('data-tier');
+        var tierVal = btn.getAttribute('data-tier');
+        // [Phase 4.7 공사 4 — 2-2] 라이트(C) 차단 — 라이트 버튼 자체 삭제됨, 만약 C 들어오면 all 로
+        if (tierVal === 'C') tierVal = 'all';
+        _activeTierFilter = tierVal;
         _activeDisplayLimit = 10;
         _rerenderActiveTrackingFromCache();
       });
@@ -10212,7 +10380,7 @@ window.addEventListener('load', async function(){
   
   // ══ 외부 노출 ══════════════════════════════════════════════
   global.WOOS_ANALYZER = {
-    BUILD_TAG: 'phase4.7-construction-2-3-graph-pattern-postmortem-v4.7.1',
+    BUILD_TAG: 'phase4.7-construction-4-round1-header-info-cleanup-v4.7.3',
     loadAndRenderAll: loadAndRenderAll,
     renderAnalyzerSection: renderAnalyzerSection,
     renderAlarmTable: function(){ renderAlarmTable(_allItems); },
@@ -10781,7 +10949,12 @@ window.addEventListener('load', async function(){
           + '</div>';
       }).join('');
       
-      return '<div class="woos-timeline"><div class="woos-tl-line"></div><div class="woos-tl-items">' + dotsHtml + '</div></div>';
+      return '<div class="woos-timeline">'
+           + '<div class="woos-timeline-header">'
+           +   '<span class="woos-timeline-title">도달 타임라인</span>'
+           + '<span class="info-icon" onclick="window.v47ShowInfoModal && window.v47ShowInfoModal(\'reach-timeline\')" title="도달 타임라인 — 알람 후 +3/+5/TP1/MFE/MAE 까지 시간">ⓘ</span>'
+           + '</div>'
+           + '<div class="woos-tl-line"></div><div class="woos-tl-items">' + dotsHtml + '</div></div>';
     }
     
     /* ── 블록 4: Tracking card UI ────────────────── */
@@ -12065,7 +12238,11 @@ window.addEventListener('load', async function(){
       var base = item.base || '?';
       var exchange = item.exchange || '?';
       var grade = (item.gradeCode || '').toUpperCase();
-      var gradeLabel = item.gradeLabel || grade;
+      // [Phase 4.7 공사 4 — 2-5] SPLUS → S+ 출력 표시
+      var gradeDisplay = (grade === 'SPLUS') ? 'S+' : grade;
+      var gradeLabel = item.gradeLabel || gradeDisplay;
+      // gradeLabel 도 SPLUS 가 들어 있을 수 있음
+      if (gradeLabel === 'SPLUS') gradeLabel = 'S+';
       var mfe = item.maxRise != null ? item.maxRise : 0;
       var mae = item.maxDrop != null ? item.maxDrop : 0;
       var pattern = item.pattern || '';
@@ -12080,6 +12257,14 @@ window.addEventListener('load', async function(){
       var outcome = item.outcome || (mfe >= 5 ? 'success' : mfe >= 3 ? 'partial' : mae <= -3 ? 'fail' : 'neutral');
       var outcomeLabel = { success: '✅ 성공', partial: '🟡 부분', neutral: '⚪ 중립', fail: '🔴 실패' }[outcome] || '⚪ 중립';
       
+      // [Phase 4.7 공사 4 — 2-7] 자동 정밀 라벨 (분석 완료 카드)
+      // 조건: item.isAutoPrecise === true (Worker 박제됨)
+      // Worker 측 completed 박제 추가됨 (W3=A 결정)
+      var autoPreciseLabel = '';
+      if (item.isAutoPrecise) {
+        autoPreciseLabel = '<span class="woos-auto-precise-label">(자동 정밀)</span>';
+      }
+      
       var openAttr = isOpen ? ' open' : '';
       return '<details class="woos-history-card"' + openAttr + ' data-id="' + v40_escapeHtml(item.id) + '" ontoggle="window.v462HandleHistoryToggle(event, this)">'
         + '<summary class="woos-history-summary">'
@@ -12089,6 +12274,7 @@ window.addEventListener('load', async function(){
         +     '<span class="hist-exchange">' + v40_escapeHtml(exchange) + '</span>'
         +     '<span class="hist-grade hist-grade-' + grade + '">' + v40_escapeHtml(gradeLabel) + '</span>'
         +     '<span class="hist-outcome">' + outcomeLabel + '</span>'
+        +     autoPreciseLabel
         +   '</div>'
         +   '<div class="hist-row2">'
         +     '<span class="hist-mfe">MFE +' + mfe.toFixed(2) + '%</span>'
@@ -12538,19 +12724,39 @@ window.addEventListener('load', async function(){
         var entryPrice = entryInfo && entryInfo.value;
         var lastSample = samples && samples.length > 0 ? samples[samples.length - 1] : null;
         var currentPrice = lastSample ? lastSample.price : null;
-        function v465_fmtPrice(p) {
+        // [Phase 4.7 공사 4 — 2-4] 가격 포맷 — 거래소별 자동 변환
+        // 사용자 결정 (W1=B): BINANCE BTC 페어만 사토시, USDT 페어는 소수점
+        // BITHUMB / UPBIT: 원화 (10000+ K/M 변환)
+        function v465_fmtPrice(p, exchange, base) {
           if (p == null || isNaN(p)) return '-';
-          if (p < 0.01) return p.toFixed(6);
+          var ex = (exchange || '').toUpperCase();
+          var bs = (base || '').toUpperCase();
+          // BINANCE BTC 페어 + 0.01 미만 → 사토시 표시 (1 사토시 = 0.00000001)
+          if (ex === 'BINANCE' && bs === 'BTC' && p < 0.01 && p > 0) {
+            var sat = Math.round(p * 100000000);  // BTC → 사토시
+            return sat + ' sat';
+          }
+          // BITHUMB / UPBIT — 원화 단위
+          if (ex === 'BITHUMB' || ex === 'UPBIT') {
+            var absP = Math.abs(p);
+            if (absP >= 1000000) return (p / 1000000).toFixed(2) + 'M';
+            if (absP >= 10000) return (p / 1000).toFixed(1) + 'K';
+            return Math.round(p).toLocaleString() + '원';
+          }
+          // BINANCE 그 외 (USDT 페어 등) — 소수점 자동
+          if (p < 0.01) return p.toFixed(8);  // 매우 작은 가격 — 8자리
           if (p < 1) return p.toFixed(4);
           if (p < 100) return p.toFixed(3);
           return p.toFixed(2);
         }
         var priceLine = '';
         if (entryPrice != null && currentPrice != null) {
+          var trkExchange = (track.exchange || meta.exchange || '');
+          var trkBase = (track.base || meta.base || '');
           priceLine = '<div class="woos-current-prices">'
-            + '<span class="woos-price-label">알람</span> ' + v465_fmtPrice(entryPrice)
+            + '<span class="woos-price-label">알람</span> ' + v465_fmtPrice(entryPrice, trkExchange, trkBase)
             + ' <span class="woos-price-arrow">→</span> '
-            + '<span class="woos-price-label">현재</span> ' + v465_fmtPrice(currentPrice)
+            + '<span class="woos-price-label">현재</span> ' + v465_fmtPrice(currentPrice, trkExchange, trkBase)
             + '</div>';
         }
         curBig = '<div class="woos-current-big woos-current-' + dir + '">'
@@ -12629,9 +12835,8 @@ window.addEventListener('load', async function(){
         ? '<div class="woos-v462-badges">' + modeReasonHtml + sCountBadgeHtml + d120BadgeHtml + '</div>'
         : '';
       
-      // [Phase 4.4 + 4.6.2] 본문 순서 — 헤더 + 배지 → 6상태 → 브리핑 → 진행률 → 신호 근거 → 3축 → 현재가 → SVG → 타임라인 → 채점표 → 점수 시각화 → 세력 판단 → 전략 A/B
-      // [Phase 4.7 공사 2 — Q11] 컴팩트 타임라인 (그래프 바로 아래)
-      var v47_compactTimeline = v47_buildCompactTimeline(metrics, advanced);
+      // [Phase 4.4 + 4.6.2] 본문 순서 — 헤더 + 배지 → 6상태 → 브리핑 → 진행률 → 신호 근거 → 현재가 → SVG → 타임라인 → 채점표 → 점수 시각화 → 세력 판단 → 전략 A/B
+      // [Phase 4.7 공사 4 — 3-2] 컴팩트 타임라인 변수 선언 삭제 — 도달 타임라인으로 통합
       
       return '<div class="progress-rich-body woos-body">' + pseudoMark + liveTierHeader +
         statsBadgeHtml +                            /* [Phase 4.4] 통계 배지 (S급 N회 등) */
@@ -12640,15 +12845,108 @@ window.addEventListener('load', async function(){
         briefingHtml +                              /* [Phase 4.4] 동적 브리핑 (최상단) */
         '<div class="woos-progress"><div class="woos-progress-bar"><div class="woos-progress-fill" style="width:' + progressPct.toFixed(0) + '%"></div></div><div class="woos-progress-pct">' + progressPct.toFixed(0) + '%</div></div>' +
         v41_buildSignalReasonBlock(alertSnap, track) +    /* [Phase 4.1] 신호 근거 — Phase 4.6.4 track 추가 */
-        metricsHtml + curBig +
+        /* [Phase 4.7 공사 4 — 3-1] 속도/안정성/기회 영역 1 (간단 ver) 삭제
+         * 사용자 결정: 영역 2 (스캐너 채점표 — scoringTableHtml) 만 유지
+         * 이전: metricsHtml + curBig (간단 ver) → 삭제 */
+        curBig +
         '<div class="woos-graph-wrap">' + svgChart + '</div>' +
-        v47_compactTimeline +                       /* [Phase 4.7 공사 2 — Q11] 컴팩트 도달 타임라인 (1줄) */
-        timelineHtml +                              /* [Phase 4.3] 도달 타임라인 (기존, 폴드) */
-        scoringTableHtml +                          /* [Phase 4.3] 스캐너 채점표 */
+        /* [Phase 4.7 공사 4 — 3-2] 컴팩트 타임라인 삭제 (도달 타임라인으로 통합)
+         * 이전: v47_compactTimeline (1줄 +3⃝ +5⃝ TP1⃝ │ MFE │ MAE ⓘ) → 삭제 */
+        timelineHtml +                              /* [Phase 4.3] 도달 타임라인 (5개 도트, ⓘ 추가됨) */
+        scoringTableHtml +                          /* [Phase 4.3] 스캐너 채점표 (영역 2 — 자세 ver) */
         scoreVizHtml +                              /* [Phase 4.4] 스캐너 점수 시각화 */
         v41_buildForceContextBlock(alertSnap, track) +    /* [Phase 4.1] 세력 판단 — Phase 4.6.4 track 추가 */
         '<div class="woos-strategies">' + stratA + stratB + '</div>' +
         '</div>';
+    }
+    
+    /* [Phase 4.7 공사 4 — 2-8] 모달 컴포넌트 (재사용)
+     * 사용자 결정 P7=A: 같은 디자인 — 한도 알림 / 관심 OFF / ⓘ 정의
+     * 
+     * v47_showModal({title, message, buttons, onConfirm, onCancel})
+     * 사용 예:
+     *   v47_showModal({
+     *     title: '⚠ 정밀 한도 50개 도달',
+     *     message: '<b>PEPE</b> 는 표준 추적으로 등록됩니다.',
+     *     buttons: [{label: '확인', className: 'woos-modal-btn-confirm', onClick: dismiss}]
+     *   });
+     */
+    function v47_showModal(opts) {
+      opts = opts || {};
+      // 기존 모달 닫기 (1개만 표시)
+      var existing = document.querySelector('.woos-modal-overlay');
+      if (existing && existing.parentNode) existing.parentNode.removeChild(existing);
+      
+      var overlay = document.createElement('div');
+      overlay.className = 'woos-modal-overlay';
+      
+      var box = document.createElement('div');
+      box.className = 'woos-modal-box';
+      
+      var title = document.createElement('div');
+      title.className = 'woos-modal-title';
+      title.innerHTML = opts.title || '알림';
+      
+      var message = document.createElement('div');
+      message.className = 'woos-modal-message';
+      message.innerHTML = opts.message || '';
+      
+      var btnsDiv = document.createElement('div');
+      btnsDiv.className = 'woos-modal-btns';
+      
+      var buttons = opts.buttons || [{label: '확인', className: 'woos-modal-btn-confirm'}];
+      buttons.forEach(function(b){
+        var btn = document.createElement('button');
+        btn.className = 'woos-modal-btn ' + (b.className || 'woos-modal-btn-confirm');
+        btn.textContent = b.label || '확인';
+        btn.addEventListener('click', function(){
+          if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+          if (typeof b.onClick === 'function') b.onClick();
+        });
+        btnsDiv.appendChild(btn);
+      });
+      
+      // overlay 클릭 시 (배경 클릭) — 취소 처리
+      overlay.addEventListener('click', function(e){
+        if (e.target === overlay && opts.dismissOnBgClick !== false) {
+          if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+          if (typeof opts.onDismiss === 'function') opts.onDismiss();
+        }
+      });
+      
+      box.appendChild(title);
+      box.appendChild(message);
+      box.appendChild(btnsDiv);
+      overlay.appendChild(box);
+      document.body.appendChild(overlay);
+    }
+    
+    // [Phase 4.7 공사 4 — 2-8] Tier A 한도 거부 알림 (1회만 표시, sessionStorage dismiss)
+    function v47_checkTierARejectedAndShowModal(track) {
+      if (!track || !track.tierARejected) return;
+      var sid = track.snapshotId || track.id;
+      if (!sid) return;
+      try {
+        var dismissedKey = 'woos-tier-a-rejected-dismissed';
+        var dismissed = sessionStorage.getItem(dismissedKey);
+        var dismissedSet = dismissed ? JSON.parse(dismissed) : {};
+        if (dismissedSet[sid]) return;  // 이미 1회 표시됨
+        var base = track.base || (track.meta && track.meta.base) || '?';
+        v47_showModal({
+          title: '⚠ 정밀 한도 도달',
+          message: '<b>' + base + '</b> 는 관심 코인이지만 정밀 추적 한도 50개 도달로<br>'
+                 + '<b>표준 추적</b>으로 등록되었습니다.<br><br>'
+                 + '<small style="color:#94a3b8">한도가 풀리면 자동 승격됩니다.</small>',
+          buttons: [{
+            label: '확인',
+            className: 'woos-modal-btn-confirm',
+            onClick: function(){
+              dismissedSet[sid] = 1;
+              try { sessionStorage.setItem(dismissedKey, JSON.stringify(dismissedSet)); } catch(e){}
+            }
+          }]
+        });
+      } catch(e) { /* 모달 실패는 무시 */ }
     }
     
     /* 닫힌 summary (기존 progress-compact-summary 구조 유지) */
@@ -12667,6 +12965,83 @@ window.addEventListener('load', async function(){
         return s;
       }
       
+      // [Phase 4.7 공사 4 — 1-3] 관심 코인 잔여 시간 표시 (가장 큰 단위)
+      // windowEnd - now → 6d / 23h / 45m / "방금"
+      // 조건: 관심 코인 (isWatchlist === true) 만 표시
+      function v47_formatRemainingTime(track, meta) {
+        if (!track.isWatchlist) return '';  // 관심 코인 만 표시
+        var windowEnd = track.windowEnd || meta.windowEnd || 0;
+        if (!windowEnd) return '';
+        var now = Date.now();
+        var remaining = windowEnd - now;
+        if (remaining <= 0) return '<span class="woos-remaining-time woos-remaining-expired">만료됨</span>';
+        var days = Math.floor(remaining / (24 * 3600 * 1000));
+        var hours = Math.floor(remaining / (3600 * 1000));
+        var mins = Math.floor(remaining / (60 * 1000));
+        var label;
+        if (days >= 1) label = days + 'd';
+        else if (hours >= 1) label = hours + 'h';
+        else if (mins >= 1) label = mins + 'm';
+        else label = '곧';
+        return '<span class="woos-remaining-time">' + label + '남음</span>';
+      }
+      
+      // [Phase 4.7 공사 4 — 1-1] "5분 전 데이터" 라벨 (lastSampleT 사용)
+      // 박제 데이터 있을 때만 표시 (없으면 표시 X)
+      function v47_formatLastSampleAge(track) {
+        var t = track.prefetchedSampleT || track.lastSampleT || 0;
+        if (!t) return '';
+        var now = Date.now();
+        var elapsed = now - t;
+        if (elapsed < 0) return '<span class="woos-sample-age">방금</span>';
+        var mins = Math.floor(elapsed / 60000);
+        var hours = Math.floor(elapsed / 3600000);
+        var label;
+        if (hours >= 1) label = hours + 'h 전';
+        else if (mins >= 1) label = mins + 'm 전';
+        else label = '방금';
+        return '<span class="woos-sample-age">' + label + '</span>';
+      }
+      
+      // [Phase 4.7 공사 4 — 2-3] 가격 변화 표시 (변화량 + 변화율)
+      // 변화량 = lastPrice - entryPrice (사토시/원화/USDT 자동)
+      // 사용자 결정 (W1): BINANCE BTC 페어만 사토시, USDT 는 소수점
+      function v47_formatPriceDelta(track, meta, metrics) {
+        var lastPrice = track.prefetchedLastPrice || (metrics && metrics.currentPoint && metrics.currentPoint.price) || null;
+        var entryPrice = meta.openPrice || (track.alertSnapshot && track.alertSnapshot.price) || null;
+        if (!lastPrice || !entryPrice) return '';
+        var delta = lastPrice - entryPrice;
+        if (delta === 0) return '';
+        var sign = delta > 0 ? '+' : '';
+        var exchange = (track.exchange || meta.exchange || '').toUpperCase();
+        var formatted;
+        if (exchange === 'BINANCE') {
+          // BINANCE 페어 — base 가 BTC 면 USDT 단위, 그 외도 USDT 일 가능성
+          var absDelta = Math.abs(delta);
+          if (absDelta < 0.01 && absDelta > 0) {
+            // 0.01 미만 — BTC 페어만 사토시, USDT 페어는 소수점 8자리
+            // 사용자 결정 W1=B: BTC 페어만 사토시 (BINANCE 는 대부분 USDT)
+            formatted = sign + delta.toFixed(8);
+          } else if (absDelta >= 1000) {
+            formatted = sign + delta.toFixed(2);
+          } else {
+            formatted = sign + delta.toFixed(4);
+          }
+        } else {
+          // BITHUMB / UPBIT — 원화
+          var absKrw = Math.abs(delta);
+          if (absKrw >= 10000) {
+            // K/M 변환
+            if (absKrw >= 1000000) formatted = sign + (delta / 1000000).toFixed(2) + 'M';
+            else formatted = sign + (delta / 1000).toFixed(1) + 'K';
+          } else {
+            formatted = sign + Math.round(delta).toLocaleString() + '원';
+          }
+        }
+        var dirClass = delta >= 0 ? 'up' : 'down';
+        return '<span class="woos-price-delta woos-price-delta-' + dirClass + '">' + formatted + '</span>';
+      }
+      
       // [Phase 4.7 공사 1 — Q1] 거래소 칩
       var exchange = (track.exchange || meta.exchange || '').toUpperCase();
       var exchangeChip = '';
@@ -12682,6 +13057,15 @@ window.addEventListener('load', async function(){
         pctLabel = '<span class="woos-pct woos-pct-' + (metrics.currentPct >= 0 ? 'up' : 'down') + '">' + sign + metrics.currentPct.toFixed(2) + '%</span>';
       }
       
+      // [Phase 4.7 공사 4 — 2-3] 가격 변화량 (lastPrice - entryPrice)
+      var priceDeltaLabel = v47_formatPriceDelta(track, meta, metrics);
+      
+      // [Phase 4.7 공사 4 — 1-1] "5분 전" 라벨
+      var sampleAgeLabel = v47_formatLastSampleAge(track);
+      
+      // [Phase 4.7 공사 4 — 1-3] 관심 코인 잔여 시간
+      var remainingTimeLabel = v47_formatRemainingTime(track, meta);
+      
       // [Phase 4.7 공사 1 — Q1] 그룹 배지 (같은 코인 알람 N건)
       var groupBadge = '';
       if (opts.groupCount && opts.groupCount > 1) {
@@ -12690,6 +13074,14 @@ window.addEventListener('load', async function(){
       
       // [Phase 4.5] ⭐ 관심 코인 토글 버튼
       var watchBtn = v45_buildWatchButton(base);
+      
+      // [Phase 4.7 공사 4 — 2-7] 자동 정밀 라벨 표시
+      // 조건: track.isAutoPrecise === true (자동 S 3회 / A 5회 충족)
+      // 위치: 헤더 우측 작게 (회색)
+      var autoPreciseLabel = '';
+      if (track.isAutoPrecise) {
+        autoPreciseLabel = '<span class="woos-auto-precise-label">(자동 정밀)</span>';
+      }
       
       // [Phase 4.7 공사 1 — Q1] 등급: 가장 최근 알람 등급 (변화 화살표 X — 카드 안 그래프로 대체)
       var alertSnap = v41_getAlertSnapshot(track);
@@ -12701,9 +13093,12 @@ window.addEventListener('load', async function(){
         gradeChip = '<span class="hdr-grade-chip ' + gradeClass + '">' + v40_escapeHtml(gradeDisplay) + '</span>';
       }
       
+      // [Phase 4.7 공사 4 — 1-2] 진행률 바 색상 — 관심 코인 노랑
+      // 일반: cyan (기존), 관심: #ffea00 (네온 노랑)
+      var watchClass = track.isWatchlist ? ' is-watch' : '';
+      
       // [Phase 4.7 공사 1 — Q1] 헤더 1줄로 통일:
-      //   ☆ ● 코인명 [거래소] [등급] [N회] +X.XX% / 진행률%
-      // 빠진 것: Tier 표시, 6 상태, sCount 배지, 시간 (5h 48m), 가격 숫자
+      //   ☆ ● 코인명 [거래소] [등급] [N회] (자동정밀) +500원 +X.XX% / 진행률% Nd남음 5m전
       return '<summary class="progress-compact-summary woos-summary">'
         + '<div class="compact-bg-progress" style="width:' + progressPct.toFixed(1) + '%"></div>'
         + '<div class="compact-content">'
@@ -12714,13 +13109,17 @@ window.addEventListener('load', async function(){
         +     exchangeChip                                                /* 거래소 */
         +     gradeChip                                                   /* 최근 등급 */
         +     groupBadge                                                  /* N회 */
+        +     autoPreciseLabel                                            /* (자동 정밀) */
         +   '</div>'
         +   '<div class="progress-summary-right">'
-        +     pctLabel                                                    /* 등락% */
+        +     priceDeltaLabel                                             /* +500원 */
+        +     pctLabel                                                    /* +1.75% */
         +     '<span class="progress-text">' + progressPct.toFixed(0) + '%</span>'  /* 진행률 */
+        +     remainingTimeLabel                                          /* 6d남음 */
+        +     sampleAgeLabel                                              /* 5m 전 */
         +   '</div>'
         + '</div>'
-        + '<div class="compact-bar-thin"><div class="compact-bar-thin-fill" style="width:' + progressPct.toFixed(1) + '%"></div></div>'
+        + '<div class="compact-bar-thin"><div class="compact-bar-thin-fill' + watchClass + '" style="width:' + progressPct.toFixed(1) + '%"></div></div>'
         + '</summary>';
     }
     
@@ -13076,6 +13475,9 @@ window.addEventListener('load', async function(){
       buildPostMortem: v47_buildPostMortem,
       simulateStrategyA: v47_simulateStrategyA,
       simulateStrategyB: v47_simulateStrategyB,
+      // [Phase 4.7 공사 4 — 2-8] 모달 컴포넌트 (재사용)
+      showModal: v47_showModal,
+      checkTierARejectedAndShowModal: v47_checkTierARejectedAndShowModal,
       // 펼침 상태
       isExpanded: v40_isExpanded,
       setExpanded: v40_setExpanded,
