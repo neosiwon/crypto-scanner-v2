@@ -2738,6 +2738,53 @@ body.scan-complete .main-logo,
   font-size: 13px;
   text-align: center;
 }
+
+/* [Phase 4.7 공사 4] 로딩 스피너 — woos_roding.png + 페이드 글로우 + "로딩 중" 시안 흐름
+ * 사용자 결정 (그룹 1):
+ *   - 이미지: assets/woos_roding.png (회전 X)
+ *   - 글로우 페이드 인/아웃: 1.5초/회, 투명도 30~100%
+ *   - "로딩 중" 글자: 시안 그라데이션 좌→우 흐름, 2초/회, 20px
+ *   - 이미지-글자 간격: 20px
+ *   - 위치: 화면 정중앙
+ *   - 응답 빠르면 짧게 표시 (깜빡임 OK, 사용자 결정 P8)
+ */
+.woos-loading-spinner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  min-height: 200px;
+}
+.woos-loading-spinner-img {
+  width: 80px;
+  height: 80px;
+  display: block;
+  animation: woos-loading-glow 1.5s ease-in-out infinite;
+}
+.woos-loading-spinner-text {
+  margin-top: 20px;
+  font-size: 20px;
+  font-weight: 600;
+  background: linear-gradient(90deg, 
+    rgba(125,211,252,0.3) 0%, 
+    rgba(125,211,252,1) 50%, 
+    rgba(125,211,252,0.3) 100%);
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: woos-loading-text-flow 2s linear infinite;
+}
+@keyframes woos-loading-glow {
+  0%   { opacity: 0.3; filter: drop-shadow(0 0 4px rgba(125,211,252,0.3)); }
+  50%  { opacity: 1.0; filter: drop-shadow(0 0 16px rgba(125,211,252,0.8)); }
+  100% { opacity: 0.3; filter: drop-shadow(0 0 4px rgba(125,211,252,0.3)); }
+}
+@keyframes woos-loading-text-flow {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
 .analyzer-card svg {
   display: block;
   margin: 8px auto;
@@ -4872,7 +4919,10 @@ details.alarm-table-section[open] > summary::after { transform: rotate(180deg); 
         📊 추적 분석
       </div>
       <div id="analyzerContent">
-        <div class="analyzer-loading">분석기 로드 중...</div>
+        <div class="woos-loading-spinner">
+          <img class="woos-loading-spinner-img" src="assets/woos_roding.png" alt="로딩 중" onerror="this.style.display='none'" />
+          <div class="woos-loading-spinner-text">로딩 중</div>
+        </div>
       </div>
     </div>
     <!-- [END MODULE: phase34_analyzer_html] -->
@@ -9594,7 +9644,11 @@ window.addEventListener('load', async function(){
     if (!container) return;
     
     if (!_activeItemsCache.length) {
-      container.innerHTML = '<div class="analyzer-loading">분석기 로드 중...</div>';
+      // [Phase 4.7 공사 4] 로딩 스피너 — woos_roding.png + 페이드 글로우 + "로딩 중" 시안 흐름
+      container.innerHTML = '<div class="woos-loading-spinner">'
+                          + '<img class="woos-loading-spinner-img" src="assets/woos_roding.png" alt="로딩 중" onerror="this.style.display=\'none\'" />'
+                          + '<div class="woos-loading-spinner-text">로딩 중</div>'
+                          + '</div>';
     }
     
     return fetchTrackingActive().then(function(activeData){
@@ -9611,15 +9665,36 @@ window.addEventListener('load', async function(){
       var byTier = activeData.byTier || {};
       
       // [Phase 3.9] active 항목 캐시 + 진행률 계산
+      // [Phase 4.7 공사 4 — A2-경량] 박제 데이터 (lastPrice/currentPct/mfe/mae/lastSampleT) 포함
+      // 박제 데이터 없으면 카드 % 즉시 표시 X (이전: 60초 후 표시)
       _activeItemsCache = active.map(function(item){
         var elapsedMs = Date.now() - (item.tierAssignedAt || 0);
         var progress = Math.min(100, Math.max(0, (elapsedMs / (24*3600*1000)) * 100));
         return {
           id: item.id,
-          base: (item.id || '').split('_')[0],
+          base: item.base || (item.id || '').split('_')[0],
+          exchange: item.exchange || '',
           tier: item.tier,
           tierAssignedAt: item.tierAssignedAt,
+          startedAt: item.startedAt || item.tierAssignedAt,
+          windowEnd: item.windowEnd,
+          gradeCode: item.gradeCode || null,
+          gradeLabel: item.gradeLabel || null,
+          trackingMode: item.trackingMode,
+          windowDays: item.windowDays,
           progress: progress,
+          // [Phase 4.7 공사 4] 박제 데이터 (Worker /tracking/active 응답에서 박제됨)
+          lastPrice: item.lastPrice != null ? item.lastPrice : null,
+          currentPct: item.currentPct != null ? item.currentPct : null,
+          mfe: item.mfe != null ? item.mfe : null,
+          mae: item.mae != null ? item.mae : null,
+          lastSampleT: item.lastSampleT != null ? item.lastSampleT : null,
+          // [Phase 4.7 공사 4] 자동 정밀 / 관심 / 한도 거부 박제
+          isWatchlist: item.isWatchlist || false,
+          isAutoPrecise: item.isAutoPrecise || false,
+          tierARejected: item.tierARejected || false,
+          sCount24: item.sCount24 || 0,
+          aCount24: item.aCount24 || 0,
         };
       });
       
