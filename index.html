@@ -10218,9 +10218,27 @@ window.addEventListener('load', async function(){
       return { value: null, source: 'none', isPseudo: false };
     }
     
-    function v40_computeLiveMetrics(samples, entryPrice, levels) {
+    function v40_computeLiveMetrics(samples, entryPrice, levels, prefetched) {
       levels = levels || {};
+      // [Phase 4.7 공사 4 — A2-경량] samples 없어도 prefetched 박제 데이터로 표시
+      // 페이지 로드 즉시 currentPct/mfe/mae 표시 (이전: 60초 후 표시)
       if (!samples || samples.length === 0 || !entryPrice || entryPrice <= 0) {
+        // prefetched 데이터 있으면 그것으로 표시 (currentPct 만 정확, plus3/5/tp1 등은 false 기본값)
+        if (prefetched && prefetched.currentPct != null) {
+          return { 
+            hasData: true, sampleCount: 0,  // sampleCount 0 = prefetched 표시 (그래프 X)
+            currentPct: prefetched.currentPct, 
+            mfe: prefetched.mfe != null ? prefetched.mfe : prefetched.currentPct,
+            mae: prefetched.mae != null ? prefetched.mae : prefetched.currentPct,
+            plus3Hit: prefetched.currentPct >= 3, 
+            plus5Hit: prefetched.currentPct >= 5, 
+            tp1Hit: false, tp2Hit: false, stopHit: false,
+            currentPoint: prefetched.lastPrice ? { ts: prefetched.sampleT || Date.now(), price: prefetched.lastPrice, pct: prefetched.currentPct } : null,
+            mfePoint: null, maePoint: null, firstMajorEvent: null,
+            isPrefetched: true,  // HTML 측에서 "prefetched" 표시 플래그
+            prefetchedSampleT: prefetched.sampleT || null,  // "5분 전 데이터" 라벨용
+          };
+        }
         return { hasData: false, sampleCount: 0, currentPct: null, mfe: null, mae: null,
           plus3Hit: false, plus5Hit: false, tp1Hit: false, tp2Hit: false, stopHit: false,
           currentPoint: null, mfePoint: null, maePoint: null, firstMajorEvent: null };
@@ -12637,7 +12655,16 @@ window.addEventListener('load', async function(){
       var samples = v40_normalizeSamples(track);
       var entryInfo = v40_resolveEntryPrice(track, samples);
       var levels = v40_resolveLevels(track, entryInfo.value);
-      var metrics = v40_computeLiveMetrics(samples, entryInfo.value, levels);
+      // [Phase 4.7 공사 4 — A2-경량] prefetched 박제 데이터 전달
+      // /tracking/active 응답 시 받은 lastPrice/currentPct/mfe/mae/sampleT 사용
+      var prefetched = (track.prefetchedCurrentPct != null) ? {
+        currentPct: track.prefetchedCurrentPct,
+        mfe: track.prefetchedMfe,
+        mae: track.prefetchedMae,
+        lastPrice: track.prefetchedLastPrice,
+        sampleT: track.prefetchedSampleT,
+      } : null;
+      var metrics = v40_computeLiveMetrics(samples, entryInfo.value, levels, prefetched);
       // [Phase 4.2 작업 E] overrideDotColor 가 있으면 (그룹 dot 동기화 시 대표 카드용) 사용
       var dotColor = opts.overrideDotColor || v40_decideDotColor(track, metrics, levels);
       return {
@@ -12673,7 +12700,12 @@ window.addEventListener('load', async function(){
           var s = v40_normalizeSamples(it);
           var e = v40_resolveEntryPrice(it, s);
           var lv = v40_resolveLevels(it, e.value);
-          var m = v40_computeLiveMetrics(s, e.value, lv);
+          // [Phase 4.7 공사 4] prefetched 박제 데이터 통과
+          var pf = (it.prefetchedCurrentPct != null) ? {
+            currentPct: it.prefetchedCurrentPct, mfe: it.prefetchedMfe, mae: it.prefetchedMae,
+            lastPrice: it.prefetchedLastPrice, sampleT: it.prefetchedSampleT,
+          } : null;
+          var m = v40_computeLiveMetrics(s, e.value, lv, pf);
           var alertSnap = v41_getAlertSnapshot(it);
           return v41_computeLiveTier(m, alertSnap, lv);
         });
@@ -12683,7 +12715,12 @@ window.addEventListener('load', async function(){
           var s = v40_normalizeSamples(it);
           var e = v40_resolveEntryPrice(it, s);
           var lv = v40_resolveLevels(it, e.value);
-          var m = v40_computeLiveMetrics(s, e.value, lv);
+          // [Phase 4.7 공사 4] prefetched 박제 데이터 통과
+          var pf = (it.prefetchedCurrentPct != null) ? {
+            currentPct: it.prefetchedCurrentPct, mfe: it.prefetchedMfe, mae: it.prefetchedMae,
+            lastPrice: it.prefetchedLastPrice, sampleT: it.prefetchedSampleT,
+          } : null;
+          var m = v40_computeLiveMetrics(s, e.value, lv, pf);
           return v40_decideDotColor(it, m, lv);
         });
         var priority = { 'orange': 4, 'green': 3, 'cyan': 2, 'gray': 1 };
@@ -12736,7 +12773,12 @@ window.addEventListener('load', async function(){
         var oSamples = v40_normalizeSamples(it);
         var oEntry = v40_resolveEntryPrice(it, oSamples);
         var oLevels = v40_resolveLevels(it, oEntry.value);
-        var oMetrics = v40_computeLiveMetrics(oSamples, oEntry.value, oLevels);
+        // [Phase 4.7 공사 4] prefetched 박제 데이터 통과 (미니 카드도 즉시 표시)
+        var oPf = (it.prefetchedCurrentPct != null) ? {
+          currentPct: it.prefetchedCurrentPct, mfe: it.prefetchedMfe, mae: it.prefetchedMae,
+          lastPrice: it.prefetchedLastPrice, sampleT: it.prefetchedSampleT,
+        } : null;
+        var oMetrics = v40_computeLiveMetrics(oSamples, oEntry.value, oLevels, oPf);
         var oDot = (group.itemDotColors && group.itemDotColors[mIdx]) || v40_decideDotColor(it, oMetrics, oLevels);
         var oMeta = it.meta || {};
         var oStart = it.startedAt || oMeta.windowStart || oMeta.tierAssignedAt || Date.now();
@@ -12822,6 +12864,19 @@ window.addEventListener('load', async function(){
         samples: td.samples || [],
         thresholds: td.thresholds || null,
         tp1: td.tp1 || null,
+        // [Phase 4.7 공사 4 — A2-경량] /tracking/active 박제 데이터 통과
+        // 페이지 로드 즉시 카드에 lastPrice / currentPct / mfe / mae 표시
+        prefetchedLastPrice: item.lastPrice != null ? item.lastPrice : null,
+        prefetchedCurrentPct: item.currentPct != null ? item.currentPct : null,
+        prefetchedMfe: item.mfe != null ? item.mfe : null,
+        prefetchedMae: item.mae != null ? item.mae : null,
+        prefetchedSampleT: item.lastSampleT != null ? item.lastSampleT : null,
+        // [Phase 4.7 공사 4] 자동 정밀 / 관심 / 한도 거부 박제
+        isWatchlist: item.isWatchlist || false,
+        isAutoPrecise: item.isAutoPrecise || false,
+        tierARejected: item.tierARejected || false,
+        sCount24: item.sCount24 || 0,
+        aCount24: item.aCount24 || 0,
       };
     }
     
