@@ -3830,44 +3830,117 @@ details.progress-rich-card.woos-group[open] { border-color: rgba(124, 58, 237, 0
 .briefing-metrics .bm-item b { color: #7dd3fc; margin-right: 4px; }
 
 /* Q1: 카드 헤더 그룹 배지 */
+/* [Phase 4.7.11 R11-4] 알람 횟수 단계별 glow (사용자 결정 — 사진 의도)
+   상승할수록 강한 glow */
 .woos-group-badge { display: inline-flex; align-items: center; padding: 2px 6px; background: rgba(168,85,247,0.18); border: 1px solid rgba(168,85,247,0.4); color: #c4b5fd; border-radius: 10px; font-size: 0.68rem; font-weight: 700; }
+.v478-alert {
+  height: 22px;
+  padding: 0 10px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  font-family: var(--mono, monospace);
+  font-size: 0.70rem;
+  font-weight: 800;
+  margin-left: 4px;
+}
+.v478-alert.x1 {
+  color: rgba(220, 230, 245, 0.78);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(160, 175, 205, 0.20);
+}
+.v478-alert.x2 {
+  color: #00dfff;
+  background: rgba(0, 223, 255, 0.10);
+  border: 1px solid rgba(0, 223, 255, 0.34);
+  box-shadow: 0 0 10px rgba(0, 223, 255, 0.24);
+}
+.v478-alert.x3 {
+  color: #a78bfa;
+  background: rgba(123, 92, 255, 0.15);
+  border: 1px solid rgba(167, 139, 250, 0.46);
+  box-shadow: 0 0 12px rgba(123, 92, 255, 0.34);
+}
+.v478-alert.x5 {
+  color: #ff7ad9;
+  background: rgba(255, 122, 217, 0.14);
+  border: 1px solid rgba(255, 122, 217, 0.46);
+  box-shadow: 0 0 14px rgba(255, 122, 217, 0.36);
+}
+.v478-alert.x8 {
+  color: #ffd233;
+  background: rgba(255, 210, 51, 0.15);
+  border: 1px solid rgba(255, 210, 51, 0.55);
+  box-shadow: 0 0 17px rgba(255, 210, 51, 0.48);
+}
 
 /* Q1: 헤더 등급 칩 */
+/* [Phase 4.7.11 R11-3] 등급 칩 색상 — 사용자 결정 (x{N} 단계별 glow 일관)
+   S+ : 골드 #ffd233 (x8+ 느낌 — 최강 등급)
+   S  : 핑크 #ff7ad9 (x5 느낌 — 상위 등급)
+   A  : 보라 #a78bfa (x3 느낌 — 중상위)
+   B  : 시안 #00dfff (x2 느낌 — 일반) */
 .hdr-grade-chip { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 12px; font-size: 0.68rem; font-weight: 700; }
-.hdr-grade-chip.tier-splus { background: rgba(168,85,247,0.2); color: #c4b5fd; border: 1px solid rgba(168,85,247,0.45); }
-.hdr-grade-chip.tier-s { background: rgba(56,189,248,0.2); color: #7dd3fc; border: 1px solid rgba(56,189,248,0.45); }
-.hdr-grade-chip.tier-a { background: rgba(34,197,94,0.18); color: #4ade80; border: 1px solid rgba(34,197,94,0.4); }
-.hdr-grade-chip.tier-b { background: rgba(148,163,184,0.16); color: #94a3b8; border: 1px solid rgba(148,163,184,0.3); }
+.hdr-grade-chip.tier-splus {
+  background: rgba(255, 210, 51, 0.15);
+  color: #ffd233;
+  border: 1px solid rgba(255, 210, 51, 0.55);
+  box-shadow: 0 0 12px rgba(255, 210, 51, 0.40);
+}
+.hdr-grade-chip.tier-s {
+  background: rgba(255, 122, 217, 0.14);
+  color: #ff7ad9;
+  border: 1px solid rgba(255, 122, 217, 0.46);
+  box-shadow: 0 0 10px rgba(255, 122, 217, 0.32);
+}
+.hdr-grade-chip.tier-a {
+  background: rgba(167, 139, 250, 0.15);
+  color: #a78bfa;
+  border: 1px solid rgba(167, 139, 250, 0.46);
+  box-shadow: 0 0 9px rgba(123, 92, 255, 0.28);
+}
+.hdr-grade-chip.tier-b {
+  background: rgba(0, 223, 255, 0.10);
+  color: #00dfff;
+  border: 1px solid rgba(0, 223, 255, 0.34);
+  box-shadow: 0 0 8px rgba(0, 223, 255, 0.22);
+}
 
 /* [Phase 4.7 공사 4 — HF-C] 추적 모드 칩 (관심/정밀/표준) */
 .hdr-mode-chip {
   display: inline-flex; align-items: center;
-  padding: 2px 8px; border-radius: 12px;
-  font-size: 0.66rem; font-weight: 700;
+  padding: 2px 11px; border-radius: 999px;
+  font-size: 0.68rem; font-weight: 800;
   margin-left: 4px;
+  height: 22px; line-height: 1;
 }
+/* [Phase 4.7.11 R11-2] 관심 칩 — 시안 그라디언트 (사용자 결정 — 사진 의도) */
 .hdr-mode-chip.mode-watch {
-  background: rgba(255, 234, 0, 0.18);
-  color: #ffea00;
-  border: 1px solid rgba(255, 234, 0, 0.45);
+  color: #00151f;
+  background: linear-gradient(135deg, #00e5ff, #36ffbd);
+  border: 1px solid rgba(0, 229, 255, 0.55);
+  box-shadow: 0 0 15px rgba(0, 229, 255, 0.50);
 }
+/* [Phase 4.7.11 R11-2] 정밀 칩 — 보라 그라디언트 */
 .hdr-mode-chip.mode-precise {
-  /* [Phase 4.7.10 R10-3] 사용자 결정: 정밀 보라 (#a855f7) — 사진 의도 */
-  background: rgba(168, 85, 247, 0.15);
-  color: #a855f7;
-  border: 1px solid rgba(168, 85, 247, 0.4);
+  color: #ffffff;
+  background: linear-gradient(135deg, #7b5cff, #b66cff);
+  border: 1px solid rgba(123, 92, 255, 0.55);
+  box-shadow: 0 0 15px rgba(123, 92, 255, 0.48);
 }
+/* [Phase 4.7.11 R11-2] 표준 칩 — 다크 회색 */
 .hdr-mode-chip.mode-standard {
-  /* [Phase 4.7.10 R10-3] 사용자 결정: 표준 파랑 (#00d4ff) — 사진 의도 */
-  background: rgba(0, 212, 255, 0.12);
-  color: #00d4ff;
-  border: 1px solid rgba(0, 212, 255, 0.35);
+  color: #c9d4e8;
+  background: rgba(135, 150, 180, 0.12);
+  border: 1px solid rgba(160, 175, 205, 0.22);
+  box-shadow: none;
 }
 
 /* Q2: dot yellow (횡보) */
-.coin-dot.woos-dot-yellow { background: #facc15; box-shadow: 0 0 8px rgba(250,204,21,0.6); }
-.coin-dot.woos-dot-green { background: #4ade80; box-shadow: 0 0 8px rgba(74,222,128,0.6); }
-.coin-dot.woos-dot-red { background: #f87171; box-shadow: 0 0 8px rgba(248,113,113,0.6); }
+/* [Phase 4.7.11 R11-6] 등락 dot 색상 강화 (사용자 결정 — 사진 의도) */
+.coin-dot.woos-dot-yellow { background: #aab4c4; box-shadow: 0 0 8px rgba(170, 180, 196, 0.40); }  /* 횡보 회색 */
+.coin-dot.woos-dot-green { background: #00e6a8; box-shadow: 0 0 12px rgba(0, 230, 168, 0.75); }    /* 상승 민트 */
+.coin-dot.woos-dot-red { background: #ff4d4f; box-shadow: 0 0 12px rgba(255, 77, 79, 0.75); }      /* 하락 빨강 */
 
 /* Q7: Tier 용어 변경에 따른 tier-pill 스타일 보정 (정밀/표준/라이트) */
 .tier-pill[title*="정밀"] { background: rgba(0,212,255,0.15); color: #00d4ff; }
@@ -3986,9 +4059,10 @@ details.progress-rich-card.woos-group[open] { border-color: rgba(124, 58, 237, 0
 
 /* ════════════════════ [Phase 4.5] 추가 CSS ════════════════════ */
 /* ⭐ Watchlist 버튼 (헤더 좌측, 코인명 옆) */
-.woos-watch-btn { background: none; border: none; padding: 2px 6px; cursor: pointer; font-size: 1.05rem; line-height: 1; color: #4b5563; transition: all 0.2s; -webkit-tap-highlight-color: transparent; user-select: none; flex-shrink: 0; }
-.woos-watch-btn:hover { color: #fbbf24; transform: scale(1.15); }
-.woos-watch-btn.woos-watch-on { color: #fbbf24; text-shadow: 0 0 6px rgba(251, 191, 36, 0.5); }
+.woos-watch-btn { background: none; border: none; padding: 2px 6px; cursor: pointer; font-size: 1.45rem; line-height: 1; color: rgba(140, 155, 180, 0.62); transition: all 0.2s; -webkit-tap-highlight-color: transparent; user-select: none; flex-shrink: 0; }
+.woos-watch-btn:hover { color: #ffd233; transform: scale(1.15); }
+/* [Phase 4.7.11 R11-6] 관심 ⭐ — 노랑 #ffd233 + drop-shadow glow + scale 1.08 (사용자 결정) */
+.woos-watch-btn.woos-watch-on { color: #ffd233; filter: drop-shadow(0 0 10px rgba(255, 210, 51, 0.85)); transform: scale(1.08); }
 .woos-watch-btn:active { transform: scale(0.92); }
 
 /* 같은 코인 오버레이 차트 */
@@ -4206,14 +4280,22 @@ details.progress-rich-card > summary.progress-compact-summary {
 }
 .compact-bar-thin-fill {
   height: 100%;
-  background: linear-gradient(90deg, var(--accent-cyan), var(--accent-green));
+  /* [Phase 4.7.11 R11-5] 진행도 바 기본 — 시안 → 민트 그라디언트 */
+  background: linear-gradient(90deg, #00dfff, #00e6a8);
+  box-shadow: 0 0 13px rgba(0, 229, 255, 0.45);
   transition: width .3s ease;
 }
 
-/* [Phase 4.7 공사 4 — 1-2] 관심 코인 진행률 바 — 네온 노랑 */
+/* [Phase 4.7.11 R11-5] 관심 코인 진행률 바 — 시안 → 민트 (사용자 결정: 시안 외곽 통일) */
 .compact-bar-thin-fill.is-watch {
-  background: linear-gradient(90deg, #ffea00, #ffec40);
-  box-shadow: 0 0 6px rgba(255, 234, 0, 0.5);
+  background: linear-gradient(90deg, #00dfff, #00e6a8);
+  box-shadow: 0 0 13px rgba(0, 229, 255, 0.45);
+}
+
+/* [Phase 4.7.11 R11-5] 정밀 카드 진행률 바 — 파랑 → 보라 그라디언트 */
+details.v477-track-card.is-deep:not(.is-watch) .compact-bar-thin-fill {
+  background: linear-gradient(90deg, #268dff, #7b5cff);
+  box-shadow: 0 0 13px rgba(123, 92, 255, 0.38);
 }
 
 /* ══════════════════════════════════════════
@@ -4258,54 +4340,55 @@ details.v477-track-card > .progress-rich-body {
   z-index: 1;
 }
 
-/* 관심 코인 — 노랑 보더 + 글로우 (우선순위) */
+/* [Phase 4.7.11 R11-1] 관심 코인 — 시안 보더 + 시안 glow (사용자 결정 — 사진 의도)
+   별만 노랑 강조 (별도 .v478-star.is-on 클래스로 처리) */
 details.v477-track-card.is-watch {
-  border-color: rgba(255, 234, 0, 0.45);
+  border-color: rgba(0, 229, 255, 0.62);
   background:
-    linear-gradient(135deg, rgba(255, 234, 0, 0.08), rgba(0, 229, 255, 0.05)),
-    rgba(12, 18, 28, 0.5);
+    radial-gradient(circle at 0% 28%, rgba(0, 229, 255, 0.30), transparent 40%),
+    linear-gradient(135deg, rgba(0, 229, 255, 0.15), rgba(10, 18, 36, 0.72));
   box-shadow:
-    0 0 0 1px rgba(255, 234, 0, 0.18),
-    0 0 22px rgba(255, 234, 0, 0.18),
-    0 8px 24px rgba(0, 0, 0, 0.4),
-    inset 0 1px 0 rgba(255, 255, 255, 0.10);
+    0 0 0 1px rgba(0, 229, 255, 0.28),
+    0 0 30px rgba(0, 229, 255, 0.28),
+    0 12px 34px rgba(0, 0, 0, 0.46),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12);
 }
 
-/* 정밀(관심X) — 보라 보더 + 글로우 */
+/* [Phase 4.7.11 R11-1] 정밀(관심X) — 보라 보더 + 보라/시안 glow */
 details.v477-track-card.is-deep:not(.is-watch) {
-  border-color: rgba(168, 85, 247, 0.40);
+  border-color: rgba(123, 92, 255, 0.62);
   background:
-    linear-gradient(135deg, rgba(168, 85, 247, 0.07), rgba(120, 68, 255, 0.05)),
-    rgba(10, 14, 28, 0.48);
+    radial-gradient(circle at 0% 24%, rgba(123, 92, 255, 0.20), transparent 38%),
+    linear-gradient(135deg, rgba(24, 14, 48, 0.82), rgba(10, 12, 30, 0.75));
   box-shadow:
-    0 0 0 1px rgba(168, 85, 247, 0.14),
-    0 0 18px rgba(168, 85, 247, 0.18),
-    0 6px 22px rgba(0, 0, 0, 0.35),
-    inset 0 1px 0 rgba(255, 255, 255, 0.07);
+    0 0 0 1px rgba(123, 92, 255, 0.28),
+    0 0 26px rgba(123, 92, 255, 0.28),
+    0 12px 34px rgba(0, 0, 0, 0.44),
+    inset 0 1px 0 rgba(255, 255, 255, 0.10);
 }
 
 details.v477-track-card.is-deep:not(.is-watch)::before {
   background:
-    radial-gradient(circle at 0% 20%, rgba(168, 85, 247, 0.12), transparent 36%),
-    radial-gradient(circle at 100% 0%, rgba(120, 68, 255, 0.10), transparent 40%);
+    radial-gradient(circle at 0% 20%, rgba(123, 92, 255, 0.14), transparent 36%),
+    radial-gradient(circle at 100% 0%, rgba(0, 229, 255, 0.08), transparent 40%);
 }
 
 /* hover 강화 (PC) */
 @media (hover: hover) {
   details.v477-track-card:hover {
-    border-color: rgba(0, 229, 255, 0.28);
+    border-color: rgba(0, 229, 255, 0.40);
   }
   details.v477-track-card.is-watch:hover {
     box-shadow:
-      0 0 0 1px rgba(255, 234, 0, 0.30),
-      0 0 28px rgba(255, 234, 0, 0.26),
-      0 10px 28px rgba(0, 0, 0, 0.45);
+      0 0 0 1px rgba(0, 229, 255, 0.40),
+      0 0 36px rgba(0, 229, 255, 0.36),
+      0 14px 38px rgba(0, 0, 0, 0.50);
   }
   details.v477-track-card.is-deep:not(.is-watch):hover {
     box-shadow:
-      0 0 0 1px rgba(168, 85, 247, 0.24),
-      0 0 24px rgba(168, 85, 247, 0.24),
-      0 8px 26px rgba(0, 0, 0, 0.4);
+      0 0 0 1px rgba(123, 92, 255, 0.40),
+      0 0 32px rgba(123, 92, 255, 0.36),
+      0 12px 32px rgba(0, 0, 0, 0.46);
   }
 }
 
@@ -4319,14 +4402,14 @@ details.v477-track-card.is-deep:not(.is-watch)::before {
   font-style: italic;
 }
 
-/* [Phase 4.7 공사 4 — 1-3] 관심 코인 잔여 시간 표시 */
+/* [Phase 4.7 공사 4 — 1-3 / Phase 4.7.11 R11-7] 잔여 시간 — 골드 #ffd233 (사용자 결정) */
 .woos-remaining-time {
   display: inline-block;
   font-size: 11px;
-  color: #ffea00;
+  color: #ffd233;
   margin-left: 6px;
-  font-weight: 600;
-  text-shadow: 0 0 4px rgba(255, 234, 0, 0.4);
+  font-weight: 800;
+  text-shadow: 0 0 4px rgba(255, 210, 51, 0.45);
 }
 .woos-remaining-time.woos-remaining-expired {
   color: #ef4444;
@@ -5994,7 +6077,7 @@ async function opsDashboard() {
 // 탭 시 상세 팝업
 // ═══════════════════════════════════════════════════════════════
 
-var HTML_VERSION = 'v4.25.0';  // Phase 4.7.10 R10 — 카드헤더 다중줄 구조 + 정밀보라/표준파랑 + 거래소칩X + ⓘ모달○삭제 + duplicate폐지
+var HTML_VERSION = 'v4.26.0';  // Phase 4.7.11 R11 — 카드 색상 디테일 (관심시안/정밀보라+시안/표준다크) + 등급칩(S+골드/S핑크/A보라/B시안) + 알람 단계별 glow + 진행도 바 그라디언트 + 별 강조 + 잔여시간 골드
 var _cachedBuildInfo = null;
 
 async function fetchBuildInfo() {
@@ -10675,7 +10758,7 @@ window.addEventListener('load', async function(){
   
   // ══ 외부 노출 ══════════════════════════════════════════════
   global.WOOS_ANALYZER = {
-    BUILD_TAG: 'phase4.7-r8r10-card-header-redesign-v4.7.10',
+    BUILD_TAG: 'phase4.7-r11-card-color-detail-v4.7.11',
     loadAndRenderAll: loadAndRenderAll,
     renderAnalyzerSection: renderAnalyzerSection,
     renderAlarmTable: function(){ renderAlarmTable(_allItems); },
@@ -13536,7 +13619,25 @@ window.addEventListener('load', async function(){
         v478_alarmCount = opts.groupCount;
       }
       if (v478_alarmCount > 1) {
-        groupBadge = '<span class="woos-group-badge">x' + v478_alarmCount + '</span>';
+        // [Phase 4.7.11 R11-4] 알람 횟수 단계별 glow (사용자 결정 — 사진 의도)
+        // x1: 회색 / x2: 시안 / x3: 보라 / x5: 핑크 / x8+: 골드
+        // 1회는 표시 X (사용자 결정 — > 1 조건)
+        var v479_alertTier;
+        var v479_label;
+        if (v478_alarmCount >= 8) {
+          v479_alertTier = 'x8';
+          v479_label = 'x' + v478_alarmCount + '+';
+        } else if (v478_alarmCount >= 5) {
+          v479_alertTier = 'x5';
+          v479_label = 'x' + v478_alarmCount;
+        } else if (v478_alarmCount >= 3) {
+          v479_alertTier = 'x3';
+          v479_label = 'x' + v478_alarmCount;
+        } else {
+          v479_alertTier = 'x2';
+          v479_label = 'x' + v478_alarmCount;
+        }
+        groupBadge = '<span class="woos-group-badge v478-alert ' + v479_alertTier + '">' + v479_label + '</span>';
       }
       
       // [Phase 4.5] ⭐ 관심 코인 토글 버튼
@@ -13548,18 +13649,24 @@ window.addEventListener('load', async function(){
       //   - 자동정밀/정밀 → "정" (단축)
       //   - 표준 → "표" (단축)
       //   - C 등급 미표시 (사용자 결정)
+      //   [Phase 4.7.11 R11-2] 사용자 결정 — 전체 텍스트 칩 사용 (단축 표현 X)
+      //   - 관심 → "관심" 칩 (시안 그라디언트, ⭐ 별표 + 칩 동시 표시)
+      //   - 자동정밀/정밀 → "정밀" 칩 (보라 그라디언트)
+      //   - 표준 → "표준" 칩 (다크 회색)
+      //   - C 등급 미표시 (사용자 결정)
       function v47_buildModeChip(track) {
         var tier = String(track.tier || '').toUpperCase();
         if (tier === 'C') return '';  // C 등급 미표시
         if (track.isWatchlist) {
-          return '';  // 관심 코인은 ⭐ 별표로 충분 (modeChip 표시 X)
+          // [R11-2] 관심 칩 추가 (⭐ 별표와 함께 표시)
+          return '<span class="hdr-mode-chip mode-watch">관심</span>';
         }
-        // trackingMode 기준으로 통일 (자동정밀 + 정밀 = "정")
+        // trackingMode 기준으로 통일 (자동정밀 + 정밀 = "정밀")
         var mode = String(track.trackingMode || '').toLowerCase();
         if (mode === 'deep' || track.isAutoPrecise || tier === 'A') {
-          return '<span class="hdr-mode-chip mode-precise">정</span>';
+          return '<span class="hdr-mode-chip mode-precise">정밀</span>';
         }
-        return '<span class="hdr-mode-chip mode-standard">표</span>';
+        return '<span class="hdr-mode-chip mode-standard">표준</span>';
       }
       var modeChip = v47_buildModeChip(track);
       
