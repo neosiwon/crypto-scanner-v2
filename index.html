@@ -5044,196 +5044,66 @@ details.alarm-table-section[open] > summary::after { transform: rotate(180deg); 
 /* [END MODULE: phase35_visualization_css] */
 
 
-
 /* ══════════════════════════════════════════
-   [v4.8.0] Changmin Final Card Header — Glass Glow Override
-   목적: 실제 summary DOM에 유리/glow/상태 외곽을 강제 적용
+   [v4.8.0] Changmin Final Glass Card Override
+   목표 이미지 기준: 관심/정밀/표준 외곽 글로우 + 유리질감 강화
 ══════════════════════════════════════════ */
-#trackingAnalyzer details.v477-track-card,
-details.v477-track-card {
-  position: relative !important;
-  border-radius: 18px !important;
-  overflow: hidden !important;
-  margin: 12px 0 !important;
-  background:
-    radial-gradient(circle at 0% 18%, rgba(0, 229, 255, .12), transparent 34%),
-    radial-gradient(circle at 100% 0%, rgba(123, 92, 255, .10), transparent 38%),
-    linear-gradient(135deg, rgba(8, 20, 38, .68), rgba(8, 11, 28, .72)) !important;
-  border: 1px solid rgba(120, 150, 190, .24) !important;
-  box-shadow:
-    0 12px 34px rgba(0, 0, 0, .42),
-    inset 0 1px 0 rgba(255, 255, 255, .10),
-    inset 0 -1px 0 rgba(255, 255, 255, .03) !important;
-  backdrop-filter: blur(20px) saturate(155%) !important;
-  -webkit-backdrop-filter: blur(20px) saturate(155%) !important;
+details.v477-track-card.v480-glass-card {
+  margin: 13px 0 !important; border-radius: 18px !important; overflow: hidden !important; isolation: isolate;
+  border: 1px solid rgba(140,160,195,.26) !important;
+  background: radial-gradient(circle at 0% 18%, rgba(0,229,255,.10), transparent 38%), radial-gradient(circle at 100% 0%, rgba(123,92,255,.10), transparent 34%), linear-gradient(135deg, rgba(8,20,38,.62), rgba(6,10,24,.70)) !important;
+  box-shadow: 0 13px 34px rgba(0,0,0,.48), inset 0 1px 0 rgba(255,255,255,.12), inset 0 -1px 0 rgba(255,255,255,.035) !important;
+  backdrop-filter: blur(20px) saturate(155%) !important; -webkit-backdrop-filter: blur(20px) saturate(155%) !important;
 }
-
-details.v477-track-card::before {
-  content: "" !important;
-  position: absolute !important;
-  inset: 0 !important;
-  pointer-events: none !important;
-  background:
-    linear-gradient(135deg, rgba(255,255,255,.10), transparent 18%, rgba(0,229,255,.05) 45%, transparent 70%),
-    radial-gradient(circle at 16% 8%, rgba(255,255,255,.15), transparent 18%) !important;
-  opacity: .72 !important;
-  z-index: 0 !important;
+details.v477-track-card.v480-glass-card::before {
+  content: ""; position: absolute; inset: 0; pointer-events: none; z-index: 0;
+  background: linear-gradient(110deg, rgba(255,255,255,.10), transparent 20%, transparent 70%, rgba(255,255,255,.04)), radial-gradient(circle at 8% 28%, rgba(0,229,255,.20), transparent 32%), radial-gradient(circle at 100% 35%, rgba(123,92,255,.16), transparent 34%);
+  opacity: .95;
 }
-
-details.v477-track-card.is-watch {
-  background:
-    radial-gradient(circle at 0% 28%, rgba(0, 229, 255, .36), transparent 42%),
-    radial-gradient(circle at 100% 0%, rgba(38, 255, 177, .11), transparent 34%),
-    linear-gradient(135deg, rgba(0, 229, 255, .16), rgba(8, 16, 34, .72)) !important;
-  border-color: rgba(0, 229, 255, .72) !important;
-  box-shadow:
-    0 0 0 1px rgba(0, 229, 255, .28),
-    0 0 34px rgba(0, 229, 255, .34),
-    0 14px 38px rgba(0, 0, 0, .48),
-    inset 0 1px 0 rgba(255,255,255,.16) !important;
+details.v477-track-card.v480-glass-card.is-watch {
+  border-color: rgba(0,229,255,.82) !important;
+  background: radial-gradient(circle at 0% 22%, rgba(0,229,255,.40), transparent 43%), radial-gradient(circle at 105% 0%, rgba(37,99,235,.22), transparent 40%), linear-gradient(135deg, rgba(0,229,255,.18), rgba(7,16,34,.76)) !important;
+  box-shadow: 0 0 0 1px rgba(0,229,255,.38), 0 0 28px rgba(0,229,255,.38), 0 0 46px rgba(0,229,255,.18), 0 14px 38px rgba(0,0,0,.52), inset 0 1px 0 rgba(255,255,255,.16) !important;
 }
-
-details.v477-track-card.is-deep:not(.is-watch) {
-  background:
-    radial-gradient(circle at 0% 24%, rgba(123, 92, 255, .30), transparent 40%),
-    radial-gradient(circle at 100% 0%, rgba(0, 229, 255, .10), transparent 36%),
-    linear-gradient(135deg, rgba(24, 14, 52, .82), rgba(8, 12, 30, .72)) !important;
-  border-color: rgba(123, 92, 255, .72) !important;
-  box-shadow:
-    0 0 0 1px rgba(123, 92, 255, .28),
-    0 0 32px rgba(123, 92, 255, .34),
-    0 12px 34px rgba(0,0,0,.46),
-    inset 0 1px 0 rgba(255,255,255,.12) !important;
+details.v477-track-card.v480-glass-card.is-deep:not(.is-watch) {
+  border-color: rgba(176,92,255,.86) !important;
+  background: radial-gradient(circle at 0% 23%, rgba(123,92,255,.30), transparent 42%), radial-gradient(circle at 100% 0%, rgba(0,229,255,.12), transparent 38%), linear-gradient(135deg, rgba(30,14,58,.80), rgba(8,10,26,.77)) !important;
+  box-shadow: 0 0 0 1px rgba(176,92,255,.34), 0 0 30px rgba(123,92,255,.38), 0 0 22px rgba(0,229,255,.12), 0 14px 36px rgba(0,0,0,.50), inset 0 1px 0 rgba(255,255,255,.13) !important;
 }
-
-details.v477-track-card.is-standard:not(.is-watch):not(.is-deep) {
-  background:
-    radial-gradient(circle at 0% 20%, rgba(0, 229, 255, .08), transparent 32%),
-    linear-gradient(135deg, rgba(12, 24, 42, .70), rgba(8, 11, 28, .74)) !important;
-  border-color: rgba(145, 166, 205, .22) !important;
+details.v477-track-card.v480-glass-card.is-standard:not(.is-watch):not(.is-deep) {
+  border-color: rgba(145,165,200,.28) !important;
+  background: radial-gradient(circle at 0% 20%, rgba(40,80,120,.13), transparent 38%), linear-gradient(135deg, rgba(13,25,43,.76), rgba(8,11,27,.77)) !important;
+  box-shadow: 0 12px 30px rgba(0,0,0,.44), inset 0 1px 0 rgba(255,255,255,.09) !important;
 }
-
-details.v477-track-card .compact-bg-progress { display: none !important; }
-
-details.v477-track-card > summary.v480-summary {
-  list-style: none !important;
-  cursor: pointer !important;
-  padding: 0 !important;
-  display: block !important;
-  min-height: 116px !important;
-  position: relative !important;
-  overflow: hidden !important;
-  background: transparent !important;
-}
-details.v477-track-card > summary.v480-summary::-webkit-details-marker { display: none; }
-
-.v480-glass-shine {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background:
-    linear-gradient(115deg, rgba(255,255,255,.14), transparent 24%, transparent 60%, rgba(255,255,255,.04)),
-    radial-gradient(circle at 16% 8%, rgba(255,255,255,.15), transparent 18%);
-  opacity: .42;
-}
-
-.v480-card-grid {
-  position: relative;
-  z-index: 2;
-  display: flex;
-  flex-direction: column;
-  gap: 9px;
-  padding: 15px 16px 14px;
-}
-.v480-row { display: flex; align-items: center; min-width: 0; }
-.v480-row-top { justify-content: space-between; gap: 10px; }
-.v480-main-left { display: flex; align-items: center; gap: 8px; min-width: 0; }
-.v480-chip-line { display: flex; align-items: center; gap: 7px; min-width: 0; }
-.v480-row-bottom { gap: 8px; }
-
-details.v477-track-card .woos-watch-btn {
-  font-size: 1.18rem !important;
-  width: 24px !important;
-  min-width: 24px !important;
-  height: 24px !important;
-  padding: 0 !important;
-  display: inline-flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  line-height: 1 !important;
-  margin-right: 0 !important;
-  color: rgba(145, 160, 190, .58) !important;
-  filter: none !important;
-}
-details.v477-track-card .woos-watch-btn.woos-watch-on {
-  color: #ffd233 !important;
-  filter: drop-shadow(0 0 7px rgba(255, 210, 51, .72)) !important;
-  transform: scale(1.02) !important;
-}
-
-.v480-dot.coin-dot { width: 10px !important; height: 10px !important; min-width: 10px !important; margin: 0 !important; }
-.v480-symbol {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-family: var(--mono, monospace);
-  font-size: 1.08rem;
-  font-weight: 800;
-  letter-spacing: .1px;
-  color: #f2f7ff;
-  text-shadow: 0 0 10px rgba(0, 229, 255, .10);
-}
-.v480-profit { margin-left: auto; }
-.v480-profit .woos-pct { font-family: var(--mono, monospace) !important; font-size: 1.12rem !important; font-weight: 900 !important; letter-spacing: -.3px !important; }
-.v480-profit .woos-pct-up { color: #22f69b !important; text-shadow: 0 0 12px rgba(34,246,155,.34); }
-.v480-profit .woos-pct-down { color: #ff5c72 !important; text-shadow: 0 0 12px rgba(255,92,114,.34); }
-
-.v480-chip-line .hdr-mode-chip {
-  height: 24px !important;
-  padding: 0 11px !important;
-  border-radius: 999px !important;
-  display: inline-flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  font-size: .74rem !important;
-  font-weight: 900 !important;
-  line-height: 1 !important;
-  margin-left: 0 !important;
-}
-.v480-chip-line .hdr-mode-chip.mode-watch { color: #00151f !important; background: linear-gradient(135deg, #00e5ff, #36ffbd) !important; border: 1px solid rgba(0, 229, 255, .62) !important; box-shadow: 0 0 15px rgba(0,229,255,.54) !important; }
-.v480-chip-line .hdr-mode-chip.mode-precise { color: #fff !important; background: linear-gradient(135deg, #7b5cff, #b66cff) !important; border: 1px solid rgba(123,92,255,.62) !important; box-shadow: 0 0 15px rgba(123,92,255,.50) !important; }
-.v480-chip-line .hdr-mode-chip.mode-standard { color: #c9d4e8 !important; background: rgba(135,150,180,.14) !important; border: 1px solid rgba(160,175,205,.24) !important; box-shadow: none !important; }
-
-.v480-chip-line .hdr-grade-chip,
-.v480-chip-line .v478-alert {
-  height: 24px !important;
-  min-height: 24px !important;
-  display: inline-flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  border-radius: 999px !important;
-  padding: 0 10px !important;
-  font-size: .72rem !important;
-  font-weight: 900 !important;
-  margin-left: 0 !important;
-}
-.v480-chip-line .woos-sample-age { margin-left: 2px !important; font-size: .68rem !important; color: rgba(205,218,238,.64) !important; font-style: italic !important; white-space: nowrap !important; }
-.v480-progress-label { color: rgba(226, 234, 245, .88); font-size: .75rem; font-weight: 700; white-space: nowrap; }
-.v480-progress-bar.compact-bar-thin { flex: 1 1 auto !important; height: 5px !important; margin: 0 !important; border-radius: 999px !important; background: rgba(125,145,175,.20) !important; box-shadow: inset 0 1px 2px rgba(0,0,0,.38) !important; }
-.v480-progress-bar .compact-bar-thin-fill { height: 100% !important; border-radius: 999px !important; background: linear-gradient(90deg, #00dfff, #00e6a8) !important; box-shadow: 0 0 14px rgba(0,229,255,.48) !important; }
-details.v477-track-card.is-deep:not(.is-watch) .v480-progress-bar .compact-bar-thin-fill { background: linear-gradient(90deg, #268dff, #7b5cff) !important; box-shadow: 0 0 14px rgba(123,92,255,.42) !important; }
-.v480-row-bottom .woos-remaining-time { margin-left: auto !important; color: #ffd233 !important; font-size: .76rem !important; font-weight: 900 !important; white-space: nowrap !important; text-shadow: 0 0 7px rgba(255,210,51,.48) !important; }
-
+details.v477-track-card.v480-glass-card .compact-bg-progress { display: none !important; }
+details.v477-track-card.v480-glass-card > summary.progress-compact-summary { padding: 13px 14px 11px !important; background: transparent !important; }
+details.v477-track-card.v480-glass-card .v477-card-content { padding: 0 !important; gap: 13px !important; align-items: stretch !important; }
+details.v477-track-card.v480-glass-card .v477-card-left { gap: 7px !important; }
+details.v477-track-card.v480-glass-card .v477-card-right { gap: 6px !important; min-width: 122px !important; padding-left: 12px; border-left: 1px solid rgba(180,200,235,.12); }
+details.v477-track-card.v480-glass-card .v477-card-left .v477-card-row1, details.v477-track-card.v480-glass-card .v477-card-left .v477-card-row2, details.v477-track-card.v480-glass-card .v477-card-right .v477-card-row1, details.v477-track-card.v480-glass-card .v477-card-right .v477-card-row2 { gap: 7px !important; }
+details.v477-track-card.v480-glass-card .woos-watch-btn { font-size: 1.18rem !important; width: 24px; min-width: 24px; padding: 0 !important; opacity: .95; }
+details.v477-track-card.v480-glass-card .woos-watch-btn.woos-watch-on { color: #ffd233 !important; filter: drop-shadow(0 0 8px rgba(255,210,51,.78)) !important; transform: scale(1.03) !important; }
+details.v477-track-card.v480-glass-card .woos-watch-btn:not(.woos-watch-on) { color: rgba(160,174,200,.64) !important; }
+details.v477-track-card.v480-glass-card b { font-size: 1.02rem; letter-spacing: .2px; color: #f3f8ff; text-shadow: 0 0 10px rgba(255,255,255,.06); }
+details.v477-track-card.v480-glass-card .woos-pct { font-size: 1.06rem !important; font-weight: 900 !important; font-family: var(--mono, monospace); letter-spacing: -.2px; margin: 0 !important; }
+details.v477-track-card.v480-glass-card .woos-pct-up { color: #22f69b !important; text-shadow: 0 0 13px rgba(34,246,155,.38) !important; }
+details.v477-track-card.v480-glass-card .woos-pct-down { color: #ff5c72 !important; text-shadow: 0 0 13px rgba(255,92,114,.36) !important; }
+details.v477-track-card.v480-glass-card .hdr-mode-chip, details.v477-track-card.v480-glass-card .hdr-grade-chip, details.v477-track-card.v480-glass-card .v478-alert { height: 25px !important; border-radius: 9px !important; font-size: .72rem !important; padding: 0 10px !important; display: inline-flex; align-items: center; justify-content: center; }
+details.v477-track-card.v480-glass-card .hdr-mode-chip.mode-watch { color: #00151f !important; background: linear-gradient(135deg, #00e5ff, #36ffbd) !important; box-shadow: 0 0 16px rgba(0,229,255,.56) !important; }
+details.v477-track-card.v480-glass-card .hdr-mode-chip.mode-precise { background: linear-gradient(135deg, #7b5cff, #c05cff) !important; box-shadow: 0 0 16px rgba(123,92,255,.52) !important; }
+details.v477-track-card.v480-glass-card .hdr-mode-chip.mode-standard { color: #cbd6ea !important; background: rgba(135,150,180,.14) !important; border: 1px solid rgba(170,188,220,.25) !important; }
+details.v477-track-card.v480-glass-card .coin-dot { width: 9px !important; height: 9px !important; min-width: 9px !important; }
+details.v477-track-card.v480-glass-card .progress-text { font-size: .74rem !important; color: rgba(230,238,250,.88) !important; font-weight: 800 !important; }
+details.v477-track-card.v480-glass-card .woos-sample-age { font-size: .68rem !important; color: rgba(200,215,235,.62) !important; }
+details.v477-track-card.v480-glass-card .woos-remaining-time { font-size: .78rem !important; color: #ffd233 !important; text-shadow: 0 0 8px rgba(255,210,51,.54) !important; }
+details.v477-track-card.v480-glass-card .compact-bar-thin { height: 6px !important; border-radius: 999px !important; margin: 0 !important; background: rgba(125,145,175,.22) !important; box-shadow: inset 0 1px 2px rgba(0,0,0,.42); }
+details.v477-track-card.v480-glass-card .compact-bar-thin-fill { border-radius: 999px !important; }
 @media (max-width: 390px) {
-  .v480-card-grid { padding: 14px 14px 13px; gap: 8px; }
-  .v480-symbol { font-size: 1.02rem; }
-  .v480-profit .woos-pct { font-size: 1.04rem !important; }
-  .v480-chip-line { gap: 5px; }
-  .v480-chip-line .hdr-mode-chip,
-  .v480-chip-line .hdr-grade-chip,
-  .v480-chip-line .v478-alert { height: 22px !important; padding: 0 8px !important; font-size: .66rem !important; }
-  .v480-progress-label { font-size: .70rem; }
+  details.v477-track-card.v480-glass-card > summary.progress-compact-summary { padding: 12px 12px 10px !important; }
+  details.v477-track-card.v480-glass-card .v477-card-right { min-width: 112px !important; padding-left: 9px; }
+  details.v477-track-card.v480-glass-card .hdr-mode-chip, details.v477-track-card.v480-glass-card .hdr-grade-chip, details.v477-track-card.v480-glass-card .v478-alert { height: 23px !important; font-size: .67rem !important; padding: 0 8px !important; }
+  details.v477-track-card.v480-glass-card b { font-size: .96rem; }
+  details.v477-track-card.v480-glass-card .woos-pct { font-size: .98rem !important; }
 }
 </style>
 </head>
@@ -13684,6 +13554,8 @@ window.addEventListener('load', async function(){
       opts = opts || {};
       var meta = track.meta || (track.keys && track.keys.meta && track.keys.meta.value) || {};
       var base = track.base || meta.base || '?';
+      var v480_isWatchVisual = !!track.isWatchlist;
+      try { v480_isWatchVisual = v480_isWatchVisual || v44_isWatchlist(base); } catch(e) {}
       var startedAt = track.startedAt || meta.windowStart || meta.tierAssignedAt || Date.now();
       var progressPct = v40_computeProgressPct(track);
       
@@ -13796,25 +13668,39 @@ window.addEventListener('load', async function(){
       // [Phase 4.7 공사 4 — 1-3] 관심 코인 잔여 시간
       var remainingTimeLabel = v47_formatRemainingTime(track, meta);
       
-      // [v4.8.0] 알람 횟수 배지 — x1도 표시, 숫자 상승별 글로우
+      // [Phase 4.7 공사 1 — Q1] 그룹 배지 (같은 코인 알람 N건)
+      // [Phase 4.7.8 R7-4] #2 알람 횟수 일관성 — 박제값 (sCount24+aCount24) 우선
+      // 정렬 변경 시 group 재구성으로 groupCount 변동 → 박제값 활용 (정렬 무관)
+      // 형식: "x{N}" (사용자 결정 — "1회" 표시 X)
       var groupBadge = '';
       var v478_alarmCount = 0;
-      var v478_sc = (track.sCount24 != null) ? Number(track.sCount24) : 0;
-      var v478_ac = (track.aCount24 != null) ? Number(track.aCount24) : 0;
-      v478_alarmCount = (isNaN(v478_sc) ? 0 : v478_sc) + (isNaN(v478_ac) ? 0 : v478_ac);
-      if (!v478_alarmCount && opts.groupCount) v478_alarmCount = Number(opts.groupCount) || 0;
+      // 박제값 우선 (sCount24 + aCount24 합산)
+      var v478_sc = (track.sCount24 != null) ? track.sCount24 : 0;
+      var v478_ac = (track.aCount24 != null) ? track.aCount24 : 0;
+      v478_alarmCount = v478_sc + v478_ac;
+      // 박제값 없거나 0 시 fallback: groupCount 사용, 그래도 없으면 x1 표시
+      if (!v478_alarmCount && opts.groupCount) {
+        v478_alarmCount = opts.groupCount;
+      }
       if (!v478_alarmCount || v478_alarmCount < 1) v478_alarmCount = 1;
-      var v479_alertTier = 'x1';
-      var v479_label = 'x' + v478_alarmCount;
+      // [v4.8.0] 알람 횟수는 x1부터 항상 표시
+      var v479_alertTier;
+      var v479_label;
       if (v478_alarmCount >= 8) {
         v479_alertTier = 'x8';
         v479_label = 'x' + v478_alarmCount + '+';
       } else if (v478_alarmCount >= 5) {
         v479_alertTier = 'x5';
+        v479_label = 'x' + v478_alarmCount;
       } else if (v478_alarmCount >= 3) {
         v479_alertTier = 'x3';
+        v479_label = 'x' + v478_alarmCount;
       } else if (v478_alarmCount >= 2) {
         v479_alertTier = 'x2';
+        v479_label = 'x' + v478_alarmCount;
+      } else {
+        v479_alertTier = 'x1';
+        v479_label = 'x1';
       }
       groupBadge = '<span class="woos-group-badge v478-alert ' + v479_alertTier + '">' + v479_label + '</span>';
       
@@ -13835,8 +13721,8 @@ window.addEventListener('load', async function(){
       function v47_buildModeChip(track) {
         var tier = String(track.tier || '').toUpperCase();
         if (tier === 'C') return '';  // C 등급 미표시
-        if (track.isWatchlist) {
-          // [R11-2] 관심 칩 추가 (⭐ 별표와 함께 표시)
+        if (v480_isWatchVisual) {
+          // [v4.8.0] 관심 칩 추가 (⭐ 별표와 함께 표시)
           return '<span class="hdr-mode-chip mode-watch">관심</span>';
         }
         // trackingMode 기준으로 통일 (자동정밀 + 정밀 = "정밀")
@@ -13863,7 +13749,7 @@ window.addEventListener('load', async function(){
       
       // [Phase 4.7 공사 4 — 1-2] 진행률 바 색상 — 관심 코인 노랑
       // 일반: cyan (기존), 관심: #ffea00 (네온 노랑)
-      var watchClass = track.isWatchlist ? ' is-watch' : '';
+      var watchClass = v480_isWatchVisual ? ' is-watch' : '';
       
       // [Phase 4.7 공사 1 — Q1] 헤더 1줄로 통일:
       //   [HF-C 변경] 가격델타 삭제 / 자동정밀 라벨 → 추적모드 칩으로 흡수
@@ -13875,29 +13761,33 @@ window.addEventListener('load', async function(){
       //     Row 1: 진행도 43%
       //     Row 2: 5m 전 · 6d 12h 남음 (sample age + remaining)
       //     Row 3: progress bar (compact-bar-thin)
-      return '<summary class="progress-compact-summary woos-summary v480-summary">'
-        + '<div class="v480-glass-shine"></div>'
-        + '<div class="v480-card-grid">'
-        +   '<div class="v480-row v480-row-top">'
-        +     '<div class="v480-main-left">'
-        +       watchBtn
-        +       '<span class="coin-dot v480-dot woos-dot-' + dotColor + '"></span>'
-        +       '<b class="v480-symbol">' + v40_escapeHtml(base) + '</b>'
+      return '<summary class="progress-compact-summary woos-summary v477-track-card-header">'
+        + '<div class="compact-bg-progress" style="width:' + progressPct.toFixed(1) + '%"></div>'
+        + '<div class="compact-content v477-card-content">'
+        +   '<div class="progress-summary-left v477-card-left">'
+        +     '<div class="v477-card-row1">'
+        +       watchBtn  /* ⭐ */
+        +       '<span class="coin-dot woos-dot-' + dotColor + '"></span>'  /* ● 실시간 색상 */
+        +       '<b>' + v40_escapeHtml(base) + '</b>'                      /* 코인명 */
+        +       gradeChip                                                   /* 최근 등급 (S+/S/A) */
+        +       modeChip                                                    /* 정/표 칩 */
+        +       groupBadge                                                  /* x{N} */
         +     '</div>'
-        +     '<div class="v480-profit">' + (pctLabel || '<span class="woos-pct woos-empty">-</span>') + '</div>'
-        +   '</div>'
-        +   '<div class="v480-row v480-row-mid">'
-        +     '<div class="v480-chip-line">'
-        +       modeChip
-        +       gradeChip
-        +       groupBadge
-        +       sampleAgeLabel
+        +     '<div class="v477-card-row2">'
+        +       pctLabel                                                    /* +5.27% */
         +     '</div>'
         +   '</div>'
-        +   '<div class="v480-row v480-row-bottom">'
-        +     '<span class="v480-progress-label">진행도 ' + progressPct.toFixed(0) + '%</span>'
-        +     '<div class="compact-bar-thin v480-progress-bar"><div class="compact-bar-thin-fill' + watchClass + '" style="width:' + progressPct.toFixed(1) + '%"></div></div>'
-        +     remainingTimeLabel
+        +   '<div class="progress-summary-right v477-card-right">'
+        +     '<div class="v477-card-row1">'
+        +       '<span class="progress-text">진행도 ' + progressPct.toFixed(0) + '%</span>'
+        +     '</div>'
+        +     '<div class="v477-card-row2">'
+        +       sampleAgeLabel                                              /* 5m 전 */
+        +       remainingTimeLabel                                          /* 6d 12h 남음 */
+        +     '</div>'
+        +     '<div class="v477-card-row3">'
+        +       '<div class="compact-bar-thin v477-progress-bar"><div class="compact-bar-thin-fill' + watchClass + '" style="width:' + progressPct.toFixed(1) + '%"></div></div>'
+        +     '</div>'
         +   '</div>'
         + '</div>'
         + '</summary>';
@@ -14018,8 +13908,10 @@ window.addEventListener('load', async function(){
           '<div class="progress-rich-body woos-body$1">' + singleGradeChart
         );
         // [Phase 4.7.8 R6-A] 외곽 클래스 추가 — v477-track-card / is-watch / is-deep
-        var v478_singleClasses = 'progress-rich-card woos-card v477-track-card';
-        if (rep.isWatchlist) v478_singleClasses += ' is-watch';
+        var v478_singleClasses = 'progress-rich-card woos-card v477-track-card v480-glass-card';
+        var v480_singleWatch = !!rep.isWatchlist;
+        try { v480_singleWatch = v480_singleWatch || v44_isWatchlist(rep.base || (rep.meta && rep.meta.base) || ''); } catch(e) {}
+        if (v480_singleWatch) v478_singleClasses += ' is-watch';
         else if (rep.trackingMode === 'deep' || (rep.tier && String(rep.tier).toUpperCase() === 'A')) v478_singleClasses += ' is-deep';
         else v478_singleClasses += ' is-standard';
         return '<details class="' + v478_singleClasses + '" ' + attrs + v463_singleOpenAttr + v463_singleToggleAttr + '>' + inner.summary + singleBody + '</details>';
@@ -14095,8 +13987,10 @@ window.addEventListener('load', async function(){
       var groupGradeChart = v47_buildGradeChangeChart(group);
       
       // [Phase 4.7.8 R6-A] 외곽 클래스 추가 — v477-track-card / is-watch / is-deep
-      var v478_groupClasses = 'progress-rich-card woos-card woos-group v477-track-card';
-      if (rep.isWatchlist) v478_groupClasses += ' is-watch';
+      var v478_groupClasses = 'progress-rich-card woos-card woos-group v477-track-card v480-glass-card';
+      var v480_groupWatch = !!rep.isWatchlist;
+      try { v480_groupWatch = v480_groupWatch || v44_isWatchlist(rep.base || (rep.meta && rep.meta.base) || ''); } catch(e) {}
+      if (v480_groupWatch) v478_groupClasses += ' is-watch';
       else if (rep.trackingMode === 'deep' || (rep.tier && String(rep.tier).toUpperCase() === 'A')) v478_groupClasses += ' is-deep';
       else v478_groupClasses += ' is-standard';
       
