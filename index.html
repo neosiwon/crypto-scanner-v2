@@ -7,8 +7,8 @@
 <meta name="theme-color" content="#00d4ff">
 <title>WOOS CRYPTO SCANNER | 세력매집 급등직전 탐지기</title>
 <!-- [v3.6] 파비콘 — 이미지 없어도 무시됨 -->
-<link rel="icon" type="image/png" href="assets/pwa-icon.jpg">
-<link rel="apple-touch-icon" href="assets/pwa-icon.jpg">
+<link rel="icon" type="image/png" href="assets/logo.png">
+<link rel="apple-touch-icon" href="assets/logo.png">
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600;700&family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
 <style>
 /* ══════════════════════════════════════════
@@ -2743,7 +2743,7 @@ body.scan-complete .main-logo,
 
 /* [Phase 4.7 공사 4] 로딩 스피너 — woos_roding.png + 페이드 글로우 + "로딩 중" 시안 흐름
  * 사용자 결정 (그룹 1):
- *   - 이미지: assets/woos_roding.png (회전 X)
+ *   - 이미지: assets/loading-logo.png (회전 X)
  *   - 글로우 페이드 인/아웃: 1.5초/회, 투명도 30~100%
  *   - "로딩 중" 글자: 시안 그라데이션 좌→우 흐름, 2초/회, 20px
  *   - 이미지-글자 간격: 20px
@@ -2759,8 +2759,8 @@ body.scan-complete .main-logo,
   min-height: 200px;
 }
 .woos-loading-spinner-img {
-  width: 80px;
-  height: 80px;
+  width: clamp(170px, 30vw, 260px);
+  height: auto;
   display: block;
   animation: woos-loading-glow 1.5s ease-in-out infinite;
 }
@@ -5437,6 +5437,49 @@ details.progress-rich-card[open] .v4721-detail-toggle {
   display: none !important;
 }
 
+
+/* [v4.7.27] LOGO / LOADING IMAGE STRICT SEPARATION
+   - Official logo / PWA icon: assets/logo.png
+   - Analyzer loading image: assets/loading-logo.png
+*/
+.woos-loading-spinner {
+  min-height: 320px !important;
+  padding: 56px 20px !important;
+}
+.woos-loading-spinner-img,
+img[src*="loading-logo.png"] {
+  width: clamp(170px, 30vw, 260px) !important;
+  height: auto !important;
+  max-width: 72% !important;
+  object-fit: contain !important;
+  image-rendering: auto !important;
+  animation: woos-loading-glow 1.5s ease-in-out infinite !important;
+  filter: drop-shadow(0 0 28px rgba(0,212,255,.45)) !important;
+}
+.woos-loading-spinner-text {
+  margin-top: 22px !important;
+}
+
+
+/* [v4.7.28] PWA icon / loading image only — top UI logo unchanged */
+.woos-loading-spinner {
+  min-height: 320px !important;
+  padding: 56px 20px !important;
+}
+.woos-loading-spinner-img,
+.loading-logo,
+img[src*="loading-logo.png"] {
+  width: clamp(180px, 32vw, 280px) !important;
+  height: auto !important;
+  max-width: 76% !important;
+  object-fit: contain !important;
+  image-rendering: auto !important;
+  filter: drop-shadow(0 0 30px rgba(0,212,255,.46)) !important;
+}
+.woos-loading-spinner-text {
+  margin-top: 22px !important;
+}
+
 </style>
 </head>
 <body>
@@ -5817,7 +5860,7 @@ details.progress-rich-card[open] .v4721-detail-toggle {
       </div>
       <div id="analyzerContent">
         <div class="woos-loading-spinner">
-          <img class="woos-loading-spinner-img" src="assets/woos_roding.jpg" alt="로딩 중" onerror="this.style.display='none'" />
+          <img class="woos-loading-spinner-img" src="assets/loading-logo.png" alt="로딩 중" onerror="this.style.display='none'" />
           <div class="woos-loading-spinner-text">로딩 중</div>
         </div>
       </div>
@@ -6471,7 +6514,7 @@ async function opsDashboard() {
 // 탭 시 상세 팝업
 // ═══════════════════════════════════════════════════════════════
 
-var HTML_VERSION = 'v4.7.24-card-open-watch-7d-fix';  // Phase 4.7.11 R11 — 카드 색상 디테일 (관심시안/정밀보라+시안/표준다크) + 등급칩(S+골드/S핑크/A보라/B시안) + 알람 단계별 glow + 진행도 바 그라디언트 + 별 강조 + 잔여시간 골드
+var HTML_VERSION = 'v4.7.23-watch-7d-persist-hotfix';  // Phase 4.7.11 R11 — 카드 색상 디테일 (관심시안/정밀보라+시안/표준다크) + 등급칩(S+골드/S핑크/A보라/B시안) + 알람 단계별 glow + 진행도 바 그라디언트 + 별 강조 + 잔여시간 골드
 var _cachedBuildInfo = null;
 
 async function fetchBuildInfo() {
@@ -10429,6 +10472,20 @@ window.addEventListener('load', async function(){
     grid.innerHTML = html;
   }
   
+
+/* [v4.7.27] fetch timeout — prevent analyzer infinite loading */
+function woosFetchWithTimeout(url, options, timeoutMs) {
+  timeoutMs = timeoutMs || 12000;
+  options = options || {};
+  if (typeof AbortController === 'undefined') {
+    return fetch(url, options);
+  }
+  var controller = new AbortController();
+  var timer = setTimeout(function(){ controller.abort(); }, timeoutMs);
+  options.signal = controller.signal;
+  return fetch(url, options).finally(function(){ clearTimeout(timer); });
+}
+
   // ══ 데이터 fetch ══════════════════════════════════════════════
   function fetchSnapshotsList() {
     return fetch(WORKER_URL + '/snapshots?limit=100')
@@ -10437,7 +10494,7 @@ window.addEventListener('load', async function(){
   }
   
   function fetchTrackingActive() {
-    return fetch(WORKER_URL + '/tracking/active')
+    return woosFetchWithTimeout(WORKER_URL + '/tracking/active', {}, 12000)
       .then(function(r){ return r.ok ? r.json() : null; })
       .catch(function(){ return null; });
   }
@@ -10551,7 +10608,7 @@ window.addEventListener('load', async function(){
     if (!_activeItemsCache.length) {
       // [Phase 4.7 공사 4] 로딩 스피너 — woos_roding.png + 페이드 글로우 + "로딩 중" 시안 흐름
       container.innerHTML = '<div class="woos-loading-spinner">'
-                          + '<img class="woos-loading-spinner-img" src="assets/woos_roding.jpg" alt="로딩 중" onerror="this.style.display=\'none\'" />'
+                          + '<img class="woos-loading-spinner-img" src="assets/loading-logo.png" alt="로딩 중" onerror="this.style.display=\'none\'" />'
                           + '<div class="woos-loading-spinner-text">로딩 중</div>'
                           + '</div>';
     }
@@ -10600,7 +10657,7 @@ window.addEventListener('load', async function(){
           mae: item.mae != null ? item.mae : null,
           lastSampleT: item.lastSampleT != null ? item.lastSampleT : null,
           // [Phase 4.7 공사 4] 자동 정밀 / 관심 / 한도 거부 박제
-          isWatchlist: isWatchLocal || item.isWatchlist || meta.isWatchlist || false,
+          isWatchlist: item.isWatchlist || false,
           isAutoPrecise: item.isAutoPrecise || false,
           tierARejected: item.tierARejected || false,
           sCount24: item.sCount24 || 0,
@@ -12079,31 +12136,16 @@ window.addEventListener('load', async function(){
         if (!base) return item;
         var isWatch = !!item.isWatchlist;
         try { if (!isWatch && typeof v44_isWatchlist === 'function') isWatch = v44_isWatchlist(base); } catch(e0) {}
-        // [v4.7.24] watchlist 배열이 일시적으로 늦게 반영되어도 7d meta가 있으면 관심으로 간주
-        try {
-          if (!isWatch) {
-            var __wm = v4723_getWatchMetaMap();
-            isWatch = !!(__wm && __wm[base] && __wm[base].endAt && Number(__wm[base].endAt) > Date.now());
-          }
-        } catch(eMeta) {}
         if (!isWatch) return item;
 
         var meta = v4723_touchWatchMeta(base, item);
         item.isWatchlist = true;
-        item.trackingMode = 'watch';
+        item.trackingMode = 'deep';
         item.windowDays = 7;
         item.startedAt = meta.startedAt;
         item.tierAssignedAt = meta.startedAt;
         item.windowEnd = meta.endAt;
         item.endAt = meta.endAt;
-        item.meta = item.meta || {};
-        item.meta.isWatchlist = true;
-        item.meta.trackingMode = 'watch';
-        item.meta.windowDays = 7;
-        item.meta.windowStart = meta.startedAt;
-        item.meta.tierAssignedAt = meta.startedAt;
-        item.meta.windowEnd = meta.endAt;
-        item.meta.endAt = meta.endAt;
         item.trackingModeReason = item.trackingModeReason || 'watchlist-local-7d-persist';
         var elapsedMs = Date.now() - meta.startedAt;
         item.progress = Math.min(100, Math.max(0, (elapsedMs / (7 * 24 * 3600 * 1000)) * 100));
@@ -12112,13 +12154,13 @@ window.addEventListener('load', async function(){
           if (typeof _trackingMap !== 'undefined' && _trackingMap && item.id && _trackingMap[item.id]) {
             var td = _trackingMap[item.id];
             td.isWatchlist = true;
-            td.trackingMode = 'watch';
+            td.trackingMode = 'deep';
             td.windowDays = 7;
             td.windowEnd = meta.endAt;
             td.endAt = meta.endAt;
             td.meta = td.meta || {};
             td.meta.isWatchlist = true;
-            td.meta.trackingMode = 'watch';
+            td.meta.trackingMode = 'deep';
             td.meta.windowDays = 7;
             td.meta.windowStart = meta.startedAt;
             td.meta.tierAssignedAt = meta.startedAt;
@@ -14460,19 +14502,6 @@ window.addEventListener('load', async function(){
     function v40_adaptItemToTrack(item, td) {
       td = td || {};
       var meta = td.meta || {};
-      var baseForWatch = String((item && item.base) || meta.base || '').toUpperCase();
-      var isWatchLocal = !!(item && item.isWatchlist) || !!meta.isWatchlist;
-      try { if (!isWatchLocal && typeof v44_isWatchlist === 'function') isWatchLocal = v44_isWatchlist(baseForWatch); } catch(eW) {}
-      try {
-        if (!isWatchLocal && typeof v4723_getWatchMetaMap === 'function') {
-          var __watchMeta = v4723_getWatchMetaMap();
-          isWatchLocal = !!(__watchMeta && __watchMeta[baseForWatch] && Number(__watchMeta[baseForWatch].endAt) > Date.now());
-        }
-      } catch(eWM) {}
-      if (isWatchLocal && typeof v4723_enforceWatchState === 'function') {
-        try { item = v4723_enforceWatchState(item) || item; } catch(eE) {}
-        meta = (item && item.meta) || meta || {};
-      }
       return {
         snapshotId: item.id, id: item.id,
         base: item.base || meta.base || '',
@@ -14481,10 +14510,7 @@ window.addEventListener('load', async function(){
         gradeCode: item.gradeCode || meta.gradeCode || null,
         gradeLabel: item.gradeLabel || meta.gradeLabel || null,
         startedAt: item.startedAt || item.tierAssignedAt || meta.windowStart || meta.tierAssignedAt,
-        windowEnd: item.windowEnd || item.endAt || meta.windowEnd || meta.endAt,
-        endAt: item.endAt || item.windowEnd || meta.endAt || meta.windowEnd,
-        trackingMode: item.trackingMode || meta.trackingMode || (isWatchLocal ? 'watch' : null),
-        windowDays: item.windowDays || meta.windowDays || (isWatchLocal ? 7 : null),
+        windowEnd: item.windowEnd || meta.windowEnd,
         status: meta.status || 'active',
         meta: meta,
         samples: td.samples || [],
@@ -14498,7 +14524,7 @@ window.addEventListener('load', async function(){
         prefetchedMae: item.mae != null ? item.mae : null,
         prefetchedSampleT: item.lastSampleT != null ? item.lastSampleT : null,
         // [Phase 4.7 공사 4] 자동 정밀 / 관심 / 한도 거부 박제
-        isWatchlist: isWatchLocal || item.isWatchlist || meta.isWatchlist || false,
+        isWatchlist: item.isWatchlist || false,
         isAutoPrecise: item.isAutoPrecise || false,
         tierARejected: item.tierARejected || false,
         sCount24: item.sCount24 || 0,
@@ -14652,9 +14678,12 @@ window.addEventListener('load', async function(){
    * ═══════════════════════════════════════════════════════════════ */
   if (typeof window !== 'undefined') {
     window.v4721BlockSummaryToggle = function(event) {
-      // [v4.7.24] 카드 헤더(summary) 클릭으로 details 기본 열림/닫힘을 허용한다.
-      // 이전 v4.7.21은 chevron 전용 토글을 강제했지만, chevron을 숨기면서 카드가 안 열리는 문제가 발생했다.
-      return true;
+      try {
+        if (event && typeof event.preventDefault === 'function') event.preventDefault();
+        return false;
+      } catch(e) {
+        return false;
+      }
     };
 
     window.v4721ToggleDetails = function(event, btn) {
@@ -14670,30 +14699,6 @@ window.addEventListener('load', async function(){
         return false;
       }
     };
-
-    window.v4724EnsureSummaryTapOpen = function() {
-      try {
-        if (window.__v4724SummaryTapBound) return;
-        window.__v4724SummaryTapBound = true;
-        document.addEventListener('click', function(ev) {
-          var summary = ev.target && ev.target.closest ? ev.target.closest('summary.progress-compact-summary') : null;
-          if (!summary) return;
-          // 별 관심 버튼 등 내부 버튼은 기존 핸들러 우선
-          if (ev.target.closest && ev.target.closest('button, a, input, select, textarea')) return;
-          var details = summary.closest ? summary.closest('details.progress-rich-card') : null;
-          if (!details) return;
-          // inline onclick이 막는 구버전 캐시 대비: 클릭 직후 상태가 안 바뀌면 수동 토글
-          var before = details.open;
-          setTimeout(function(){
-            try {
-              if (details.open === before) details.open = !before;
-            } catch(e) {}
-          }, 0);
-        }, true);
-      } catch(e) {}
-    };
-    try { window.v4724EnsureSummaryTapOpen(); } catch(e) {};
-
   }
 
   /* ═══════════════════════════════════════════════════════════════
@@ -15222,7 +15227,7 @@ window.addEventListener('load', async function(){
               mae: item.mae != null ? item.mae : null,
               lastSampleT: item.lastSampleT != null ? item.lastSampleT : null,
               // [Phase 4.7 공사 4] 자동 정밀 / 관심 / 한도 거부 박제
-              isWatchlist: isWatchLocal || item.isWatchlist || meta.isWatchlist || false,
+              isWatchlist: item.isWatchlist || false,
               isAutoPrecise: item.isAutoPrecise || false,
               tierARejected: item.tierARejected || false,
               sCount24: item.sCount24 || 0,
@@ -15306,15 +15311,28 @@ window.addEventListener('load', async function(){
 /* [END MODULE: phase35_analyzer_js] */
 
 </script>
+
 <script>
-// [v4.7.24] PWA service worker registration
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', function () {
-    navigator.serviceWorker.register('./service-worker.js').catch(function (err) {
-      console.warn('[WOOS PWA] service worker registration failed', err);
-    });
+/* [v4.7.27] Analyzer loading failsafe */
+(function(){
+  window.addEventListener('load', function(){
+    setTimeout(function(){
+      var container = document.getElementById('analyzerContent');
+      if (!container) return;
+      if (container.querySelector('.woos-loading-spinner')) {
+        container.innerHTML = '<div class="analyzer-empty">추적 분석 데이터를 불러오지 못했습니다. 새로고침 후 다시 확인해주세요.</div>';
+      }
+    }, 15000);
   });
+})();
+</script>
+
+
+<script>
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('./service-worker.js');
 }
 </script>
+
 </body>
 </html>
