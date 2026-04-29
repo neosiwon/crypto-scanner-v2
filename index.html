@@ -5097,7 +5097,7 @@ details.v477-track-card { border-radius: 17px !important; margin: 9px 0 !importa
 }
 
 
-/* [v4.7.19-watch-on-modal] UI mode glass selector alias — DOM class and CSS target unified */
+/* [v4.7.21-detail-toggle-fix] UI mode glass selector alias — DOM class and CSS target unified */
 details.v480-glass-card {
   background: rgba(10,18,28,0.60);
   backdrop-filter: blur(12px);
@@ -5391,6 +5391,40 @@ details.v477-track-card[open] .progress-rich-body .score-group-title {
   details.v477-track-card { border-radius: 17px !important; }
   .v478-summary .woos-watch-btn { width: 18px !important; min-width: 18px !important; height: 18px !important; font-size: .90rem !important; }
 }
+
+
+/* [v4.7.21-detail-toggle-fix] 카드 전체 토글 금지 + 전용 chevron 버튼 */
+.v4721-detail-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  margin-left: 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(0, 212, 255, 0.28);
+  background: rgba(5, 12, 22, 0.55);
+  color: #8bdcff;
+  font-size: 0.82rem;
+  line-height: 1;
+  transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease;
+  flex-shrink: 0;
+}
+.v4721-detail-toggle:hover,
+.v4721-detail-toggle:active {
+  border-color: rgba(0, 212, 255, 0.7);
+  box-shadow: 0 0 12px rgba(0, 212, 255, 0.28);
+}
+details.progress-rich-card[open] .v4721-detail-toggle {
+  transform: rotate(180deg);
+}
+.v478-profit-wrap {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
 </style>
 </head>
 <body>
@@ -6425,7 +6459,7 @@ async function opsDashboard() {
 // 탭 시 상세 팝업
 // ═══════════════════════════════════════════════════════════════
 
-var HTML_VERSION = 'v4.7.19-watch-on-modal';  // Phase 4.7.11 R11 — 카드 색상 디테일 (관심시안/정밀보라+시안/표준다크) + 등급칩(S+골드/S핑크/A보라/B시안) + 알람 단계별 glow + 진행도 바 그라디언트 + 별 강조 + 잔여시간 골드
+var HTML_VERSION = 'v4.7.21-detail-toggle-fix';  // Phase 4.7.11 R11 — 카드 색상 디테일 (관심시안/정밀보라+시안/표준다크) + 등급칩(S+골드/S핑크/A보라/B시안) + 알람 단계별 glow + 진행도 바 그라디언트 + 별 강조 + 잔여시간 골드
 var _cachedBuildInfo = null;
 
 async function fetchBuildInfo() {
@@ -11119,7 +11153,7 @@ window.addEventListener('load', async function(){
   
   // ══ 외부 노출 ══════════════════════════════════════════════
   global.WOOS_ANALYZER = {
-    BUILD_TAG: 'v4.7.19-watch-on-modal',
+    BUILD_TAG: 'v4.7.21-detail-toggle-fix',
     loadAndRenderAll: loadAndRenderAll,
     renderAnalyzerSection: renderAnalyzerSection,
     renderAlarmTable: function(){ renderAlarmTable(_allItems); },
@@ -14055,7 +14089,7 @@ window.addEventListener('load', async function(){
       //   1줄: ★ ● 코인명                         수익률
       //   2줄: [관심/정밀/표준] [등급] [xN] [Nm 전]
       //   3줄: 진행도 NN%  ━━━━━                 남은시간
-      return '<summary class="progress-compact-summary woos-summary v478-summary">'
+      return '<summary class="progress-compact-summary woos-summary v478-summary" onclick="return window.v4721BlockSummaryToggle && window.v4721BlockSummaryToggle(event)">'
         + '<div class="v478-summary-inner">'
         +   '<div class="v478-row1">'
         +     '<div class="v478-leftline">'
@@ -14063,7 +14097,7 @@ window.addEventListener('load', async function(){
         +       '<span class="coin-dot woos-dot-' + dotColor + '"></span>'
         +       '<b class="v478-symbol">' + v40_escapeHtml(base) + '</b>'
         +     '</div>'
-        +     '<div class="v478-profit-wrap">' + pctLabel + '</div>'
+        +     '<div class="v478-profit-wrap">' + pctLabel + '<button type="button" class="v4721-detail-toggle" onclick="window.v4721ToggleDetails && window.v4721ToggleDetails(event, this)" aria-label="상세 열기">⌄</button></div>'
         +   '</div>'
         +   '<div class="v478-row2">'
         +     modeChip
@@ -14465,6 +14499,36 @@ window.addEventListener('load', async function(){
    * ═══════════════════════════════════════════════════════════════ */
   
   /* ═══════════════════════════════════════════════════════════════
+   * [v4.7.21] 카드 상세 토글 안정화
+   * - summary/card 전체 클릭 토글 금지
+   * - chevron 버튼으로만 details open/close
+   * ═══════════════════════════════════════════════════════════════ */
+  if (typeof window !== 'undefined') {
+    window.v4721BlockSummaryToggle = function(event) {
+      try {
+        if (event && typeof event.preventDefault === 'function') event.preventDefault();
+        return false;
+      } catch(e) {
+        return false;
+      }
+    };
+
+    window.v4721ToggleDetails = function(event, btn) {
+      try {
+        if (event && typeof event.preventDefault === 'function') event.preventDefault();
+        if (event && typeof event.stopPropagation === 'function') event.stopPropagation();
+        var details = btn && btn.closest ? btn.closest('details.progress-rich-card') : null;
+        if (!details) return false;
+        details.open = !details.open;
+        return false;
+      } catch(e) {
+        console.error('[v4721ToggleDetails]', e);
+        return false;
+      }
+    };
+  }
+
+  /* ═══════════════════════════════════════════════════════════════
    * [Phase 4.5] 글로벌 ⭐ Watchlist 토글 핸들러
    * onclick 에서 직접 호출되는 전역 함수
    * ═══════════════════════════════════════════════════════════════ */
@@ -14548,7 +14612,7 @@ window.addEventListener('load', async function(){
       }
     }
 
-    // [v4.7.19-watch-on-modal] 관심 ON 확인 모달
+    // [v4.7.21-detail-toggle-fix] 관심 ON 확인 모달
     function v47_showWatchOnModal(base) {
       try {
         var existing = document.getElementById('v47-watchon-modal');
@@ -14590,13 +14654,65 @@ window.addEventListener('load', async function(){
       }
     }
     
-    // [v4.7.19-watch-on-modal] Worker API 동기화 + active 재조회
+    // [v4.7.21-detail-toggle-fix] 관심 상태 즉시 UI 반영 + 7d optimistic overlay
+    function v4720_applyWatchActiveOverlay(base, isWatch) {
+      try {
+        var b = String(base || '').toUpperCase();
+        if (!b) return;
+        var now = Date.now();
+        var end7d = now + 7 * 24 * 60 * 60 * 1000;
+        var cache = (typeof window !== 'undefined' && window._activeItemsCache) ? window._activeItemsCache : _activeItemsCache;
+        if (!Array.isArray(cache)) return;
+        for (var i = 0; i < cache.length; i++) {
+          var item = cache[i];
+          if (!item || String(item.base || '').toUpperCase() !== b) continue;
+          item.isWatchlist = !!isWatch;
+          if (isWatch) {
+            item.trackingMode = 'deep';
+            item.windowDays = 7;
+            item.windowEnd = end7d;
+            item.endAt = end7d;
+            item.trackingModeReason = item.trackingModeReason || 'watchlist-optimistic-ui';
+          }
+          try {
+            var td = _trackingMap && _trackingMap[item.id];
+            if (td) {
+              td.isWatchlist = !!isWatch;
+              td.trackingMode = item.trackingMode;
+              td.windowDays = item.windowDays;
+              td.windowEnd = item.windowEnd;
+              td.endAt = item.endAt;
+              td.meta = td.meta || {};
+              td.meta.isWatchlist = !!isWatch;
+              td.meta.trackingMode = item.trackingMode;
+              td.meta.windowDays = item.windowDays;
+              td.meta.windowEnd = item.windowEnd;
+              td.meta.endAt = item.endAt;
+            }
+          } catch(e2) {}
+        }
+        v47_rerenderActive();
+      } catch(e) {
+        console.warn('[v4720_applyWatchActiveOverlay]', e);
+      }
+    }
+
+    // [v4.7.21-detail-toggle-fix] 추적 Worker URL 고정: getProxyUrl()는 거래소 프록시일 수 있어 사용하지 않음
+    function v4720_getTrackingWorkerBase() {
+      var workerBase = '';
+      try { if (typeof WORKER_URL !== 'undefined' && WORKER_URL) workerBase = WORKER_URL; } catch(e0) {}
+      try { if (!workerBase && typeof window !== 'undefined' && window.WORKER_BASE_URL) workerBase = window.WORKER_BASE_URL; } catch(e1) {}
+      try { if (!workerBase && typeof DEFAULT_SCANNER_API_BASE !== 'undefined' && DEFAULT_SCANNER_API_BASE) workerBase = DEFAULT_SCANNER_API_BASE; } catch(e2) {}
+      return String(workerBase || '').replace(/\/$/, '');
+    }
+
+    // [v4.7.21-detail-toggle-fix] Worker API 동기화 + active 재조회
     function v47_syncWatchApi(base, isWatch) {
       try {
-        var workerBase = '';
-        try { if (typeof getProxyUrl === 'function') workerBase = getProxyUrl(); } catch(e0) {}
-        if (!workerBase) workerBase = window.WORKER_BASE_URL || '';
-        workerBase = String(workerBase || '').replace(/\/$/, '');
+        var workerBase = v4720_getTrackingWorkerBase();
+
+        // 서버 응답 전이라도 관심 ON은 즉시 정밀/7d로 보이게 한다. 서버 동기화 실패 시 콘솔에 남긴다.
+        v4720_applyWatchActiveOverlay(base, isWatch);
 
         if (!workerBase) {
           console.warn('[v47_syncWatchApi] WORKER_BASE_URL missing - local watch only');
