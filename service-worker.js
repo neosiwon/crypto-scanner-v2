@@ -4,7 +4,7 @@
 // - PWA app icon: assets/pwa-icon-192.png, assets/pwa-icon-512.png
 // - Analyzer loading image: assets/loading-logo.png
 
-const CACHE_NAME = "woos-pwa-v4-7-29-tracking-ui-fix";
+const CACHE_NAME = "woos-pwa-v4-7-31-label-completed-tab";
 
 const CORE_ASSETS = [
   "./",
