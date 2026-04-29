@@ -3719,6 +3719,53 @@ details.progress-rich-card.woos-group[open] { border-color: rgba(124, 58, 237, 0
 }
 .v47-info-item b { color: #7dd3fc; margin-right: 4px; }
 
+/* [Phase 4.7.8 R7-1] #5 관심 OFF 모달 누락 CSS 추가 */
+.v47-info-modal-title {
+  padding: 14px 16px 10px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #e5e7eb;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+.v47-info-modal-actions {
+  display: flex;
+  gap: 8px;
+  padding: 12px 16px;
+  border-top: 1px solid rgba(255,255,255,0.08);
+  justify-content: flex-end;
+}
+.v47-info-modal-btn {
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid rgba(255,255,255,0.12);
+  background: rgba(255,255,255,0.04);
+  color: #e5e7eb;
+  transition: all 0.15s;
+  min-width: 80px;
+}
+.v47-info-modal-btn:active {
+  transform: scale(0.97);
+}
+.v47-info-modal-cancel {
+  background: rgba(148,163,184,0.08);
+  color: #94a3b8;
+}
+.v47-info-modal-cancel:hover {
+  background: rgba(148,163,184,0.16);
+}
+.v47-info-modal-confirm {
+  background: linear-gradient(135deg, #00d4ff, #00b8d4);
+  border-color: rgba(0,212,255,0.5);
+  color: #001018;
+  font-weight: 700;
+}
+.v47-info-modal-confirm:hover {
+  filter: brightness(1.1);
+}
+
 /* Q17: 사후 평가 */
 .post-mortem {
   display: flex; flex-direction: column; gap: 12px;
@@ -4165,6 +4212,99 @@ details.progress-rich-card > summary.progress-compact-summary {
 .compact-bar-thin-fill.is-watch {
   background: linear-gradient(90deg, #ffea00, #ffec40);
   box-shadow: 0 0 6px rgba(255, 234, 0, 0.5);
+}
+
+/* ══════════════════════════════════════════
+   [Phase 4.7.8 R6-B] 카드 헤더 글래스 + 네온 UI
+   - .v477-track-card: 카드 외곽 글래스 효과
+   - .is-watch: 관심 코인 (노랑 보더 + 글로우)
+   - .is-deep: 정밀(관심X) (보라 보더 + 글로우)
+   - 기본: 시안 미세 보더
+══════════════════════════════════════════ */
+details.v477-track-card {
+  position: relative;
+  border-radius: 14px;
+  background:
+    linear-gradient(135deg, rgba(0, 229, 255, 0.05), rgba(120, 68, 255, 0.04)),
+    rgba(8, 16, 32, 0.42);
+  border: 1px solid rgba(0, 229, 255, 0.14);
+  box-shadow:
+    0 4px 18px rgba(0, 0, 0, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(12px) saturate(130%);
+  -webkit-backdrop-filter: blur(12px) saturate(130%);
+  margin-bottom: 8px;
+  overflow: hidden;
+  transition: box-shadow .18s, border-color .18s;
+}
+
+details.v477-track-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 0% 20%, rgba(0, 229, 255, 0.10), transparent 38%),
+    radial-gradient(circle at 100% 0%, rgba(155, 92, 255, 0.08), transparent 40%);
+  opacity: 0.7;
+  z-index: 0;
+}
+
+details.v477-track-card > summary,
+details.v477-track-card > .progress-rich-body {
+  position: relative;
+  z-index: 1;
+}
+
+/* 관심 코인 — 노랑 보더 + 글로우 (우선순위) */
+details.v477-track-card.is-watch {
+  border-color: rgba(255, 234, 0, 0.45);
+  background:
+    linear-gradient(135deg, rgba(255, 234, 0, 0.08), rgba(0, 229, 255, 0.05)),
+    rgba(12, 18, 28, 0.5);
+  box-shadow:
+    0 0 0 1px rgba(255, 234, 0, 0.18),
+    0 0 22px rgba(255, 234, 0, 0.18),
+    0 8px 24px rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.10);
+}
+
+/* 정밀(관심X) — 보라 보더 + 글로우 */
+details.v477-track-card.is-deep:not(.is-watch) {
+  border-color: rgba(168, 85, 247, 0.40);
+  background:
+    linear-gradient(135deg, rgba(168, 85, 247, 0.07), rgba(120, 68, 255, 0.05)),
+    rgba(10, 14, 28, 0.48);
+  box-shadow:
+    0 0 0 1px rgba(168, 85, 247, 0.14),
+    0 0 18px rgba(168, 85, 247, 0.18),
+    0 6px 22px rgba(0, 0, 0, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.07);
+}
+
+details.v477-track-card.is-deep:not(.is-watch)::before {
+  background:
+    radial-gradient(circle at 0% 20%, rgba(168, 85, 247, 0.12), transparent 36%),
+    radial-gradient(circle at 100% 0%, rgba(120, 68, 255, 0.10), transparent 40%);
+}
+
+/* hover 강화 (PC) */
+@media (hover: hover) {
+  details.v477-track-card:hover {
+    border-color: rgba(0, 229, 255, 0.28);
+  }
+  details.v477-track-card.is-watch:hover {
+    box-shadow:
+      0 0 0 1px rgba(255, 234, 0, 0.30),
+      0 0 28px rgba(255, 234, 0, 0.26),
+      0 10px 28px rgba(0, 0, 0, 0.45);
+  }
+  details.v477-track-card.is-deep:not(.is-watch):hover {
+    box-shadow:
+      0 0 0 1px rgba(168, 85, 247, 0.24),
+      0 0 24px rgba(168, 85, 247, 0.24),
+      0 8px 26px rgba(0, 0, 0, 0.4);
+  }
 }
 
 /* [Phase 4.7 공사 4 — 1-1] "5분 전 데이터" 라벨 (헤더 작게) */
@@ -5791,7 +5931,7 @@ async function opsDashboard() {
 // 탭 시 상세 팝업
 // ═══════════════════════════════════════════════════════════════
 
-var HTML_VERSION = 'v4.23.0';  // Phase 4.7.7 round3-window-fix — 작업1 키불일치 + 작업2 windowDays 강제 + 작업3 progress windowDays 기반
+var HTML_VERSION = 'v4.24.0';  // Phase 4.7.8 R6+R7 — 카드헤더 글래스 + 모달CSS + 오버레이숨김 + 알람횟수일관성 + 관심등록정밀전환
 var _cachedBuildInfo = null;
 
 async function fetchBuildInfo() {
@@ -10472,7 +10612,7 @@ window.addEventListener('load', async function(){
   
   // ══ 외부 노출 ══════════════════════════════════════════════
   global.WOOS_ANALYZER = {
-    BUILD_TAG: 'phase4.7-round3-window-fix-v4.7.7',
+    BUILD_TAG: 'phase4.7-r6r7-watchlist-upgrade-v4.7.8',
     loadAndRenderAll: loadAndRenderAll,
     renderAnalyzerSection: renderAnalyzerSection,
     renderAlarmTable: function(){ renderAlarmTable(_allItems); },
@@ -11403,7 +11543,10 @@ window.addEventListener('load', async function(){
         allCurves.push({ pcts: pcts, isRep: (i === n - 1), idx: i, base: t.base || (meta.base || '?') });
       }
       
-      if (allCurves.length === 0) return '';
+      // [Phase 4.7.8 R7-3] #3 오버레이 회색 그래프 숨김
+      // allCurves.length < 2 시: 데이터 부족 (회색 평탄선만 그려짐) → 차트 숨김
+      // 이전: allCurves.length === 0 만 숨김 → 1개일 때 회색 평탄선 표시됐다 사라짐 현상
+      if (allCurves.length < 2) return '';
       
       var W = 360, H = 220;
       var padL = 48, padR = 16, padT = 22, padB = 24;
@@ -13218,7 +13361,8 @@ window.addEventListener('load', async function(){
       // windowEnd - now → 6d / 23h / 45m / "방금"
       // 조건: 관심 코인 (isWatchlist === true) 만 표시
       function v47_formatRemainingTime(track, meta) {
-        if (!track.isWatchlist) return '';  // 관심 코인 만 표시
+        // [Phase 4.7.8 R6-G] 모든 카드 잔여시간 표시 (이전: isWatchlist 만)
+        // 사용자 보고 #1 — 모든 추적 카드에 잔여시간 표시 필요
         var windowEnd = track.windowEnd || meta.windowEnd || 0;
         if (!windowEnd) return '';
         var now = Date.now();
@@ -13316,30 +13460,44 @@ window.addEventListener('load', async function(){
       var remainingTimeLabel = v47_formatRemainingTime(track, meta);
       
       // [Phase 4.7 공사 1 — Q1] 그룹 배지 (같은 코인 알람 N건)
+      // [Phase 4.7.8 R7-4] #2 알람 횟수 일관성 — 박제값 (sCount24+aCount24) 우선
+      // 정렬 변경 시 group 재구성으로 groupCount 변동 → 박제값 활용 (정렬 무관)
+      // 형식: "x{N}" (사용자 결정 — "1회" 표시 X)
       var groupBadge = '';
-      if (opts.groupCount && opts.groupCount > 1) {
-        groupBadge = '<span class="woos-group-badge">' + opts.groupCount + '회</span>';
+      var v478_alarmCount = 0;
+      // 박제값 우선 (sCount24 + aCount24 합산)
+      var v478_sc = (track.sCount24 != null) ? track.sCount24 : 0;
+      var v478_ac = (track.aCount24 != null) ? track.aCount24 : 0;
+      v478_alarmCount = v478_sc + v478_ac;
+      // 박제값 없거나 0 시 fallback: groupCount 사용
+      if (!v478_alarmCount && opts.groupCount) {
+        v478_alarmCount = opts.groupCount;
+      }
+      if (v478_alarmCount > 1) {
+        groupBadge = '<span class="woos-group-badge">x' + v478_alarmCount + '</span>';
       }
       
       // [Phase 4.5] ⭐ 관심 코인 토글 버튼
       var watchBtn = v45_buildWatchButton(base);
       
       // [Phase 4.7 공사 4 — HF-C] 추적 모드 칩 (관심/정밀/표준)
-      // 우선순위: 관심 > 정밀(자동) > 정밀 > 표준 / C 등급 미표시
-      // 자동정밀 라벨 흡수 — 별도 (자동 정밀) 라벨 삭제
+      // [Phase 4.7.8 R6-F] 형식 변경:
+      //   - 관심 → 표시 X (⭐ 별표로 충분, 사용자 결정)
+      //   - 자동정밀/정밀 → "정" (단축)
+      //   - 표준 → "표" (단축)
+      //   - C 등급 미표시 (사용자 결정)
       function v47_buildModeChip(track) {
         var tier = String(track.tier || '').toUpperCase();
-        if (tier === 'C') return '';  // C 등급 미표시 (사용자 결정 #4)
+        if (tier === 'C') return '';  // C 등급 미표시
         if (track.isWatchlist) {
-          return '<span class="hdr-mode-chip mode-watch">관심</span>';
+          return '';  // 관심 코인은 ⭐ 별표로 충분 (modeChip 표시 X)
         }
-        if (track.isAutoPrecise) {
-          return '<span class="hdr-mode-chip mode-precise">정밀·자동</span>';
+        // trackingMode 기준으로 통일 (자동정밀 + 정밀 = "정")
+        var mode = String(track.trackingMode || '').toLowerCase();
+        if (mode === 'deep' || track.isAutoPrecise || tier === 'A') {
+          return '<span class="hdr-mode-chip mode-precise">정</span>';
         }
-        if (tier === 'A') {
-          return '<span class="hdr-mode-chip mode-precise">정밀</span>';
-        }
-        return '<span class="hdr-mode-chip mode-standard">표준</span>';
+        return '<span class="hdr-mode-chip mode-standard">표</span>';
       }
       var modeChip = v47_buildModeChip(track);
       
@@ -13500,7 +13658,11 @@ window.addEventListener('load', async function(){
           /<div class="progress-rich-body woos-body([^"]*)">/,
           '<div class="progress-rich-body woos-body$1">' + singleGradeChart
         );
-        return '<details class="progress-rich-card woos-card" ' + attrs + v463_singleOpenAttr + v463_singleToggleAttr + '>' + inner.summary + singleBody + '</details>';
+        // [Phase 4.7.8 R6-A] 외곽 클래스 추가 — v477-track-card / is-watch / is-deep
+        var v478_singleClasses = 'progress-rich-card woos-card v477-track-card';
+        if (rep.isWatchlist) v478_singleClasses += ' is-watch';
+        else if (rep.trackingMode === 'deep' || (rep.tier && String(rep.tier).toUpperCase() === 'A')) v478_singleClasses += ' is-deep';
+        return '<details class="' + v478_singleClasses + '" ' + attrs + v463_singleOpenAttr + v463_singleToggleAttr + '>' + inner.summary + singleBody + '</details>';
       }
       // 그룹 카드 (size >= 2)
       // [Phase 4.2 작업 E] 그룹 dot 동기화: 대표가 아닌 그룹 전체 우선순위로
@@ -13536,9 +13698,11 @@ window.addEventListener('load', async function(){
              + '</div>';
       }).join('');
       // [Phase 4.2 작업 B] 흐름 표시 — 스캐너 등급 + liveTier 둘 다
-      var gradeFlowStr = group.gradeFlow.map(v40_escapeHtml).join(' → ');
+      // [Phase 4.7.8 R6-H] SPLUS → S+ UI 출력 통일 (사용자 결정 Q-A=① UI 출력만)
+      var v478_splusReplace = function(s){ return String(s || '').replace(/SPLUS/g, 'S+'); };
+      var gradeFlowStr = group.gradeFlow.map(v40_escapeHtml).map(v478_splusReplace).join(' → ');
       var liveTierFlowStr = (group.liveTierFlow && group.liveTierFlow.length > 0)
-        ? group.liveTierFlow.map(v40_escapeHtml).join(' → ')
+        ? group.liveTierFlow.map(v40_escapeHtml).map(v478_splusReplace).join(' → ')
         : null;
       var flowsHtml = '<div class="woos-group-flow"><span class="woos-flow-label">스캐너:</span> ' + gradeFlowStr + '</div>';
       if (liveTierFlowStr && liveTierFlowStr !== gradeFlowStr) {
@@ -13570,7 +13734,12 @@ window.addEventListener('load', async function(){
       // [Phase 4.7 공사 2 — Q6] 등급 변화 그래프 (그룹 카드 안에 표시)
       var groupGradeChart = v47_buildGradeChangeChart(group);
       
-      return '<details class="progress-rich-card woos-card woos-group" ' + groupAttrs + v463_openAttr + v463_toggleAttr + '>'
+      // [Phase 4.7.8 R6-A] 외곽 클래스 추가 — v477-track-card / is-watch / is-deep
+      var v478_groupClasses = 'progress-rich-card woos-card woos-group v477-track-card';
+      if (rep.isWatchlist) v478_groupClasses += ' is-watch';
+      else if (rep.trackingMode === 'deep' || (rep.tier && String(rep.tier).toUpperCase() === 'A')) v478_groupClasses += ' is-deep';
+      
+      return '<details class="' + v478_groupClasses + '" ' + groupAttrs + v463_openAttr + v463_toggleAttr + '>'
            + repInner.summary
            + '<div class="progress-rich-body woos-body woos-group-body">'
            +   groupGradeChart  /* [Phase 4.7] 등급 변화 그래프 (시간순 배지) */
