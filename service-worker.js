@@ -1,17 +1,19 @@
-const CACHE_NAME = "woos-pwa-v4-7-23";
+// WOOS PWA Service Worker v4.7.25
+const CACHE_NAME = "woos-pwa-v4-7-25";
 
-const urlsToCache = [
+const CORE_ASSETS = [
   "./",
   "./index.html",
-  "./index.js",
-  "./assets/logo.png"
+  "./manifest.json",
+  "./assets/pwa-icon.jpg",
+  "./assets/woos_roding.jpg"
 ];
 
 self.addEventListener("install", event => {
   self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME)
-      .then(cache => cache.addAll(urlsToCache))
+      .then(cache => cache.addAll(CORE_ASSETS))
   );
 });
 

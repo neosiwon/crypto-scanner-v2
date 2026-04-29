@@ -1,20 +1,19 @@
 {
-  "name": "WOOS Scanner",
+  "name": "WOOS Crypto Scanner",
   "short_name": "WOOS",
-  "start_url": ".",
+  "description": "WOOS Crypto Scanner / Tracking Analyzer",
+  "start_url": "./index.html",
+  "scope": "./",
   "display": "standalone",
+  "orientation": "portrait",
   "background_color": "#080d13",
   "theme_color": "#00d4ff",
   "icons": [
     {
-      "src": "assets/logo.png",
-      "sizes": "192x192",
-      "type": "image/png"
-    },
-    {
-      "src": "assets/logo.png",
+      "src": "./assets/pwa-icon.jpg",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/jpeg",
+      "purpose": "any maskable"
     }
   ]
 }
