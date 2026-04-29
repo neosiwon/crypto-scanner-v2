@@ -5097,7 +5097,7 @@ details.v477-track-card { border-radius: 17px !important; margin: 9px 0 !importa
 }
 
 
-/* [v4.7.14-watch-promote] UI mode glass selector alias — DOM class and CSS target unified */
+/* [v4.7.19-watch-on-modal] UI mode glass selector alias — DOM class and CSS target unified */
 details.v480-glass-card {
   background: rgba(10,18,28,0.60);
   backdrop-filter: blur(12px);
@@ -6425,7 +6425,7 @@ async function opsDashboard() {
 // 탭 시 상세 팝업
 // ═══════════════════════════════════════════════════════════════
 
-var HTML_VERSION = 'v4.7.14-watch-promote';  // Phase 4.7.11 R11 — 카드 색상 디테일 (관심시안/정밀보라+시안/표준다크) + 등급칩(S+골드/S핑크/A보라/B시안) + 알람 단계별 glow + 진행도 바 그라디언트 + 별 강조 + 잔여시간 골드
+var HTML_VERSION = 'v4.7.19-watch-on-modal';  // Phase 4.7.11 R11 — 카드 색상 디테일 (관심시안/정밀보라+시안/표준다크) + 등급칩(S+골드/S핑크/A보라/B시안) + 알람 단계별 glow + 진행도 바 그라디언트 + 별 강조 + 잔여시간 골드
 var _cachedBuildInfo = null;
 
 async function fetchBuildInfo() {
@@ -11119,7 +11119,7 @@ window.addEventListener('load', async function(){
   
   // ══ 외부 노출 ══════════════════════════════════════════════
   global.WOOS_ANALYZER = {
-    BUILD_TAG: 'v4.7.14-watch-promote',
+    BUILD_TAG: 'v4.7.19-watch-on-modal',
     loadAndRenderAll: loadAndRenderAll,
     renderAnalyzerSection: renderAnalyzerSection,
     renderAlarmTable: function(){ renderAlarmTable(_allItems); },
@@ -14503,7 +14503,13 @@ window.addEventListener('load', async function(){
           return;  // 모달 [확인] 시 실제 처리
         }
         
-        // 그 외 케이스 (24h 추적 / 추적 없음 / OFF→ON) — 즉시 토글
+        // OFF→ON 은 사용자 확인 모달 후 등록한다.
+        if (!v47off_isCurrentlyWatch) {
+          v47_showWatchOnModal(base);
+          return;
+        }
+
+        // 그 외 OFF 케이스 (24h 추적 / 추적 없음) — 즉시 해제
         var nowIsWatch = window.WOOS_ANALYZER.toggleWatchlist(base);
         v47_applyWatchVisual(base, nowIsWatch);
         v47_syncWatchApi(base, nowIsWatch);
@@ -14524,30 +14530,114 @@ window.addEventListener('load', async function(){
         }
       } catch(e) {}
     }
+        function v47_executeWatchOn(base) {
+      try {
+        if (!base || !window.WOOS_ANALYZER || typeof window.WOOS_ANALYZER.toggleWatchlist !== 'function') return;
+        var alreadyWatch = false;
+        try {
+          alreadyWatch = (typeof window.WOOS_ANALYZER.isWatchlist === 'function')
+            ? window.WOOS_ANALYZER.isWatchlist(base) : false;
+        } catch(e0) {}
+        if (alreadyWatch) return;
+        var nowIsWatch = window.WOOS_ANALYZER.toggleWatchlist(base);
+        v47_applyWatchVisual(base, nowIsWatch);
+        v47_syncWatchApi(base, nowIsWatch);
+        v47_rerenderActive();
+      } catch(e) {
+        console.error('[v47_executeWatchOn]', e);
+      }
+    }
+
+    // [v4.7.19-watch-on-modal] 관심 ON 확인 모달
+    function v47_showWatchOnModal(base) {
+      try {
+        var existing = document.getElementById('v47-watchon-modal');
+        if (existing) existing.remove();
+
+        var ovr = document.createElement('div');
+        ovr.id = 'v47-watchon-modal';
+        ovr.className = 'v47-info-modal-overlay';
+        ovr.innerHTML = ''
+          + '<div class="v47-info-modal-card">'
+          +   '<div class="v47-info-modal-title">관심 코인 등록</div>'
+          +   '<div class="v47-info-modal-body" style="font-size:0.85rem; line-height:1.5;">'
+          +     '<b>' + String(base || '').toUpperCase() + '</b> 를 관심 코인으로 등록할까요?<br><br>'
+          +     '등록하면 현재 추적 중인 항목은 <b>정밀 7일 추적</b>으로 전환됩니다.<br>'
+          +     '<span style="color:#94a3b8; font-size:0.75rem;">'
+          +       '· 취소하면 관심 상태가 변경되지 않습니다.<br>'
+          +       '· 등록 후 서버 동기화가 완료되면 목록을 다시 불러옵니다.'
+          +     '</span>'
+          +   '</div>'
+          +   '<div class="v47-info-modal-actions">'
+          +     '<button type="button" class="v47-info-modal-btn v47-info-modal-cancel" id="v47WoOnCancel">취소</button>'
+          +     '<button type="button" class="v47-info-modal-btn v47-info-modal-confirm" id="v47WoOnConfirm">등록하기</button>'
+          +   '</div>'
+          + '</div>';
+        document.body.appendChild(ovr);
+
+        var cancelBtn = document.getElementById('v47WoOnCancel');
+        var confirmBtn = document.getElementById('v47WoOnConfirm');
+        if (cancelBtn) cancelBtn.addEventListener('click', function(){ ovr.remove(); });
+        if (confirmBtn) confirmBtn.addEventListener('click', function(){
+          ovr.remove();
+          v47_executeWatchOn(base);
+        });
+        ovr.addEventListener('click', function(e){
+          if (e.target === ovr) ovr.remove();
+        });
+      } catch(e) {
+        console.error('[v47_showWatchOnModal]', e);
+      }
+    }
     
-    // [v4.7.14-watch-promote] Worker API 동기화 + active 재조회
+    // [v4.7.19-watch-on-modal] Worker API 동기화 + active 재조회
     function v47_syncWatchApi(base, isWatch) {
       try {
-        if (!window.WORKER_BASE_URL) {
+        var workerBase = '';
+        try { if (typeof getProxyUrl === 'function') workerBase = getProxyUrl(); } catch(e0) {}
+        if (!workerBase) workerBase = window.WORKER_BASE_URL || '';
+        workerBase = String(workerBase || '').replace(/\/$/, '');
+
+        if (!workerBase) {
+          console.warn('[v47_syncWatchApi] WORKER_BASE_URL missing - local watch only');
           v47_rerenderActive();
           return;
         }
 
-        var apiUrl = (window.WORKER_BASE_URL || '') + '/tracking/watchlist';
+        function refetchActive() {
+          if (typeof window.fetchAndRenderActive === 'function') return window.fetchAndRenderActive();
+          return v47_rerenderActive();
+        }
+
+        function callLegacyWatchApi() {
+          var legacyUrl = workerBase + '/watchlist/' + encodeURIComponent(String(base || '').toUpperCase());
+          return fetch(legacyUrl, { method: isWatch ? 'PUT' : 'DELETE' }).then(function(res){
+            if (!res || !res.ok) throw new Error('legacy watchlist sync failed: ' + (res ? res.status : 'no-response'));
+            return res.json().catch(function(){ return { ok:true, legacy:true }; });
+          });
+        }
+
+        var apiUrl = workerBase + '/tracking/watchlist';
         fetch(apiUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ base: base, enabled: !!isWatch })
         }).then(function(res){
-          return res && res.ok ? res.json() : null;
-        }).then(function(){
-          if (typeof window.fetchAndRenderActive === 'function') {
-            window.fetchAndRenderActive();
-          } else {
-            v47_rerenderActive();
-          }
+          if (!res || !res.ok) throw new Error('POST /tracking/watchlist failed: ' + (res ? res.status : 'no-response'));
+          return res.json().catch(function(){ return { ok:true }; });
         }).catch(function(err){
-          console.error('[v47_syncWatchApi]', err);
+          // 배포된 Worker가 아직 v4.7.14+가 아니면 구형 PUT/DELETE API로 fallback
+          console.warn('[v47_syncWatchApi] fallback legacy watch API', err);
+          return callLegacyWatchApi();
+        }).then(function(syncResult){
+          try {
+            if (syncResult && isWatch && Array.isArray(syncResult.upgraded) && syncResult.upgraded.length === 0) {
+              console.warn('[v47_syncWatchApi] watch synced but no active item upgraded', syncResult);
+            }
+          } catch(e2) {}
+          return refetchActive();
+        }).catch(function(err2){
+          console.error('[v47_syncWatchApi] server sync failed', err2);
           v47_rerenderActive();
         });
       } catch(e) {
