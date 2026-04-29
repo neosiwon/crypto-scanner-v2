@@ -3,6 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#00d4ff">
 <title>WOOS CRYPTO SCANNER | 세력매집 급등직전 탐지기</title>
 <!-- [v3.6] 파비콘 — 이미지 없어도 무시됨 -->
 <link rel="icon" type="image/png" href="assets/logo.png">
@@ -5425,6 +5427,16 @@ details.progress-rich-card[open] .v4721-detail-toggle {
   gap: 6px;
 }
 
+
+
+/* [v4.7.23] UI hotfix: 카드 우측 토글/더보기 버튼 제거 */
+.card-chevron,
+.v4721-detail-toggle,
+.tracking-more-row,
+.tracking-more-btn {
+  display: none !important;
+}
+
 </style>
 </head>
 <body>
@@ -6459,7 +6471,7 @@ async function opsDashboard() {
 // 탭 시 상세 팝업
 // ═══════════════════════════════════════════════════════════════
 
-var HTML_VERSION = 'v4.7.21-detail-toggle-fix';  // Phase 4.7.11 R11 — 카드 색상 디테일 (관심시안/정밀보라+시안/표준다크) + 등급칩(S+골드/S핑크/A보라/B시안) + 알람 단계별 glow + 진행도 바 그라디언트 + 별 강조 + 잔여시간 골드
+var HTML_VERSION = 'v4.7.23-watch-7d-persist-hotfix';  // Phase 4.7.11 R11 — 카드 색상 디테일 (관심시안/정밀보라+시안/표준다크) + 등급칩(S+골드/S핑크/A보라/B시안) + 알람 단계별 glow + 진행도 바 그라디언트 + 별 강조 + 잔여시간 골드
 var _cachedBuildInfo = null;
 
 async function fetchBuildInfo() {
@@ -10528,8 +10540,8 @@ window.addEventListener('load', async function(){
   var _activeSearchQuery = '';
   var _activeSortBy = 'progress';   // [Phase 4.7 Q5] 'progress' | 'frequent' | 'rising' | 'falling' | 'sideways'
   var _activeTierFilter = 'all';     // [Phase 4.7 공사 4 — 2-2] 라이트(C) 삭제 — 'all' | 'A' | 'B'
-  var _activeDisplayLimit = 10;      // 기본 10개
-  var _activeDisplayStep = 10;       // 더보기 클릭 시 추가량
+  var _activeDisplayLimit = 9999;    // [v4.7.23] 더보기 제거: 전체 렌더
+  var _activeDisplayStep = 9999;     // [v4.7.23] 더보기 제거
   var _activeItemsCache = [];        // 추적 중 활성 목록 캐시 (정렬/검색용)
   
   function renderAnalyzerSection() {
@@ -10596,6 +10608,8 @@ window.addEventListener('load', async function(){
           alertCount: item.alertCount || item.alarmCount24 || item.sCount24 || item.aCount24 || 1,
         };
       });
+      // [v4.7.23] 관심 코인은 fetchTrackingActive 결과가 표준 8h로 내려와도 렌더 전 7d 상태를 재합성한다.
+      try { _activeItemsCache = _activeItemsCache.map(function(it){ return v4723_enforceWatchState(it); }); } catch(e) {}
       
       _renderActiveTrackingList(count, byTier);
       
@@ -10608,6 +10622,8 @@ window.addEventListener('load', async function(){
   function _renderActiveTrackingList(totalCount, byTier) {
     var container = document.getElementById('analyzerContent');
     if (!container) return;
+    // [v4.7.23] 재렌더/정렬/필터 때마다 관심 7d 상태를 다시 합성한다.
+    try { _activeItemsCache = (_activeItemsCache || []).map(function(it){ return v4723_enforceWatchState(it); }); } catch(e) {}
     
     // [v4.7.13] UI 모드 카운트 — 카드색/필터/정렬과 동일 기준
     var uiCounts = { total: _activeItemsCache.length, watch: 0, deep: 0, standard: 0 };
@@ -10659,7 +10675,7 @@ window.addEventListener('load', async function(){
     }
     
     // 페이지화 (검색 X 시만)
-    var displayItems = _activeSearchQuery ? sorted : sorted.slice(0, _activeDisplayLimit);
+    var displayItems = sorted;  // [v4.7.23] 더보기 제거: 필터 결과 전체 표시
     
     // [Phase 4.4 작업 5 초석] window.__woosActiveTracks 에 전체 active 등록
     // 분석기 카드 내부에서 코인 통계 자체 계산 시 사용
@@ -10761,7 +10777,7 @@ window.addEventListener('load', async function(){
     
     // 더보기 버튼 (검색 X + 더 표시할 것 있을 때만)
     var moreBtnHtml = '';
-    if (!_activeSearchQuery && sorted.length > _activeDisplayLimit) {
+    if (false && !_activeSearchQuery && sorted.length > _activeDisplayLimit) { // [v4.7.23] 더보기 버튼 제거
       var remaining = sorted.length - _activeDisplayLimit;
       var nextBatch = Math.min(_activeDisplayStep, remaining);
       moreBtnHtml = '<div class="tracking-more-row">'
@@ -12005,6 +12021,100 @@ window.addEventListener('load', async function(){
       return list.indexOf(String(base).toUpperCase()) >= 0;
     }
 
+
+    /* [v4.7.23] 관심 코인 7일 추적 상태 영속화
+       - 기존 woos_v44_watchlist 는 배열만 저장해서 fetchTrackingActive 재조회 시
+         Worker의 표준 8h windowEnd 가 다시 덮어쓰는 문제가 있었음.
+       - 별도 meta 저장소에 startedAt/endAt 을 보존하고, 렌더 직전 항상 merge 한다. */
+    var V4723_WATCH_META_KEY = 'woos_v4723_watch_meta';
+    function v4723_getWatchMetaMap() {
+      try {
+        var raw = (typeof localStorage !== 'undefined') ? localStorage.getItem(V4723_WATCH_META_KEY) : null;
+        var obj = raw ? JSON.parse(raw) : {};
+        return (obj && typeof obj === 'object' && !Array.isArray(obj)) ? obj : {};
+      } catch(e) { return {}; }
+    }
+    function v4723_saveWatchMetaMap(map) {
+      try {
+        if (typeof localStorage !== 'undefined') localStorage.setItem(V4723_WATCH_META_KEY, JSON.stringify(map || {}));
+      } catch(e) {}
+    }
+    function v4723_touchWatchMeta(base, item) {
+      var b = String(base || '').toUpperCase();
+      if (!b) return null;
+      var now = Date.now();
+      var map = v4723_getWatchMetaMap();
+      var meta = map[b];
+      if (!meta || typeof meta !== 'object') {
+        var serverEnd = item && Number(item.windowEnd || item.endAt || 0);
+        var serverStart = item && Number(item.startedAt || item.tierAssignedAt || 0);
+        meta = {
+          startedAt: (serverStart && serverStart > 0) ? serverStart : now,
+          endAt: (serverEnd && serverEnd > now && serverEnd - now > 6 * 24 * 3600 * 1000) ? serverEnd : now + 7 * 24 * 3600 * 1000,
+          windowDays: 7,
+          updatedAt: now
+        };
+      }
+      if (!meta.startedAt || meta.startedAt <= 0) meta.startedAt = now;
+      if (!meta.endAt || meta.endAt <= now) meta.endAt = meta.startedAt + 7 * 24 * 3600 * 1000;
+      meta.windowDays = 7;
+      meta.updatedAt = now;
+      map[b] = meta;
+      v4723_saveWatchMetaMap(map);
+      return meta;
+    }
+    function v4723_deleteWatchMeta(base) {
+      var b = String(base || '').toUpperCase();
+      if (!b) return;
+      var map = v4723_getWatchMetaMap();
+      if (map && Object.prototype.hasOwnProperty.call(map, b)) {
+        delete map[b];
+        v4723_saveWatchMetaMap(map);
+      }
+    }
+    function v4723_enforceWatchState(item) {
+      try {
+        if (!item) return item;
+        var base = String(item.base || (item.meta && item.meta.base) || (item.id || '').split('_')[0] || '').toUpperCase();
+        if (!base) return item;
+        var isWatch = !!item.isWatchlist;
+        try { if (!isWatch && typeof v44_isWatchlist === 'function') isWatch = v44_isWatchlist(base); } catch(e0) {}
+        if (!isWatch) return item;
+
+        var meta = v4723_touchWatchMeta(base, item);
+        item.isWatchlist = true;
+        item.trackingMode = 'deep';
+        item.windowDays = 7;
+        item.startedAt = meta.startedAt;
+        item.tierAssignedAt = meta.startedAt;
+        item.windowEnd = meta.endAt;
+        item.endAt = meta.endAt;
+        item.trackingModeReason = item.trackingModeReason || 'watchlist-local-7d-persist';
+        var elapsedMs = Date.now() - meta.startedAt;
+        item.progress = Math.min(100, Math.max(0, (elapsedMs / (7 * 24 * 3600 * 1000)) * 100));
+
+        try {
+          if (typeof _trackingMap !== 'undefined' && _trackingMap && item.id && _trackingMap[item.id]) {
+            var td = _trackingMap[item.id];
+            td.isWatchlist = true;
+            td.trackingMode = 'deep';
+            td.windowDays = 7;
+            td.windowEnd = meta.endAt;
+            td.endAt = meta.endAt;
+            td.meta = td.meta || {};
+            td.meta.isWatchlist = true;
+            td.meta.trackingMode = 'deep';
+            td.meta.windowDays = 7;
+            td.meta.windowStart = meta.startedAt;
+            td.meta.tierAssignedAt = meta.startedAt;
+            td.meta.windowEnd = meta.endAt;
+            td.meta.endAt = meta.endAt;
+          }
+        } catch(e1) {}
+      } catch(e) {}
+      return item;
+    }
+
     /* [v4.7.13] UI 전용 상태 판정 단일화: watch / deep / standard */
     function getUiMode(item) {
       try {
@@ -12047,7 +12157,12 @@ window.addEventListener('load', async function(){
       try {
         if (typeof localStorage !== 'undefined') localStorage.setItem(V44_WATCHLIST_KEY, JSON.stringify(list));
       } catch(e) {}
-      return list.indexOf(b) >= 0;  // 토글 후 상태 반환
+      var isNowWatch = list.indexOf(b) >= 0;
+      try {
+        if (isNowWatch) v4723_touchWatchMeta(b, null);
+        else v4723_deleteWatchMeta(b);
+      } catch(e2) {}
+      return isNowWatch;  // 토글 후 상태 반환
     }
     
     /* [Phase 4.4 작업 5 초석] 코인 통계 + Watchlist 배지 HTML */
@@ -14469,6 +14584,7 @@ window.addEventListener('load', async function(){
       getWatchlist: v44_getWatchlist,
       isWatchlist: v44_isWatchlist,
       toggleWatchlist: v44_toggleWatchlist,
+      enforceWatchState4723: v4723_enforceWatchState,
       buildCoinStatsBadge: v44_buildCoinStatsBadge,
       // [Phase 4.5] 오버레이 + Watchlist UI + 관심 상단 고정
       generateOverlayChart: v45_generateOverlayChart,
@@ -14660,7 +14776,10 @@ window.addEventListener('load', async function(){
         var b = String(base || '').toUpperCase();
         if (!b) return;
         var now = Date.now();
-        var end7d = now + 7 * 24 * 60 * 60 * 1000;
+        var localMeta = isWatch ? v4723_touchWatchMeta(b, null) : null;
+        if (!isWatch) v4723_deleteWatchMeta(b);
+        var end7d = localMeta ? localMeta.endAt : (now + 7 * 24 * 60 * 60 * 1000);
+        var start7d = localMeta ? localMeta.startedAt : now;
         var cache = (typeof window !== 'undefined' && window._activeItemsCache) ? window._activeItemsCache : _activeItemsCache;
         if (!Array.isArray(cache)) return;
         for (var i = 0; i < cache.length; i++) {
@@ -14670,6 +14789,8 @@ window.addEventListener('load', async function(){
           if (isWatch) {
             item.trackingMode = 'deep';
             item.windowDays = 7;
+            item.startedAt = start7d;
+            item.tierAssignedAt = start7d;
             item.windowEnd = end7d;
             item.endAt = end7d;
             item.trackingModeReason = item.trackingModeReason || 'watchlist-optimistic-ui';
@@ -14680,12 +14801,16 @@ window.addEventListener('load', async function(){
               td.isWatchlist = !!isWatch;
               td.trackingMode = item.trackingMode;
               td.windowDays = item.windowDays;
+              td.startedAt = item.startedAt;
+              td.tierAssignedAt = item.tierAssignedAt;
               td.windowEnd = item.windowEnd;
               td.endAt = item.endAt;
               td.meta = td.meta || {};
               td.meta.isWatchlist = !!isWatch;
               td.meta.trackingMode = item.trackingMode;
               td.meta.windowDays = item.windowDays;
+              td.meta.windowStart = item.startedAt;
+              td.meta.tierAssignedAt = item.tierAssignedAt;
               td.meta.windowEnd = item.windowEnd;
               td.meta.endAt = item.endAt;
             }
