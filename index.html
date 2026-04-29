@@ -5791,7 +5791,7 @@ async function opsDashboard() {
 // 탭 시 상세 팝업
 // ═══════════════════════════════════════════════════════════════
 
-var HTML_VERSION = 'v4.22.1';  // Phase 4.7 공사 4 hotfix2 — _activeItemsCache 매핑 통일 (R0+Q4+Q11) + 텔레 라벨 후처리
+var HTML_VERSION = 'v4.23.0';  // Phase 4.7.7 round3-window-fix — 작업1 키불일치 + 작업2 windowDays 강제 + 작업3 progress windowDays 기반
 var _cachedBuildInfo = null;
 
 async function fetchBuildInfo() {
@@ -8916,7 +8916,12 @@ window.addEventListener('load', async function(){
   function renderInProgressCard(meta, trackingData) {
     var elapsedMs = Date.now() - (meta.tierAssignedAt || 0);
     var symbol = meta.base || meta.snapshotId || '';
-    var totalMs = 24 * 3600 * 1000;
+    // [Phase 4.7.7 작업 3 — windowDays 기반 progress] (renderInProgressCard 경로)
+    // 기존: totalMs = 24 * 3600 * 1000 고정
+    // 변경: meta.windowDays 박제 활용 (3곳 통일)
+    // fallback: windowDays 없거나 0 이면 1 (안전, 24h 기준)
+    var v477_winDays = (meta.windowDays && meta.windowDays > 0) ? meta.windowDays : 1;
+    var totalMs = v477_winDays * 24 * 3600 * 1000;
     var progress = Math.min(100, Math.max(0, (elapsedMs / totalMs) * 100));
     
     var thresholds = (trackingData && trackingData.thresholds) || null;
@@ -9889,7 +9894,12 @@ window.addEventListener('load', async function(){
       // 박제 데이터 없으면 카드 % 즉시 표시 X (이전: 60초 후 표시)
       _activeItemsCache = active.map(function(item){
         var elapsedMs = Date.now() - (item.tierAssignedAt || 0);
-        var progress = Math.min(100, Math.max(0, (elapsedMs / (24*3600*1000)) * 100));
+        // [Phase 4.7.7 작업 3 — windowDays 기반 progress]
+        // 기존: 24h 고정 → 7일 정밀 추적도 24시간에 100% 도달 (잘못)
+        // 변경: item.windowDays 박제 활용 (Worker 1807줄 startTracking 박제됨)
+        // fallback: windowDays 없거나 0 이면 1 (안전, 24h 기준)
+        var v477_winDays = (item.windowDays && item.windowDays > 0) ? item.windowDays : 1;
+        var progress = Math.min(100, Math.max(0, (elapsedMs / (v477_winDays * 24 * 3600 * 1000)) * 100));
         return {
           id: item.id,
           base: item.base || (item.id || '').split('_')[0],
@@ -10462,7 +10472,7 @@ window.addEventListener('load', async function(){
   
   // ══ 외부 노출 ══════════════════════════════════════════════
   global.WOOS_ANALYZER = {
-    BUILD_TAG: 'phase4.7-construction-4-round2hf2-cache-unify-tele-label-v4.7.5',
+    BUILD_TAG: 'phase4.7-round3-window-fix-v4.7.7',
     loadAndRenderAll: loadAndRenderAll,
     renderAnalyzerSection: renderAnalyzerSection,
     renderAlarmTable: function(){ renderAlarmTable(_allItems); },
@@ -14074,7 +14084,10 @@ window.addEventListener('load', async function(){
           // 60초 자동 갱신마다 박제 데이터 정확히 적용 — Q4/Q11 통합 해결
           _activeItemsCache = activeData.active.map(function(item){
             var elapsedMs = Date.now() - (item.tierAssignedAt || 0);
-            var progress = Math.min(100, Math.max(0, (elapsedMs / (24*3600*1000)) * 100));
+            // [Phase 4.7.7 작업 3 — windowDays 기반 progress] (자동 갱신 경로)
+            // 9892줄과 동일 패턴 (대원칙 3 — 동일 로직 통일)
+            var v477_winDays = (item.windowDays && item.windowDays > 0) ? item.windowDays : 1;
+            var progress = Math.min(100, Math.max(0, (elapsedMs / (v477_winDays * 24 * 3600 * 1000)) * 100));
             return {
               id: item.id,
               base: item.base || (item.id || '').split('_')[0],
