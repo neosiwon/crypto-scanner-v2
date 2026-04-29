@@ -5480,6 +5480,110 @@ img[src*="loading-logo.png"] {
   margin-top: 22px !important;
 }
 
+
+/* [v4.7.29] Tracking Analyzer UI Fix
+   1) 카드 헤더 전체 클릭으로 열림 복구
+   2) 관심/정밀/표준/수익/손실/횡보 카운트 단일 카드화
+   3) 정렬 1줄: 최신/진행/상승/하락/횡보
+   4) 중복 범례(●추적/☆관심) 제거
+*/
+.woos-glow-legend { display:none !important; }
+
+.v4729-tracking-stats-card {
+  margin: 12px 0 14px;
+  padding: 14px 14px 12px;
+  border-radius: 18px;
+  background:
+    linear-gradient(180deg, rgba(0,212,255,.075), rgba(255,255,255,.018)),
+    rgba(8, 17, 31, .72);
+  border: 1px solid rgba(0,212,255,.24);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.08),
+    0 0 22px rgba(0,212,255,.10);
+}
+.v4729-tracking-stats-title {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  margin-bottom: 10px;
+  font-family: var(--mono);
+  color: rgba(226,234,245,.88);
+  font-size: .82rem;
+}
+.v4729-tracking-stats-title b {
+  color: var(--accent-cyan);
+  font-size: 1.05rem;
+}
+.v4729-stats-grid {
+  display:grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+.v4729-stat-pill {
+  padding: 9px 7px;
+  border-radius: 12px;
+  background: rgba(255,255,255,.035);
+  border: 1px solid rgba(160,190,230,.12);
+  text-align:center;
+  font-family: var(--mono);
+  min-width:0;
+}
+.v4729-stat-pill .label {
+  display:block;
+  color: rgba(145,166,195,.86);
+  font-size: .63rem;
+  margin-bottom: 4px;
+  white-space:nowrap;
+}
+.v4729-stat-pill .value {
+  display:block;
+  font-size: .94rem;
+  font-weight: 800;
+}
+.v4729-stat-watch .value { color:#ffd233; }
+.v4729-stat-deep .value { color:#a78bfa; }
+.v4729-stat-standard .value { color:#93c5fd; }
+.v4729-stat-profit .value { color:#34d399; }
+.v4729-stat-loss .value { color:#fb7185; }
+.v4729-stat-flat .value { color:#aab4c4; }
+
+.tracking-sort-row {
+  display:grid !important;
+  grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+  gap: 6px !important;
+}
+.tracking-sort-btn {
+  min-width: 0 !important;
+  padding-left: 4px !important;
+  padding-right: 4px !important;
+  white-space: nowrap !important;
+  font-size: clamp(.66rem, 2.6vw, .78rem) !important;
+}
+.tracking-tier-row {
+  display:grid !important;
+  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  gap: 6px !important;
+}
+.tracking-tier-btn {
+  min-width: 0 !important;
+  white-space: nowrap !important;
+}
+.v4721-detail-toggle,
+.card-chevron {
+  display: none !important;
+}
+details.progress-rich-card > summary.progress-compact-summary,
+details.analyzer-progress-card > summary.progress-compact-summary {
+  cursor: pointer !important;
+}
+@media (max-width: 390px) {
+  .v4729-stats-grid { gap: 6px; }
+  .v4729-stat-pill { padding: 8px 4px; }
+  .v4729-stat-pill .label { font-size: .59rem; }
+  .v4729-stat-pill .value { font-size: .86rem; }
+}
+
 </style>
 </head>
 <body>
@@ -6514,7 +6618,7 @@ async function opsDashboard() {
 // 탭 시 상세 팝업
 // ═══════════════════════════════════════════════════════════════
 
-var HTML_VERSION = 'v4.7.23-watch-7d-persist-hotfix';  // Phase 4.7.11 R11 — 카드 색상 디테일 (관심시안/정밀보라+시안/표준다크) + 등급칩(S+골드/S핑크/A보라/B시안) + 알람 단계별 glow + 진행도 바 그라디언트 + 별 강조 + 잔여시간 골드
+var HTML_VERSION = 'v4.7.29-tracking-ui-fix';  // Phase 4.7.11 R11 — 카드 색상 디테일 (관심시안/정밀보라+시안/표준다크) + 등급칩(S+골드/S핑크/A보라/B시안) + 알람 단계별 glow + 진행도 바 그라디언트 + 별 강조 + 잔여시간 골드
 var _cachedBuildInfo = null;
 
 async function fetchBuildInfo() {
@@ -10595,7 +10699,7 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
   // ══ 분석기 섹션 (Phase 3.4 호환, Phase 3.9: 검색+정렬+페이지화) ══════════════════════════════
   // [Phase 3.9] 추적 카드 검색/정렬/페이지화 상태
   var _activeSearchQuery = '';
-  var _activeSortBy = 'progress';   // [Phase 4.7 Q5] 'progress' | 'frequent' | 'rising' | 'falling' | 'sideways'
+  var _activeSortBy = 'latest';   // [v4.7.29] 'latest' | 'progress' | 'rising' | 'falling' | 'sideways'
   var _activeTierFilter = 'all';     // [Phase 4.7 공사 4 — 2-2] 라이트(C) 삭제 — 'all' | 'A' | 'B'
   var _activeDisplayLimit = 9999;    // [v4.7.23] 더보기 제거: 전체 렌더
   var _activeDisplayStep = 9999;     // [v4.7.23] 더보기 제거
@@ -10675,6 +10779,60 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
     });
   }
   
+
+  // [v4.7.29] 추적 상단 카운트 단일 카드
+  function v4729_getItemBase(item) {
+    return String((item && (item.base || (item.meta && item.meta.base))) || '').toUpperCase();
+  }
+  function v4729_currentPct(item) {
+    if (!item) return 0;
+    if (item.currentPct != null) return Number(item.currentPct) || 0;
+    if (item.prefetchedCurrentPct != null) return Number(item.prefetchedCurrentPct) || 0;
+    if (item.metrics && item.metrics.currentPct != null) return Number(item.metrics.currentPct) || 0;
+    return 0;
+  }
+  function v4729_calcTrackingCounts(items) {
+    items = Array.isArray(items) ? items : [];
+    var watchMap = {};
+    try {
+      if (typeof v44_getWatchlist === 'function') {
+        v44_getWatchlist().forEach(function(b){ watchMap[String(b).toUpperCase()] = true; });
+      }
+    } catch(e) {}
+
+    var counts = { total: items.length, watch: 0, deep: 0, standard: 0, profit: 0, loss: 0, flat: 0 };
+    items.forEach(function(item){
+      var base = v4729_getItemBase(item);
+      var isWatch = !!(item && item.isWatchlist) || !!watchMap[base];
+      if (isWatch) {
+        counts.watch++;
+      } else {
+        var mode = (typeof getUiMode === 'function') ? getUiMode(item) : 'standard';
+        if (mode === 'deep') counts.deep++;
+        else counts.standard++;
+      }
+
+      var pct = v4729_currentPct(item);
+      if (pct > 0.2) counts.profit++;
+      else if (pct < -0.2) counts.loss++;
+      else counts.flat++;
+    });
+    return counts;
+  }
+  function v4729_buildTrackingStatsCard(counts) {
+    counts = counts || { total:0, watch:0, deep:0, standard:0, profit:0, loss:0, flat:0 };
+    return '<div class="v4729-tracking-stats-card">'
+      + '<div class="v4729-tracking-stats-title"><span>Tracking <b>' + counts.total + '</b> coins</span><span>상태 요약</span></div>'
+      + '<div class="v4729-stats-grid">'
+      + '<div class="v4729-stat-pill v4729-stat-watch"><span class="label">⭐ 관심</span><span class="value">' + counts.watch + '</span></div>'
+      + '<div class="v4729-stat-pill v4729-stat-deep"><span class="label">정밀</span><span class="value">' + counts.deep + '</span></div>'
+      + '<div class="v4729-stat-pill v4729-stat-standard"><span class="label">표준</span><span class="value">' + counts.standard + '</span></div>'
+      + '<div class="v4729-stat-pill v4729-stat-profit"><span class="label">수익</span><span class="value">' + counts.profit + '</span></div>'
+      + '<div class="v4729-stat-pill v4729-stat-loss"><span class="label">손실</span><span class="value">' + counts.loss + '</span></div>'
+      + '<div class="v4729-stat-pill v4729-stat-flat"><span class="label">횡보</span><span class="value">' + counts.flat + '</span></div>'
+      + '</div></div>';
+  }
+
   // [Phase 3.9] 추적 중 목록 렌더 (검색+정렬+페이지화 적용)
   function _renderActiveTrackingList(totalCount, byTier) {
     var container = document.getElementById('analyzerContent');
@@ -10682,13 +10840,8 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
     // [v4.7.23] 재렌더/정렬/필터 때마다 관심 7d 상태를 다시 합성한다.
     try { _activeItemsCache = (_activeItemsCache || []).map(function(it){ return v4723_enforceWatchState(it); }); } catch(e) {}
     
-    // [v4.7.13] UI 모드 카운트 — 카드색/필터/정렬과 동일 기준
-    var uiCounts = { total: _activeItemsCache.length, watch: 0, deep: 0, standard: 0 };
-    _activeItemsCache.forEach(function(item){
-      var mode = (typeof getUiMode === 'function') ? getUiMode(item) : 'standard';
-      if (uiCounts[mode] === undefined) mode = 'standard';
-      uiCounts[mode]++;
-    });
+    // [v4.7.29] UI 모드 카운트 — localStorage 관심 목록까지 강제 반영
+    var uiCounts = v4729_calcTrackingCounts(_activeItemsCache);
     totalCount = uiCounts.total;
 
     // 검색 필터
@@ -10752,28 +10905,14 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       }
     } catch(e) {}
     
-    // [v4.7.13] 상단 카운트 기준 통일 — 전체/관심/정밀/표준
-    var tierHeaderHtml = '<div class="woos-tier-header-44">'
-      + 'Tracking <b>' + uiCounts.total + '</b> coins'
-      + ' <span class="woos-th-sep">·</span> <span class="tier-pill tier-watch" title="관심 코인">관심 <b>' + uiCounts.watch + '</b></span>'
-      + ' <span class="woos-th-sep">·</span> <span class="tier-pill tier-a" title="정밀 추적">정밀 <b>' + uiCounts.deep + '</b></span>'
-      + ' <span class="woos-th-sep">·</span> <span class="tier-pill tier-b" title="표준 추적">표준 <b>' + uiCounts.standard + '</b></span>'
-      + '</div>';
-    
-    // 헤더 (전체 카운트) + [Phase 4.6.3] 탭 + 관심 코인 카운트
-    var watchHeaderHtml = (window.WOOS_ANALYZER && window.WOOS_ANALYZER.buildWatchHeader)
-                          ? window.WOOS_ANALYZER.buildWatchHeader() : '';
-    // [Phase 4.6.5 Q9] 글로우 색상 범례
-    var glowLegendHtml = (window.WOOS_ANALYZER && window.WOOS_ANALYZER.buildGlowLegend)
-                          ? window.WOOS_ANALYZER.buildGlowLegend() : '';
-    // [Phase 4.6.5 I] 히스토리 → "분석 완료" 명칭 변경
+    // [v4.7.29] 헤더 단순화: 활성/분석완료 탭 + 단일 통계 카드만 표시
+    // 기존 buildWatchHeader(⭐ 관심 코인 N개)와 buildGlowLegend(수익/손실/횡보/추적/관심)는 중복이라 제거.
+    var statsCardHtml = v4729_buildTrackingStatsCard(uiCounts);
     var tabsHtml = '<div class="woos-tabs">'
                  + '<button class="woos-tab-btn active" data-tab="active" id="woosTabActive">활성 (' + totalCount + ')</button>'
                  + '<button class="woos-tab-btn" data-tab="history" id="woosTabHistory">분석 완료</button>'
                  + '</div>';
-    // [Phase 4.7 공사 4 — 2-1] 헤더 ⑤ "추적 중 N건 · 정밀/표준/라이트" 삭제
-    // 사용자 결정: ②④ 만 유지 (관심 코인 N개 / Tracking N coins · 정밀 N · 표준 N)
-    var headerHtml = tabsHtml + watchHeaderHtml + glowLegendHtml + tierHeaderHtml;
+    var headerHtml = tabsHtml + statsCardHtml;
     
     // 검색 + 정렬 컨트롤
     // [Phase 4.7 공사 4 — 2-2] 필터 라벨 — 라이트 삭제 (전체/정밀/표준만)
@@ -10791,8 +10930,8 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
                     +   '<button class="tracking-tier-btn tier-b-btn ' + (_activeTierFilter === 'standard' ? 'active' : '') + '" data-tier="standard" title="표준 추적">표준 ' + uiCounts.standard + '</button>'
                     + '</div>'
                     + '<div class="tracking-sort-row">'
-                    +   '<button class="tracking-sort-btn ' + (_activeSortBy === 'progress' ? 'active' : '') + '" data-sort="progress">진행도</button>'
-                    +   '<button class="tracking-sort-btn ' + (_activeSortBy === 'frequent' ? 'active' : '') + '" data-sort="frequent">중복알람</button>'
+                    +   '<button class="tracking-sort-btn ' + (_activeSortBy === 'latest' ? 'active' : '') + '" data-sort="latest">최신</button>'
+                    +   '<button class="tracking-sort-btn ' + (_activeSortBy === 'progress' ? 'active' : '') + '" data-sort="progress">진행</button>'
                     +   '<button class="tracking-sort-btn ' + (_activeSortBy === 'rising' ? 'active' : '') + '" data-sort="rising">상승</button>'
                     +   '<button class="tracking-sort-btn ' + (_activeSortBy === 'falling' ? 'active' : '') + '" data-sort="falling">하락</button>'
                     +   '<button class="tracking-sort-btn ' + (_activeSortBy === 'sideways' ? 'active' : '') + '" data-sort="sideways">횡보</button>'
@@ -10861,6 +11000,23 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
                             + '</div>';
     container.innerHTML = headerHtml + activeContainerHtml + historyContainerHtml;
     
+
+    // [v4.7.29] 분석 완료 탭 카운트 선반영
+    try {
+      var histBtn0 = document.getElementById('woosTabHistory');
+      if (histBtn0 && histBtn0.textContent.indexOf('(') < 0) {
+        var workerBase0 = window.WORKER_BASE_URL || '';
+        fetch(workerBase0 + '/tracking/completed?limit=1&offset=0')
+          .then(function(r){ return r.ok ? r.json() : null; })
+          .then(function(d){
+            if (!d) return;
+            var n = d.total || (d.items ? d.items.length : 0) || 0;
+            var b = document.getElementById('woosTabHistory');
+            if (b) b.textContent = '분석 완료 (' + n + ')';
+          }).catch(function(){});
+      }
+    } catch(e) {}
+
     // 이벤트 핸들러 바인딩
     _bindActiveTrackingEvents();
     _bindTabEvents();
@@ -10928,6 +11084,10 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       } else {
         _historyCache = data.items;
       }
+      try {
+        var histBtn = document.getElementById('woosTabHistory');
+        if (histBtn) histBtn.textContent = '분석 완료 (' + (data.total || data.items.length || 0) + ')';
+      } catch(e) {}
       _renderHistoryUI(_historyCache, data.total || 0);
     }).catch(function(err){
       contentEl.innerHTML = '<div class="woos-history-empty">히스토리 로딩 실패: ' + (err.message || '알 수 없는 오류') + '</div>';
@@ -11088,7 +11248,7 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       var sortBtn = t.closest('.tracking-sort-btn');
       if (sortBtn) {
         _activeSortBy = sortBtn.getAttribute('data-sort');
-        _activeDisplayLimit = 10;
+        _activeDisplayLimit = 9999;
         _rerenderActiveTrackingFromCache();
         return;
       }
@@ -11099,7 +11259,7 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
         var tierVal = tierBtn.getAttribute('data-tier');
         if (tierVal === 'C') tierVal = 'all';
         _activeTierFilter = tierVal;
-        _activeDisplayLimit = 10;
+        _activeDisplayLimit = 9999;
         _rerenderActiveTrackingFromCache();
         return;
       }
@@ -11108,7 +11268,7 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       var clearBtn = t.closest('#trackingSearchClear');
       if (clearBtn) {
         _activeSearchQuery = '';
-        _activeDisplayLimit = 10;
+        _activeDisplayLimit = 9999;
         _rerenderActiveTrackingFromCache();
         return;
       }
@@ -13261,6 +13421,9 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       function existingSort(a, b, selectedSort) {
         var aLatest = a.startedAt || a.tierAssignedAt || 0;
         var bLatest = b.startedAt || b.tierAssignedAt || 0;
+        if (selectedSort === 'latest') {
+          return bLatest - aLatest;
+        }
         if (selectedSort === 'progress') {
           var aP = (a.progress != null) ? a.progress : v462_computeProgress(a).pct;
           var bP = (b.progress != null) ? b.progress : v462_computeProgress(b).pct;
@@ -13289,10 +13452,15 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
         var ma = (typeof getUiMode === 'function') ? getUiMode(a) : 'standard';
         var mb = (typeof getUiMode === 'function') ? getUiMode(b) : 'standard';
         if (order[ma] !== order[mb]) return order[ma] - order[mb];
+        // [v4.7.29] 사용자 선택 정렬을 먼저 적용. 최신/진행/상승/하락/횡보가 버튼 의미대로 작동하게 함.
+        var primary = existingSort(a, b, selectedSort);
+        if (primary !== 0) return primary;
         var ac = getAlertCount(a);
         var bc = getAlertCount(b);
         if (bc !== ac) return bc - ac;
-        return existingSort(a, b, selectedSort);
+        var aLatest = a.startedAt || a.tierAssignedAt || 0;
+        var bLatest = b.startedAt || b.tierAssignedAt || 0;
+        return bLatest - aLatest;
       }
 
       var filtered = items.slice();
@@ -13311,8 +13479,8 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
     
     /* [Phase 4.7 공사 1 — Q5] 정렬 5가지 — UI 라벨 */
     var V462_SORT_OPTIONS = [
-      { id: 'progress', label: '진행도' },
-      { id: 'frequent', label: '중복알람' },
+      { id: 'latest',   label: '최신' },
+      { id: 'progress', label: '진행' },
       { id: 'rising',   label: '상승' },
       { id: 'falling',  label: '하락' },
       { id: 'sideways', label: '횡보' },
@@ -14679,10 +14847,17 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
   if (typeof window !== 'undefined') {
     window.v4721BlockSummaryToggle = function(event) {
       try {
-        if (event && typeof event.preventDefault === 'function') event.preventDefault();
-        return false;
+        var t = event && event.target;
+        // 별/버튼/입력 등 실제 컨트롤 클릭만 summary 토글 차단
+        if (t && t.closest && t.closest('button, input, select, textarea, a, .woos-watch-btn')) {
+          if (event && typeof event.preventDefault === 'function') event.preventDefault();
+          if (event && typeof event.stopPropagation === 'function') event.stopPropagation();
+          return false;
+        }
+        // 카드 헤더(summary) 클릭은 기본 details 토글 허용
+        return true;
       } catch(e) {
-        return false;
+        return true;
       }
     };
 
@@ -15332,6 +15507,26 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('./service-worker.js');
 }
+</script>
+
+
+<script>
+// [CARD CLICK FIX]
+window.v4721BlockSummaryToggle = function(event) {
+  try {
+    var t = event && event.target;
+
+    if (t && t.closest && t.closest('button, input, select, textarea, a, .woos-watch-btn')) {
+      if (event.preventDefault) event.preventDefault();
+      if (event.stopPropagation) event.stopPropagation();
+      return false;
+    }
+
+    return true;
+  } catch (e) {
+    return true;
+  }
+};
 </script>
 
 </body>
