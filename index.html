@@ -1,48 +1,48 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-
 <script>
-/* [v4.7.39] 캐시 리셋 */
+/* [v4.7.39] 캐시 강제 리셋 — SW 완전 제거 후 리로드 */
 (function(){
+  var VER = '4739';
   try {
-    var KEY = 'woos_cache_reset_v4739_done';
-    if (sessionStorage.getItem(KEY) === '1') return;
-    sessionStorage.setItem(KEY, '1');
-
-    var jobs = [];
-
-    if ('serviceWorker' in navigator) {
-      jobs.push(
-        navigator.serviceWorker.getRegistrations()
-          .then(function(regs){
-            return Promise.all(regs.map(function(reg){ return reg.unregister(); }));
-          })
-          .catch(function(){})
-      );
-    }
-
-    if (window.caches && caches.keys) {
-      jobs.push(
-        caches.keys()
-          .then(function(keys){
-            return Promise.all(keys.map(function(key){ return caches.delete(key); }));
-          })
-          .catch(function(){})
-      );
-    }
-
-    Promise.all(jobs).then(function(){
-      var url = new URL(location.href);
-      url.searchParams.set('v', '4739');
-      location.replace(url.toString());
-    }).catch(function(){
-      location.reload();
-    });
+    var LKEY = 'woos_hard_reset_ver';
+    if (localStorage.getItem(LKEY) === VER) return;
   } catch(e) {}
+
+  var jobs = [];
+
+  if ('serviceWorker' in navigator) {
+    jobs.push(
+      navigator.serviceWorker.getRegistrations()
+        .then(function(regs){
+          return Promise.all(regs.map(function(reg){ return reg.unregister(); }));
+        }).catch(function(){})
+    );
+  }
+
+  if (window.caches && caches.keys) {
+    jobs.push(
+      caches.keys()
+        .then(function(keys){
+          return Promise.all(keys.map(function(key){ return caches.delete(key); }));
+        }).catch(function(){})
+    );
+  }
+
+  Promise.all(jobs).then(function(){
+    try { localStorage.setItem('woos_hard_reset_ver', VER); } catch(e){}
+    var url = new URL(location.href);
+    if (url.searchParams.get('v') !== VER) {
+      url.searchParams.set('v', VER);
+      location.replace(url.toString());
+    }
+  }).catch(function(){
+    try { localStorage.setItem('woos_hard_reset_ver', VER); } catch(e){}
+    location.reload();
+  });
 })();
 </script>
-
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <link rel="manifest" href="manifest.json">
@@ -11151,7 +11151,47 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
                     +   '<button class="v4730-time-btn ' + (_activeSortBy === 'time-old' ? 'active' : '') + '" data-sort="time-old">오래된순</button>'
                     + '</div>'
                     + '</div>';
-
+// [v4.7.39 bugfix] cardsHtml 생성
+var cardsHtml = '';
+try {
+  var W = (typeof window !== 'undefined') ? window.WOOS_ANALYZER : null;
+  if (displayItems.length === 0) {
+    cardsHtml = '<div class="analyzer-empty">표시할 추적 카드가 없습니다.</div>';
+  } else if (W && typeof W.adaptItemToTrack === 'function'
+               && typeof W.groupTracks === 'function'
+               && typeof W.buildGroupCardHTML === 'function') {
+    cardsHtml = displayItems.map(function(item){
+      try {
+        var track = W.adaptItemToTrack(item, _trackingMap[item.id] || null);
+        var groups = W.groupTracks([track]);
+        if (groups && groups.length > 0) {
+          return W.buildGroupCardHTML(groups[0], { isFirstRender: true });
+        }
+      } catch(e2) {}
+      var fb = _trackingMap[item.id] || null;
+      var fbMeta = (fb && fb.meta) ? fb.meta : {
+        snapshotId: item.id, base: item.base, exchange: item.exchange,
+        tier: item.tier, tierAssignedAt: item.tierAssignedAt,
+        windowEnd: item.windowEnd, windowDays: item.windowDays,
+        gradeCode: item.gradeCode, gradeLabel: item.gradeLabel,
+      };
+      return renderInProgressCard(fbMeta, fb);
+    }).join('');
+  } else {
+    cardsHtml = displayItems.map(function(item){
+      var fb = _trackingMap[item.id] || null;
+      var fbMeta = (fb && fb.meta) ? fb.meta : {
+        snapshotId: item.id, base: item.base, exchange: item.exchange,
+        tier: item.tier, tierAssignedAt: item.tierAssignedAt,
+        windowEnd: item.windowEnd, windowDays: item.windowDays,
+        gradeCode: item.gradeCode, gradeLabel: item.gradeLabel,
+      };
+      return renderInProgressCard(fbMeta, fb);
+    }).join('');
+  }
+} catch(e) {
+  cardsHtml = '<div class="analyzer-empty">카드 렌더 오류: ' + (e && e.message ? e.message : e) + '</div>';
+}
     // 더보기 버튼 제거
     var moreBtnHtml = '';
     
