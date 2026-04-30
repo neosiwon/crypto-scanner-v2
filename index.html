@@ -3,7 +3,10 @@
 <head>
 
 <script>
-/* [v4.7.35-hard-timeout'woos_cache_reset_v4733_done';
+/* [v4.7.39] 캐시 리셋 */
+(function(){
+  try {
+    var KEY = 'woos_cache_reset_v4739_done';
     if (sessionStorage.getItem(KEY) === '1') return;
     sessionStorage.setItem(KEY, '1');
 
@@ -31,7 +34,7 @@
 
     Promise.all(jobs).then(function(){
       var url = new URL(location.href);
-      url.searchParams.set('v', '4733');
+      url.searchParams.set('v', '4739');
       location.replace(url.toString());
     }).catch(function(){
       location.reload();
@@ -6313,6 +6316,17 @@ if (typeof window !== 'undefined') {
 }
 // [END MODULE: snapshot_api_fallback_v1]
 
+// [v4.7.39] 통합 API BASE 함수 — localStorage > DEFAULT_SCANNER_API_BASE 우선순위
+// outcome/dashboard, tracking/active, tracking/{id}, snapshots 전부 이 함수 사용
+function woosGetApiBase() {
+  try {
+    var saved = (localStorage.getItem('snapshot_api_base') || '').replace(/\/$/, '');
+    return saved || DEFAULT_SCANNER_API_BASE;
+  } catch(e) {
+    return DEFAULT_SCANNER_API_BASE;
+  }
+}
+
 function getProxyUrl() {
   var el = document.getElementById('inputProxyUrl');
   return el ? el.value.trim().replace(/\/$/, '') : '';
@@ -6901,8 +6915,8 @@ function _outcomeEsc(s) {
 }
 
 function _outcomeGetBase() {
-  try { return (localStorage.getItem('snapshot_api_base') || '').replace(/\/$/, ''); }
-  catch(e){ return ''; }
+  // [v4.7.39] woosGetApiBase() 로 통일 — localStorage 미설정 시 DEFAULT_SCANNER_API_BASE 자동 fallback
+  return woosGetApiBase();
 }
 
 async function refreshOutcomeDashboard(forceNoCache) {
@@ -6911,10 +6925,7 @@ async function refreshOutcomeDashboard(forceNoCache) {
   if (!container) return;
 
   var base = _outcomeGetBase();
-  if (!base) {
-    container.innerHTML = '<div class="outcome-error">❌ SCANNER API BASE 미설정<br>ADVANCED SETTINGS 에서 Workers URL 을 입력하세요</div>';
-    return;
-  }
+  // [v4.7.39] woosGetApiBase() 가 항상 유효한 URL 반환 — 빈값 체크 불필요
 
   container.innerHTML = '<div class="outcome-loading">⏳ 대시보드 로드 중...</div>';
   if (meta) meta.textContent = '조회 중...';
@@ -9324,7 +9335,8 @@ window.addEventListener('load', async function(){
 (function(global) {
   'use strict';
   
-  var WORKER_URL = 'https://auto-alert-worker-v3.neosiwon.workers.dev';
+  // [v4.7.39] woosGetApiBase() 로 통일 — localStorage 설정값 우선, fallback 자동
+  var WORKER_URL = (typeof woosGetApiBase === 'function') ? woosGetApiBase() : 'https://auto-alert-worker-v3.neosiwon.workers.dev';
   
   // ══ 상수 ══════════════════════════════════════════════
   var PATTERN_META = {
@@ -10695,6 +10707,31 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
   return Promise.race([fetchPromise, timeoutPromise]);
 }
 
+
+  // [v4.7.36] /tracking/active 응답 표준화
+  function normalizeActiveResponse4736(data) {
+    if (Array.isArray(data)) {
+      return {
+        active: data,
+        count: data.length,
+        byTier: data.reduce(function(acc, item){
+          var t = item && (item.tier || item.gradeCode || 'B');
+          acc[t] = (acc[t] || 0) + 1;
+          return acc;
+        }, {})
+      };
+    }
+    if (data && Array.isArray(data.active)) {
+      data.count = data.count || data.active.length;
+      data.byTier = data.byTier || data.active.reduce(function(acc, item){
+        var t = item && (item.tier || item.gradeCode || 'B');
+        acc[t] = (acc[t] || 0) + 1;
+        return acc;
+      }, {});
+    }
+    return data;
+  }
+
   // ══ 데이터 fetch ══════════════════════════════════════════════
   function fetchSnapshotsList() {
     return woosFetchWithTimeout(WORKER_URL + '/snapshots?limit=100', {}, 12000)
@@ -10710,6 +10747,9 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       .then(function(r){
         if (!r || r.__woosTimeout) return null;
         return r.ok ? r.json() : null;
+      })
+      .then(function(data){
+        return normalizeActiveResponse4736(data);
       })
       .catch(function(){ return null; });
   }
@@ -10733,7 +10773,7 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
     
     return Promise.all([snapshotsP, activeP]).then(function(results){
       var snapshotsData = results[0];
-      var activeData = results[1];
+      var activeData = normalizeActiveResponse4736(results[1]);
       
       if (!snapshotsData || !snapshotsData.items) {
         var w = document.getElementById('alarmTableWrapper');
@@ -10830,11 +10870,12 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
     }
     
     return fetchTrackingActive().then(function(activeData){
+      activeData = normalizeActiveResponse4736(activeData);
       if (!activeData || !activeData.active) {
         container.innerHTML = '<div class="analyzer-timeout-box">'
           + '<b>추적 데이터를 불러오지 못했습니다</b><br>'
           + '12초 안에 Worker 응답이 없었습니다. 잠시 후 다시 시도하세요.<br>'
-          + '<button type="button" onclick="renderAnalyzerSection()">다시 불러오기</button>'
+          + '<button type="button" onclick="window.WOOS_ANALYZER && window.WOOS_ANALYZER.renderAnalyzerSection && window.WOOS_ANALYZER.renderAnalyzerSection()">다시 불러오기</button>'
           + '</div>';
         return;
       }
@@ -10897,7 +10938,7 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       container.innerHTML = '<div class="analyzer-timeout-box">'
         + '<b>추적 분석 로드 실패</b><br>'
         + 'Worker 응답이 지연되었거나 네트워크가 불안정합니다.<br>'
-        + '<button type="button" onclick="renderAnalyzerSection()">다시 불러오기</button>'
+        + '<button type="button" onclick="window.WOOS_ANALYZER && window.WOOS_ANALYZER.renderAnalyzerSection && window.WOOS_ANALYZER.renderAnalyzerSection()">다시 불러오기</button>'
         + '</div>';
     });
   }
@@ -15683,7 +15724,15 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
 </script>
 
 
-<script>/* [v4.7.33] serviceWorker registration temporarily disabled for cache reset */</script>
+<script>
+/* [v4.7.39] serviceWorker 재등록 — 캐시 v4739 */
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function(){
+    navigator.serviceWorker.register('service-worker.js')
+      .catch(function(){});
+  });
+}
+</script>
 
 
 <script>
@@ -15745,7 +15794,7 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       c.innerHTML = '<div class="analyzer-timeout-box">'
         + '<b>추적 분석 응답 지연</b><br>'
         + '로딩이 오래 지속되어 중단했습니다.<br>'
-        + '<button type="button" onclick="renderAnalyzerSection()">다시 불러오기</button>'
+        + '<button type="button" onclick="window.WOOS_ANALYZER && window.WOOS_ANALYZER.renderAnalyzerSection && window.WOOS_ANALYZER.renderAnalyzerSection()">다시 불러오기</button>'
         + '</div>';
     }
   }
