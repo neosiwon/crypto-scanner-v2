@@ -1,6 +1,49 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
+
+<script>
+/* [v4.7.33] EMERGENCY CACHE RESET
+   목적: 이전 service-worker/cache가 깨진 index(v4731 등)를 계속 물고 있는 경우 강제 초기화 */
+(function(){
+  try {
+    var KEY = 'woos_cache_reset_v4733_done';
+    if (sessionStorage.getItem(KEY) === '1') return;
+    sessionStorage.setItem(KEY, '1');
+
+    var jobs = [];
+
+    if ('serviceWorker' in navigator) {
+      jobs.push(
+        navigator.serviceWorker.getRegistrations()
+          .then(function(regs){
+            return Promise.all(regs.map(function(reg){ return reg.unregister(); }));
+          })
+          .catch(function(){})
+      );
+    }
+
+    if (window.caches && caches.keys) {
+      jobs.push(
+        caches.keys()
+          .then(function(keys){
+            return Promise.all(keys.map(function(key){ return caches.delete(key); }));
+          })
+          .catch(function(){})
+      );
+    }
+
+    Promise.all(jobs).then(function(){
+      var url = new URL(location.href);
+      url.searchParams.set('v', '4733');
+      location.replace(url.toString());
+    }).catch(function(){
+      location.reload();
+    });
+  } catch(e) {}
+})();
+</script>
+
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <link rel="manifest" href="manifest.json">
@@ -5099,7 +5142,7 @@ details.v477-track-card { border-radius: 17px !important; margin: 9px 0 !importa
 }
 
 
-/* [v4.7.32-stable-rollback"" !important;
+/* [v4.7.33-cache-reset"" !important;
   position: absolute !important;
   inset: 0 !important;
   pointer-events: none !important;
@@ -15541,11 +15584,7 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
 </script>
 
 
-<script>
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('./service-worker.js');
-}
-</script>
+<script>/* [v4.7.33] serviceWorker registration temporarily disabled for cache reset */</script>
 
 
 <script>
