@@ -3,11 +3,7 @@
 <head>
 
 <script>
-/* [v4.7.33] EMERGENCY CACHE RESET
-   목적: 이전 service-worker/cache가 깨진 index(v4731 등)를 계속 물고 있는 경우 강제 초기화 */
-(function(){
-  try {
-    var KEY = 'woos_cache_reset_v4733_done';
+/* [v4.7.35-hard-timeout'woos_cache_reset_v4733_done';
     if (sessionStorage.getItem(KEY) === '1') return;
     sessionStorage.setItem(KEY, '1');
 
@@ -5651,6 +5647,41 @@ details.analyzer-progress-card > summary.progress-compact-summary {
   50% { opacity:.78; transform:scale(1.045); }
 }
 
+
+/* [v4.7.34] Search mobile hotfix */
+.tracking-search-input {
+  pointer-events: auto !important;
+  user-select: text !important;
+  -webkit-user-select: text !important;
+  touch-action: manipulation !important;
+}
+.tracking-search-clear {
+  pointer-events: auto !important;
+}
+
+
+/* [v4.7.35] Analyzer hard-timeout error UI */
+.analyzer-timeout-box {
+  margin: 18px 0;
+  padding: 22px 16px;
+  border-radius: 18px;
+  background: rgba(255, 107, 53, .07);
+  border: 1px solid rgba(255, 107, 53, .28);
+  color: rgba(240, 245, 255, .88);
+  text-align: center;
+  line-height: 1.7;
+}
+.analyzer-timeout-box b { color: #ffb86b; }
+.analyzer-timeout-box button {
+  margin-top: 12px;
+  padding: 9px 14px;
+  border-radius: 10px;
+  border: 1px solid rgba(0,212,255,.45);
+  background: rgba(0,212,255,.08);
+  color: var(--accent-cyan);
+  font-family: var(--mono);
+}
+
 </style>
 </head>
 <body>
@@ -10646,35 +10677,48 @@ window.addEventListener('load', async function(){
 
 /* [v4.7.27] fetch timeout — prevent analyzer infinite loading */
 function woosFetchWithTimeout(url, options, timeoutMs) {
+  // [v4.7.35] Hard timeout.
+  // 일부 모바일/PWA 환경에서 AbortController abort가 fetch promise를 끝내지 못해
+  // analyzerContent가 '로딩 중'에 갇히는 문제 방지.
   timeoutMs = timeoutMs || 12000;
   options = options || {};
-  if (typeof AbortController === 'undefined') {
-    return fetch(url, options);
-  }
-  var controller = new AbortController();
-  var timer = setTimeout(function(){ controller.abort(); }, timeoutMs);
-  options.signal = controller.signal;
-  return fetch(url, options).finally(function(){ clearTimeout(timer); });
+  options.cache = options.cache || 'no-store';
+
+  var fetchPromise = fetch(url, options)
+    .then(function(r){ return r; })
+    .catch(function(){ return null; });
+
+  var timeoutPromise = new Promise(function(resolve){
+    setTimeout(function(){ resolve({ __woosTimeout: true, ok: false }); }, timeoutMs);
+  });
+
+  return Promise.race([fetchPromise, timeoutPromise]);
 }
 
   // ══ 데이터 fetch ══════════════════════════════════════════════
   function fetchSnapshotsList() {
-    return fetch(WORKER_URL + '/snapshots?limit=100')
-      .then(function(r){ return r.ok ? r.json() : null; })
+    return woosFetchWithTimeout(WORKER_URL + '/snapshots?limit=100', {}, 12000)
+      .then(function(r){
+        if (!r || r.__woosTimeout) return null;
+        return r.ok ? r.json() : null;
+      })
       .catch(function(){ return null; });
   }
   
   function fetchTrackingActive() {
     return woosFetchWithTimeout(WORKER_URL + '/tracking/active', {}, 12000)
-      .then(function(r){ return r.ok ? r.json() : null; })
+      .then(function(r){
+        if (!r || r.__woosTimeout) return null;
+        return r.ok ? r.json() : null;
+      })
       .catch(function(){ return null; });
   }
   
   function fetchTrackingData(snapshotId, includeSamples) {
     var url = WORKER_URL + '/tracking/' + encodeURIComponent(snapshotId);
     if (includeSamples) url += '?includeSamples=1';
-    return fetch(url)
-      .then(function(r){ return r.ok ? r.json() : null; })
+    return woosFetchWithTimeout(url, {}, 12000)
+      .then(function(r){ return (r && !r.__woosTimeout && r.ok) ? r.json() : null; })
       .catch(function(){ return null; });
   }
   
@@ -10787,7 +10831,11 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
     
     return fetchTrackingActive().then(function(activeData){
       if (!activeData || !activeData.active) {
-        container.innerHTML = '<div class="analyzer-empty">현재 추적 중인 알람 없음</div>';
+        container.innerHTML = '<div class="analyzer-timeout-box">'
+          + '<b>추적 데이터를 불러오지 못했습니다</b><br>'
+          + '12초 안에 Worker 응답이 없었습니다. 잠시 후 다시 시도하세요.<br>'
+          + '<button type="button" onclick="renderAnalyzerSection()">다시 불러오기</button>'
+          + '</div>';
         return;
       }
       var active = activeData.active;
@@ -10844,6 +10892,13 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       
       // 백그라운드에서 보이는 카드만 samples fetch (캐시 없는 것 우선)
       _backgroundFetchVisible();
+    }).catch(function(err){
+      console.error('[renderAnalyzerSection] active fetch failed', err);
+      container.innerHTML = '<div class="analyzer-timeout-box">'
+        + '<b>추적 분석 로드 실패</b><br>'
+        + 'Worker 응답이 지연되었거나 네트워크가 불안정합니다.<br>'
+        + '<button type="button" onclick="renderAnalyzerSection()">다시 불러오기</button>'
+        + '</div>';
     });
   }
   
@@ -10923,8 +10978,11 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
     if (_activeSearchQuery) {
       var q = _activeSearchQuery.toUpperCase();
       filtered = filtered.filter(function(it){
-        return (it.base || '').toUpperCase().indexOf(q) >= 0
-            || (it.id || '').toUpperCase().indexOf(q) >= 0;
+        var base = String(it.base || (it.meta && it.meta.base) || '').toUpperCase();
+        var id = String(it.id || it.snapshotId || '').toUpperCase();
+        var ex = String(it.exchange || (it.meta && it.meta.exchange) || '').toUpperCase();
+        var grade = String(it.gradeCode || it.gradeLabel || '').toUpperCase();
+        return base.indexOf(q) >= 0 || id.indexOf(q) >= 0 || ex.indexOf(q) >= 0 || grade.indexOf(q) >= 0;
       });
     }
     
@@ -11266,11 +11324,33 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
   function _v47_bindDelegation() {
     if (_v47_delegationBound) return;
     _v47_delegationBound = true;
-    
+
+    var searchTimer = null;
+    var composing = false;
+
+    function applySearchValue(value, restoreFocus) {
+      _activeSearchQuery = (value || '').trim();
+      _activeDisplayLimit = 9999;
+      if (searchTimer) clearTimeout(searchTimer);
+      searchTimer = setTimeout(function(){
+        _rerenderActiveTrackingFromCache();
+        if (restoreFocus) {
+          setTimeout(function(){
+            var newInput = document.getElementById('trackingSearchInput');
+            if (newInput) {
+              newInput.focus();
+              var len = newInput.value.length;
+              try { newInput.setSelectionRange(len, len); } catch(_e) {}
+            }
+          }, 0);
+        }
+      }, 120);
+    }
+
     document.addEventListener('click', function(e){
       var t = e.target;
       if (!t || !t.closest) return;
-      
+
       // 정렬 버튼
       var sortBtn = t.closest('.tracking-sort-btn');
       if (sortBtn) {
@@ -11279,7 +11359,7 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
         _rerenderActiveTrackingFromCache();
         return;
       }
-      
+
       // Tier 필터 버튼 (정밀/표준/전체)
       var tierBtn = t.closest('.tracking-tier-btn');
       if (tierBtn) {
@@ -11290,16 +11370,20 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
         _rerenderActiveTrackingFromCache();
         return;
       }
-      
+
       // 검색 지우기 버튼
       var clearBtn = t.closest('#trackingSearchClear');
       if (clearBtn) {
         _activeSearchQuery = '';
         _activeDisplayLimit = 9999;
         _rerenderActiveTrackingFromCache();
+        setTimeout(function(){
+          var input = document.getElementById('trackingSearchInput');
+          if (input) input.focus();
+        }, 0);
         return;
       }
-      
+
       // 더보기 버튼
       var moreBtn = t.closest('#trackingMoreBtn');
       if (moreBtn) {
@@ -11309,24 +11393,39 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
         return;
       }
     });
-    
-    // 검색 input (input 이벤트는 위임 가능 — bubble)
-    document.addEventListener('input', function(e){
-      var t = e.target;
-      if (!t || !t.id || t.id !== 'trackingSearchInput') return;
-      _activeSearchQuery = (t.value || '').trim();
-      _activeDisplayLimit = 10;
-      _rerenderActiveTrackingFromCache();
-      // focus 복원
-      var newInput = document.getElementById('trackingSearchInput');
-      if (newInput) {
-        newInput.focus();
-        var len = newInput.value.length;
-        try { newInput.setSelectionRange(len, len); } catch(_e) {}
+
+    // 모바일 한글 IME 대응: 조합 중에는 렌더 금지, 조합 완료 후 1회만 검색
+    document.addEventListener('compositionstart', function(e){
+      if (e.target && e.target.id === 'trackingSearchInput') composing = true;
+    });
+    document.addEventListener('compositionend', function(e){
+      if (e.target && e.target.id === 'trackingSearchInput') {
+        composing = false;
+        applySearchValue(e.target.value, true);
       }
     });
+
+    document.addEventListener('input', function(e){
+      var t = e.target;
+      if (!t || t.id !== 'trackingSearchInput') return;
+      if (composing || e.isComposing) return;
+      applySearchValue(t.value, true);
+    });
+
+    document.addEventListener('keyup', function(e){
+      var t = e.target;
+      if (!t || t.id !== 'trackingSearchInput') return;
+      if (composing || e.isComposing) return;
+      applySearchValue(t.value, true);
+    });
+
+    document.addEventListener('change', function(e){
+      var t = e.target;
+      if (!t || t.id !== 'trackingSearchInput') return;
+      applySearchValue(t.value, true);
+    });
   }
-  
+
   function _bindActiveTrackingEvents() {
     // [HF-D] 위임 1회만 부착 (DOM 재생성 무관 작동)
     _v47_bindDelegation();
@@ -15631,6 +15730,27 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
   window.addEventListener('load', function(){
     setTimeout(applyLabels, 800);
     setInterval(applyLabels, 5000);
+  });
+})();
+</script>
+
+
+<script>
+/* [v4.7.35] Analyzer spinner hard fallback */
+(function(){
+  function killStuckAnalyzerLoading(){
+    var c = document.getElementById('analyzerContent');
+    if (!c) return;
+    if (c.querySelector('.woos-loading-spinner')) {
+      c.innerHTML = '<div class="analyzer-timeout-box">'
+        + '<b>추적 분석 응답 지연</b><br>'
+        + '로딩이 오래 지속되어 중단했습니다.<br>'
+        + '<button type="button" onclick="renderAnalyzerSection()">다시 불러오기</button>'
+        + '</div>';
+    }
+  }
+  window.addEventListener('load', function(){
+    setTimeout(killStuckAnalyzerLoading, 15000);
   });
 })();
 </script>
