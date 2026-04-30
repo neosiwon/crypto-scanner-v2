@@ -11083,6 +11083,52 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
         window._trackingMap = _trackingMap;
       }
     } catch(e) {}
+
+    // [v4.7.39 bugfix] cardsHtml 생성 — 누락으로 인한 ReferenceError 수정
+    // adaptItemToTrack + groupTracks + buildGroupCardHTML 패턴 (renderAnalyzerCard 와 동일)
+    var cardsHtml = '';
+    try {
+      var W = (typeof window !== 'undefined') ? window.WOOS_ANALYZER : null;
+      if (displayItems.length === 0) {
+        cardsHtml = '<div class="analyzer-empty">표시할 추적 카드가 없습니다.</div>';
+      } else if (W && typeof W.adaptItemToTrack === 'function'
+                   && typeof W.groupTracks === 'function'
+                   && typeof W.buildGroupCardHTML === 'function') {
+        // Phase 4.x 그룹 카드
+        cardsHtml = displayItems.map(function(item){
+          try {
+            var track = W.adaptItemToTrack(item, _trackingMap[item.id] || null);
+            var groups = W.groupTracks([track]);
+            if (groups && groups.length > 0) {
+              return W.buildGroupCardHTML(groups[0], { isFirstRender: true });
+            }
+          } catch(e2) {}
+          // fallback: Phase 3.x 카드
+          var fb = _trackingMap[item.id] || null;
+          var fbMeta = (fb && fb.meta) ? fb.meta : {
+            snapshotId: item.id, base: item.base, exchange: item.exchange,
+            tier: item.tier, tierAssignedAt: item.tierAssignedAt,
+            windowEnd: item.windowEnd, windowDays: item.windowDays,
+            gradeCode: item.gradeCode, gradeLabel: item.gradeLabel,
+          };
+          return renderInProgressCard(fbMeta, fb);
+        }).join('');
+      } else {
+        // WOOS_ANALYZER 미로드 fallback
+        cardsHtml = displayItems.map(function(item){
+          var fb = _trackingMap[item.id] || null;
+          var fbMeta = (fb && fb.meta) ? fb.meta : {
+            snapshotId: item.id, base: item.base, exchange: item.exchange,
+            tier: item.tier, tierAssignedAt: item.tierAssignedAt,
+            windowEnd: item.windowEnd, windowDays: item.windowDays,
+            gradeCode: item.gradeCode, gradeLabel: item.gradeLabel,
+          };
+          return renderInProgressCard(fbMeta, fb);
+        }).join('');
+      }
+    } catch(e) {
+      cardsHtml = '<div class="analyzer-empty">카드 렌더 오류: ' + (e && e.message ? e.message : e) + '</div>';
+    }
     
     // [v4.7.29] 헤더 단순화: 활성/분석완료 탭 + 단일 통계 카드만 표시
     // 기존 buildWatchHeader(⭐ 관심 코인 N개)와 buildGlowLegend(수익/손실/횡보/추적/관심)는 중복이라 제거.
