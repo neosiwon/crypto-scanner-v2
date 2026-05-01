@@ -1709,9 +1709,14 @@ body::before {
 ═══════════════════════════════════════════════════════════ */
 #header.woos-hero {
   min-height: auto;
-  padding: 20px 16px 16px !important;
-  margin: 0 0 14px 0 !important;
-  border-bottom: none !important;
+  padding: 20px 16px 20px !important;
+  margin: 8px 8px 16px !important;
+  width: calc(100% - 16px) !important;
+  border: 1.5px solid rgba(0, 212, 255, 0.35) !important;
+  border-bottom: 1.5px solid rgba(0, 212, 255, 0.35) !important;
+  border-radius: 18px;
+  background: linear-gradient(160deg, #07131f 0%, #0a1a2e 60%, #071320 100%);
+  box-shadow: 0 0 28px rgba(0, 212, 255, 0.13), inset 0 0 40px rgba(0, 212, 255, 0.04);
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -1719,8 +1724,8 @@ body::before {
   position: relative;
   overflow: hidden;
   box-sizing: border-box;
-  width: 100%;
 }
+#header.woos-hero::before { display: none; }
 #header.woos-hero::before {
   content: '';
   position: absolute;
