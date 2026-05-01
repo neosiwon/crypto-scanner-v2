@@ -1746,14 +1746,10 @@ body::before {
   text-align: center;
 }
 .woos-hero .logo-wrap {
-  display: flex !important;
-  justify-content: center;
-  align-items: center;
+  display: block !important;
+  position: relative;
   width: 100%;
-  max-width: 100%;
-  overflow: hidden;
   line-height: 0;
-  padding: 0;
   box-sizing: border-box;
 }
 .woos-hero .main-logo,
@@ -1762,12 +1758,30 @@ body::before {
   max-width: 100% !important;
   min-width: 0 !important;
   height: auto !important;
+  display: block;
   transform: none !important;
-  scale: 1 !important;
   filter: none !important;
   opacity: 1 !important;
-  transition: none !important;
-  display: block;
+}
+.hero-overlay-info {
+  position: absolute;
+  bottom: 10%;
+  left: 0;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  text-align: center;
+  pointer-events: none;
+}
+.hero-overlay-info .logo-sub {
+  pointer-events: auto;
+}
+.hero-overlay-info .woos-hero-status {
+  pointer-events: auto;
+  margin: 0 auto;
 }
 .woos-hero .main-logo:hover { filter: none !important; }
 .woos-hero .logo-sub {
@@ -5718,19 +5732,18 @@ details.analyzer-progress-card > summary.progress-compact-summary {
   <!-- ─── 헤더 / 모바일 히어로 로고 ─── -->
   <header id="header" class="woos-hero">
     <div class="woos-hero-inner">
-      <!-- 로고 이미지가 카드 배경 역할 — 텍스트는 절대위치로 이미지 위에 겹침 -->
-      <div class="logo-wrap" style="position:relative; width:100%;">
+      <div class="logo-wrap">
         <img src="assets/logo.png" alt="WOOS CRYPTO SCANNER"
              class="main-logo"
+             id="mainLogoImg"
              onerror="this.style.display='none';var f=document.getElementById('logoFallback');if(f)f.style.display='block';">
         <div id="logoFallback" class="logo" style="display:none">WOOS SCANNER</div>
-        <!-- logo-sub + status를 이미지 위 하단 중앙에 겹침 -->
-        <div style="position:absolute;bottom:0;left:0;right:0;padding:0 0 14px 0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;text-align:center;">
-          <div class="logo-sub" style="text-align:center;width:100%;">
+        <div class="hero-overlay-info">
+          <div class="logo-sub">
             UPBIT · BITHUMB · BINANCE · REAL-TIME
             <span class="build-badge" id="buildBadge" onclick="showBuildInfo()" title="빌드 정보 상세 보기">v4.1.2 · p3.1.2</span>
           </div>
-          <div class="woos-hero-status" style="margin:0 auto;">
+          <div class="woos-hero-status">
             <div class="live-indicator">
               <div class="live-dot" id="liveDot"></div>
               <span id="liveStatus">IDLE</span>
