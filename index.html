@@ -5689,8 +5689,8 @@ details.analyzer-progress-card > summary.progress-compact-summary {
 }
 .v4730-time-row {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
   margin-top: 8px;
 }
 .v4730-time-btn {
@@ -11044,16 +11044,13 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
     return 0;
   }
 
-  // [v4.7.43] 1단계: watchMap 빌드 (단일 기준)
+  // [v4.7.43] 1단계: watchMap 빌드 — v44_getWatchlist() 기준만 사용
+  // watchMetaMap은 7일 window 계산용이므로 관심 판정에 사용하지 않음
   function v4743_buildWatchMap() {
     var watchMap = {};
     try {
       if (typeof v44_getWatchlist === 'function') {
         v44_getWatchlist().forEach(function(b){ watchMap[String(b).toUpperCase()] = true; });
-      }
-      if (typeof v4723_getWatchMetaMap === 'function') {
-        var wm = v4723_getWatchMetaMap();
-        Object.keys(wm || {}).forEach(function(b){ watchMap[String(b).toUpperCase()] = true; });
       }
     } catch(e) {}
     return watchMap;
@@ -11077,7 +11074,7 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
     });
   }
 
-  // [v4.7.43] 3단계: group 기준 카운트 집계
+  // [v4.7.43] 3단계: group 기준 카운트 집계 (7개 필터 기준)
   function v4743_calcGroupCounts(groups, rawAlertCount) {
     groups = Array.isArray(groups) ? groups : [];
     var counts = { total: groups.length, rawAlerts: rawAlertCount || 0, watch: 0, deep: 0, standard: 0, profit: 0, loss: 0, flat: 0 };
@@ -11085,8 +11082,7 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       if (g.isWatch) counts.watch++;
       else if (g.isDeep) counts.deep++;
       else counts.standard++;
-      var rep = g.representative;
-      var pct = rep ? v4729_currentPct(rep) : 0;
+      var pct = g.representative ? v4729_currentPct(g.representative) : 0;
       if (pct > 0.2) counts.profit++;
       else if (pct < -0.2) counts.loss++;
       else counts.flat++;
@@ -11095,30 +11091,61 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
   }
 
   // [v4.7.43] 4단계: group 정렬 — 관심→정밀→표준, 각 그룹 내 최신순
-  function v4743_sortGroups(groups, sortBy) {
+  function v4743_sortGroups(groups, sortBy, activeFilter) {
     groups = (groups || []).slice();
+    var now = Date.now();
+    var NEW_MS = 30 * 60 * 1000;
+    var DEADLINE_MS = 60 * 60 * 1000;
     var modeOrder = { watch: 0, deep: 1, standard: 2 };
-    function getGroupMode(g) { return g.isWatch ? 'watch' : g.isDeep ? 'deep' : 'standard'; }
-    function getGroupTime(g) {
-      var rep = g.representative || {};
-      return rep.tierAssignedAt || rep.startedAt || 0;
+    function getMode(g) { return g.isWatch ? 'watch' : g.isDeep ? 'deep' : 'standard'; }
+    function getTime(g) { var r = g.representative || {}; return r.tierAssignedAt || r.startedAt || 0; }
+    function getPct(g) { return g.representative ? v4729_currentPct(g.representative) : 0; }
+    function getWindowEnd(g) {
+      var r = g.representative || {}; var m = r.meta || {};
+      return r.windowEnd || r.endAt || m.windowEnd || m.endAt || 0;
     }
-    function getGroupPct(g) { return g.representative ? v4729_currentPct(g.representative) : 0; }
     groups.sort(function(a, b) {
-      var ma = modeOrder[getGroupMode(a)];
-      var mb = modeOrder[getGroupMode(b)];
-      if (ma !== mb) return ma - mb;
-      // 사용자 정렬 적용
-      if (sortBy === 'time-old') return getGroupTime(a) - getGroupTime(b);
-      if (sortBy === 'rising') return getGroupPct(b) - getGroupPct(a);
-      if (sortBy === 'falling') return getGroupPct(a) - getGroupPct(b);
-      // 기본: 최신순
-      return getGroupTime(b) - getGroupTime(a);
+      // all 필터일 때만 모드 우선순위
+      if (!activeFilter || activeFilter === 'all') {
+        var ma = modeOrder[getMode(a)], mb = modeOrder[getMode(b)];
+        if (ma !== mb) return ma - mb;
+      }
+      if (sortBy === 'time-old')  return getTime(a) - getTime(b);
+      if (sortBy === 'rising')    return getPct(b) - getPct(a);
+      if (sortBy === 'falling')   return getPct(a) - getPct(b);
+      if (sortBy === 'new') {
+        var aN = (now - getTime(a)) <= NEW_MS, bN = (now - getTime(b)) <= NEW_MS;
+        if (aN !== bN) return aN ? -1 : 1;
+        return getTime(b) - getTime(a);
+      }
+      if (sortBy === 'deadline') {
+        var aR = getWindowEnd(a) ? getWindowEnd(a) - now : Infinity;
+        var bR = getWindowEnd(b) ? getWindowEnd(b) - now : Infinity;
+        var aU = aR > 0 && aR <= DEADLINE_MS, bU = bR > 0 && bR <= DEADLINE_MS;
+        if (aU !== bU) return aU ? -1 : 1;
+        return aR - bR;
+      }
+      return getTime(b) - getTime(a);
     });
     return groups;
   }
 
-  // [v4.7.43] Stats 카드 — 필터 버튼 UI
+  // [v4.7.43] group 필터
+  function v4743_filterGroups(allGroups, activeFilter) {
+    if (!activeFilter || activeFilter === 'all') return allGroups.slice();
+    return allGroups.filter(function(g) {
+      var pct = g.representative ? v4729_currentPct(g.representative) : 0;
+      if (activeFilter === 'watch')    return g.isWatch;
+      if (activeFilter === 'deep')     return g.isDeep;
+      if (activeFilter === 'standard') return g.isStandard;
+      if (activeFilter === 'profit')   return pct > 0.2;
+      if (activeFilter === 'loss')     return pct < -0.2;
+      if (activeFilter === 'flat')     return pct >= -0.2 && pct <= 0.2;
+      return true;
+    });
+  }
+
+  // [v4.7.43] Stats 카드 — 필터 버튼 7개 UI
   function v4729_buildTrackingStatsCard(counts) {
     counts = counts || { total:0, rawAlerts:0, watch:0, deep:0, standard:0, profit:0, loss:0, flat:0 };
     var af = (typeof _activeStatFilter !== 'undefined') ? _activeStatFilter : 'all';
@@ -11132,10 +11159,13 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
     }
     return '<div class="v4729-tracking-stats-card">'
       + '<div class="v4729-stats-grid">'
-      + pill('all',      '전체 코인', counts.total,    'all')
-      + pill('watch',    '⭐ 관심',   counts.watch,    'watch')
-      + pill('deep',     '정밀',      counts.deep,     'deep')
-      + pill('standard', '표준',      counts.standard, 'standard')
+      + pill('all',      '전체',     counts.total,    'all')
+      + pill('watch',    '⭐ 관심',  counts.watch,    'watch')
+      + pill('deep',     '정밀',     counts.deep,     'deep')
+      + pill('standard', '표준',     counts.standard, 'standard')
+      + pill('profit',   '수익',     counts.profit,   'profit')
+      + pill('loss',     '손실',     counts.loss,     'loss')
+      + pill('flat',     '횡보',     counts.flat,     'flat')
       + '</div>'
       + '<div class="v4743-raw-alert-info">원본 알람 ' + counts.rawAlerts + '건</div>'
       + '</div>';
@@ -11158,8 +11188,9 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
 
     // [v4.7.43] 파이프라인: items → tracks → groups → normalize → count → sort
     var W = (typeof window !== 'undefined') ? window.WOOS_ANALYZER : null;
-    var groups = [];
+    var allGroups = [];
     var watchMap = v4743_buildWatchMap();
+    var af = (typeof _activeStatFilter !== 'undefined') ? _activeStatFilter : 'all';
 
     if (W && typeof W.adaptItemToTrack === 'function' && typeof W.groupTracks === 'function') {
       var allTracks = (_activeItemsCache || []).map(function(item){
@@ -11176,28 +11207,17 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
         });
       }
 
-      groups = W.groupTracks(allTracks);
-      groups = v4743_normalizeGroupFlags(groups, watchMap);
-
-      // 상태 필터 (group 기준)
-      if (_activeStatFilter && _activeStatFilter !== 'all') {
-        groups = groups.filter(function(g){
-          var pct = g.representative ? v4729_currentPct(g.representative) : 0;
-          if (_activeStatFilter === 'watch') return g.isWatch;
-          if (_activeStatFilter === 'deep') return g.isDeep;
-          if (_activeStatFilter === 'standard') return g.isStandard;
-          if (_activeStatFilter === 'profit') return pct > 0.2;
-          if (_activeStatFilter === 'loss') return pct < -0.2;
-          if (_activeStatFilter === 'flat') return pct >= -0.2 && pct <= 0.2;
-          return true;
-        });
-      }
-
-      groups = v4743_sortGroups(groups, _activeSortBy);
+      allGroups = W.groupTracks(allTracks);
+      allGroups = v4743_normalizeGroupFlags(allGroups, watchMap);
     }
 
-    var groupCounts = v4743_calcGroupCounts(groups, rawAlertCount);
+    // counts는 allGroups 기준 (필터 무관)
+    var groupCounts = v4743_calcGroupCounts(allGroups, rawAlertCount);
     var statsHtml = v4729_buildTrackingStatsCard(groupCounts);
+
+    // visibleGroups = 상태 필터 + 정렬 적용
+    var visibleGroups = v4743_filterGroups(allGroups, af);
+    visibleGroups = v4743_sortGroups(visibleGroups, _activeSortBy, af);
     
     // 전역 노출
     try {
@@ -11209,13 +11229,13 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       window._trackingMap = _trackingMap;
     } catch(e) {}
 
-    // 탭 헤더
+    // 탭 헤더 — 활성(N)은 allGroups.length 고정
     var tabsHtml = '<div class="woos-tabs">'
-                 + '<button class="woos-tab-btn active" data-tab="active" id="woosTabActive">활성 (' + groups.length + ')</button>'
+                 + '<button class="woos-tab-btn active" data-tab="active" id="woosTabActive">활성 (' + allGroups.length + ')</button>'
                  + '<button class="woos-tab-btn" data-tab="history" id="woosTabHistory">분석 완료</button>'
                  + '</div>';
 
-    // 검색 + 정렬 컨트롤
+    // 검색 + 정렬 컨트롤 (신규/마감임박 추가)
     var controlHtml = '<div class="tracking-controls">'
                     + '<div class="tracking-search-row">'
                     +   '<input type="text" class="tracking-search-input" id="trackingSearchInput" '
@@ -11223,24 +11243,26 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
                     +   '<button class="tracking-search-clear" id="trackingSearchClear" type="button" aria-label="검색 지우기">✕</button>'
                     + '</div>'
                     + '<div class="v4730-time-row">'
-                    +   '<button class="v4730-time-btn ' + (_activeSortBy === 'time-new' ? 'active' : '') + '" data-sort="time-new">최신순</button>'
-                    +   '<button class="v4730-time-btn ' + (_activeSortBy === 'time-old' ? 'active' : '') + '" data-sort="time-old">오래된순</button>'
+                    +   '<button class="v4730-time-btn ' + (_activeSortBy === 'time-new'  ? 'active' : '') + '" data-sort="time-new">최신순</button>'
+                    +   '<button class="v4730-time-btn ' + (_activeSortBy === 'time-old'  ? 'active' : '') + '" data-sort="time-old">오래된순</button>'
+                    +   '<button class="v4730-time-btn ' + (_activeSortBy === 'new'       ? 'active' : '') + '" data-sort="new">신규</button>'
+                    +   '<button class="v4730-time-btn ' + (_activeSortBy === 'deadline'  ? 'active' : '') + '" data-sort="deadline">마감임박</button>'
                     + '</div>'
                     + '</div>';
 
     // 검색 결과 카운트
     var searchInfo = '';
     if (_activeSearchQuery) {
-      searchInfo = '<div class="tracking-search-info">검색 결과 <b>' + groups.length + '</b>건</div>';
+      searchInfo = '<div class="tracking-search-info">검색 결과 <b>' + visibleGroups.length + '</b>건</div>';
     }
 
-    // [v4.7.43] cardsHtml — 정렬된 groups 직접 렌더
+    // [v4.7.43] cardsHtml — visibleGroups 렌더
     var cardsHtml = '';
     try {
-      if (groups.length === 0) {
+      if (visibleGroups.length === 0) {
         cardsHtml = '<div class="analyzer-empty">표시할 추적 카드가 없습니다.</div>';
       } else if (W && typeof W.buildGroupCardHTML === 'function') {
-        cardsHtml = groups.map(function(group){
+        cardsHtml = visibleGroups.map(function(group){
           try { return W.buildGroupCardHTML(group, { isFirstRender: true }); }
           catch(e2) { return '<div class="analyzer-empty">카드 렌더 실패: ' + (group && group.base || '') + '</div>'; }
         }).join('');
