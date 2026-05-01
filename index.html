@@ -11163,8 +11163,7 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
                     + '</div>'
                     + '</div>';
 
-    // [v4.7.39 bugfix] cardsHtml 생성 — 누락으로 인한 ReferenceError 수정
-    // adaptItemToTrack + groupTracks + buildGroupCardHTML 패턴
+    // [v4.7.42 bugfix] cardsHtml 생성 — 전체 items를 한번에 groupTracks에 넘겨 동일코인 묶음 처리
     var cardsHtml = '';
     try {
       var W = (typeof window !== 'undefined') ? window.WOOS_ANALYZER : null;
@@ -11173,22 +11172,19 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       } else if (W && typeof W.adaptItemToTrack === 'function'
                    && typeof W.groupTracks === 'function'
                    && typeof W.buildGroupCardHTML === 'function') {
-        cardsHtml = displayItems.map(function(item){
+        // 전체 tracks 변환 후 한번에 groupTracks → 동일 base 묶음 처리
+        var allTracks = displayItems.map(function(item){
           try {
-            var track = W.adaptItemToTrack(item, _trackingMap[item.id] || null);
-            var groups = W.groupTracks([track]);
-            if (groups && groups.length > 0) {
-              return W.buildGroupCardHTML(groups[0], { isFirstRender: true });
-            }
-          } catch(e2) {}
-          var fb = _trackingMap[item.id] || null;
-          var fbMeta = (fb && fb.meta) ? fb.meta : {
-            snapshotId: item.id, base: item.base, exchange: item.exchange,
-            tier: item.tier, tierAssignedAt: item.tierAssignedAt,
-            windowEnd: item.windowEnd, windowDays: item.windowDays,
-            gradeCode: item.gradeCode, gradeLabel: item.gradeLabel,
-          };
-          return renderInProgressCard(fbMeta, fb);
+            return W.adaptItemToTrack(item, _trackingMap[item.id] || null);
+          } catch(e2) { return null; }
+        }).filter(Boolean);
+        var groups = W.groupTracks(allTracks);
+        cardsHtml = (groups || []).map(function(group){
+          try {
+            return W.buildGroupCardHTML(group, { isFirstRender: true });
+          } catch(e2) {
+            return '<div class="analyzer-empty">카드 렌더 실패: ' + (group && group.base || '') + '</div>';
+          }
         }).join('');
       } else {
         cardsHtml = displayItems.map(function(item){
