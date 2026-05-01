@@ -114,7 +114,7 @@ body::before {
 /* ══════════════════════════════════════════
    레이아웃 래퍼
 ══════════════════════════════════════════ */
-#app { position: relative; z-index: 1; max-width: 900px; margin: 0 auto; padding: 0 12px 80px; }
+#app { position: relative; z-index: 1; max-width: 900px; margin: 0 auto; padding: 0 0 80px; }
 
 /* ══════════════════════════════════════════
    헤더
@@ -1709,8 +1709,8 @@ body::before {
 ═══════════════════════════════════════════════════════════ */
 #header.woos-hero {
   min-height: 28vh;
-  padding: 16px 12px 14px !important;
-  margin-bottom: 14px !important;
+  padding: 20px 16px 16px !important;
+  margin: 0 0 14px 0 !important;
   border-bottom: none !important;
   display: flex;
   flex-direction: column;
@@ -1720,6 +1720,7 @@ body::before {
   overflow: hidden;
   box-sizing: border-box;
   width: 100%;
+  border-radius: 0 0 20px 20px;
 }
 #header.woos-hero::before {
   content: '';
@@ -1938,16 +1939,16 @@ body.scan-complete .main-logo,
 
 /* 모바일 손가락 UX */
 @media (max-width: 640px) {
-  #app { padding: 0 12px 96px !important; }
+  #app { padding: 0 0 96px !important; }
   #header.woos-hero {
     min-height: 26vh !important;
-    padding-top: 12px !important;
-    padding-bottom: 12px !important;
+    padding: 16px 14px 14px !important;
     overflow: hidden !important;
+    border-radius: 0 0 18px 18px !important;
   }
   .woos-hero .main-logo,
   .main-logo {
-    width: min(82vw, 360px) !important;
+    width: min(72vw, 320px) !important;
     min-width: 160px !important;
     max-width: 100% !important;
   }
@@ -2104,7 +2105,7 @@ body.scan-complete .main-logo,
 .woos-tabs {
   display: flex;
   gap: 4px;
-  margin: 12px 0 10px;
+  margin: 12px 12px 10px;
   padding: 4px;
   background: rgba(8, 16, 28, .58);
   border: 1px solid rgba(36, 61, 87, .8);
@@ -2144,8 +2145,8 @@ body.scan-complete .main-logo,
   letter-spacing: .3px;
 }
 /* 탭 콘텐츠 영역 */
-.woos-tab-panel { display: none; }
-.woos-tab-panel.active { display: block; animation: tabFade .2s ease-out; }
+.woos-tab-panel { display: none; padding: 0 12px; }
+.woos-tab-panel.active { display: block; animation: tabFade .2s ease-out; padding: 0 12px; }
 @keyframes tabFade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
 @media (max-width: 380px) {
   .woos-tab { font-size: .62rem; min-height: 36px; }
