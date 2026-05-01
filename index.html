@@ -1709,21 +1709,17 @@ body::before {
 ═══════════════════════════════════════════════════════════ */
 #header.woos-hero {
   min-height: auto;
-  padding: 0 0 16px 0 !important;
+  padding: 20px 16px 16px !important;
   margin: 0 0 14px 0 !important;
-  border: none !important;
   border-bottom: none !important;
-  background: none !important;
-  box-shadow: none !important;
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: center;
   position: relative;
-  overflow: visible;
+  overflow: hidden;
   box-sizing: border-box;
   width: 100%;
-  border-radius: 0;
 }
 #header.woos-hero::before {
   content: '';
@@ -1746,17 +1742,17 @@ body::before {
   text-align: center;
 }
 .woos-hero .logo-wrap {
-  display: block !important;
-  position: relative;
+  display: flex !important;
+  justify-content: center;
+  align-items: center;
   width: 100%;
   line-height: 0;
-  box-sizing: border-box;
 }
 .woos-hero .main-logo,
 .main-logo {
-  width: 100% !important;
+  width: min(88vw, 520px) !important;
   max-width: 100% !important;
-  min-width: 0 !important;
+  min-width: 200px !important;
   height: auto !important;
   display: block;
   transform: none !important;
@@ -1783,6 +1779,31 @@ body::before {
   pointer-events: auto;
   margin: 0 auto;
 }
+
+/* [v4.7.39] 히어로 카드 — background-image 방식 */
+.hero-card-bg {
+  width: 100%;
+  background-image: url('assets/logo.png');
+  background-size: 100% auto;
+  background-repeat: no-repeat;
+  background-position: top center;
+  padding-top: 56.28%; /* 로고 이미지 실제 비율 941/1672 */
+  position: relative;
+  box-sizing: border-box;
+}
+.hero-card-overlay {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding-bottom: 10%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  text-align: center;
+}
 .woos-hero .main-logo:hover { filter: none !important; }
 .woos-hero .logo-sub {
   margin-top: 12px !important;
@@ -1790,6 +1811,9 @@ body::before {
   font-size: .63rem;
   letter-spacing: 3px;
   color: rgba(164, 191, 218, .72);
+  text-align: center;
+  display: block;
+  width: 100%;
 }
 .woos-hero-status {
   margin-top: 16px;
@@ -5735,22 +5759,20 @@ details.analyzer-progress-card > summary.progress-compact-summary {
       <div class="logo-wrap">
         <img src="assets/logo.png" alt="WOOS CRYPTO SCANNER"
              class="main-logo"
-             id="mainLogoImg"
              onerror="this.style.display='none';var f=document.getElementById('logoFallback');if(f)f.style.display='block';">
         <div id="logoFallback" class="logo" style="display:none">WOOS SCANNER</div>
-        <div class="hero-overlay-info">
-          <div class="logo-sub">
-            UPBIT · BITHUMB · BINANCE · REAL-TIME
-            <span class="build-badge" id="buildBadge" onclick="showBuildInfo()" title="빌드 정보 상세 보기">v4.1.2 · p3.1.2</span>
-          </div>
-          <div class="woos-hero-status">
-            <div class="live-indicator">
-              <div class="live-dot" id="liveDot"></div>
-              <span id="liveStatus">IDLE</span>
-            </div>
-            <div id="clock">--:--:--</div>
-          </div>
+      </div>
+      <div class="logo-sub">
+        UPBIT · BITHUMB · BINANCE · REAL-TIME
+        <br>
+        <span class="build-badge" id="buildBadge" onclick="showBuildInfo()" title="빌드 정보 상세 보기">v4.1.2 · p3.1.2</span>
+      </div>
+      <div class="woos-hero-status">
+        <div class="live-indicator">
+          <div class="live-dot" id="liveDot"></div>
+          <span id="liveStatus">IDLE</span>
         </div>
+        <div id="clock">--:--:--</div>
       </div>
     </div>
   </header>
