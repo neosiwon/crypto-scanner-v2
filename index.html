@@ -5686,196 +5686,151 @@ details.analyzer-progress-card > summary.progress-compact-summary {
 }
 
 
-/* ═══════════════════════════════════════════════════════════
-   [PATCH: woos_hero_compact_v4_7_40]
-   목적: 상단 로고창을 실제 앱 화면 기준 1번 시안처럼 넓고 낮은 카드형으로 고정
-   - 기존 v38의 42vh 대형 히어로/520px 로고 강제값 무력화
-   - 스캐너/추적분석/스캔완료 상태에서도 동일 비율 유지
-═══════════════════════════════════════════════════════════ */
+/* [v4.7.41] HERO LARGE BOX FIX */
 #header.woos-hero,
 body.scanning #header.woos-hero,
 body.scan-complete #header.woos-hero,
 #header.woos-hero.scanning,
 #header.woos-hero.complete {
   min-height: unset !important;
-  height: auto !important;
-  padding: 22px 0 42px !important;
-  margin: 0 0 18px !important;
+  padding: 24px 0 50px !important;
+  margin: 0 0 22px !important;
   border-bottom: none !important;
-  display: block !important;
-  position: relative !important;
-}
-
-#header.woos-hero::before {
-  inset: 0 -12px auto !important;
-  height: 100% !important;
-  background:
-    radial-gradient(circle at 50% 16%, rgba(0, 212, 255, .11), transparent 42%),
-    linear-gradient(180deg, rgba(5, 12, 22, .10), rgba(5, 12, 22, 0)) !important;
-  opacity: .9 !important;
-}
-
-#header.woos-hero .woos-hero-inner {
-  width: min(100%, 820px) !important;
-  max-width: 820px !important;
-  margin: 0 auto !important;
-  padding: 30px 18px 70px !important;
-  min-height: 0 !important;
-  border-radius: 34px !important;
-  background:
-    radial-gradient(circle at 50% 8%, rgba(0,229,255,.18), transparent 34%),
-    linear-gradient(180deg, rgba(14,28,42,.82), rgba(5,11,18,.88)) !important;
-  border: 1px solid rgba(125,220,255,.42) !important;
-  box-shadow:
-    0 0 28px rgba(0,212,255,.18),
-    inset 0 0 28px rgba(0,212,255,.08) !important;
-  overflow: visible !important;
   display: flex !important;
-  flex-direction: column !important;
   align-items: center !important;
-  justify-content: center !important;
-  text-align: center !important;
+  justify-content: flex-start !important;
   position: relative !important;
 }
-
+#header.woos-hero .woos-hero-inner {
+  position: relative !important;
+  width: calc(100vw - 32px) !important;
+  max-width: 940px !important;
+  min-height: 340px !important;
+  margin: 0 auto !important;
+  padding: 46px 20px 122px !important;
+  border-radius: 36px !important;
+  background: radial-gradient(circle at 50% 18%, rgba(0,229,255,.18), transparent 34%), radial-gradient(circle at 50% 48%, rgba(110,80,255,.10), transparent 44%), linear-gradient(180deg, rgba(14,28,42,.86), rgba(5,11,18,.90)) !important;
+  border: 1px solid rgba(125,220,255,.45) !important;
+  box-shadow: 0 0 32px rgba(0,212,255,.20), inset 0 0 36px rgba(0,212,255,.08), inset 0 1px 0 rgba(255,255,255,.06) !important;
+  overflow: visible !important;
+}
 #header.woos-hero .logo-wrap {
   width: 100% !important;
   display: flex !important;
   justify-content: center !important;
   align-items: center !important;
-  line-height: 0 !important;
+  margin-top: 8px !important;
 }
-
 #header.woos-hero .main-logo,
 body.scanning .main-logo,
 body.scan-complete .main-logo,
 #header.woos-hero.scanning .main-logo,
 #header.woos-hero.complete .main-logo {
-  width: min(54vw, 250px) !important;
-  min-width: 150px !important;
-  max-width: 250px !important;
+  width: min(58vw, 310px) !important;
+  min-width: 190px !important;
+  max-width: 310px !important;
   height: auto !important;
   transform: none !important;
   scale: 1 !important;
-  opacity: 1 !important;
-  filter: drop-shadow(0 0 18px rgba(0,229,255,.32)) !important;
-  transition: none !important;
+  filter: drop-shadow(0 0 18px rgba(0,229,255,.34)) !important;
 }
-
-#header.woos-hero .main-logo:hover {
-  filter: drop-shadow(0 0 18px rgba(0,229,255,.32)) !important;
-}
-
 #header.woos-hero .logo-sub {
   position: absolute !important;
-  left: 28px !important;
-  right: 28px !important;
-  bottom: 38px !important;
+  left: 24px !important;
+  right: 24px !important;
+  bottom: 78px !important;
   margin: 0 !important;
-  padding-top: 18px !important;
-  border-top: 1px solid rgba(255,255,255,.06) !important;
-  text-align: left !important;
+  padding-top: 22px !important;
+  border-top: 1px solid rgba(255,255,255,.07) !important;
+  text-align: center !important;
   font-family: var(--mono) !important;
-  font-size: .64rem !important;
+  font-size: .68rem !important;
   letter-spacing: 5px !important;
-  color: rgba(182,205,230,.72) !important;
+  line-height: 1.2 !important;
+  color: rgba(190,213,238,.76) !important;
   white-space: nowrap !important;
-  overflow: visible !important;
 }
-
+#header.woos-hero .hero-build-badge,
 #header.woos-hero .build-badge {
-  float: right !important;
-  margin: -2px 0 0 8px !important;
-  letter-spacing: .4px !important;
-  color: var(--accent-cyan) !important;
-  background: rgba(0, 229, 255, .08) !important;
-  border-color: rgba(0, 229, 255, .25) !important;
-}
-
-#header.woos-hero .woos-hero-status {
   position: absolute !important;
   left: 50% !important;
-  bottom: -21px !important;
+  bottom: 42px !important;
   transform: translateX(-50%) !important;
   margin: 0 !important;
-  padding: 10px 22px !important;
-  min-width: 210px !important;
+  float: none !important;
   display: inline-flex !important;
   align-items: center !important;
   justify-content: center !important;
-  gap: 10px !important;
+  width: max-content !important;
+  max-width: calc(100% - 56px) !important;
+  padding: 4px 11px !important;
   border-radius: 999px !important;
-  background: rgba(8,16,28,.88) !important;
-  border: 1px solid rgba(64,104,145,.72) !important;
+  font-size: .58rem !important;
+  letter-spacing: .45px !important;
+  color: var(--accent-cyan) !important;
+  background: rgba(0, 212, 255, .08) !important;
+  border: 1px solid rgba(0, 212, 255, .38) !important;
+  box-shadow: 0 0 12px rgba(0,212,255,.10) !important;
+  white-space: nowrap !important;
+}
+#header.woos-hero .woos-hero-status {
+  position: absolute !important;
+  left: 50% !important;
+  bottom: -24px !important;
+  transform: translateX(-50%) !important;
+  margin: 0 !important;
+  min-width: 220px !important;
+  justify-content: center !important;
+  padding: 10px 22px !important;
+  border-radius: 999px !important;
+  background: rgba(8,16,28,.90) !important;
+  border: 1px solid rgba(64,104,145,.76) !important;
   box-shadow: 0 0 18px rgba(0,212,255,.12) !important;
-  backdrop-filter: blur(10px) !important;
 }
-
-#header.woos-hero .woos-hero-status .live-indicator,
-#header.woos-hero .woos-hero-status #clock {
-  font-size: .68rem !important;
-}
-
 @media (max-width: 640px) {
-  #app { padding-top: 0 !important; }
-
-  #header.woos-hero,
-  body.scanning #header.woos-hero,
-  body.scan-complete #header.woos-hero,
-  #header.woos-hero.scanning,
-  #header.woos-hero.complete {
+  #header.woos-hero, body.scanning #header.woos-hero, body.scan-complete #header.woos-hero, #header.woos-hero.scanning, #header.woos-hero.complete {
     min-height: unset !important;
-    padding: 18px 0 38px !important;
-    margin-bottom: 18px !important;
+    padding: 20px 0 46px !important;
+    margin-bottom: 20px !important;
   }
-
   #header.woos-hero .woos-hero-inner {
     width: calc(100vw - 28px) !important;
-    max-width: none !important;
-    padding: 28px 14px 68px !important;
-    border-radius: 30px !important;
+    min-height: 318px !important;
+    padding: 42px 16px 116px !important;
+    border-radius: 34px !important;
   }
-
-  #header.woos-hero .main-logo,
-  body.scanning .main-logo,
-  body.scan-complete .main-logo,
-  #header.woos-hero.scanning .main-logo,
-  #header.woos-hero.complete .main-logo {
-    width: 42vw !important;
-    min-width: 135px !important;
-    max-width: 190px !important;
+  #header.woos-hero .main-logo, body.scanning .main-logo, body.scan-complete .main-logo, #header.woos-hero.scanning .main-logo, #header.woos-hero.complete .main-logo {
+    width: min(56vw, 260px) !important;
+    min-width: 172px !important;
+    max-width: 260px !important;
   }
-
   #header.woos-hero .logo-sub {
-    left: 20px !important;
-    right: 20px !important;
-    bottom: 36px !important;
+    left: 18px !important;
+    right: 18px !important;
+    bottom: 76px !important;
     font-size: .58rem !important;
-    letter-spacing: 4px !important;
+    letter-spacing: 3.7px !important;
+    padding-top: 19px !important;
   }
-
-  #header.woos-hero .build-badge {
+  #header.woos-hero .hero-build-badge, #header.woos-hero .build-badge {
+    bottom: 42px !important;
     font-size: .53rem !important;
+    padding: 3px 9px !important;
+  }
+  #header.woos-hero .woos-hero-status {
+    bottom: -23px !important;
+    min-width: 196px !important;
+    padding: 9px 18px !important;
   }
 }
-
 @media (max-width: 380px) {
-  #header.woos-hero .main-logo,
-  body.scanning .main-logo,
-  body.scan-complete .main-logo,
-  #header.woos-hero.scanning .main-logo,
-  #header.woos-hero.complete .main-logo {
-    width: 44vw !important;
-    min-width: 128px !important;
-    max-width: 175px !important;
+  #header.woos-hero .woos-hero-inner { min-height: 300px !important; padding-bottom: 110px !important; }
+  #header.woos-hero .main-logo, body.scanning .main-logo, body.scan-complete .main-logo, #header.woos-hero.scanning .main-logo, #header.woos-hero.complete .main-logo {
+    width: min(54vw, 228px) !important;
+    min-width: 156px !important;
   }
-
-  #header.woos-hero .logo-sub {
-    font-size: .53rem !important;
-    letter-spacing: 3px !important;
-  }
+  #header.woos-hero .logo-sub { font-size: .52rem !important; letter-spacing: 2.8px !important; }
 }
-/* [END PATCH: woos_hero_compact_v4_7_40] */
 
 </style>
 </head>
@@ -5892,10 +5847,8 @@ body.scan-complete .main-logo,
              onerror="this.style.display='none';var f=document.getElementById('logoFallback');if(f)f.style.display='block';">
         <div id="logoFallback" class="logo" style="display:none">WOOS SCANNER</div>
       </div>
-      <div class="logo-sub">
-        UPBIT · BITHUMB · BINANCE · REAL-TIME
-        <span class="build-badge" id="buildBadge" onclick="showBuildInfo()" title="빌드 정보 상세 보기">v4.1.2 · p3.1.2</span>
-      </div>
+      <div class="logo-sub">UPBIT · BITHUMB · BINANCE · REAL-TIME</div>
+      <span class="build-badge hero-build-badge" id="buildBadge" onclick="showBuildInfo()" title="빌드 정보 상세 보기">v4.1.2 · p3.1.2</span>
       <div class="woos-hero-status">
         <div class="live-indicator">
           <div class="live-dot" id="liveDot"></div>
