@@ -3,45 +3,43 @@
 <head>
 
 <script>
-/* [v4.7.42] 캐시 강제 리셋 — SW 완전 제거 후 리로드 */
+/* [v4.7.39] 캐시 리셋 */
 (function(){
-  var VER = '4742';
   try {
-    var LKEY = 'woos_hard_reset_ver';
-    if (localStorage.getItem(LKEY) === VER) return;
-  } catch(e) {}
+    var KEY = 'woos_cache_reset_v4739_done';
+    if (sessionStorage.getItem(KEY) === '1') return;
+    sessionStorage.setItem(KEY, '1');
 
-  var jobs = [];
+    var jobs = [];
 
-  if ('serviceWorker' in navigator) {
-    jobs.push(
-      navigator.serviceWorker.getRegistrations()
-        .then(function(regs){
-          return Promise.all(regs.map(function(reg){ return reg.unregister(); }));
-        }).catch(function(){})
-    );
-  }
-
-  if (window.caches && caches.keys) {
-    jobs.push(
-      caches.keys()
-        .then(function(keys){
-          return Promise.all(keys.map(function(key){ return caches.delete(key); }));
-        }).catch(function(){})
-    );
-  }
-
-  Promise.all(jobs).then(function(){
-    try { localStorage.setItem('woos_hard_reset_ver', VER); } catch(e){}
-    var url = new URL(location.href);
-    if (url.searchParams.get('v') !== VER) {
-      url.searchParams.set('v', VER);
-      location.replace(url.toString());
+    if ('serviceWorker' in navigator) {
+      jobs.push(
+        navigator.serviceWorker.getRegistrations()
+          .then(function(regs){
+            return Promise.all(regs.map(function(reg){ return reg.unregister(); }));
+          })
+          .catch(function(){})
+      );
     }
-  }).catch(function(){
-    try { localStorage.setItem('woos_hard_reset_ver', VER); } catch(e){}
-    location.reload();
-  });
+
+    if (window.caches && caches.keys) {
+      jobs.push(
+        caches.keys()
+          .then(function(keys){
+            return Promise.all(keys.map(function(key){ return caches.delete(key); }));
+          })
+          .catch(function(){})
+      );
+    }
+
+    Promise.all(jobs).then(function(){
+      var url = new URL(location.href);
+      url.searchParams.set('v', '4739');
+      location.replace(url.toString());
+    }).catch(function(){
+      location.reload();
+    });
+  } catch(e) {}
 })();
 </script>
 
@@ -114,7 +112,7 @@ body::before {
 /* ══════════════════════════════════════════
    레이아웃 래퍼
 ══════════════════════════════════════════ */
-#app { position: relative; z-index: 1; max-width: 900px; margin: 0 auto; padding: 0 0 80px; }
+#app { position: relative; z-index: 1; max-width: 900px; margin: 0 auto; padding: 0 12px 80px; }
 
 /* ══════════════════════════════════════════
    헤더
@@ -1708,19 +1706,15 @@ body::before {
    목적: 로고를 상단 핵심 브랜드 영역으로 고정하고, 필수 액션만 노출
 ═══════════════════════════════════════════════════════════ */
 #header.woos-hero {
-  min-height: 28vh;
-  padding: 20px 16px 16px !important;
-  margin: 0 0 14px 0 !important;
+  min-height: 42vh;
+  padding: 28px 0 18px !important;
+  margin-bottom: 14px !important;
   border-bottom: none !important;
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: center;
   position: relative;
-  overflow: hidden;
-  box-sizing: border-box;
-  width: 100%;
-  border-radius: 0 0 20px 20px;
 }
 #header.woos-hero::before {
   content: '';
@@ -1747,24 +1741,19 @@ body::before {
   justify-content: center;
   align-items: center;
   width: 100%;
-  max-width: 100%;
-  overflow: hidden;
   line-height: 0;
-  padding: 0 8px;
-  box-sizing: border-box;
 }
 .woos-hero .main-logo,
 .main-logo {
-  width: min(80vw, 400px) !important;
-  max-width: 100% !important;
-  min-width: 160px !important;
+  width: min(88vw, 520px) !important;
+  max-width: none !important;
+  min-width: 260px !important;
   height: auto !important;
   transform: none !important;
   scale: 1 !important;
   filter: none !important;
   opacity: 1 !important;
   transition: none !important;
-  display: block;
 }
 .woos-hero .main-logo:hover { filter: none !important; }
 .woos-hero .logo-sub {
@@ -1793,13 +1782,13 @@ body.scanning #header.woos-hero,
 body.scan-complete #header.woos-hero,
 #header.woos-hero.scanning,
 #header.woos-hero.complete {
-  min-height: 28vh !important;
+  min-height: 42vh !important;
 }
 body.scanning .main-logo,
 body.scan-complete .main-logo,
 #header.woos-hero.scanning .main-logo,
 #header.woos-hero.complete .main-logo {
-  width: min(80vw, 400px) !important;
+  width: min(88vw, 520px) !important;
   transform: none !important;
   filter: none !important;
 }
@@ -1939,18 +1928,16 @@ body.scan-complete .main-logo,
 
 /* 모바일 손가락 UX */
 @media (max-width: 640px) {
-  #app { padding: 0 0 96px !important; }
+  #app { padding: 0 12px 96px !important; }
   #header.woos-hero {
-    min-height: 26vh !important;
-    padding: 16px 14px 14px !important;
-    overflow: hidden !important;
-    border-radius: 0 0 18px 18px !important;
+    min-height: 40vh !important;
+    padding-top: 22px !important;
+    padding-bottom: 16px !important;
   }
   .woos-hero .main-logo,
   .main-logo {
-    width: min(72vw, 320px) !important;
-    min-width: 160px !important;
-    max-width: 100% !important;
+    width: min(94vw, 470px) !important;
+    min-width: 286px !important;
   }
   .woos-hero .logo-sub {
     font-size: .58rem;
@@ -2105,7 +2092,7 @@ body.scan-complete .main-logo,
 .woos-tabs {
   display: flex;
   gap: 4px;
-  margin: 12px 12px 10px;
+  margin: 12px 0 10px;
   padding: 4px;
   background: rgba(8, 16, 28, .58);
   border: 1px solid rgba(36, 61, 87, .8);
@@ -2145,8 +2132,8 @@ body.scan-complete .main-logo,
   letter-spacing: .3px;
 }
 /* 탭 콘텐츠 영역 */
-.woos-tab-panel { display: none; padding: 0 12px; }
-.woos-tab-panel.active { display: block; animation: tabFade .2s ease-out; padding: 0 12px; }
+.woos-tab-panel { display: none; }
+.woos-tab-panel.active { display: block; animation: tabFade .2s ease-out; }
 @keyframes tabFade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
 @media (max-width: 380px) {
   .woos-tab { font-size: .62rem; min-height: 36px; }
@@ -3993,11 +3980,6 @@ details.progress-rich-card.woos-group[open] { border-color: rgba(124, 58, 237, 0
   box-shadow: none;
 }
 
-/* [v4.7.42] 그룹 코인: 멀티 태그 — 횟수(x1~x8)는 기존 v478-alert 색상 유지 */
-.woos-multi-chip{display:inline-flex;align-items:center;height:22px;padding:0 9px;border-radius:999px;font-size:.68rem;font-weight:850;line-height:1;color:#67e8f9;background:rgba(0,212,255,.08);border:1px solid rgba(0,212,255,.35);box-shadow:0 0 10px rgba(0,212,255,.18);white-space:nowrap;}
-.v478-summary .woos-multi-chip{height:23px!important;padding:0 9px!important;border-radius:999px!important;font-size:.68rem!important;}
-@media(max-width:420px){.v478-summary .woos-multi-chip{height:21px!important;font-size:.64rem!important;padding:0 7px!important;}}
-
 /* Q2: dot yellow (횡보) */
 /* [Phase 4.7.11 R11-6] 등락 dot 색상 강화 (사용자 결정 — 사진 의도) */
 .coin-dot.woos-dot-yellow { background: #aab4c4; box-shadow: 0 0 8px rgba(170, 180, 196, 0.40); }  /* 횡보 회색 */
@@ -5703,6 +5685,198 @@ details.analyzer-progress-card > summary.progress-compact-summary {
   font-family: var(--mono);
 }
 
+
+/* ═══════════════════════════════════════════════════════════
+   [PATCH: woos_hero_compact_v4_7_40]
+   목적: 상단 로고창을 실제 앱 화면 기준 1번 시안처럼 넓고 낮은 카드형으로 고정
+   - 기존 v38의 42vh 대형 히어로/520px 로고 강제값 무력화
+   - 스캐너/추적분석/스캔완료 상태에서도 동일 비율 유지
+═══════════════════════════════════════════════════════════ */
+#header.woos-hero,
+body.scanning #header.woos-hero,
+body.scan-complete #header.woos-hero,
+#header.woos-hero.scanning,
+#header.woos-hero.complete {
+  min-height: unset !important;
+  height: auto !important;
+  padding: 22px 0 42px !important;
+  margin: 0 0 18px !important;
+  border-bottom: none !important;
+  display: block !important;
+  position: relative !important;
+}
+
+#header.woos-hero::before {
+  inset: 0 -12px auto !important;
+  height: 100% !important;
+  background:
+    radial-gradient(circle at 50% 16%, rgba(0, 212, 255, .11), transparent 42%),
+    linear-gradient(180deg, rgba(5, 12, 22, .10), rgba(5, 12, 22, 0)) !important;
+  opacity: .9 !important;
+}
+
+#header.woos-hero .woos-hero-inner {
+  width: min(100%, 820px) !important;
+  max-width: 820px !important;
+  margin: 0 auto !important;
+  padding: 30px 18px 70px !important;
+  min-height: 0 !important;
+  border-radius: 34px !important;
+  background:
+    radial-gradient(circle at 50% 8%, rgba(0,229,255,.18), transparent 34%),
+    linear-gradient(180deg, rgba(14,28,42,.82), rgba(5,11,18,.88)) !important;
+  border: 1px solid rgba(125,220,255,.42) !important;
+  box-shadow:
+    0 0 28px rgba(0,212,255,.18),
+    inset 0 0 28px rgba(0,212,255,.08) !important;
+  overflow: visible !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  text-align: center !important;
+  position: relative !important;
+}
+
+#header.woos-hero .logo-wrap {
+  width: 100% !important;
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+  line-height: 0 !important;
+}
+
+#header.woos-hero .main-logo,
+body.scanning .main-logo,
+body.scan-complete .main-logo,
+#header.woos-hero.scanning .main-logo,
+#header.woos-hero.complete .main-logo {
+  width: min(54vw, 250px) !important;
+  min-width: 150px !important;
+  max-width: 250px !important;
+  height: auto !important;
+  transform: none !important;
+  scale: 1 !important;
+  opacity: 1 !important;
+  filter: drop-shadow(0 0 18px rgba(0,229,255,.32)) !important;
+  transition: none !important;
+}
+
+#header.woos-hero .main-logo:hover {
+  filter: drop-shadow(0 0 18px rgba(0,229,255,.32)) !important;
+}
+
+#header.woos-hero .logo-sub {
+  position: absolute !important;
+  left: 28px !important;
+  right: 28px !important;
+  bottom: 38px !important;
+  margin: 0 !important;
+  padding-top: 18px !important;
+  border-top: 1px solid rgba(255,255,255,.06) !important;
+  text-align: left !important;
+  font-family: var(--mono) !important;
+  font-size: .64rem !important;
+  letter-spacing: 5px !important;
+  color: rgba(182,205,230,.72) !important;
+  white-space: nowrap !important;
+  overflow: visible !important;
+}
+
+#header.woos-hero .build-badge {
+  float: right !important;
+  margin: -2px 0 0 8px !important;
+  letter-spacing: .4px !important;
+  color: var(--accent-cyan) !important;
+  background: rgba(0, 229, 255, .08) !important;
+  border-color: rgba(0, 229, 255, .25) !important;
+}
+
+#header.woos-hero .woos-hero-status {
+  position: absolute !important;
+  left: 50% !important;
+  bottom: -21px !important;
+  transform: translateX(-50%) !important;
+  margin: 0 !important;
+  padding: 10px 22px !important;
+  min-width: 210px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 10px !important;
+  border-radius: 999px !important;
+  background: rgba(8,16,28,.88) !important;
+  border: 1px solid rgba(64,104,145,.72) !important;
+  box-shadow: 0 0 18px rgba(0,212,255,.12) !important;
+  backdrop-filter: blur(10px) !important;
+}
+
+#header.woos-hero .woos-hero-status .live-indicator,
+#header.woos-hero .woos-hero-status #clock {
+  font-size: .68rem !important;
+}
+
+@media (max-width: 640px) {
+  #app { padding-top: 0 !important; }
+
+  #header.woos-hero,
+  body.scanning #header.woos-hero,
+  body.scan-complete #header.woos-hero,
+  #header.woos-hero.scanning,
+  #header.woos-hero.complete {
+    min-height: unset !important;
+    padding: 18px 0 38px !important;
+    margin-bottom: 18px !important;
+  }
+
+  #header.woos-hero .woos-hero-inner {
+    width: calc(100vw - 28px) !important;
+    max-width: none !important;
+    padding: 28px 14px 68px !important;
+    border-radius: 30px !important;
+  }
+
+  #header.woos-hero .main-logo,
+  body.scanning .main-logo,
+  body.scan-complete .main-logo,
+  #header.woos-hero.scanning .main-logo,
+  #header.woos-hero.complete .main-logo {
+    width: 42vw !important;
+    min-width: 135px !important;
+    max-width: 190px !important;
+  }
+
+  #header.woos-hero .logo-sub {
+    left: 20px !important;
+    right: 20px !important;
+    bottom: 36px !important;
+    font-size: .58rem !important;
+    letter-spacing: 4px !important;
+  }
+
+  #header.woos-hero .build-badge {
+    font-size: .53rem !important;
+  }
+}
+
+@media (max-width: 380px) {
+  #header.woos-hero .main-logo,
+  body.scanning .main-logo,
+  body.scan-complete .main-logo,
+  #header.woos-hero.scanning .main-logo,
+  #header.woos-hero.complete .main-logo {
+    width: 44vw !important;
+    min-width: 128px !important;
+    max-width: 175px !important;
+  }
+
+  #header.woos-hero .logo-sub {
+    font-size: .53rem !important;
+    letter-spacing: 3px !important;
+  }
+}
+/* [END PATCH: woos_hero_compact_v4_7_40] */
+
 </style>
 </head>
 <body>
@@ -6334,6 +6508,17 @@ if (typeof window !== 'undefined') {
 }
 // [END MODULE: snapshot_api_fallback_v1]
 
+// [v4.7.39] 통합 API BASE 함수 — localStorage > DEFAULT_SCANNER_API_BASE 우선순위
+// outcome/dashboard, tracking/active, tracking/{id}, snapshots 전부 이 함수 사용
+function woosGetApiBase() {
+  try {
+    var saved = (localStorage.getItem('snapshot_api_base') || '').replace(/\/$/, '');
+    return saved || DEFAULT_SCANNER_API_BASE;
+  } catch(e) {
+    return DEFAULT_SCANNER_API_BASE;
+  }
+}
+
 function getProxyUrl() {
   var el = document.getElementById('inputProxyUrl');
   return el ? el.value.trim().replace(/\/$/, '') : '';
@@ -6922,8 +7107,8 @@ function _outcomeEsc(s) {
 }
 
 function _outcomeGetBase() {
-  try { return (localStorage.getItem('snapshot_api_base') || '').replace(/\/$/, ''); }
-  catch(e){ return ''; }
+  // [v4.7.39] woosGetApiBase() 로 통일 — localStorage 미설정 시 DEFAULT_SCANNER_API_BASE 자동 fallback
+  return woosGetApiBase();
 }
 
 async function refreshOutcomeDashboard(forceNoCache) {
@@ -6932,10 +7117,7 @@ async function refreshOutcomeDashboard(forceNoCache) {
   if (!container) return;
 
   var base = _outcomeGetBase();
-  if (!base) {
-    container.innerHTML = '<div class="outcome-error">❌ SCANNER API BASE 미설정<br>ADVANCED SETTINGS 에서 Workers URL 을 입력하세요</div>';
-    return;
-  }
+  // [v4.7.39] woosGetApiBase() 가 항상 유효한 URL 반환 — 빈값 체크 불필요
 
   container.innerHTML = '<div class="outcome-loading">⏳ 대시보드 로드 중...</div>';
   if (meta) meta.textContent = '조회 중...';
@@ -9345,7 +9527,8 @@ window.addEventListener('load', async function(){
 (function(global) {
   'use strict';
   
-  var WORKER_URL = 'https://auto-alert-worker-v3.neosiwon.workers.dev';
+  // [v4.7.39] woosGetApiBase() 로 통일 — localStorage 설정값 우선, fallback 자동
+  var WORKER_URL = (typeof woosGetApiBase === 'function') ? woosGetApiBase() : 'https://auto-alert-worker-v3.neosiwon.workers.dev';
   
   // ══ 상수 ══════════════════════════════════════════════
   var PATTERN_META = {
@@ -10884,7 +11067,7 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
         container.innerHTML = '<div class="analyzer-timeout-box">'
           + '<b>추적 데이터를 불러오지 못했습니다</b><br>'
           + '12초 안에 Worker 응답이 없었습니다. 잠시 후 다시 시도하세요.<br>'
-          + '<button type="button" onclick="renderAnalyzerSection()">다시 불러오기</button>'
+          + '<button type="button" onclick="window.WOOS_ANALYZER && window.WOOS_ANALYZER.renderAnalyzerSection && window.WOOS_ANALYZER.renderAnalyzerSection()">다시 불러오기</button>'
           + '</div>';
         return;
       }
@@ -10947,7 +11130,7 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       container.innerHTML = '<div class="analyzer-timeout-box">'
         + '<b>추적 분석 로드 실패</b><br>'
         + 'Worker 응답이 지연되었거나 네트워크가 불안정합니다.<br>'
-        + '<button type="button" onclick="renderAnalyzerSection()">다시 불러오기</button>'
+        + '<button type="button" onclick="window.WOOS_ANALYZER && window.WOOS_ANALYZER.renderAnalyzerSection && window.WOOS_ANALYZER.renderAnalyzerSection()">다시 불러오기</button>'
         + '</div>';
     });
   }
@@ -11114,49 +11297,6 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
                     +   '<button class="v4730-time-btn ' + (_activeSortBy === 'time-old' ? 'active' : '') + '" data-sort="time-old">오래된순</button>'
                     + '</div>'
                     + '</div>';
-
-    // [v4.7.39 bugfix] cardsHtml 생성 — 누락으로 인한 ReferenceError 수정
-    // adaptItemToTrack + groupTracks + buildGroupCardHTML 패턴
-    var cardsHtml = '';
-    try {
-      var W = (typeof window !== 'undefined') ? window.WOOS_ANALYZER : null;
-      if (displayItems.length === 0) {
-        cardsHtml = '<div class="analyzer-empty">표시할 추적 카드가 없습니다.</div>';
-      } else if (W && typeof W.adaptItemToTrack === 'function'
-                   && typeof W.groupTracks === 'function'
-                   && typeof W.buildGroupCardHTML === 'function') {
-        cardsHtml = displayItems.map(function(item){
-          try {
-            var track = W.adaptItemToTrack(item, _trackingMap[item.id] || null);
-            var groups = W.groupTracks([track]);
-            if (groups && groups.length > 0) {
-              return W.buildGroupCardHTML(groups[0], { isFirstRender: true });
-            }
-          } catch(e2) {}
-          var fb = _trackingMap[item.id] || null;
-          var fbMeta = (fb && fb.meta) ? fb.meta : {
-            snapshotId: item.id, base: item.base, exchange: item.exchange,
-            tier: item.tier, tierAssignedAt: item.tierAssignedAt,
-            windowEnd: item.windowEnd, windowDays: item.windowDays,
-            gradeCode: item.gradeCode, gradeLabel: item.gradeLabel,
-          };
-          return renderInProgressCard(fbMeta, fb);
-        }).join('');
-      } else {
-        cardsHtml = displayItems.map(function(item){
-          var fb = _trackingMap[item.id] || null;
-          var fbMeta = (fb && fb.meta) ? fb.meta : {
-            snapshotId: item.id, base: item.base, exchange: item.exchange,
-            tier: item.tier, tierAssignedAt: item.tierAssignedAt,
-            windowEnd: item.windowEnd, windowDays: item.windowDays,
-            gradeCode: item.gradeCode, gradeLabel: item.gradeLabel,
-          };
-          return renderInProgressCard(fbMeta, fb);
-        }).join('');
-      }
-    } catch(e) {
-      cardsHtml = '<div class="analyzer-empty">카드 렌더 오류: ' + (e && e.message ? e.message : e) + '</div>';
-    }
 
     // 더보기 버튼 제거
     var moreBtnHtml = '';
@@ -14659,9 +14799,6 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       }
       groupBadge = '<span class="woos-group-badge v478-alert ' + v479_alertTier + '">' + v479_label + '</span>';
 
-      // [v4.7.42] 멀티 태그 — x1~x8 횟수 태그는 기존 로직/색상 그대로 유지
-      var multiChip = (opts && (opts.isMultiGroup === true || Number(opts.groupCount || 0) >= 2 || Number(track.alertCount || 0) >= 2)) ? '<span class="woos-multi-chip">멀티</span>' : '';
-
       // [Phase 4.5] ⭐ 관심 코인 토글 버튼
       var watchBtn = v45_buildWatchButton(base);
       
@@ -14718,7 +14855,6 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
         +   '<div class="v478-row2">'
         +     modeChip
         +     gradeChip
-        +     multiChip
         +     groupBadge
         +     sampleAgeLabel
         +   '</div>'
@@ -14757,36 +14893,25 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       };
     }
     
-    /* [v4.7.42] 그룹 코인 정규화/대표 선택 — 카드 헤더 1코인 1그룹 */
-    function v4742_normalizeBaseKey(v){var x=String(v||'').toUpperCase().trim();if(!x)return '';x=x.replace(/^KRW[-_\/]?/,'').replace(/^USDT[-_\/]?/,'').replace(/[-_\/]?USDT$/,'').replace(/[-_\/]?KRW$/,'').replace(/[-_\/]/g,'');return x;}
-    function v4742_normalizeExchange(ex){return String(ex||'').toUpperCase().trim();}
-    function v4742_exchangePriority(ex){ex=v4742_normalizeExchange(ex);if(ex==='BITHUMB')return 300;if(ex==='UPBIT')return 200;if(ex==='BINANCE')return 100;return 0;}
-    function v4742_getTrackExchange(t){t=t||{};var m=t.meta||{};return v4742_normalizeExchange(t.exchange||m.exchange||(t.scanner&&t.scanner.exchange)||'');}
-    function v4742_getTrackTime(t){t=t||{};var m=t.meta||{};return Number(t.lastDuplicateAlertAt||t.startedAt||t.tierAssignedAt||m.lastDuplicateAlertAt||m.windowStart||m.tierAssignedAt||0);}
-    function v4742_getTrackAlertCount(t){t=t||{};var m=t.meta||{};var n=Number(t.alertCount||t.alarmCount24||m.alertCount||m.alertCountAtAlarm||0);return(isFinite(n)&&n>0)?n:1;}
-    function v4742_pickRepresentativeByExchange(items){if(!Array.isArray(items)||!items.length)return null;return items.slice().sort(function(a,b){var pa=v4742_exchangePriority(v4742_getTrackExchange(a));var pb=v4742_exchangePriority(v4742_getTrackExchange(b));if(pb!==pa)return pb-pa;return v4742_getTrackTime(b)-v4742_getTrackTime(a);})[0]||null;}
-
     /* 그룹화 */
     function v40_groupTracks(tracks) {
       if (!Array.isArray(tracks)) return [];
       var map = {};
       for (var i = 0; i < tracks.length; i++) {
         var t = tracks[i]; if (!t) continue;
-        var rawBase = t.base || (t.meta && t.meta.base) || (function(){ var sid = t.snapshotId || t.id || ''; var p = sid.split('_'); return p.length >= 4 ? p[0] : '?'; })();
-        // [v4.7.42] base 정규화 기준 그룹: KRW-BTC/BTC/BTCUSDT/BTC-USDT => BTC
-        var key = v4742_normalizeBaseKey(rawBase) || String(rawBase || '?').toUpperCase();
-        if (!map[key]) map[key] = { key: key, base: key, exchange: null, items: [] };
+        var base = t.base || (t.meta && t.meta.base) || (function(){ var sid = t.snapshotId || t.id || ''; var p = sid.split('_'); return p.length >= 4 ? p[0] : '?'; })();
+        // [Phase 4.7 공사 1 — Q8] 동일 코인 묶음 대원칙
+        // 사용자 의도: 같은 base 코인은 1개 카드로 묶음 (거래소 무관)
+        // 펼친 카드 안에서 거래소별 시간순 모든 알람 표시
+        var key = base;  // 기존: base + '__' + exch → 변경: base 만
+        if (!map[key]) map[key] = { key: key, base: base, exchange: null, items: [] };
         map[key].items.push(t);
       }
       var groups = [];
       Object.keys(map).forEach(function(k){
         var g = map[k];
-        g.items.sort(function(a, b){ return v4742_getTrackTime(a) - v4742_getTrackTime(b); });
-        // 대표는 BITHUMB > UPBIT > BINANCE 우선, 같은 거래소면 최신
-        g.representative = v4742_pickRepresentativeByExchange(g.items) || g.items[g.items.length - 1];
-        g.exchange = v4742_getTrackExchange(g.representative);
-        g.totalAlertCount = g.items.reduce(function(sum,it){return sum + v4742_getTrackAlertCount(it);},0);
-        g.isMulti = (g.items.length >= 2 || g.totalAlertCount >= 2);
+        g.items.sort(function(a, b){ var aT = a.startedAt || (a.meta && a.meta.windowStart) || a.tierAssignedAt || 0; var bT = b.startedAt || (b.meta && b.meta.windowStart) || b.tierAssignedAt || 0; return aT - bT; });
+        g.representative = g.items[g.items.length - 1];
         g.gradeFlow = g.items.map(function(it){ return it.gradeLabel || it.gradeCode || (it.meta && (it.meta.gradeLabel || it.meta.gradeCode)) || '?'; });
         // [Phase 4.2 작업 B] liveTierFlow — 각 추적의 현재 반응 등급 시계열
         g.liveTierFlow = g.items.map(function(it){
@@ -14866,8 +14991,8 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       }
       // 그룹 카드 (size >= 2)
       // [Phase 4.2 작업 E] 그룹 dot 동기화: 대표가 아닌 그룹 전체 우선순위로
-      var repInner = v40_buildTrackInner(rep, { groupCount: group.items.length, isMultiGroup: group.isMulti, overrideDotColor: group.groupDotColor });
-      var others = group.items.filter(function(it){ return it !== rep; });
+      var repInner = v40_buildTrackInner(rep, { groupCount: group.items.length, overrideDotColor: group.groupDotColor });
+      var others = group.items.slice(0, -1);
       var minisHtml = others.map(function(it, mIdx){
         var oSamples = v40_normalizeSamples(it);
         var oEntry = v40_resolveEntryPrice(it, oSamples);
@@ -14949,7 +15074,7 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
            +   overlayHtml  /* [Phase 4.5] 오버레이 차트 */
            +   '<div class="woos-group-others-label">이전 알람 ' + others.length + '건</div>'
            +   '<div class="woos-group-others">' + minisHtml + '</div>'
-           +   '<div class="woos-group-rep-label">대표 (거래소 우선)</div>'
+           +   '<div class="woos-group-rep-label">대표 (최신)</div>'
            +   repInner.body.replace('progress-rich-body woos-body', 'progress-rich-body woos-body woos-group-rep')
            + '</details>';
     }
@@ -15791,7 +15916,15 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
 </script>
 
 
-<script>/* [v4.7.33] serviceWorker registration temporarily disabled for cache reset */</script>
+<script>
+/* [v4.7.39] serviceWorker 재등록 — 캐시 v4739 */
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function(){
+    navigator.serviceWorker.register('service-worker.js')
+      .catch(function(){});
+  });
+}
+</script>
 
 
 <script>
@@ -15853,7 +15986,7 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       c.innerHTML = '<div class="analyzer-timeout-box">'
         + '<b>추적 분석 응답 지연</b><br>'
         + '로딩이 오래 지속되어 중단했습니다.<br>'
-        + '<button type="button" onclick="renderAnalyzerSection()">다시 불러오기</button>'
+        + '<button type="button" onclick="window.WOOS_ANALYZER && window.WOOS_ANALYZER.renderAnalyzerSection && window.WOOS_ANALYZER.renderAnalyzerSection()">다시 불러오기</button>'
         + '</div>';
     }
   }
