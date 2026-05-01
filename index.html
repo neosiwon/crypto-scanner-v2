@@ -1709,23 +1709,21 @@ body::before {
 ═══════════════════════════════════════════════════════════ */
 #header.woos-hero {
   min-height: auto;
-  padding: 20px 16px 20px !important;
+  padding: 0 0 16px 0 !important;
   margin: 0 0 14px 0 !important;
+  border: none !important;
   border-bottom: none !important;
+  background: none !important;
+  box-shadow: none !important;
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: center;
   position: relative;
-  overflow: hidden;
+  overflow: visible;
   box-sizing: border-box;
   width: 100%;
-  border-radius: 16px;
-  background: linear-gradient(160deg, #07131f 0%, #0a1a2e 60%, #071320 100%);
-  border: 1.5px solid rgba(0, 212, 255, 0.35);
-  box-shadow: 0 0 24px rgba(0, 212, 255, 0.12), inset 0 0 40px rgba(0, 212, 255, 0.04);
-  margin: 8px 8px 14px 8px !important;
-  width: calc(100% - 16px) !important;
+  border-radius: 0;
 }
 #header.woos-hero::before {
   content: '';
@@ -1755,14 +1753,14 @@ body::before {
   max-width: 100%;
   overflow: hidden;
   line-height: 0;
-  padding: 0 8px;
+  padding: 0;
   box-sizing: border-box;
 }
 .woos-hero .main-logo,
 .main-logo {
-  width: min(60vw, 260px) !important;
+  width: 100% !important;
   max-width: 100% !important;
-  min-width: 140px !important;
+  min-width: 0 !important;
   height: auto !important;
   transform: none !important;
   scale: 1 !important;
@@ -1947,16 +1945,18 @@ body.scan-complete .main-logo,
   #app { padding: 0 0 96px !important; }
   #header.woos-hero {
     min-height: auto !important;
-    padding: 16px 14px 20px !important;
-    overflow: hidden !important;
-    border-radius: 14px !important;
-    margin: 8px 8px 14px 8px !important;
-    width: calc(100% - 16px) !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    border-radius: 0 !important;
+    border: none !important;
+    background: none !important;
+    margin: 0 0 14px 0 !important;
+    width: 100% !important;
   }
   .woos-hero .main-logo,
   .main-logo {
-    width: min(58vw, 240px) !important;
-    min-width: 130px !important;
+    width: 100% !important;
+    min-width: 0 !important;
     max-width: 100% !important;
   }
   .woos-hero .logo-sub {
@@ -5718,23 +5718,26 @@ details.analyzer-progress-card > summary.progress-compact-summary {
   <!-- ─── 헤더 / 모바일 히어로 로고 ─── -->
   <header id="header" class="woos-hero">
     <div class="woos-hero-inner">
-      <!-- [MODIFIED v3.8] 로고는 상태와 무관하게 항상 크게 고정 -->
-      <div class="logo-wrap">
+      <!-- 로고 이미지가 카드 배경 역할 — 텍스트는 절대위치로 이미지 위에 겹침 -->
+      <div class="logo-wrap" style="position:relative; width:100%;">
         <img src="assets/logo.png" alt="WOOS CRYPTO SCANNER"
              class="main-logo"
              onerror="this.style.display='none';var f=document.getElementById('logoFallback');if(f)f.style.display='block';">
         <div id="logoFallback" class="logo" style="display:none">WOOS SCANNER</div>
-      </div>
-      <div class="logo-sub">
-        UPBIT · BITHUMB · BINANCE · REAL-TIME
-        <span class="build-badge" id="buildBadge" onclick="showBuildInfo()" title="빌드 정보 상세 보기">v4.1.2 · p3.1.2</span>
-      </div>
-      <div class="woos-hero-status">
-        <div class="live-indicator">
-          <div class="live-dot" id="liveDot"></div>
-          <span id="liveStatus">IDLE</span>
+        <!-- logo-sub + status를 이미지 위 하단에 겹침 -->
+        <div style="position:absolute;bottom:0;left:0;right:0;padding:0 0 14px 0;display:flex;flex-direction:column;align-items:center;gap:8px;">
+          <div class="logo-sub">
+            UPBIT · BITHUMB · BINANCE · REAL-TIME
+            <span class="build-badge" id="buildBadge" onclick="showBuildInfo()" title="빌드 정보 상세 보기">v4.1.2 · p3.1.2</span>
+          </div>
+          <div class="woos-hero-status">
+            <div class="live-indicator">
+              <div class="live-dot" id="liveDot"></div>
+              <span id="liveStatus">IDLE</span>
+            </div>
+            <div id="clock">--:--:--</div>
+          </div>
         </div>
-        <div id="clock">--:--:--</div>
       </div>
     </div>
   </header>
