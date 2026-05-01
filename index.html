@@ -1717,10 +1717,15 @@ body::before {
   justify-content: center;
   align-items: center;
   position: relative;
-  overflow: visible;
+  overflow: hidden;
   box-sizing: border-box;
   width: 100%;
-  border-radius: 0 0 20px 20px;
+  border-radius: 16px;
+  background: linear-gradient(160deg, #07131f 0%, #0a1a2e 60%, #071320 100%);
+  border: 1.5px solid rgba(0, 212, 255, 0.35);
+  box-shadow: 0 0 24px rgba(0, 212, 255, 0.12), inset 0 0 40px rgba(0, 212, 255, 0.04);
+  margin: 8px 8px 14px 8px !important;
+  width: calc(100% - 16px) !important;
 }
 #header.woos-hero::before {
   content: '';
@@ -1755,9 +1760,9 @@ body::before {
 }
 .woos-hero .main-logo,
 .main-logo {
-  width: min(80vw, 400px) !important;
+  width: min(60vw, 260px) !important;
   max-width: 100% !important;
-  min-width: 160px !important;
+  min-width: 140px !important;
   height: auto !important;
   transform: none !important;
   scale: 1 !important;
@@ -1943,13 +1948,15 @@ body.scan-complete .main-logo,
   #header.woos-hero {
     min-height: auto !important;
     padding: 16px 14px 20px !important;
-    overflow: visible !important;
-    border-radius: 0 0 18px 18px !important;
+    overflow: hidden !important;
+    border-radius: 14px !important;
+    margin: 8px 8px 14px 8px !important;
+    width: calc(100% - 16px) !important;
   }
   .woos-hero .main-logo,
   .main-logo {
-    width: min(72vw, 320px) !important;
-    min-width: 160px !important;
+    width: min(58vw, 240px) !important;
+    min-width: 130px !important;
     max-width: 100% !important;
   }
   .woos-hero .logo-sub {
