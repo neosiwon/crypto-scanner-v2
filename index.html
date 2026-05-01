@@ -1708,8 +1708,8 @@ body::before {
    목적: 로고를 상단 핵심 브랜드 영역으로 고정하고, 필수 액션만 노출
 ═══════════════════════════════════════════════════════════ */
 #header.woos-hero {
-  min-height: 28vh;
-  padding: 20px 16px 16px !important;
+  min-height: auto;
+  padding: 20px 16px 20px !important;
   margin: 0 0 14px 0 !important;
   border-bottom: none !important;
   display: flex;
@@ -1717,7 +1717,7 @@ body::before {
   justify-content: center;
   align-items: center;
   position: relative;
-  overflow: hidden;
+  overflow: visible;
   box-sizing: border-box;
   width: 100%;
   border-radius: 0 0 20px 20px;
@@ -1793,7 +1793,7 @@ body.scanning #header.woos-hero,
 body.scan-complete #header.woos-hero,
 #header.woos-hero.scanning,
 #header.woos-hero.complete {
-  min-height: 28vh !important;
+  min-height: auto !important;
 }
 body.scanning .main-logo,
 body.scan-complete .main-logo,
@@ -1941,9 +1941,9 @@ body.scan-complete .main-logo,
 @media (max-width: 640px) {
   #app { padding: 0 0 96px !important; }
   #header.woos-hero {
-    min-height: 26vh !important;
-    padding: 16px 14px 14px !important;
-    overflow: hidden !important;
+    min-height: auto !important;
+    padding: 16px 14px 20px !important;
+    overflow: visible !important;
     border-radius: 0 0 18px 18px !important;
   }
   .woos-hero .main-logo,
