@@ -5724,13 +5724,13 @@ details.analyzer-progress-card > summary.progress-compact-summary {
              class="main-logo"
              onerror="this.style.display='none';var f=document.getElementById('logoFallback');if(f)f.style.display='block';">
         <div id="logoFallback" class="logo" style="display:none">WOOS SCANNER</div>
-        <!-- logo-sub + status를 이미지 위 하단에 겹침 -->
-        <div style="position:absolute;bottom:0;left:0;right:0;padding:0 0 14px 0;display:flex;flex-direction:column;align-items:center;gap:8px;">
-          <div class="logo-sub">
+        <!-- logo-sub + status를 이미지 위 하단 중앙에 겹침 -->
+        <div style="position:absolute;bottom:0;left:0;right:0;padding:0 0 14px 0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;text-align:center;">
+          <div class="logo-sub" style="text-align:center;width:100%;">
             UPBIT · BITHUMB · BINANCE · REAL-TIME
             <span class="build-badge" id="buildBadge" onclick="showBuildInfo()" title="빌드 정보 상세 보기">v4.1.2 · p3.1.2</span>
           </div>
-          <div class="woos-hero-status">
+          <div class="woos-hero-status" style="margin:0 auto;">
             <div class="live-indicator">
               <div class="live-dot" id="liveDot"></div>
               <span id="liveStatus">IDLE</span>
