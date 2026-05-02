@@ -3684,7 +3684,8 @@ details.progress-rich-card.woos-group[open] { border-color: rgba(124, 58, 237, 0
 }
 .gcc-svg {
   width: 100%; height: auto; display: block;
-  max-height: 100px;
+  max-height: 130px;
+  overflow: visible;
 }
 .gcc-grid {
   stroke: rgba(148, 163, 184, 0.12);
@@ -13001,8 +13002,8 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       }
 
       // SVG 좌표 — 4단계(B/A/S/S+)
-      var W = 320, H = 110;
-      var padL = 30, padR = 12, padT = 14, padB = 22;
+      var W = 320, H = 120;
+      var padL = 30, padR = 12, padT = 14, padB = 28;
       var innerW = W - padL - padR;
       var innerH = H - padT - padB;
 
@@ -13034,16 +13035,17 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
         + '<text x="' + (padL - 6) + '" y="' + (yOf(1) + 4) + '" class="gcc-y-lbl">A</text>'
         + '<text x="' + (padL - 6) + '" y="' + (yOf(0) + 4) + '" class="gcc-y-lbl">B</text>';
       
-      // y축 가이드라인 (3개)
+      // y축 가이드라인 (4개 — S+/S/A/B)
       var yLines = ''
+        + '<line x1="' + padL + '" y1="' + yOf(3) + '" x2="' + (W - padR) + '" y2="' + yOf(3) + '" class="gcc-grid"/>'
         + '<line x1="' + padL + '" y1="' + yOf(2) + '" x2="' + (W - padR) + '" y2="' + yOf(2) + '" class="gcc-grid"/>'
         + '<line x1="' + padL + '" y1="' + yOf(1) + '" x2="' + (W - padR) + '" y2="' + yOf(1) + '" class="gcc-grid"/>'
         + '<line x1="' + padL + '" y1="' + yOf(0) + '" x2="' + (W - padR) + '" y2="' + yOf(0) + '" class="gcc-grid"/>';
-      
-      // x축 라벨 (시작/끝)
+
+      // x축 라벨 (시작/끝) — padB 확보로 H-10 위치
       var maxLbl = maxH < 1 ? maxH.toFixed(1) + 'h' : Math.round(maxH) + 'h';
-      var xLabelsHtml = '<text x="' + padL + '" y="' + (H - 6) + '" class="gcc-x-lbl">0h</text>'
-        + '<text x="' + (W - padR) + '" y="' + (H - 6) + '" text-anchor="end" class="gcc-x-lbl">' + maxLbl + '</text>';
+      var xLabelsHtml = '<text x="' + padL + '" y="' + (H - 10) + '" class="gcc-x-lbl">0h</text>'
+        + '<text x="' + (W - padR) + '" y="' + (H - 10) + '" text-anchor="end" class="gcc-x-lbl">' + maxLbl + '</text>';
       
       // 점 (탭 툴팁용 data 속성)
       var dotsHtml = '';
