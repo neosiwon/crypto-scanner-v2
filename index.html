@@ -5,7 +5,7 @@
 <script>
 /* [v4.7.42] 캐시 강제 리셋 — SW 완전 제거 후 리로드 */
 (function(){
-  var VER = '4751';
+  var VER = '4800';
   try {
     var LKEY = 'woos_hard_reset_ver';
     if (localStorage.getItem(LKEY) === VER) return;
@@ -6816,7 +6816,7 @@ async function opsDashboard() {
 // 탭 시 상세 팝업
 // ═══════════════════════════════════════════════════════════════
 
-var HTML_VERSION = 'v4.7.51';  // normalizeGroupFlags완전교체/getUiMode전파일제거/rerenderRep주입/opts구키병행
+var HTML_VERSION = 'v4.8.0';  // 단일진입점v48_prepareGroupsForRender/lazy그래프캐싱(부실그래프캐싱X)/4번째진입점통합
 var _cachedBuildInfo = null;
 
 async function fetchBuildInfo() {
@@ -10282,6 +10282,17 @@ window.addEventListener('load', async function(){
                      gradeCode: meta.gradeCode, gradeLabel: meta.gradeLabel, startedAt: meta.windowStart || meta.tierAssignedAt, windowEnd: meta.windowEnd };
         var track = W42.adaptItemToTrack(item, trackingData);
         var groups = W42.groupTracks([track]);
+        // [v4.8.0] 단일 진입점 — 4번째 진입점 (알람 테이블 디테일 행) 정규화 누락 해결
+        try {
+          var watchMap = (typeof v4743_buildWatchMap === 'function') ? v4743_buildWatchMap() : {};
+          if (typeof v48_prepareGroupsForRender === 'function') {
+            groups = v48_prepareGroupsForRender(groups, watchMap);
+          } else if (typeof window !== 'undefined' && typeof window.v48_prepareGroupsForRender === 'function') {
+            groups = window.v48_prepareGroupsForRender(groups, watchMap);
+          }
+        } catch(e) {
+          console.error('[renderAnalyzerCard prepare]', e);
+        }
         if (groups.length > 0) {
           return W42.buildGroupCardHTML(groups[0], { isFirstRender: false });
         }
@@ -11011,7 +11022,8 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
           tierARejected: item.tierARejected || false,
           sCount24: item.sCount24 || 0,
           aCount24: item.aCount24 || 0,
-          alertCount: item.alertCount || item.alarmCount24 || item.sCount24 || item.aCount24 || 1,
+          // [v4.7.51] alertCount = 1 고정 — xN/멀티는 group.items.length 단일 기준
+          alertCount: 1,
         };
       });
       // [v4.7.23] 관심 코인은 fetchTrackingActive 결과가 표준 8h로 내려와도 렌더 전 7d 상태를 재합성한다.
@@ -11095,6 +11107,50 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       g._isMultiGroup = items.length >= 2;
       return g;
     });
+  }
+
+  // [v4.8.0] 단일 진입점 — 모든 렌더 경로가 호출
+  // 책임: (1) normalizeGroupFlags (2) lazy 그래프 캐싱 (3) rep 주입
+  // 핵심 회귀 수정: 부실 그래프(fallback/empty)는 캐싱하지 않음 → 데이터 도착 시 자동 갱신
+  function v48_prepareGroupsForRender(groups, watchMap) {
+    if (!Array.isArray(groups) || groups.length === 0) return groups || [];
+    watchMap = watchMap || {};
+    // 1. 상태 정규화
+    groups = v4743_normalizeGroupFlags(groups, watchMap);
+    // 2. 그래프 lazy 캐싱 — 부실 캐시 영구 보존 방지
+    groups.forEach(function(g) {
+      // 이미 정상 캐시 있으면 유지
+      if (g._gradeChartHtml) return;
+      var html = '';
+      try {
+        html = (typeof v47_buildGradeChangeChart === 'function')
+          ? v47_buildGradeChangeChart(g)
+          : '';
+      } catch(e) {
+        console.error('[v48_prepareGroupsForRender] gradeChart fail', g && g.base, e);
+        html = '';
+      }
+      // [v4.8.0 핵심] fallback/empty 그래프는 캐싱하지 않음 → 다음 렌더에 데이터 도착하면 다시 시도
+      // 정상 그래프(SVG 포함)만 캐시. fallback HTML은 buildGroupCardHTML의 || fallback이 처리
+      if (html && html.indexOf('gcc-fallback') < 0 && html.indexOf('gcc-empty') < 0) {
+        g._gradeChartHtml = html;
+      }
+    });
+    // 3. representative에 group 상태 주입
+    groups.forEach(function(g) {
+      var rep = g.representative || (g.items && g.items[0]);
+      if (!rep) return;
+      rep._groupDisplayMode = g.displayMode || 'standard';
+      rep.displayMode = g.displayMode || 'standard';
+      rep._groupCount = (g.items && g.items.length) || 1;
+      rep._isMultiGroup = (g.items && g.items.length >= 2) || false;
+      rep.alertCount = (g.items && g.items.length) || 1;
+    });
+    return groups;
+  }
+  // 전역 노출 — 다른 스코프에서도 사용 가능
+  if (typeof window !== 'undefined') {
+    window.v48_prepareGroupsForRender = v48_prepareGroupsForRender;
   }
 
   // [v4.7.43] 3단계: group 기준 카운트 집계 (7개 필터 기준)
@@ -11241,21 +11297,8 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       }
 
       allGroups = W.groupTracks(allTracks);
-      allGroups = v4743_normalizeGroupFlags(allGroups, watchMap);
-
-      // [v4.7.49] 그래프 HTML 캐싱 — allGroups 생성 직후 1회만, 실패해도 fallback HTML 저장
-      allGroups.forEach(function(g) {
-        try {
-          g._gradeChartHtml = v47_buildGradeChangeChart(g);
-        } catch(e) {
-          console.error('[GRADE_CHART_CACHE_FAIL]', g.base, e && e.message ? e.message : e);
-          // [v4.7.49] 빈 문자열 금지 — catch 시에도 fallback HTML 저장
-          g._gradeChartHtml = '<div class="grade-change-chart gcc-fallback">'
-            + '<div class="gcc-header"><span class="gcc-title">📊 등급 변화</span></div>'
-            + '<div class="gcc-empty">등급 이력 수집 중</div>'
-            + '</div>';
-        }
-      });
+      // [v4.8.0] 단일 진입점 — 정규화 + lazy 그래프 캐싱 + rep 주입 통합
+      allGroups = v48_prepareGroupsForRender(allGroups, watchMap);
     }
 
     // counts는 allGroups 기준 (필터 무관)
@@ -14264,37 +14307,14 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
         var td = window._trackingMap[snapshotId] || trackingData;
         var track = W.adaptItemToTrack(item, td);
         var groups = W.groupTracks([track]);
-        // [v4.7.50] normalizeGroupFlags — displayMode 확정 (expand 후 정밀/표준 뒤집힘 방지)
+        // [v4.8.0] 단일 진입점 — 정규화 + lazy 그래프 캐싱 + rep 주입 통합
         var watchMap = {};
         try {
           if (typeof v4743_buildWatchMap === 'function') watchMap = v4743_buildWatchMap();
           else if (typeof W.getWatchlist === 'function') W.getWatchlist().forEach(function(b){ watchMap[String(b).toUpperCase()] = true; });
         } catch(e) {}
-        if (typeof v4743_normalizeGroupFlags === 'function') {
-          groups = v4743_normalizeGroupFlags(groups, watchMap);
-        }
-        // [v4.7.50] 그래프 캐시 생성 — buildGroupCardHTML 전에 반드시 실행
-        groups.forEach(function(g) {
-          if (!g._gradeChartHtml) {
-            try {
-              g._gradeChartHtml = (typeof v47_buildGradeChangeChart === 'function')
-                ? v47_buildGradeChangeChart(g)
-                : '';
-            } catch(e) {
-              g._gradeChartHtml = '<div class="grade-change-chart gcc-fallback"><div class="gcc-header"><span class="gcc-title">📊 등급 변화</span></div><div class="gcc-empty">등급 이력 수집 중</div></div>';
-            }
-          }
-        });
-        // [v4.7.51] rep에 group 상태 주입 — buildGroupCardHTML이 내부에서도 동일하게 처리하지만
-        // rerenderSingleCard 경로에서도 명시적으로 보장 (UI 뒤집힘 방지)
-        var g0 = groups[0];
-        if (g0 && g0.representative) {
-          var r0 = g0.representative;
-          r0._groupDisplayMode = g0.displayMode || 'standard';
-          r0.displayMode = g0.displayMode || 'standard';
-          r0._groupCount = g0.items.length;
-          r0._isMultiGroup = g0.items.length >= 2;
-          r0.alertCount = g0.items.length;
+        if (typeof v48_prepareGroupsForRender === 'function') {
+          groups = v48_prepareGroupsForRender(groups, watchMap);
         }
         var newHTML = W.buildGroupCardHTML(groups[0], { isFirstRender: false });
         
@@ -15059,7 +15079,9 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
     function v4742_exchangePriority(ex){ex=v4742_normalizeExchange(ex);if(ex==='BITHUMB')return 300;if(ex==='UPBIT')return 200;if(ex==='BINANCE')return 100;return 0;}
     function v4742_getTrackExchange(t){t=t||{};var m=t.meta||{};return v4742_normalizeExchange(t.exchange||m.exchange||(t.scanner&&t.scanner.exchange)||'');}
     function v4742_getTrackTime(t){t=t||{};var m=t.meta||{};return Number(t.lastDuplicateAlertAt||t.startedAt||t.tierAssignedAt||m.lastDuplicateAlertAt||m.windowStart||m.tierAssignedAt||0);}
-    function v4742_getTrackAlertCount(t){t=t||{};var m=t.meta||{};var n=Number(t.alertCount||t.alarmCount24||m.alertCount||m.alertCountAtAlarm||0);return(isFinite(n)&&n>0)?n:1;}
+    // [v4.7.51] v4742_getTrackAlertCount: 항상 1 반환 — xN/멀티는 group.items.length 단일 기준
+    // 과거: alertCount||alarmCount24||sCount24||aCount24 → totalAlertCount 과대계산 원인
+    function v4742_getTrackAlertCount(t){ return 1; }
     function v4742_pickRepresentativeByExchange(items){if(!Array.isArray(items)||!items.length)return null;return items.slice().sort(function(a,b){var pa=v4742_exchangePriority(v4742_getTrackExchange(a));var pb=v4742_exchangePriority(v4742_getTrackExchange(b));if(pb!==pa)return pb-pa;return v4742_getTrackTime(b)-v4742_getTrackTime(a);})[0]||null;}
 
     /* 그룹화 */
@@ -15081,8 +15103,8 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
         // 대표는 BITHUMB > UPBIT > BINANCE 우선, 같은 거래소면 최신
         g.representative = v4742_pickRepresentativeByExchange(g.items) || g.items[g.items.length - 1];
         g.exchange = v4742_getTrackExchange(g.representative);
-        g.totalAlertCount = g.items.reduce(function(sum,it){return sum + v4742_getTrackAlertCount(it);},0);
-        g.isMulti = (g.items.length >= 2 || g.totalAlertCount >= 2);
+        g.totalAlertCount = g.items.length;  // [v4.7.51] items.length 단일 기준 (sCount24 기반 제거)
+        g.isMulti = g.items.length >= 2;      // [v4.7.51] items.length 단일 기준
         g.gradeFlow = g.items.map(function(it){ return it.gradeLabel || it.gradeCode || (it.meta && (it.meta.gradeLabel || it.meta.gradeCode)) || '?'; });
         // [Phase 4.2 작업 B] liveTierFlow — 각 추적의 현재 반응 등급 시계열
         g.liveTierFlow = g.items.map(function(it){
@@ -15302,7 +15324,9 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
         tierARejected: item.tierARejected || false,
         sCount24: item.sCount24 || 0,
         aCount24: item.aCount24 || 0,
-        alertCount: item.alertCount || item.alarmCount24 || item.sCount24 || item.aCount24 || 1,
+        // [v4.7.51] alertCount = 1 고정 — xN/멀티는 group.items.length 단일 기준
+        // sCount24/aCount24를 alertCount에 쓰면 groupTracks가 totalAlertCount를 과대계산함
+        alertCount: 1,
         // [v4.7.47] 누락 필드 추가 — normalizeGroupFlags/gradeChart 정상 동작용
         trackingMode: item.trackingMode || meta.trackingMode || null,
         gradeHistory: item.gradeHistory || meta.gradeHistory || [],
