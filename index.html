@@ -5,7 +5,7 @@
 <script>
 /* [v4.7.42] 캐시 강제 리셋 — SW 완전 제거 후 리로드 */
 (function(){
-  var VER = '4749';
+  var VER = '4751';
   try {
     var LKEY = 'woos_hard_reset_ver';
     if (localStorage.getItem(LKEY) === VER) return;
@@ -6816,7 +6816,7 @@ async function opsDashboard() {
 // 탭 시 상세 팝업
 // ═══════════════════════════════════════════════════════════════
 
-var HTML_VERSION = 'v4.7.49';  // 가짜정밀제거(trackingMode불신)/getUiMode완전제거/그래프1포인트보장
+var HTML_VERSION = 'v4.7.51';  // normalizeGroupFlags완전교체/getUiMode전파일제거/rerenderRep주입/opts구키병행
 var _cachedBuildInfo = null;
 
 async function fetchBuildInfo() {
@@ -11074,20 +11074,25 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
     return (groups || []).map(function(g) {
       var base = String(g.base || '').toUpperCase();
       var items = g.items || [];
-      // 관심: watchMap 단독 기준
-      var isWatch = !!watchMap[base];
-      // [v4.7.49] 정밀: trackingMode 완전 신뢰 금지 — group.items 데이터 기준만 사용
-      // trackingMode='deep'/'precise'는 Worker/관심등록 후 오염 가능 → 제외
-      // 판정 기준: isAutoPrecise(Worker 박제) OR sCount24>=3 OR aCount24>=5
+      // [v4.7.51] 관심: watchMap(localStorage) OR items.isWatchlist 박제값
+      var isWatch = !!watchMap[base] || items.some(function(it) {
+        return it && it.isWatchlist === true;
+      });
+      // [v4.7.51] 정밀: trackingMode 완전 신뢰 금지 — isAutoPrecise OR sCount24>=3 OR aCount24>=5
       var isDeep = !isWatch && items.some(function(it) {
-        return it.isAutoPrecise === true ||
-               (it.sCount24 || 0) >= 3 ||
-               (it.aCount24 || 0) >= 5;
+        return it && (
+          it.isAutoPrecise === true ||
+          (Number(it.sCount24 || 0) >= 3) ||
+          (Number(it.aCount24 || 0) >= 5)
+        );
       });
       g.isWatch = isWatch;
       g.isDeep = isDeep;
       g.isStandard = !isWatch && !isDeep;
-      g.displayMode = isWatch ? 'watch' : isDeep ? 'deep' : 'standard';
+      g.displayMode = isWatch ? 'watch' : (isDeep ? 'deep' : 'standard');
+      // [v4.7.51] group 카운트/멀티 — 렌더 단일 기준
+      g._groupCount = items.length;
+      g._isMultiGroup = items.length >= 2;
       return g;
     });
   }
@@ -13967,10 +13972,20 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
         }
         return bLatest - aLatest;
       }
+      // [v4.7.51] itemUiModeForSort — trackingMode 신뢰 금지, _groupDisplayMode/isWatchlist/isAutoPrecise 직접 판정
+      function itemUiModeForSort(it) {
+        if (!it) return 'standard';
+        if (it._groupDisplayMode) return it._groupDisplayMode;
+        if (it.displayMode) return it.displayMode;
+        if (it.isWatchlist === true) return 'watch';
+        if (it.isAutoPrecise === true) return 'deep';
+        return 'standard';
+      }
       function compareByUiMode(a, b, selectedSort) {
         var order = { watch: 0, deep: 1, standard: 2 };
-        var ma = (typeof getUiMode === 'function') ? getUiMode(a) : 'standard';
-        var mb = (typeof getUiMode === 'function') ? getUiMode(b) : 'standard';
+        // [v4.7.51] getUiMode 완전 제거 — itemUiModeForSort 사용
+        var ma = itemUiModeForSort(a);
+        var mb = itemUiModeForSort(b);
         if (order[ma] !== order[mb]) return order[ma] - order[mb];
         // [v4.7.29] 사용자 선택 정렬을 먼저 적용. 최신/진행/상승/하락/횡보가 버튼 의미대로 작동하게 함.
         var primary = existingSort(a, b, selectedSort);
@@ -14249,6 +14264,38 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
         var td = window._trackingMap[snapshotId] || trackingData;
         var track = W.adaptItemToTrack(item, td);
         var groups = W.groupTracks([track]);
+        // [v4.7.50] normalizeGroupFlags — displayMode 확정 (expand 후 정밀/표준 뒤집힘 방지)
+        var watchMap = {};
+        try {
+          if (typeof v4743_buildWatchMap === 'function') watchMap = v4743_buildWatchMap();
+          else if (typeof W.getWatchlist === 'function') W.getWatchlist().forEach(function(b){ watchMap[String(b).toUpperCase()] = true; });
+        } catch(e) {}
+        if (typeof v4743_normalizeGroupFlags === 'function') {
+          groups = v4743_normalizeGroupFlags(groups, watchMap);
+        }
+        // [v4.7.50] 그래프 캐시 생성 — buildGroupCardHTML 전에 반드시 실행
+        groups.forEach(function(g) {
+          if (!g._gradeChartHtml) {
+            try {
+              g._gradeChartHtml = (typeof v47_buildGradeChangeChart === 'function')
+                ? v47_buildGradeChangeChart(g)
+                : '';
+            } catch(e) {
+              g._gradeChartHtml = '<div class="grade-change-chart gcc-fallback"><div class="gcc-header"><span class="gcc-title">📊 등급 변화</span></div><div class="gcc-empty">등급 이력 수집 중</div></div>';
+            }
+          }
+        });
+        // [v4.7.51] rep에 group 상태 주입 — buildGroupCardHTML이 내부에서도 동일하게 처리하지만
+        // rerenderSingleCard 경로에서도 명시적으로 보장 (UI 뒤집힘 방지)
+        var g0 = groups[0];
+        if (g0 && g0.representative) {
+          var r0 = g0.representative;
+          r0._groupDisplayMode = g0.displayMode || 'standard';
+          r0.displayMode = g0.displayMode || 'standard';
+          r0._groupCount = g0.items.length;
+          r0._isMultiGroup = g0.items.length >= 2;
+          r0.alertCount = g0.items.length;
+        }
         var newHTML = W.buildGroupCardHTML(groups[0], { isFirstRender: false });
         
         // outerHTML 교체
@@ -14878,14 +14925,13 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       // [Phase 4.7 공사 4 — 1-3] 관심 코인 잔여 시간
       var remainingTimeLabel = v47_formatRemainingTime(track, meta);
       
-      // [Phase 4.7.12] 그룹 배지 (알람 횟수 xN) — x1도 표시
+      // [v4.7.51] xN 카운트 — group.items.length 단일 기준
+      // opts._groupCount(신키) 또는 opts.groupCount(구키) 우선, 없으면 1
       var groupBadge = '';
-      var v478_alarmCount = 0;
-      var v478_sc = (track.sCount24 != null) ? track.sCount24 : 0;
-      var v478_ac = (track.aCount24 != null) ? track.aCount24 : 0;
-      v478_alarmCount = v478_sc + v478_ac;
-      if (!v478_alarmCount && opts.groupCount) v478_alarmCount = opts.groupCount;
-      if (!v478_alarmCount || v478_alarmCount < 1) v478_alarmCount = 1;
+      var v478_alarmCount = Number(
+        (opts && (opts._groupCount || opts.groupCount)) || 0
+      );
+      if (v478_alarmCount < 1) v478_alarmCount = 1;
       var v479_alertTier;
       var v479_label;
       if (v478_alarmCount >= 8) {
@@ -14906,8 +14952,9 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       }
       groupBadge = '<span class="woos-group-badge v478-alert ' + v479_alertTier + '">' + v479_label + '</span>';
 
-      // [v4.7.42] 멀티 태그 — x1~x8 횟수 태그는 기존 로직/색상 그대로 유지
-      var multiChip = (opts && (opts.isMultiGroup === true || Number(opts.groupCount || 0) >= 2 || Number(track.alertCount || 0) >= 2)) ? '<span class="woos-multi-chip">멀티</span>' : '';
+      // [v4.7.51] 멀티 칩 — group.items.length >= 2 단일 기준 (신키/구키 둘 다 확인)
+      var multiChip = (opts && (opts._isMultiGroup === true || opts.isMultiGroup === true))
+        ? '<span class="woos-multi-chip">멀티</span>' : '';
 
       // [Phase 4.5] ⭐ 관심 코인 토글 버튼
       var watchBtn = v45_buildWatchButton(base);
@@ -15088,10 +15135,19 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       // [v4.7.47] rep에 group.displayMode 주입 — buildModeChip/카드 배지 통일
       rep._groupDisplayMode = group.displayMode || 'standard';
       rep.displayMode = group.displayMode || rep.displayMode || 'standard';
+      // [v4.7.50] rep에 group.items.length 기반 카운트/멀티 주입 — xN/멀티 불일치 해결
+      var v450_groupCount = group.items.length;
+      var v450_isMulti = v450_groupCount >= 2;
+      rep._groupCount = v450_groupCount;
+      rep._isMultiGroup = v450_isMulti;
+      rep.alertCount = v450_groupCount;  // 내부 UI용 강제 통일
 
       if (group.items.length === 1) {
-        // 단독: 일반 details 카드
-        var inner = v40_buildTrackInner(rep);
+        // 단독: 일반 details 카드 — [v4.7.51] opts 구키/신키 병행 전달 (xN/멀티 일관성)
+        var inner = v40_buildTrackInner(rep, {
+          _groupCount: v450_groupCount, _isMultiGroup: v450_isMulti,
+          groupCount: v450_groupCount, isMultiGroup: v450_isMulti,
+        });
         var attrs = 'data-snapshot-id="' + v40_escapeHtml(rep.snapshotId || rep.id || '') + '" data-tier="' + v40_escapeHtml(rep.tier || (rep.meta && rep.meta.tier) || 'B') + '" data-group-key="' + v40_escapeHtml(group.key) + '"';
         // [Phase 4.6.3] sessionStorage 펼침 상태 복원
         var v463_singleId = rep.snapshotId || rep.id || group.key;
@@ -15121,7 +15177,12 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       }
       // 그룹 카드 (size >= 2)
       // [Phase 4.2 작업 E] 그룹 dot 동기화: 대표가 아닌 그룹 전체 우선순위로
-      var repInner = v40_buildTrackInner(rep, { groupCount: group.items.length, isMultiGroup: group.isMulti, overrideDotColor: group.groupDotColor });
+      // [v4.7.51] opts 구키/신키 병행 전달
+      var repInner = v40_buildTrackInner(rep, {
+        _groupCount: v450_groupCount, _isMultiGroup: v450_isMulti,
+        groupCount: v450_groupCount, isMultiGroup: v450_isMulti,
+        overrideDotColor: group.groupDotColor,
+      });
       var others = group.items.filter(function(it){ return it !== rep; });
       var minisHtml = others.map(function(it, mIdx){
         var oSamples = v40_normalizeSamples(it);
