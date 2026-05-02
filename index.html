@@ -5,7 +5,7 @@
 <script>
 /* [v4.7.42] 캐시 강제 리셋 — SW 완전 제거 후 리로드 */
 (function(){
-  var VER = '4748';
+  var VER = '4749';
   try {
     var LKEY = 'woos_hard_reset_ver';
     if (localStorage.getItem(LKEY) === VER) return;
@@ -6816,7 +6816,7 @@ async function opsDashboard() {
 // 탭 시 상세 팝업
 // ═══════════════════════════════════════════════════════════════
 
-var HTML_VERSION = 'v4.7.48';  // 상태파이프라인 통일: trackingMode보존/items기준정밀/getUiMode제거
+var HTML_VERSION = 'v4.7.49';  // 가짜정밀제거(trackingMode불신)/getUiMode완전제거/그래프1포인트보장
 var _cachedBuildInfo = null;
 
 async function fetchBuildInfo() {
@@ -11076,12 +11076,13 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       var items = g.items || [];
       // 관심: watchMap 단독 기준
       var isWatch = !!watchMap[base];
-      // [v4.7.48] 정밀: representative 단독 아닌 group.items 전체 기준
-      // 대표거래소 우선순위와 정밀 판정이 섞이지 않도록 items.some() 사용
+      // [v4.7.49] 정밀: trackingMode 완전 신뢰 금지 — group.items 데이터 기준만 사용
+      // trackingMode='deep'/'precise'는 Worker/관심등록 후 오염 가능 → 제외
+      // 판정 기준: isAutoPrecise(Worker 박제) OR sCount24>=3 OR aCount24>=5
       var isDeep = !isWatch && items.some(function(it) {
         return it.isAutoPrecise === true ||
-               it.trackingMode === 'precise' ||
-               it.trackingMode === 'deep';
+               (it.sCount24 || 0) >= 3 ||
+               (it.aCount24 || 0) >= 5;
       });
       g.isWatch = isWatch;
       g.isDeep = isDeep;
@@ -11237,13 +11238,17 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       allGroups = W.groupTracks(allTracks);
       allGroups = v4743_normalizeGroupFlags(allGroups, watchMap);
 
-      // [v4.7.45] 그래프 HTML 캐싱 — allGroups 생성 직후 1회만, 실패해도 렌더 계속
+      // [v4.7.49] 그래프 HTML 캐싱 — allGroups 생성 직후 1회만, 실패해도 fallback HTML 저장
       allGroups.forEach(function(g) {
         try {
           g._gradeChartHtml = v47_buildGradeChangeChart(g);
         } catch(e) {
           console.error('[GRADE_CHART_CACHE_FAIL]', g.base, e && e.message ? e.message : e);
-          g._gradeChartHtml = '';
+          // [v4.7.49] 빈 문자열 금지 — catch 시에도 fallback HTML 저장
+          g._gradeChartHtml = '<div class="grade-change-chart gcc-fallback">'
+            + '<div class="gcc-header"><span class="gcc-title">📊 등급 변화</span></div>'
+            + '<div class="gcc-empty">등급 이력 수집 중</div>'
+            + '</div>';
         }
       });
     }
@@ -12777,19 +12782,25 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
     function v4730_normalizeNonWatchWindow(item) {
       try {
         if (!item) return item;
-        var mode = (typeof getUiMode === 'function') ? getUiMode(item) : 'standard';
-        if (mode === 'watch') return v4723_enforceWatchState(item);
-        if (mode === 'deep') return item;
-
-        // [v4.7.48] trackingMode 강제 덮어쓰기 금지 — 원본 보존
-        // 기존: item.trackingMode = 'standard' → 오염 원인
+        // [v4.7.49] getUiMode 완전 제거 — trackingMode 절대 신뢰 금지
+        // 관심 판정: isWatchlist 필드 OR localStorage watchlist 직접 확인
+        var isW = !!(item.isWatchlist);
+        try {
+          if (!isW && typeof v44_isWatchlist === 'function') {
+            isW = v44_isWatchlist(String(item.base || ''));
+          }
+        } catch(e0) {}
+        // 관심 코인 → 7d 상태 강제 합성
+        if (isW) return v4723_enforceWatchState(item);
+        // [v4.7.49] isAutoPrecise(Worker 박제) 코인만 deep window 보존
+        // trackingMode='deep'/'precise' 단독으로는 window 판단하지 않음
+        if (item.isAutoPrecise === true) return item;
+        // 비관심·비자동정밀 → 무조건 24h window 정규화
         var start = Number(item.startedAt || item.tierAssignedAt || Date.now());
         var standardEnd = start + 24 * 3600 * 1000;
-        // trackingMode는 건드리지 않음
         item.windowDays = 1;
         item.windowEnd = standardEnd;
         item.endAt = standardEnd;
-
         var elapsedMs = Date.now() - start;
         item.progress = Math.min(100, Math.max(0, (elapsedMs / (24 * 3600 * 1000)) * 100));
         return item;
@@ -12980,11 +12991,14 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
         }).filter(Boolean);
       }
 
+      // [v4.7.49] historyPoints 0개 → 대표 등급으로 1포인트 강제 생성 (빈 그래프 금지)
       if (historyPoints.length === 0) {
-        return '<div class="grade-change-chart gcc-fallback">'
-          + '<div class="gcc-header"><span class="gcc-title">📊 등급 변화</span></div>'
-          + '<div class="gcc-empty">등급 이력 수집 중</div>'
-          + '</div>';
+        var fallbackGrade = rep.gradeCode || rep.gradeLabel || rep.tier || 'B';
+        historyPoints = [{
+          gradeCode: fallbackGrade,
+          t: rep.startedAt || rep.tierAssignedAt || Date.now(),
+          exchange: rep.exchange || '',
+        }];
       }
 
       // 헤더 횟수: gradeHistory.length || alertCount || items.length
@@ -13037,10 +13051,11 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
         });
       }
 
+      // [v4.7.49] rawPoints 빈 배열 → 등급 인식 불가 fallback (빈 문자열 반환 금지)
       if (rawPoints.length === 0) {
-        return '<div class="grade-change-chart">'
+        return '<div class="grade-change-chart gcc-fallback">'
           + '<div class="gcc-header"><span class="gcc-title">📊 등급 변화 (' + displayCount + '회)</span></div>'
-          + '<div class="gcc-empty">등급 이력 없음</div>'
+          + '<div class="gcc-empty">등급 이력 수집 중</div>'
           + '</div>';
       }
 
@@ -15088,8 +15103,9 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
         } catch(e) {}
         var v463_singleOpenAttr = v463_singleOpen ? ' open' : '';
         var v463_singleToggleAttr = ' ontoggle="window.v462HandleCardToggle(event, this, \'' + v40_escapeHtml(v463_singleId) + '\')"';
-        // [v4.7.44] 캐시된 그래프 HTML 사용 (재계산 금지)
-        var singleGradeChart = group._gradeChartHtml || '';
+        // [v4.7.49] 캐시된 그래프 HTML 사용 — 없으면 fallback HTML (빈 문자열 금지)
+        var singleGradeChart = group._gradeChartHtml
+          || '<div class="grade-change-chart gcc-fallback"><div class="gcc-header"><span class="gcc-title">📊 등급 변화</span></div><div class="gcc-empty">등급 이력 수집 중</div></div>';
         // body 안에 등급 그래프 삽입 (woos-body 시작 직후)
         var singleBody = inner.body.replace(
           /<div class="progress-rich-body woos-body([^"]*)">/,
@@ -15170,8 +15186,9 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       var v463_openAttr = v463_isOpen ? ' open' : '';
       var v463_toggleAttr = ' ontoggle="window.v462HandleCardToggle(event, this, \'' + v40_escapeHtml(v463_groupId) + '\')"';
       
-      // [v4.7.44] 캐시된 그래프 HTML 사용 (재계산 금지)
-      var groupGradeChart = group._gradeChartHtml || '';
+      // [v4.7.49] 캐시된 그래프 HTML 사용 — 없으면 fallback HTML (빈 문자열 금지)
+      var groupGradeChart = group._gradeChartHtml
+        || '<div class="grade-change-chart gcc-fallback"><div class="gcc-header"><span class="gcc-title">📊 등급 변화</span></div><div class="gcc-empty">등급 이력 수집 중</div></div>';
 
       // [v4.7.44] group.displayMode 고정 사용 — getUiMode 직접 호출 제거
       var v478_groupMode = group.displayMode || 'standard';
