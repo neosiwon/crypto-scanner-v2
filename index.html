@@ -5,7 +5,7 @@
 <script>
 /* [v4.7.42] 캐시 강제 리셋 — SW 완전 제거 후 리로드 */
 (function(){
-  var VER = '4745';
+  var VER = '4747';
   try {
     var LKEY = 'woos_hard_reset_ver';
     if (localStorage.getItem(LKEY) === VER) return;
@@ -6816,7 +6816,7 @@ async function opsDashboard() {
 // 탭 시 상세 팝업
 // ═══════════════════════════════════════════════════════════════
 
-var HTML_VERSION = 'v4.7.45';  // 그래프캐싱/tooltip전역/displayMode통일
+var HTML_VERSION = 'v4.7.47';  // adaptItemToTrack 필드추가/buildModeChip 통일/그래프fallback
 var _cachedBuildInfo = null;
 
 async function fetchBuildInfo() {
@@ -12977,7 +12977,12 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
         }).filter(Boolean);
       }
 
-      if (historyPoints.length === 0) return '';
+      if (historyPoints.length === 0) {
+        return '<div class="grade-change-chart gcc-fallback">'
+          + '<div class="gcc-header"><span class="gcc-title">📊 등급 변화</span></div>'
+          + '<div class="gcc-empty">등급 이력 수집 중</div>'
+          + '</div>';
+      }
 
       // 헤더 횟수: gradeHistory.length || alertCount || items.length
       var displayCount = historyPoints.length || rep.alertCount || (group.items && group.items.length) || 0;
@@ -14901,7 +14906,11 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       //   - 표준 → "표준" 칩 (다크 회색)
       //   - C 등급 미표시 (사용자 결정)
       function v47_buildModeChip(track) {
-        var uiMode = (typeof getUiMode === 'function') ? getUiMode(track) : 'standard';
+        // [v4.7.47] group.displayMode 우선 — getUiMode 직접 호출 제거
+        var uiMode = track._groupDisplayMode || track.displayMode || null;
+        if (uiMode === 'precise') uiMode = 'deep';
+        if (!uiMode && typeof getUiMode === 'function') uiMode = getUiMode(track);
+        if (!uiMode) uiMode = 'standard';
         if (uiMode === 'watch') return '<span class="hdr-mode-chip mode-watch">관심</span>';
         if (uiMode === 'deep') return '<span class="hdr-mode-chip mode-precise">정밀</span>';
         return '<span class="hdr-mode-chip mode-standard">표준</span>';
@@ -15059,6 +15068,11 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       opts = opts || {};
       if (!group || !group.items || group.items.length === 0) return '';
       var rep = group.representative;
+
+      // [v4.7.47] rep에 group.displayMode 주입 — buildModeChip/카드 배지 통일
+      rep._groupDisplayMode = group.displayMode || 'standard';
+      rep.displayMode = group.displayMode || rep.displayMode || 'standard';
+
       if (group.items.length === 1) {
         // 단독: 일반 details 카드
         var inner = v40_buildTrackInner(rep);
@@ -15210,6 +15224,10 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
         sCount24: item.sCount24 || 0,
         aCount24: item.aCount24 || 0,
         alertCount: item.alertCount || item.alarmCount24 || item.sCount24 || item.aCount24 || 1,
+        // [v4.7.47] 누락 필드 추가 — normalizeGroupFlags/gradeChart 정상 동작용
+        trackingMode: item.trackingMode || meta.trackingMode || null,
+        gradeHistory: item.gradeHistory || meta.gradeHistory || [],
+        displayMode: item.displayMode || meta.displayMode || null,
       };
     }
     
