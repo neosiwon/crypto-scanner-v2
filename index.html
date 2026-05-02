@@ -5,7 +5,7 @@
 <script>
 /* [v4.7.42] 캐시 강제 리셋 — SW 완전 제거 후 리로드 */
 (function(){
-  var VER = '4802';
+  var VER = '4803';
   try {
     var LKEY = 'woos_hard_reset_ver';
     if (localStorage.getItem(LKEY) === VER) return;
@@ -6816,7 +6816,7 @@ async function opsDashboard() {
 // 탭 시 상세 팝업
 // ═══════════════════════════════════════════════════════════════
 
-var HTML_VERSION = 'v4.8.2';  // 정밀=isAutoPrecise단독/buildExpandedBody-tier제거/buildModeReasonBadge-trackingMode제거/그래프재시도
+var HTML_VERSION = 'v4.8.3';  // 박제값OR병합/cache병합시박제값보존/preciseReason/그래프문구변경/정밀디버그로그
 var _cachedBuildInfo = null;
 
 async function fetchBuildInfo() {
@@ -10277,9 +10277,58 @@ window.addEventListener('load', async function(){
     if (meta.status === 'active') {
       var W42 = global.WOOS_ANALYZER;
       if (W42 && typeof W42.buildGroupCardHTML === 'function' && typeof W42.adaptItemToTrack === 'function') {
+        // [v4.8.3] item 박제값 누락 방지 — _activeItemsCache 우선, 없으면 td/meta에서 보강
+        var v483_cachedItem = null;
+        try {
+          var v483_active = window._activeItemsCache || [];
+          for (var v483_i = 0; v483_i < v483_active.length; v483_i++) {
+            if (v483_active[v483_i].id === meta.snapshotId || v483_active[v483_i].snapshotId === meta.snapshotId) {
+              v483_cachedItem = v483_active[v483_i];
+              break;
+            }
+          }
+        } catch(e) {}
         // adaptItemToTrack 입력: item + td → track
-        var item = { id: meta.snapshotId, tier: meta.tier, tierAssignedAt: meta.tierAssignedAt, base: meta.base, exchange: meta.exchange,
-                     gradeCode: meta.gradeCode, gradeLabel: meta.gradeLabel, startedAt: meta.windowStart || meta.tierAssignedAt, windowEnd: meta.windowEnd };
+        // 박제 필드 OR 병합 (td/meta/cachedItem 어디든 truthy면 true 유지)
+        var item = {
+          id: meta.snapshotId, tier: meta.tier, tierAssignedAt: meta.tierAssignedAt,
+          base: meta.base, exchange: meta.exchange,
+          gradeCode: meta.gradeCode, gradeLabel: meta.gradeLabel,
+          startedAt: meta.windowStart || meta.tierAssignedAt, windowEnd: meta.windowEnd,
+          // [v4.8.3] 박제값 — _activeItemsCache 우선, td/meta fallback
+          isAutoPrecise: ((v483_cachedItem && v483_cachedItem.isAutoPrecise === true)
+            || (trackingData && trackingData.isAutoPrecise === true)
+            || (meta.isAutoPrecise === true)),
+          isWatchlist: ((v483_cachedItem && v483_cachedItem.isWatchlist === true)
+            || (trackingData && trackingData.isWatchlist === true)
+            || (meta.isWatchlist === true)),
+          tierARejected: ((v483_cachedItem && v483_cachedItem.tierARejected === true)
+            || (trackingData && trackingData.tierARejected === true)
+            || (meta.tierARejected === true)),
+          sCount24: Math.max(
+            Number((v483_cachedItem && v483_cachedItem.sCount24) || 0),
+            Number((trackingData && trackingData.sCount24) || 0),
+            Number(meta.sCount24 || 0)
+          ),
+          aCount24: Math.max(
+            Number((v483_cachedItem && v483_cachedItem.aCount24) || 0),
+            Number((trackingData && trackingData.aCount24) || 0),
+            Number(meta.aCount24 || 0)
+          ),
+          preciseReason: (v483_cachedItem && v483_cachedItem.preciseReason)
+            || (trackingData && trackingData.preciseReason)
+            || meta.preciseReason || null,
+          // 박제 가격/통계
+          lastPrice: (v483_cachedItem && v483_cachedItem.lastPrice) != null ? v483_cachedItem.lastPrice : null,
+          currentPct: (v483_cachedItem && v483_cachedItem.currentPct) != null ? v483_cachedItem.currentPct : null,
+          mfe: (v483_cachedItem && v483_cachedItem.mfe) != null ? v483_cachedItem.mfe : null,
+          mae: (v483_cachedItem && v483_cachedItem.mae) != null ? v483_cachedItem.mae : null,
+          lastSampleT: (v483_cachedItem && v483_cachedItem.lastSampleT) != null ? v483_cachedItem.lastSampleT : null,
+          // gradeHistory 보존
+          gradeHistory: (v483_cachedItem && v483_cachedItem.gradeHistory)
+            || (trackingData && trackingData.gradeHistory)
+            || meta.gradeHistory || [],
+        };
         var track = W42.adaptItemToTrack(item, trackingData);
         var groups = W42.groupTracks([track]);
         // [v4.8.0] 단일 진입점 — 4번째 진입점 (알람 테이블 디테일 행) 정규화 누락 해결
@@ -11091,9 +11140,6 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
         return it && it.isWatchlist === true;
       });
       // [v4.8.2] 정밀: isAutoPrecise(Worker 박제) 단독 기준
-      // sCount24/aCount24 박제값 사용 금지 — 누적 카운트 의존 제거
-      // trackingMode 사용 금지
-      // 정밀 승격 조건(S 3회/A 5회)은 Worker가 isAutoPrecise=true로 내려주는 방식으로만 반영
       var isDeep = !isWatch && items.some(function(it) {
         return it && it.isAutoPrecise === true;
       });
@@ -11104,6 +11150,40 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       // group 카운트/멀티 — 렌더 단일 기준
       g._groupCount = items.length;
       g._isMultiGroup = items.length >= 2;
+      // [v4.8.3] 디버그/UI 표시용 필드 — preciseReason/sCount24/aCount24 보존
+      // 정밀 카드에 "왜 정밀인지" 표시 가능하게 + 검증 디버그용
+      if (isDeep || isWatch) {
+        // items 중 가장 강한 reason 선택
+        var debugReason = null;
+        var debugSource = null;
+        var maxS = 0, maxA = 0;
+        items.forEach(function(it) {
+          if (!it) return;
+          maxS = Math.max(maxS, Number(it.sCount24 || 0));
+          maxA = Math.max(maxA, Number(it.aCount24 || 0));
+          if (!debugReason) {
+            if (it.preciseReason) {
+              debugReason = it.preciseReason;
+              debugSource = 'item.preciseReason';
+            } else if (it.isWatchlist === true) {
+              debugReason = 'watchlist';
+              debugSource = 'item.isWatchlist';
+            } else if (it.isAutoPrecise === true) {
+              debugReason = 'autoPrecise';
+              debugSource = 'item.isAutoPrecise';
+            }
+          }
+        });
+        g._preciseReason = debugReason || (isWatch ? 'watchlist-map' : null);
+        g._preciseSource = debugSource || (isWatch && watchMap[base] ? 'watchMap' : null);
+        g._sCount24Max = maxS;
+        g._aCount24Max = maxA;
+      } else {
+        g._preciseReason = null;
+        g._preciseSource = null;
+        g._sCount24Max = 0;
+        g._aCount24Max = 0;
+      }
       return g;
     });
   }
@@ -11151,7 +11231,33 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       rep._groupCount = (g.items && g.items.length) || 1;
       rep._isMultiGroup = (g.items && g.items.length >= 2) || false;
       rep.alertCount = (g.items && g.items.length) || 1;
+      // [v4.8.3] rep에 디버그 필드도 주입
+      rep._preciseReason = g._preciseReason || null;
+      rep._preciseSource = g._preciseSource || null;
     });
+    // [v4.8.3] 정밀 코인 검증 디버그 로그 — window.WOOS_DEBUG_PRECISE = true 시만 출력
+    // 검증 방법: 콘솔에서 window.WOOS_DEBUG_PRECISE = true 설정 후 카드 새로고침
+    try {
+      if (typeof window !== 'undefined' && window.WOOS_DEBUG_PRECISE === true && typeof console !== 'undefined' && console.table) {
+        var debugRows = groups.filter(function(g){ return g.displayMode === 'deep' || g.displayMode === 'watch'; })
+          .map(function(g){
+            var firstItem = (g.items && g.items[0]) || {};
+            return {
+              base: g.base,
+              displayMode: g.displayMode,
+              groupCount: (g.items && g.items.length) || 0,
+              isAutoPrecise: !!firstItem.isAutoPrecise,
+              isWatchlist: !!firstItem.isWatchlist,
+              preciseReason: g._preciseReason || '(none)',
+              source: g._preciseSource || '(none)',
+              sCount24: g._sCount24Max || 0,
+              aCount24: g._aCount24Max || 0,
+            };
+          });
+        console.log('[v4.8.3 정밀 검증] 총 ' + debugRows.length + '개 (deep/watch)');
+        console.table(debugRows);
+      }
+    } catch(e) {}
     return groups;
   }
   // 전역 노출 — 다른 스코프에서도 사용 가능
@@ -13114,7 +13220,7 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       // [v4.8.2] historyPoints 빈 배열 안전 처리 — fallback 즉시 반환
       if (historyPoints.length === 0) {
         return '<div class="grade-change-chart gcc-fallback">'
-          + '<div class="gcc-header"><span class="gcc-title">📊 등급 변화</span></div>'
+          + '<div class="gcc-header"><span class="gcc-title">📊 추적 등급 기록</span></div>'
           + '<div class="gcc-empty">등급 이력 수집 중</div>'
           + '</div>';
       }
@@ -13175,7 +13281,7 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       // [v4.8.2] rawPoints 여전히 빈 배열 → 등급 인식 완전 불가 fallback (빈 문자열 반환 금지)
       if (rawPoints.length === 0) {
         return '<div class="grade-change-chart gcc-fallback">'
-          + '<div class="gcc-header"><span class="gcc-title">📊 등급 변화 (' + displayCount + '회)</span></div>'
+          + '<div class="gcc-header"><span class="gcc-title">📊 추적 등급 기록 (' + displayCount + '개)</span></div>'
           + '<div class="gcc-empty">등급 이력 수집 중</div>'
           + '</div>';
       }
@@ -13261,7 +13367,7 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       
       return '<div class="grade-change-chart">'
         + '<div class="gcc-header">'
-        +   '<span class="gcc-title">📊 등급 변화 (' + displayCount + '회)</span>'
+        +   '<span class="gcc-title">📊 추적 등급 기록 (' + displayCount + '개)</span>'
         +   legendHtml
         +   infoIcon
         + '</div>'
@@ -14368,12 +14474,69 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       }
       if (!item) return;
       
-      // _trackingMap 갱신 (cache 데이터 병합)
+      // [v4.8.3] _trackingMap 갱신 (cache 데이터 병합) — 박제값 보존
+      // cached에 isAutoPrecise/isWatchlist/preciseReason이 누락돼 있어도
+      // existingTd 또는 item의 truthy 값을 절대 false로 덮어쓰지 않음
       if (cached && window._trackingMap) {
         var existingTd = window._trackingMap[snapshotId] || {};
+        var existingMeta = existingTd.meta || {};
+        var cachedMeta = cached.meta || {};
+        // 박제값 OR 병합 — item, existingTd, cached, meta 모두에서 truthy면 true 유지
+        var v483_mergedIsAutoPrecise = (item && item.isAutoPrecise === true)
+          || (existingTd.isAutoPrecise === true) || (existingMeta.isAutoPrecise === true)
+          || (cached.isAutoPrecise === true) || (cachedMeta.isAutoPrecise === true);
+        var v483_mergedIsWatchlist = (item && item.isWatchlist === true)
+          || (existingTd.isWatchlist === true) || (existingMeta.isWatchlist === true)
+          || (cached.isWatchlist === true) || (cachedMeta.isWatchlist === true);
+        var v483_mergedTierARejected = (item && item.tierARejected === true)
+          || (existingTd.tierARejected === true) || (existingMeta.tierARejected === true)
+          || (cached.tierARejected === true) || (cachedMeta.tierARejected === true);
+        var v483_mergedSCount = Math.max(
+          Number((item && item.sCount24) || 0),
+          Number(existingTd.sCount24 || 0), Number(existingMeta.sCount24 || 0),
+          Number(cached.sCount24 || 0), Number(cachedMeta.sCount24 || 0)
+        );
+        var v483_mergedACount = Math.max(
+          Number((item && item.aCount24) || 0),
+          Number(existingTd.aCount24 || 0), Number(existingMeta.aCount24 || 0),
+          Number(cached.aCount24 || 0), Number(cachedMeta.aCount24 || 0)
+        );
+        var v483_mergedPreciseReason = (item && item.preciseReason)
+          || existingTd.preciseReason || existingMeta.preciseReason
+          || cached.preciseReason || cachedMeta.preciseReason
+          || null;
+        var v483_mergedDisplayMode = (item && item.displayMode)
+          || existingTd.displayMode || existingMeta.displayMode
+          || cached.displayMode || cachedMeta.displayMode
+          || null;
+        // 병합 결과 저장 — meta 내부 + 최상위 양쪽 모두 박제값 유지
         window._trackingMap[snapshotId] = Object.assign({}, existingTd, cached, {
-          meta: Object.assign({}, existingTd.meta || {}, cached.meta || {}),
+          meta: Object.assign({}, existingMeta, cachedMeta, {
+            isAutoPrecise: v483_mergedIsAutoPrecise,
+            isWatchlist: v483_mergedIsWatchlist,
+            tierARejected: v483_mergedTierARejected,
+            sCount24: v483_mergedSCount,
+            aCount24: v483_mergedACount,
+            preciseReason: v483_mergedPreciseReason,
+            displayMode: v483_mergedDisplayMode,
+          }),
+          isAutoPrecise: v483_mergedIsAutoPrecise,
+          isWatchlist: v483_mergedIsWatchlist,
+          tierARejected: v483_mergedTierARejected,
+          sCount24: v483_mergedSCount,
+          aCount24: v483_mergedACount,
+          preciseReason: v483_mergedPreciseReason,
+          displayMode: v483_mergedDisplayMode,
         });
+        // _activeItemsCache의 item도 업데이트 (다음 자동갱신 전까지 일관성 유지)
+        if (item) {
+          item.isAutoPrecise = v483_mergedIsAutoPrecise;
+          item.isWatchlist = v483_mergedIsWatchlist;
+          item.tierARejected = v483_mergedTierARejected;
+          item.sCount24 = v483_mergedSCount;
+          item.aCount24 = v483_mergedACount;
+          item.preciseReason = v483_mergedPreciseReason;
+        }
       }
       
       // 카드 빌드
@@ -15259,7 +15422,7 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
         var v463_singleToggleAttr = ' ontoggle="window.v462HandleCardToggle(event, this, \'' + v40_escapeHtml(v463_singleId) + '\')"';
         // [v4.7.49] 캐시된 그래프 HTML 사용 — 없으면 fallback HTML (빈 문자열 금지)
         var singleGradeChart = group._gradeChartHtml
-          || '<div class="grade-change-chart gcc-fallback"><div class="gcc-header"><span class="gcc-title">📊 등급 변화</span></div><div class="gcc-empty">등급 이력 수집 중</div></div>';
+          || '<div class="grade-change-chart gcc-fallback"><div class="gcc-header"><span class="gcc-title">📊 추적 등급 기록</span></div><div class="gcc-empty">등급 이력 수집 중</div></div>';
         // body 안에 등급 그래프 삽입 (woos-body 시작 직후)
         var singleBody = inner.body.replace(
           /<div class="progress-rich-body woos-body([^"]*)">/,
@@ -15347,7 +15510,7 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       
       // [v4.7.49] 캐시된 그래프 HTML 사용 — 없으면 fallback HTML (빈 문자열 금지)
       var groupGradeChart = group._gradeChartHtml
-        || '<div class="grade-change-chart gcc-fallback"><div class="gcc-header"><span class="gcc-title">📊 등급 변화</span></div><div class="gcc-empty">등급 이력 수집 중</div></div>';
+        || '<div class="grade-change-chart gcc-fallback"><div class="gcc-header"><span class="gcc-title">📊 추적 등급 기록</span></div><div class="gcc-empty">등급 이력 수집 중</div></div>';
 
       // [v4.7.44] group.displayMode 고정 사용 — getUiMode 직접 호출 제거
       var v478_groupMode = group.displayMode || 'standard';
@@ -15373,6 +15536,36 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
     function v40_adaptItemToTrack(item, td) {
       td = td || {};
       var meta = td.meta || {};
+      // [v4.8.3] 박제 필드 OR 병합 — item과 td 양쪽 어디든 truthy면 보존
+      // 카드 재렌더 경로(renderAnalyzerCard에서 빈약한 item 전달)에서 박제값이 false로 초기화되는 회귀 차단
+      var v483_isAutoPrecise = (item.isAutoPrecise === true)
+        || (td.isAutoPrecise === true)
+        || (meta.isAutoPrecise === true);
+      var v483_isWatchlist = (item.isWatchlist === true)
+        || (td.isWatchlist === true)
+        || (meta.isWatchlist === true);
+      var v483_tierARejected = (item.tierARejected === true)
+        || (td.tierARejected === true)
+        || (meta.tierARejected === true);
+      var v483_sCount24 = Math.max(
+        Number(item.sCount24 || 0),
+        Number(td.sCount24 || 0),
+        Number(meta.sCount24 || 0)
+      );
+      var v483_aCount24 = Math.max(
+        Number(item.aCount24 || 0),
+        Number(td.aCount24 || 0),
+        Number(meta.aCount24 || 0)
+      );
+      // [v4.8.3] preciseReason — 정밀 판정 근거 (디버깅 + UI 표시용)
+      var v483_preciseReason = item.preciseReason
+        || td.preciseReason
+        || meta.preciseReason
+        || (v483_isWatchlist ? 'watchlist' : null)
+        || (v483_isAutoPrecise ? 'autoPrecise' : null)
+        || (v483_sCount24 >= 3 ? 'sCount24-' + v483_sCount24 : null)
+        || (v483_aCount24 >= 5 ? 'aCount24-' + v483_aCount24 : null)
+        || null;
       return {
         snapshotId: item.id, id: item.id,
         base: item.base || meta.base || '',
@@ -15388,20 +15581,19 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
         thresholds: td.thresholds || null,
         tp1: td.tp1 || null,
         // [Phase 4.7 공사 4 — A2-경량] /tracking/active 박제 데이터 통과
-        // 페이지 로드 즉시 카드에 lastPrice / currentPct / mfe / mae 표시
         prefetchedLastPrice: item.lastPrice != null ? item.lastPrice : null,
         prefetchedCurrentPct: item.currentPct != null ? item.currentPct : null,
         prefetchedMfe: item.mfe != null ? item.mfe : null,
         prefetchedMae: item.mae != null ? item.mae : null,
         prefetchedSampleT: item.lastSampleT != null ? item.lastSampleT : null,
-        // [Phase 4.7 공사 4] 자동 정밀 / 관심 / 한도 거부 박제
-        isWatchlist: item.isWatchlist || false,
-        isAutoPrecise: item.isAutoPrecise || false,
-        tierARejected: item.tierARejected || false,
-        sCount24: item.sCount24 || 0,
-        aCount24: item.aCount24 || 0,
+        // [v4.8.3] 박제 OR 병합 — 재렌더 시 false로 초기화 방지
+        isWatchlist: v483_isWatchlist,
+        isAutoPrecise: v483_isAutoPrecise,
+        tierARejected: v483_tierARejected,
+        sCount24: v483_sCount24,
+        aCount24: v483_aCount24,
+        preciseReason: v483_preciseReason,  // [v4.8.3] 정밀 판정 근거
         // [v4.7.51] alertCount = 1 고정 — xN/멀티는 group.items.length 단일 기준
-        // sCount24/aCount24를 alertCount에 쓰면 groupTracks가 totalAlertCount를 과대계산함
         alertCount: 1,
         // [v4.7.47] 누락 필드 추가 — normalizeGroupFlags/gradeChart 정상 동작용
         trackingMode: item.trackingMode || meta.trackingMode || null,
