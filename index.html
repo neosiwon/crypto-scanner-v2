@@ -5689,7 +5689,7 @@ details.analyzer-progress-card > summary.progress-compact-summary {
 }
 .v4730-time-row {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 6px;
   margin-top: 8px;
 }
@@ -11061,15 +11061,19 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
     watchMap = watchMap || {};
     return (groups || []).map(function(g) {
       var base = String(g.base || '').toUpperCase();
-      var isWatch = !!watchMap[base] || !!(g.representative && g.representative.isWatchlist)
-                  || (g.items || []).some(function(it){ return !!(it && it.isWatchlist); });
+      var rep = g.representative || {};
+      // 관심: watchMap 단독 기준
+      var isWatch = !!watchMap[base];
+      // 정밀: getUiMode 와 동일 기준
       var isDeep = !isWatch && (
-        !!(g.representative && (g.representative.isAutoPrecise || g.representative.trackingMode === 'deep'))
-        || (g.items || []).some(function(it){ return !!(it && (it.isAutoPrecise || it.trackingMode === 'deep')); })
+        rep.isAutoPrecise === true ||
+        rep.trackingMode === 'precise' ||
+        rep.trackingMode === 'deep'
       );
       g.isWatch = isWatch;
       g.isDeep = isDeep;
       g.isStandard = !isWatch && !isDeep;
+      g.displayMode = isWatch ? 'watch' : isDeep ? 'deep' : 'standard';
       return g;
     });
   }
@@ -11245,7 +11249,6 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
                     + '<div class="v4730-time-row">'
                     +   '<button class="v4730-time-btn ' + (_activeSortBy === 'time-new'  ? 'active' : '') + '" data-sort="time-new">최신순</button>'
                     +   '<button class="v4730-time-btn ' + (_activeSortBy === 'time-old'  ? 'active' : '') + '" data-sort="time-old">오래된순</button>'
-                    +   '<button class="v4730-time-btn ' + (_activeSortBy === 'new'       ? 'active' : '') + '" data-sort="new">신규</button>'
                     +   '<button class="v4730-time-btn ' + (_activeSortBy === 'deadline'  ? 'active' : '') + '" data-sort="deadline">마감임박</button>'
                     + '</div>'
                     + '</div>';
