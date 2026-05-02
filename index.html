@@ -10963,11 +10963,7 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
         container.innerHTML = '<div class="analyzer-timeout-box">'
           + '<b>추적 데이터를 불러오지 못했습니다</b><br>'
           + '12초 안에 Worker 응답이 없었습니다. 잠시 후 다시 시도하세요.<br>'
-          + '<button type="button" onclick="renderAnalyzerSection()">다시 불러오기</button>'
-          + '</div>';
-        return;
-      }
-      var active = activeData.active;
+          + '<button type="button" onclick="renderAnalyzerSection && renderAnalyzerSection()">다시 불러오기</button>'
       var count = activeData.count || active.length;
       if (count === 0) {
         container.innerHTML = '<div class="analyzer-empty">현재 추적 중인 알람 없음</div>';
@@ -11208,6 +11204,15 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
     var allGroups = [];
     var watchMap = v4743_buildWatchMap();
     var af = (typeof _activeStatFilter !== 'undefined') ? _activeStatFilter : 'all';
+
+    // [v4.7.45] 파이프라인 조건 누락 시 로그
+    if (!(W && typeof W.adaptItemToTrack === 'function' && typeof W.groupTracks === 'function')) {
+      console.error('[GROUP_PIPELINE_MISSING]', {
+        hasWOOS: !!W,
+        adapt: W && typeof W.adaptItemToTrack,
+        group: W && typeof W.groupTracks,
+      });
+    }
 
     if (W && typeof W.adaptItemToTrack === 'function' && typeof W.groupTracks === 'function') {
       var allTracks = (_activeItemsCache || []).map(function(item){
@@ -11776,6 +11781,9 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       escapeHtml: escapeHtml,
     },
   };
+
+  // [v4.7.45] renderAnalyzerSection 전역 노출 — 버튼 onclick 직접 호출용
+  global.renderAnalyzerSection = renderAnalyzerSection;
   
   /* ═══════════════════════════════════════════════════════════════
    * [Phase 4.0] Realtime Graph 분석기 모듈 (인라인 통합)
@@ -16065,11 +16073,7 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       c.innerHTML = '<div class="analyzer-timeout-box">'
         + '<b>추적 분석 응답 지연</b><br>'
         + '로딩이 오래 지속되어 중단했습니다.<br>'
-        + '<button type="button" onclick="renderAnalyzerSection()">다시 불러오기</button>'
-        + '</div>';
-    }
-  }
-  window.addEventListener('load', function(){
+        + '<button type="button" onclick="renderAnalyzerSection && renderAnalyzerSection()">다시 불러오기</button>'
     setTimeout(killStuckAnalyzerLoading, 15000);
   });
 })();
