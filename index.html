@@ -11016,17 +11016,28 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       });
       // [v4.7.23] 관심 코인은 fetchTrackingActive 결과가 표준 8h로 내려와도 렌더 전 7d 상태를 재합성한다.
       try { _activeItemsCache = _activeItemsCache.map(function(it){ return v4723_enforceWatchState(it); }); } catch(e) {}
-      
-      _renderActiveTrackingList(count, byTier);
-      
+
+      // [v4.7.45] _renderActiveTrackingList try/catch — 렌더 에러와 Worker 에러 분리
+      try {
+        _renderActiveTrackingList(count, byTier);
+      } catch(renderErr) {
+        console.error('[ANALYZER_RENDER_FAIL]', renderErr && renderErr.stack ? renderErr.stack : renderErr);
+        container.innerHTML = '<div class="analyzer-timeout-box">'
+          + '<b>추적 분석 렌더 오류</b><br>'
+          + (renderErr && renderErr.message ? renderErr.message : String(renderErr)) + '<br>'
+          + '<button type="button" onclick="window.WOOS_ANALYZER && window.WOOS_ANALYZER.renderAnalyzerSection && window.WOOS_ANALYZER.renderAnalyzerSection()">다시 불러오기</button>'
+          + '</div>';
+        return;
+      }
+
       // 백그라운드에서 보이는 카드만 samples fetch (캐시 없는 것 우선)
       _backgroundFetchVisible();
     }).catch(function(err){
-      console.error('[renderAnalyzerSection] active fetch failed', err);
+      console.error('[ANALYZER_FETCH_FAIL]', err && err.stack ? err.stack : err);
       container.innerHTML = '<div class="analyzer-timeout-box">'
         + '<b>추적 분석 로드 실패</b><br>'
         + 'Worker 응답이 지연되었거나 네트워크가 불안정합니다.<br>'
-        + '<button type="button" onclick="renderAnalyzerSection()">다시 불러오기</button>'
+        + '<button type="button" onclick="window.WOOS_ANALYZER && window.WOOS_ANALYZER.renderAnalyzerSection && window.WOOS_ANALYZER.renderAnalyzerSection()">다시 불러오기</button>'
         + '</div>';
     });
   }
@@ -11216,10 +11227,13 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       allGroups = W.groupTracks(allTracks);
       allGroups = v4743_normalizeGroupFlags(allGroups, watchMap);
 
-      // [v4.7.44] 그래프 HTML 캐싱 — allGroups 생성 직후 1회만
+      // [v4.7.45] 그래프 HTML 캐싱 — allGroups 생성 직후 1회만, 실패해도 렌더 계속
       allGroups.forEach(function(g) {
-        if (!g._gradeChartHtml) {
+        try {
           g._gradeChartHtml = v47_buildGradeChangeChart(g);
+        } catch(e) {
+          console.error('[GRADE_CHART_CACHE_FAIL]', g.base, e && e.message ? e.message : e);
+          g._gradeChartHtml = '';
         }
       });
     }
