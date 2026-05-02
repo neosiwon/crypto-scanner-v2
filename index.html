@@ -5,7 +5,7 @@
 <script>
 /* [v4.7.42] 캐시 강제 리셋 — SW 완전 제거 후 리로드 */
 (function(){
-  var VER = '4744';
+  var VER = '4745';
   try {
     var LKEY = 'woos_hard_reset_ver';
     if (localStorage.getItem(LKEY) === VER) return;
@@ -6816,7 +6816,7 @@ async function opsDashboard() {
 // 탭 시 상세 팝업
 // ═══════════════════════════════════════════════════════════════
 
-var HTML_VERSION = 'v4.7.44';  // 그래프 B등급/gradeHistory, 필터/정렬 버튼 정리
+var HTML_VERSION = 'v4.7.45';  // 그래프캐싱/tooltip전역/displayMode통일
 var _cachedBuildInfo = null;
 
 async function fetchBuildInfo() {
@@ -11084,8 +11084,9 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
     groups = Array.isArray(groups) ? groups : [];
     var counts = { total: groups.length, rawAlerts: rawAlertCount || 0, watch: 0, deep: 0, standard: 0, profit: 0, loss: 0, flat: 0 };
     groups.forEach(function(g) {
-      if (g.isWatch) counts.watch++;
-      else if (g.isDeep) counts.deep++;
+      var dm = g.displayMode || 'standard';
+      if (dm === 'watch') counts.watch++;
+      else if (dm === 'deep') counts.deep++;
       else counts.standard++;
       var pct = g.representative ? v4729_currentPct(g.representative) : 0;
       if (pct > 0.2) counts.profit++;
@@ -11102,7 +11103,7 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
     var NEW_MS = 30 * 60 * 1000;
     var DEADLINE_MS = 60 * 60 * 1000;
     var modeOrder = { watch: 0, deep: 1, standard: 2 };
-    function getMode(g) { return g.isWatch ? 'watch' : g.isDeep ? 'deep' : 'standard'; }
+    function getMode(g) { return g.displayMode || 'standard'; }
     function getTime(g) { var r = g.representative || {}; return r.tierAssignedAt || r.startedAt || 0; }
     function getPct(g) { return g.representative ? v4729_currentPct(g.representative) : 0; }
     function getWindowEnd(g) {
@@ -11139,10 +11140,11 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
   function v4743_filterGroups(allGroups, activeFilter) {
     if (!activeFilter || activeFilter === 'all') return allGroups.slice();
     return allGroups.filter(function(g) {
+      var dm = g.displayMode || 'standard';
       var pct = g.representative ? v4729_currentPct(g.representative) : 0;
-      if (activeFilter === 'watch')    return g.isWatch;
-      if (activeFilter === 'deep')     return g.isDeep;
-      if (activeFilter === 'standard') return g.isStandard;
+      if (activeFilter === 'watch')    return dm === 'watch';
+      if (activeFilter === 'deep')     return dm === 'deep';
+      if (activeFilter === 'standard') return dm === 'standard';
       if (activeFilter === 'profit')   return pct > 0.2;
       if (activeFilter === 'loss')     return pct < -0.2;
       if (activeFilter === 'flat')     return pct >= -0.2 && pct <= 0.2;
@@ -11213,6 +11215,13 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
 
       allGroups = W.groupTracks(allTracks);
       allGroups = v4743_normalizeGroupFlags(allGroups, watchMap);
+
+      // [v4.7.44] 그래프 HTML 캐싱 — allGroups 생성 직후 1회만
+      allGroups.forEach(function(g) {
+        if (!g._gradeChartHtml) {
+          g._gradeChartHtml = v47_buildGradeChangeChart(g);
+        }
+      });
     }
 
     // counts는 allGroups 기준 (필터 무관)
@@ -13047,20 +13056,20 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       var xLabelsHtml = '<text x="' + padL + '" y="' + (H - 10) + '" class="gcc-x-lbl">0h</text>'
         + '<text x="' + (W - padR) + '" y="' + (H - 10) + '" text-anchor="end" class="gcc-x-lbl">' + maxLbl + '</text>';
       
-      // 점 (탭 툴팁용 data 속성)
+      // 점 — data 속성 부여, onclick 제거 (이벤트 위임 방식)
       var dotsHtml = '';
       var now = Date.now();
       for (var di = 0; di < rawPoints.length; di++) {
         var dp = rawPoints[di];
         var dx = xOf(dp.h) + (dp._jitter || 0);
         var dy = yOf(dp.yi);
-        var ago = now - dp.t;
-        var agoStr = v40_formatElapsed(ago) + '전';
-        var tip = dp.grade + ' · ' + agoStr + ' · ' + dp.exShort;
         dotsHtml += '<circle cx="' + dx.toFixed(1) + '" cy="' + dy.toFixed(1)
           + '" r="4" fill="' + dp.exColor + '" stroke="#0a0a0a" stroke-width="1.5"'
-          + ' class="gcc-dot" data-tip="' + v40_escapeHtml(tip) + '"'
-          + ' onclick="window.v47ToggleGccTip(event, this)"></circle>';
+          + ' class="gcc-dot grade-dot"'
+          + ' data-grade="' + v40_escapeHtml(dp.grade) + '"'
+          + ' data-exchange="' + v40_escapeHtml(dp.ex) + '"'
+          + ' data-time="' + dp.t + '"'
+          + '></circle>';
       }
       
       // 범례 (3거래소 모두)
@@ -13078,8 +13087,7 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
         + xLabelsHtml
         + '<path d="' + pathD + '" class="gcc-line" fill="none" stroke="#00d4ff" stroke-width="1.5"/>'
         + dotsHtml
-        + '</svg>'
-        + '<div class="gcc-tip-host" data-active=""></div>';
+        + '</svg>';
       
       return '<div class="grade-change-chart">'
         + '<div class="gcc-header">'
@@ -13200,27 +13208,82 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
     /* [Phase 4.7 공사 4 — 4-1] 등급 그래프 점 탭 툴팁 토글
      * 같은 카드 안 다른 점 탭 시 자동으로 닫히고 새 툴팁 표시
      * 같은 점 다시 탭 시 닫힘 */
-    window.v47ToggleGccTip = function(event, dotEl) {
-      try {
-        if (event) { event.stopPropagation(); event.preventDefault(); }
-        if (!dotEl) return;
-        var chart = dotEl.closest('.grade-change-chart');
-        if (!chart) return;
-        var host = chart.querySelector('.gcc-tip-host');
-        if (!host) return;
-        var tip = dotEl.getAttribute('data-tip') || '';
-        var currentTip = host.textContent || '';
-        if (host.getAttribute('data-active') === '1' && currentTip === tip) {
-          // 같은 점 → 닫기
-          host.setAttribute('data-active', '');
-          host.textContent = '';
-        } else {
-          // 다른 점 또는 처음 → 표시
-          host.textContent = tip;
-          host.setAttribute('data-active', '1');
+    // [v4.7.44] 전역 tooltip 레이어 — body 고정, 카드 리렌더에 영향 없음
+    (function() {
+      var _gccTooltip = null;
+
+      function getOrCreateTooltip() {
+        if (!_gccTooltip || !document.body.contains(_gccTooltip)) {
+          var el = document.createElement('div');
+          el.id = 'gcc-global-tooltip';
+          el.style.cssText = [
+            'position:fixed',
+            'z-index:9999',
+            'background:rgba(10,15,28,0.97)',
+            'border:1px solid rgba(0,212,255,0.4)',
+            'border-radius:8px',
+            'padding:6px 10px',
+            'font-size:0.72rem',
+            'color:#e2e8f0',
+            'font-family:monospace',
+            'pointer-events:none',
+            'display:none',
+            'white-space:nowrap',
+            'box-shadow:0 4px 16px rgba(0,0,0,0.5)',
+          ].join(';');
+          document.body.appendChild(el);
+          _gccTooltip = el;
         }
-      } catch(e) { /* 툴팁 실패는 무시 */ }
-    };
+        return _gccTooltip;
+      }
+
+      function hideTooltip() {
+        var el = getOrCreateTooltip();
+        el.style.display = 'none';
+        el.removeAttribute('data-active-dot');
+      }
+
+      // document 이벤트 위임
+      document.addEventListener('click', function(e) {
+        var dot = e.target && e.target.closest && e.target.closest('.grade-dot');
+        if (!dot) { hideTooltip(); return; }
+
+        e.stopPropagation();
+        var el = getOrCreateTooltip();
+        var activeDot = el.getAttribute('data-active-dot');
+        var dotKey = dot.getAttribute('data-time') + '_' + dot.getAttribute('data-grade');
+
+        if (activeDot === dotKey && el.style.display !== 'none') {
+          hideTooltip(); return;
+        }
+
+        var grade = dot.getAttribute('data-grade') || '';
+        var exchange = dot.getAttribute('data-exchange') || '';
+        var t = parseInt(dot.getAttribute('data-time') || '0', 10);
+        var agoMs = Date.now() - t;
+        var agoStr = t ? (typeof v40_formatElapsed === 'function' ? v40_formatElapsed(agoMs) + '전' : Math.round(agoMs/60000) + 'm 전') : '';
+
+        el.textContent = grade + ' · ' + agoStr + (exchange ? ' · ' + exchange : '');
+        el.setAttribute('data-active-dot', dotKey);
+
+        // 위치 계산 (dot 기준 위)
+        var rect = dot.getBoundingClientRect();
+        var ttW = el.offsetWidth || 120;
+        var left = Math.max(8, Math.min(rect.left + rect.width / 2 - ttW / 2, window.innerWidth - ttW - 8));
+        var top = rect.top - 36;
+        if (top < 8) top = rect.bottom + 8;
+        el.style.left = left + 'px';
+        el.style.top = top + 'px';
+        el.style.display = 'block';
+      }, true);
+
+      // 스크롤/리사이즈 시 닫기
+      document.addEventListener('scroll', hideTooltip, true);
+      window.addEventListener('resize', hideTooltip);
+
+      // 기존 함수 하위호환 유지 (빈 함수)
+      window.v47ToggleGccTip = function() {};
+    })();
     
     /* 모달 표시 핸들러 */
     window.v47ShowInfoModal = function(key) {
@@ -14984,19 +15047,19 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
         } catch(e) {}
         var v463_singleOpenAttr = v463_singleOpen ? ' open' : '';
         var v463_singleToggleAttr = ' ontoggle="window.v462HandleCardToggle(event, this, \'' + v40_escapeHtml(v463_singleId) + '\')"';
-        // [Phase 4.7 공사 2 — Q6] 단일 카드도 등급 변화 그래프 표시 (1개 배지)
-        var singleGradeChart = v47_buildGradeChangeChart(group);
+        // [v4.7.44] 캐시된 그래프 HTML 사용 (재계산 금지)
+        var singleGradeChart = group._gradeChartHtml || '';
         // body 안에 등급 그래프 삽입 (woos-body 시작 직후)
         var singleBody = inner.body.replace(
           /<div class="progress-rich-body woos-body([^"]*)">/,
           '<div class="progress-rich-body woos-body$1">' + singleGradeChart
         );
-        // [Phase 4.7.8 R6-A] 외곽 클래스 추가 — v477-track-card / is-watch / is-deep
-        var v478_singleMode = (typeof getUiMode === 'function') ? getUiMode(rep) : 'standard';
+        // [v4.7.44] group.displayMode 고정 사용 — getUiMode 직접 호출 제거
+        var v478_singleMode = group.displayMode || 'standard';
         var v478_singleClasses = 'progress-rich-card woos-card v477-track-card v480-glass-card';
-        if (v478_singleMode === 'watch') v478_singleClasses += ' is-watch';
-        else if (v478_singleMode === 'deep') v478_singleClasses += ' is-deep';
-        else v478_singleClasses += ' is-standard';
+        if (v478_singleMode === 'watch') v478_singleClasses += ' is-watch woos-card-mode-watch';
+        else if (v478_singleMode === 'deep') v478_singleClasses += ' is-deep woos-card-mode-deep';
+        else v478_singleClasses += ' is-standard woos-card-mode-standard';
         return '<details class="' + v478_singleClasses + '" ' + attrs + v463_singleOpenAttr + v463_singleToggleAttr + '>' + inner.summary + singleBody + '</details>';
       }
       // 그룹 카드 (size >= 2)
@@ -15066,15 +15129,15 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       var v463_openAttr = v463_isOpen ? ' open' : '';
       var v463_toggleAttr = ' ontoggle="window.v462HandleCardToggle(event, this, \'' + v40_escapeHtml(v463_groupId) + '\')"';
       
-      // [Phase 4.7 공사 2 — Q6] 등급 변화 그래프 (그룹 카드 안에 표시)
-      var groupGradeChart = v47_buildGradeChangeChart(group);
-      
-      // [Phase 4.7.8 R6-A] 외곽 클래스 추가 — v477-track-card / is-watch / is-deep
-      var v478_groupMode = (typeof getUiMode === 'function') ? getUiMode(rep) : 'standard';
+      // [v4.7.44] 캐시된 그래프 HTML 사용 (재계산 금지)
+      var groupGradeChart = group._gradeChartHtml || '';
+
+      // [v4.7.44] group.displayMode 고정 사용 — getUiMode 직접 호출 제거
+      var v478_groupMode = group.displayMode || 'standard';
       var v478_groupClasses = 'progress-rich-card woos-card woos-group v477-track-card v480-glass-card';
-      if (v478_groupMode === 'watch') v478_groupClasses += ' is-watch';
-      else if (v478_groupMode === 'deep') v478_groupClasses += ' is-deep';
-      else v478_groupClasses += ' is-standard';
+      if (v478_groupMode === 'watch') v478_groupClasses += ' is-watch woos-card-mode-watch';
+      else if (v478_groupMode === 'deep') v478_groupClasses += ' is-deep woos-card-mode-deep';
+      else v478_groupClasses += ' is-standard woos-card-mode-standard';
       
       return '<details class="' + v478_groupClasses + '" ' + groupAttrs + v463_openAttr + v463_toggleAttr + '>'
            + repInner.summary
