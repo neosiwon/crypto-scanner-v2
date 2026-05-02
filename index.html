@@ -10964,6 +10964,10 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
           + '<b>추적 데이터를 불러오지 못했습니다</b><br>'
           + '12초 안에 Worker 응답이 없었습니다. 잠시 후 다시 시도하세요.<br>'
           + '<button type="button" onclick="renderAnalyzerSection && renderAnalyzerSection()">다시 불러오기</button>'
+          + '</div>';
+        return;
+      }
+      var active = activeData.active;
       var count = activeData.count || active.length;
       if (count === 0) {
         container.innerHTML = '<div class="analyzer-empty">현재 추적 중인 알람 없음</div>';
@@ -16074,6 +16078,10 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
         + '<b>추적 분석 응답 지연</b><br>'
         + '로딩이 오래 지속되어 중단했습니다.<br>'
         + '<button type="button" onclick="renderAnalyzerSection && renderAnalyzerSection()">다시 불러오기</button>'
+        + '</div>';
+    }
+  }
+  window.addEventListener('load', function(){
     setTimeout(killStuckAnalyzerLoading, 15000);
   });
 })();
