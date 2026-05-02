@@ -5,7 +5,7 @@
 <script>
 /* [v4.7.42] 캐시 강제 리셋 — SW 완전 제거 후 리로드 */
 (function(){
-  var VER = '4900-corev2-32';
+  var VER = '4901-corev2-32-watchnorm';
   try {
     var LKEY = 'woos_hard_reset_ver';
     if (localStorage.getItem(LKEY) === VER) return;
@@ -6816,7 +6816,7 @@ async function opsDashboard() {
 // 탭 시 상세 팝업
 // ═══════════════════════════════════════════════════════════════
 
-var HTML_VERSION = 'v4.9.0-corev2-v3.2';  // Core v2 v3.2 watchSlot/autoDeepSlot 분리 적용
+var HTML_VERSION = 'v4.9.1-corev2-v3.2-watchnorm';  // Core v2 v3.2 + watchMap base 정규화
 var _cachedBuildInfo = null;
 
 async function fetchBuildInfo() {
@@ -12642,18 +12642,32 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
     
     /* [Phase 4.4 작업 5 초석] Watchlist 관리 (localStorage) */
     var V44_WATCHLIST_KEY = 'woos_v44_watchlist';
+    function v44_normalizeWatchBase(base) {
+      if (!base) return '';
+      try {
+        if (typeof v49_normalizeBase === 'function') return v49_normalizeBase(base);
+      } catch(e) {}
+      return String(base).toUpperCase();
+    }
     function v44_getWatchlist() {
       try {
         var raw = (typeof localStorage !== 'undefined') ? localStorage.getItem(V44_WATCHLIST_KEY) : null;
         if (!raw) return [];
         var list = JSON.parse(raw);
-        return Array.isArray(list) ? list : [];
+        if (!Array.isArray(list)) return [];
+        var seen = {};
+        return list.map(function(x){ return v44_normalizeWatchBase(x); }).filter(function(x){
+          if (!x || seen[x]) return false;
+          seen[x] = true;
+          return true;
+        });
       } catch(e) { return []; }
     }
     function v44_isWatchlist(base) {
       if (!base) return false;
+      var b = v44_normalizeWatchBase(base);
       var list = v44_getWatchlist();
-      return list.indexOf(String(base).toUpperCase()) >= 0;
+      return list.indexOf(b) >= 0;
     }
 
 
@@ -12783,7 +12797,7 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
     }
     function v44_toggleWatchlist(base) {
       if (!base) return false;
-      var b = String(base).toUpperCase();
+      var b = v44_normalizeWatchBase(base);
       var list = v44_getWatchlist();
       var idx = list.indexOf(b);
       if (idx >= 0) {
