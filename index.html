@@ -5,7 +5,7 @@
 <script>
 /* [v4.7.42] 캐시 강제 리셋 — SW 완전 제거 후 리로드 */
 (function(){
-  var VER = '4800';
+  var VER = '4802';
   try {
     var LKEY = 'woos_hard_reset_ver';
     if (localStorage.getItem(LKEY) === VER) return;
@@ -6816,7 +6816,7 @@ async function opsDashboard() {
 // 탭 시 상세 팝업
 // ═══════════════════════════════════════════════════════════════
 
-var HTML_VERSION = 'v4.8.0';  // 단일진입점v48_prepareGroupsForRender/lazy그래프캐싱(부실그래프캐싱X)/4번째진입점통합
+var HTML_VERSION = 'v4.8.2';  // 정밀=isAutoPrecise단독/buildExpandedBody-tier제거/buildModeReasonBadge-trackingMode제거/그래프재시도
 var _cachedBuildInfo = null;
 
 async function fetchBuildInfo() {
@@ -11086,23 +11086,22 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
     return (groups || []).map(function(g) {
       var base = String(g.base || '').toUpperCase();
       var items = g.items || [];
-      // [v4.7.51] 관심: watchMap(localStorage) OR items.isWatchlist 박제값
+      // [v4.8.2] 관심: watchMap(localStorage) OR items.isWatchlist 박제값
       var isWatch = !!watchMap[base] || items.some(function(it) {
         return it && it.isWatchlist === true;
       });
-      // [v4.7.51] 정밀: trackingMode 완전 신뢰 금지 — isAutoPrecise OR sCount24>=3 OR aCount24>=5
+      // [v4.8.2] 정밀: isAutoPrecise(Worker 박제) 단독 기준
+      // sCount24/aCount24 박제값 사용 금지 — 누적 카운트 의존 제거
+      // trackingMode 사용 금지
+      // 정밀 승격 조건(S 3회/A 5회)은 Worker가 isAutoPrecise=true로 내려주는 방식으로만 반영
       var isDeep = !isWatch && items.some(function(it) {
-        return it && (
-          it.isAutoPrecise === true ||
-          (Number(it.sCount24 || 0) >= 3) ||
-          (Number(it.aCount24 || 0) >= 5)
-        );
+        return it && it.isAutoPrecise === true;
       });
       g.isWatch = isWatch;
       g.isDeep = isDeep;
       g.isStandard = !isWatch && !isDeep;
       g.displayMode = isWatch ? 'watch' : (isDeep ? 'deep' : 'standard');
-      // [v4.7.51] group 카운트/멀티 — 렌더 단일 기준
+      // group 카운트/멀티 — 렌더 단일 기준
       g._groupCount = items.length;
       g._isMultiGroup = items.length >= 2;
       return g;
@@ -11118,20 +11117,27 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
     // 1. 상태 정규화
     groups = v4743_normalizeGroupFlags(groups, watchMap);
     // 2. 그래프 lazy 캐싱 — 부실 캐시 영구 보존 방지
+    // [v4.8.1] 스코프 버그 수정: WOOS_ANALYZER 등록 후 시점에 함수 참조를 가져옴
     groups.forEach(function(g) {
-      // 이미 정상 캐시 있으면 유지
-      if (g._gradeChartHtml) return;
+      if (g._gradeChartHtml) return;  // 이미 정상 캐시 있으면 유지
+      // 매 호출 시점에 함수 참조 — WOOS_ANALYZER 등록 타이밍과 무관
+      var _buildChart = null;
+      try {
+        if (typeof window !== 'undefined' && window.WOOS_ANALYZER && typeof window.WOOS_ANALYZER.buildGradeChangeChart === 'function') {
+          _buildChart = window.WOOS_ANALYZER.buildGradeChangeChart;
+        } else if (typeof v47_buildGradeChangeChart === 'function') {
+          _buildChart = v47_buildGradeChangeChart;
+        }
+      } catch(e) {}
+      if (!_buildChart) return;
       var html = '';
       try {
-        html = (typeof v47_buildGradeChangeChart === 'function')
-          ? v47_buildGradeChangeChart(g)
-          : '';
+        html = _buildChart(g);
       } catch(e) {
         console.error('[v48_prepareGroupsForRender] gradeChart fail', g && g.base, e);
         html = '';
       }
-      // [v4.8.0 핵심] fallback/empty 그래프는 캐싱하지 않음 → 다음 렌더에 데이터 도착하면 다시 시도
-      // 정상 그래프(SVG 포함)만 캐시. fallback HTML은 buildGroupCardHTML의 || fallback이 처리
+      // fallback/empty 그래프는 캐싱하지 않음 → 데이터 도착 시 다음 렌더에서 재시도
       if (html && html.indexOf('gcc-fallback') < 0 && html.indexOf('gcc-empty') < 0) {
         g._gradeChartHtml = html;
       }
@@ -13020,6 +13026,24 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
         return { gradeCode: gradeCode, t: t, exchange: ex };
       }
 
+      // [v4.8.2] gradeCode 추출 우선순위 강화
+      // alertSnapshot.gradeCode → it.gradeCode → meta.gradeCode → it.gradeLabel → it.tier
+      // 단, 모두 없으면 null 반환 → filter(Boolean)에서 자동 제거 (하드코딩 금지)
+      function v482_extractGradeCode(it) {
+        if (!it) return null;
+        var m = it.meta || {};
+        var snap = (typeof v41_getAlertSnapshot === 'function') ? v41_getAlertSnapshot(it) : null;
+        var gc = (snap && snap.gradeCode)
+              || it.gradeCode
+              || m.gradeCode
+              || it.gradeLabel
+              || m.gradeLabel
+              || it.tier
+              || m.tier
+              || null;
+        return gc;
+      }
+
       var historyPoints = [];
       if (Array.isArray(rep.gradeHistory) && rep.gradeHistory.length > 0) {
         historyPoints = rep.gradeHistory.map(function(pt){ return normalizeGradeHistoryPoint(pt, rep.exchange); }).filter(Boolean);
@@ -13031,22 +13055,28 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
         });
         historyPoints = sortedItems.map(function(it){
           var m = it.meta || {};
+          var gc = v482_extractGradeCode(it);
+          if (!gc) return null;  // gradeCode 전혀 없으면 포인트 제외 (하드코딩 금지)
           return normalizeGradeHistoryPoint({
-            gradeCode: (v41_getAlertSnapshot && v41_getAlertSnapshot(it) && v41_getAlertSnapshot(it).gradeCode) || it.gradeCode || m.gradeCode,
+            gradeCode: gc,
             time: it.startedAt || m.windowStart || it.tierAssignedAt || 0,
             exchange: it.exchange || m.exchange || '',
           });
         }).filter(Boolean);
       }
 
-      // [v4.7.49] historyPoints 0개 → 대표 등급으로 1포인트 강제 생성 (빈 그래프 금지)
+      // [v4.8.2] historyPoints 0개 → 대표 등급으로 1포인트 시도
+      // 단, 실제 등급 소스가 없으면 빈 배열 유지 → fallback HTML로 처리
       if (historyPoints.length === 0) {
-        var fallbackGrade = rep.gradeCode || rep.gradeLabel || rep.tier || 'B';
-        historyPoints = [{
-          gradeCode: fallbackGrade,
-          t: rep.startedAt || rep.tierAssignedAt || Date.now(),
-          exchange: rep.exchange || '',
-        }];
+        var fallbackGrade = v482_extractGradeCode(rep);
+        if (fallbackGrade) {
+          historyPoints = [{
+            gradeCode: fallbackGrade,
+            t: rep.startedAt || rep.tierAssignedAt || Date.now(),
+            exchange: rep.exchange || '',
+          }];
+        }
+        // 등급 소스 전혀 없으면 historyPoints 빈 배열 유지 → 아래 displayCount/fallback에서 처리
       }
 
       // 헤더 횟수: gradeHistory.length || alertCount || items.length
@@ -13081,6 +13111,14 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
         return e.slice(0, 3);
       }
 
+      // [v4.8.2] historyPoints 빈 배열 안전 처리 — fallback 즉시 반환
+      if (historyPoints.length === 0) {
+        return '<div class="grade-change-chart gcc-fallback">'
+          + '<div class="gcc-header"><span class="gcc-title">📊 등급 변화</span></div>'
+          + '<div class="gcc-empty">등급 이력 수집 중</div>'
+          + '</div>';
+      }
+
       // 시간순 정렬
       historyPoints.sort(function(a, b){ return a.t - b.t; });
       var firstT = historyPoints[0].t || Date.now();
@@ -13099,7 +13137,42 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
         });
       }
 
-      // [v4.7.49] rawPoints 빈 배열 → 등급 인식 불가 fallback (빈 문자열 반환 금지)
+      // [v4.8.2] rawPoints 0개 — gradeHistory 분기로 들어왔지만 등급 인식 불가
+      // group.items 기반으로 재시도 (gradeHistory 자체가 부실한 경우 흔함)
+      if (rawPoints.length === 0 && Array.isArray(group.items) && group.items.length > 0) {
+        var v482_retryItems = group.items.slice().sort(function(a, b){
+          return (a.startedAt || a.tierAssignedAt || 0) - (b.startedAt || b.tierAssignedAt || 0);
+        });
+        var v482_retryPoints = [];
+        for (var ri = 0; ri < v482_retryItems.length; ri++) {
+          var rit = v482_retryItems[ri];
+          var rgc = v482_extractGradeCode(rit);
+          if (!rgc) continue;
+          var ryi = gIdx(rgc);
+          if (ryi < 0) continue;
+          var rt = rit.startedAt || (rit.meta && rit.meta.windowStart) || rit.tierAssignedAt || 0;
+          var rex = String(rit.exchange || (rit.meta && rit.meta.exchange) || '').toUpperCase();
+          v482_retryPoints.push({ t: rt, gradeCode: rgc, exchange: rex });
+        }
+        if (v482_retryPoints.length > 0) {
+          v482_retryPoints.sort(function(a, b){ return a.t - b.t; });
+          var v482_firstT = v482_retryPoints[0].t || Date.now();
+          for (var rj = 0; rj < v482_retryPoints.length; rj++) {
+            var rp = v482_retryPoints[rj];
+            var ryi2 = gIdx(rp.gradeCode);
+            if (ryi2 < 0) continue;
+            var rh = (rp.t - v482_firstT) / 3600000;
+            rawPoints.push({
+              t: rp.t, h: rh, yi: ryi2,
+              grade: gLabel(rp.gradeCode), ex: rp.exchange,
+              exColor: exColor(rp.exchange), exShort: exShort(rp.exchange),
+            });
+          }
+          if (rawPoints.length > 0) firstT = v482_firstT;
+        }
+      }
+
+      // [v4.8.2] rawPoints 여전히 빈 배열 → 등급 인식 완전 불가 fallback (빈 문자열 반환 금지)
       if (rawPoints.length === 0) {
         return '<div class="grade-change-chart gcc-fallback">'
           + '<div class="gcc-header"><span class="gcc-title">📊 등급 변화 (' + displayCount + '회)</span></div>'
@@ -13789,10 +13862,12 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
     /* [Phase 4.6.2] trackingModeReason 표시 (Phase 4.6.1 박제 활용) */
     function v462_buildModeReasonBadge(track) {
       var meta = track.meta || (track.keys && track.keys.meta && track.keys.meta.value) || {};
-      var mode = meta.trackingMode || 'light';
+      // [v4.8.2] meta.trackingMode 기준 제거 — group.displayMode 단일 기준
+      // standard일 때는 배지 표시 안 함 (deep/watch에서만 표시)
+      var displayMode = track._groupDisplayMode || track.displayMode || 'standard';
+      if (displayMode !== 'deep' && displayMode !== 'watch') return '';
       var reason = meta.trackingModeReason || '';
-      if (mode !== 'deep') return '';
-      
+
       var labelMap = {
         'entryReady': '진입 가능 신호',
         'watchlist': '⭐ 관심 등록',
@@ -13803,8 +13878,10 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       } else if (reason && reason.indexOf('sCount24-') === 0) {
         label = '24h S급 ' + reason.split('-')[1] + '회';
       }
-      
-      return '<span class="woos-mode-reason-badge">정밀분석 · ' + v40_escapeHtml(label) + '</span>';
+
+      // [v4.8.2] watch/deep 공통 라벨 — 'deep'은 정밀, 'watch'는 관심
+      var modeLabel = (displayMode === 'watch') ? '관심' : '정밀분석';
+      return '<span class="woos-mode-reason-badge">' + modeLabel + (label ? ' · ' + v40_escapeHtml(label) : '') + '</span>';
     }
     
     /* [Phase 4.6.2] 7일/24h 진행률 분기 (Phase 4.6.1 windowDays 박제 활용) */
@@ -14577,14 +14654,13 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       // "현재: A · 추적: 정밀·자동" 형식 (사용자 결정)
       var liveTierHeader = '';
       if (gradeCode || liveTier) {
-        // 추적 모드 라벨 (헤더 칩과 동일 우선순위)
+        // [v4.8.2] 추적 모드 라벨 — group.displayMode 단일 기준
+        // track.tier 기반 'A' → 정밀, 'B' → 표준 판정 완전 제거
         var v47bMode = '';
-        var v47bTier = String(track.tier || '').toUpperCase();
-        if (track.isWatchlist) v47bMode = '관심';
-        else if (track.isAutoPrecise) v47bMode = '정밀·자동';
-        else if (v47bTier === 'A') v47bMode = '정밀';
-        else if (v47bTier === 'B') v47bMode = '표준';
-        // C 등급 미표시
+        var v47bDisplayMode = track._groupDisplayMode || track.displayMode || 'standard';
+        if (v47bDisplayMode === 'watch') v47bMode = '관심';
+        else if (v47bDisplayMode === 'deep') v47bMode = track.isAutoPrecise ? '정밀·자동' : '정밀';
+        else v47bMode = '표준';
         
         liveTierHeader = '<div class="woos-tier-header">'
                        + '<span class="woos-tier-live">현재: <b>' + v40_escapeHtml(liveTier || gradeCode || '?') + '</b></span>';
