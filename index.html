@@ -5,7 +5,7 @@
 <script>
 /* [v4.7.42] 캐시 강제 리셋 — SW 완전 제거 후 리로드 */
 (function(){
-  var VER = '4747';
+  var VER = '4748';
   try {
     var LKEY = 'woos_hard_reset_ver';
     if (localStorage.getItem(LKEY) === VER) return;
@@ -6816,7 +6816,7 @@ async function opsDashboard() {
 // 탭 시 상세 팝업
 // ═══════════════════════════════════════════════════════════════
 
-var HTML_VERSION = 'v4.7.47';  // adaptItemToTrack 필드추가/buildModeChip 통일/그래프fallback
+var HTML_VERSION = 'v4.7.48';  // 상태파이프라인 통일: trackingMode보존/items기준정밀/getUiMode제거
 var _cachedBuildInfo = null;
 
 async function fetchBuildInfo() {
@@ -11073,15 +11073,16 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
     watchMap = watchMap || {};
     return (groups || []).map(function(g) {
       var base = String(g.base || '').toUpperCase();
-      var rep = g.representative || {};
+      var items = g.items || [];
       // 관심: watchMap 단독 기준
       var isWatch = !!watchMap[base];
-      // 정밀: getUiMode 와 동일 기준
-      var isDeep = !isWatch && (
-        rep.isAutoPrecise === true ||
-        rep.trackingMode === 'precise' ||
-        rep.trackingMode === 'deep'
-      );
+      // [v4.7.48] 정밀: representative 단독 아닌 group.items 전체 기준
+      // 대표거래소 우선순위와 정밀 판정이 섞이지 않도록 items.some() 사용
+      var isDeep = !isWatch && items.some(function(it) {
+        return it.isAutoPrecise === true ||
+               it.trackingMode === 'precise' ||
+               it.trackingMode === 'deep';
+      });
       g.isWatch = isWatch;
       g.isDeep = isDeep;
       g.isStandard = !isWatch && !isDeep;
@@ -12780,9 +12781,11 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
         if (mode === 'watch') return v4723_enforceWatchState(item);
         if (mode === 'deep') return item;
 
+        // [v4.7.48] trackingMode 강제 덮어쓰기 금지 — 원본 보존
+        // 기존: item.trackingMode = 'standard' → 오염 원인
         var start = Number(item.startedAt || item.tierAssignedAt || Date.now());
         var standardEnd = start + 24 * 3600 * 1000;
-        item.trackingMode = 'standard';
+        // trackingMode는 건드리지 않음
         item.windowDays = 1;
         item.windowEnd = standardEnd;
         item.endAt = standardEnd;
@@ -14906,11 +14909,9 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       //   - 표준 → "표준" 칩 (다크 회색)
       //   - C 등급 미표시 (사용자 결정)
       function v47_buildModeChip(track) {
-        // [v4.7.47] group.displayMode 우선 — getUiMode 직접 호출 제거
-        var uiMode = track._groupDisplayMode || track.displayMode || null;
+        // [v4.7.48] group.displayMode 단일 기준 — getUiMode 완전 제거
+        var uiMode = track._groupDisplayMode || track.displayMode || 'standard';
         if (uiMode === 'precise') uiMode = 'deep';
-        if (!uiMode && typeof getUiMode === 'function') uiMode = getUiMode(track);
-        if (!uiMode) uiMode = 'standard';
         if (uiMode === 'watch') return '<span class="hdr-mode-chip mode-watch">관심</span>';
         if (uiMode === 'deep') return '<span class="hdr-mode-chip mode-precise">정밀</span>';
         return '<span class="hdr-mode-chip mode-standard">표준</span>';
