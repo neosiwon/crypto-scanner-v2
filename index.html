@@ -5,7 +5,7 @@
 <script>
 /* [v4.7.42] 캐시 강제 리셋 — SW 완전 제거 후 리로드 */
 (function(){
-  var VER = '4803';
+  var VER = '4900-corev2-32';
   try {
     var LKEY = 'woos_hard_reset_ver';
     if (localStorage.getItem(LKEY) === VER) return;
@@ -6816,7 +6816,7 @@ async function opsDashboard() {
 // 탭 시 상세 팝업
 // ═══════════════════════════════════════════════════════════════
 
-var HTML_VERSION = 'v4.8.3';  // 박제값OR병합/cache병합시박제값보존/preciseReason/그래프문구변경/정밀디버그로그
+var HTML_VERSION = 'v4.9.0-corev2-v3.2';  // Core v2 v3.2 watchSlot/autoDeepSlot 분리 적용
 var _cachedBuildInfo = null;
 
 async function fetchBuildInfo() {
@@ -10277,71 +10277,11 @@ window.addEventListener('load', async function(){
     if (meta.status === 'active') {
       var W42 = global.WOOS_ANALYZER;
       if (W42 && typeof W42.buildGroupCardHTML === 'function' && typeof W42.adaptItemToTrack === 'function') {
-        // [v4.8.3] item 박제값 누락 방지 — _activeItemsCache 우선, 없으면 td/meta에서 보강
-        var v483_cachedItem = null;
-        try {
-          var v483_active = window._activeItemsCache || [];
-          for (var v483_i = 0; v483_i < v483_active.length; v483_i++) {
-            if (v483_active[v483_i].id === meta.snapshotId || v483_active[v483_i].snapshotId === meta.snapshotId) {
-              v483_cachedItem = v483_active[v483_i];
-              break;
-            }
-          }
-        } catch(e) {}
         // adaptItemToTrack 입력: item + td → track
-        // 박제 필드 OR 병합 (td/meta/cachedItem 어디든 truthy면 true 유지)
-        var item = {
-          id: meta.snapshotId, tier: meta.tier, tierAssignedAt: meta.tierAssignedAt,
-          base: meta.base, exchange: meta.exchange,
-          gradeCode: meta.gradeCode, gradeLabel: meta.gradeLabel,
-          startedAt: meta.windowStart || meta.tierAssignedAt, windowEnd: meta.windowEnd,
-          // [v4.8.3] 박제값 — _activeItemsCache 우선, td/meta fallback
-          isAutoPrecise: ((v483_cachedItem && v483_cachedItem.isAutoPrecise === true)
-            || (trackingData && trackingData.isAutoPrecise === true)
-            || (meta.isAutoPrecise === true)),
-          isWatchlist: ((v483_cachedItem && v483_cachedItem.isWatchlist === true)
-            || (trackingData && trackingData.isWatchlist === true)
-            || (meta.isWatchlist === true)),
-          tierARejected: ((v483_cachedItem && v483_cachedItem.tierARejected === true)
-            || (trackingData && trackingData.tierARejected === true)
-            || (meta.tierARejected === true)),
-          sCount24: Math.max(
-            Number((v483_cachedItem && v483_cachedItem.sCount24) || 0),
-            Number((trackingData && trackingData.sCount24) || 0),
-            Number(meta.sCount24 || 0)
-          ),
-          aCount24: Math.max(
-            Number((v483_cachedItem && v483_cachedItem.aCount24) || 0),
-            Number((trackingData && trackingData.aCount24) || 0),
-            Number(meta.aCount24 || 0)
-          ),
-          preciseReason: (v483_cachedItem && v483_cachedItem.preciseReason)
-            || (trackingData && trackingData.preciseReason)
-            || meta.preciseReason || null,
-          // 박제 가격/통계
-          lastPrice: (v483_cachedItem && v483_cachedItem.lastPrice) != null ? v483_cachedItem.lastPrice : null,
-          currentPct: (v483_cachedItem && v483_cachedItem.currentPct) != null ? v483_cachedItem.currentPct : null,
-          mfe: (v483_cachedItem && v483_cachedItem.mfe) != null ? v483_cachedItem.mfe : null,
-          mae: (v483_cachedItem && v483_cachedItem.mae) != null ? v483_cachedItem.mae : null,
-          lastSampleT: (v483_cachedItem && v483_cachedItem.lastSampleT) != null ? v483_cachedItem.lastSampleT : null,
-          // gradeHistory 보존
-          gradeHistory: (v483_cachedItem && v483_cachedItem.gradeHistory)
-            || (trackingData && trackingData.gradeHistory)
-            || meta.gradeHistory || [],
-        };
+        var item = { id: meta.snapshotId, tier: meta.tier, tierAssignedAt: meta.tierAssignedAt, base: meta.base, exchange: meta.exchange,
+                     gradeCode: meta.gradeCode, gradeLabel: meta.gradeLabel, startedAt: meta.windowStart || meta.tierAssignedAt, windowEnd: meta.windowEnd };
         var track = W42.adaptItemToTrack(item, trackingData);
         var groups = W42.groupTracks([track]);
-        // [v4.8.0] 단일 진입점 — 4번째 진입점 (알람 테이블 디테일 행) 정규화 누락 해결
-        try {
-          var watchMap = (typeof v4743_buildWatchMap === 'function') ? v4743_buildWatchMap() : {};
-          if (typeof v48_prepareGroupsForRender === 'function') {
-            groups = v48_prepareGroupsForRender(groups, watchMap);
-          } else if (typeof window !== 'undefined' && typeof window.v48_prepareGroupsForRender === 'function') {
-            groups = window.v48_prepareGroupsForRender(groups, watchMap);
-          }
-        } catch(e) {
-          console.error('[renderAnalyzerCard prepare]', e);
-        }
         if (groups.length > 0) {
           return W42.buildGroupCardHTML(groups[0], { isFirstRender: false });
         }
@@ -11023,7 +10963,7 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
         container.innerHTML = '<div class="analyzer-timeout-box">'
           + '<b>추적 데이터를 불러오지 못했습니다</b><br>'
           + '12초 안에 Worker 응답이 없었습니다. 잠시 후 다시 시도하세요.<br>'
-          + '<button type="button" onclick="renderAnalyzerSection && renderAnalyzerSection()">다시 불러오기</button>'
+          + '<button type="button" onclick="renderAnalyzerSection()">다시 불러오기</button>'
           + '</div>';
         return;
       }
@@ -11071,8 +11011,7 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
           tierARejected: item.tierARejected || false,
           sCount24: item.sCount24 || 0,
           aCount24: item.aCount24 || 0,
-          // [v4.7.51] alertCount = 1 고정 — xN/멀티는 group.items.length 단일 기준
-          alertCount: 1,
+          alertCount: item.alertCount || item.alarmCount24 || item.sCount24 || item.aCount24 || 1,
         };
       });
       // [v4.7.23] 관심 코인은 fetchTrackingActive 결과가 표준 8h로 내려와도 렌더 전 7d 상태를 재합성한다.
@@ -11129,140 +11068,70 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
     return watchMap;
   }
 
-  // [v4.7.43] 2단계: group flags 정규화
+  // [v4.9.0 Core v2] 2단계: group flags 정규화
+  // - watchSlot / autoDeepSlot 분리
+  // - prePump, tier, trackingMode, windowDays 판단 금지
+  // - S+ ready 2 / S+ 3 / S 4 / A 이상 5 조건식 기준
   function v4743_normalizeGroupFlags(groups, watchMap) {
     watchMap = watchMap || {};
     return (groups || []).map(function(g) {
-      var base = String(g.base || '').toUpperCase();
-      var items = g.items || [];
-      // [v4.8.2] 관심: watchMap(localStorage) OR items.isWatchlist 박제값
-      var isWatch = !!watchMap[base] || items.some(function(it) {
-        return it && it.isWatchlist === true;
-      });
-      // [v4.8.2] 정밀: isAutoPrecise(Worker 박제) 단독 기준
-      var isDeep = !isWatch && items.some(function(it) {
-        return it && it.isAutoPrecise === true;
-      });
-      g.isWatch = isWatch;
-      g.isDeep = isDeep;
-      g.isStandard = !isWatch && !isDeep;
-      g.displayMode = isWatch ? 'watch' : (isDeep ? 'deep' : 'standard');
-      // group 카운트/멀티 — 렌더 단일 기준
-      g._groupCount = items.length;
-      g._isMultiGroup = items.length >= 2;
-      // [v4.8.3] 디버그/UI 표시용 필드 — preciseReason/sCount24/aCount24 보존
-      // 정밀 카드에 "왜 정밀인지" 표시 가능하게 + 검증 디버그용
-      if (isDeep || isWatch) {
-        // items 중 가장 강한 reason 선택
-        var debugReason = null;
-        var debugSource = null;
-        var maxS = 0, maxA = 0;
-        items.forEach(function(it) {
-          if (!it) return;
-          maxS = Math.max(maxS, Number(it.sCount24 || 0));
-          maxA = Math.max(maxA, Number(it.aCount24 || 0));
-          if (!debugReason) {
-            if (it.preciseReason) {
-              debugReason = it.preciseReason;
-              debugSource = 'item.preciseReason';
-            } else if (it.isWatchlist === true) {
-              debugReason = 'watchlist';
-              debugSource = 'item.isWatchlist';
-            } else if (it.isAutoPrecise === true) {
-              debugReason = 'autoPrecise';
-              debugSource = 'item.isAutoPrecise';
-            }
-          }
-        });
-        g._preciseReason = debugReason || (isWatch ? 'watchlist-map' : null);
-        g._preciseSource = debugSource || (isWatch && watchMap[base] ? 'watchMap' : null);
-        g._sCount24Max = maxS;
-        g._aCount24Max = maxA;
-      } else {
-        g._preciseReason = null;
-        g._preciseSource = null;
-        g._sCount24Max = 0;
-        g._aCount24Max = 0;
+      var model = null;
+      try {
+        if (typeof v49_evaluateGroupCoreV2 === 'function') {
+          model = v49_evaluateGroupCoreV2(g, { watchMap: watchMap, now: Date.now() });
+        }
+      } catch(e) {
+        try { console.warn('[CoreV2 group normalize fallback]', e && e.message ? e.message : e); } catch(_e) {}
       }
+
+      if (model && model.analysisMode) {
+        var dm = model.analysisMode;
+        g._coreV2State = model;
+        g.displayMode = dm;
+        g.isWatch = dm === 'watch';
+        g.isDeep = dm === 'deep';
+        g.isStandard = dm === 'standard';
+        g.coreV2Reason = model.reason;
+        g.trackingWindow = model.trackingWindow;
+        if (g.representative) {
+          g.representative._coreV2State = model;
+          g.representative.displayMode = dm;
+          g.representative._groupDisplayMode = dm;
+          g.representative.isWatchlist = dm === 'watch';
+          g.representative.isAutoPrecise = dm === 'deep';
+          if (model.trackingWindow) {
+            g.representative.windowDays = model.trackingWindow.windowDays;
+            g.representative.windowEnd = model.trackingWindow.endsAt;
+            g.representative.endAt = model.trackingWindow.endsAt;
+            g.representative.startedAt = model.trackingWindow.startedAt || g.representative.startedAt;
+          }
+        }
+        try {
+          (g.items || []).forEach(function(it){
+            if (!it) return;
+            it._coreV2State = model;
+            it.displayMode = dm;
+            it._groupDisplayMode = dm;
+            if (dm === 'watch') it.isWatchlist = true;
+            if (model.trackingWindow) {
+              it.windowDays = model.trackingWindow.windowDays;
+              it.windowEnd = model.trackingWindow.endsAt;
+              it.endAt = model.trackingWindow.endsAt;
+            }
+          });
+        } catch(_e2) {}
+        return g;
+      }
+
+      // Core v2 실패 시에도 watchMap만은 보존하고, legacy deep 판정은 쓰지 않는다.
+      var base = String(g.base || '').toUpperCase();
+      var isWatch = !!watchMap[base];
+      g.isWatch = isWatch;
+      g.isDeep = false;
+      g.isStandard = !isWatch;
+      g.displayMode = isWatch ? 'watch' : 'standard';
       return g;
     });
-  }
-
-  // [v4.8.0] 단일 진입점 — 모든 렌더 경로가 호출
-  // 책임: (1) normalizeGroupFlags (2) lazy 그래프 캐싱 (3) rep 주입
-  // 핵심 회귀 수정: 부실 그래프(fallback/empty)는 캐싱하지 않음 → 데이터 도착 시 자동 갱신
-  function v48_prepareGroupsForRender(groups, watchMap) {
-    if (!Array.isArray(groups) || groups.length === 0) return groups || [];
-    watchMap = watchMap || {};
-    // 1. 상태 정규화
-    groups = v4743_normalizeGroupFlags(groups, watchMap);
-    // 2. 그래프 lazy 캐싱 — 부실 캐시 영구 보존 방지
-    // [v4.8.1] 스코프 버그 수정: WOOS_ANALYZER 등록 후 시점에 함수 참조를 가져옴
-    groups.forEach(function(g) {
-      if (g._gradeChartHtml) return;  // 이미 정상 캐시 있으면 유지
-      // 매 호출 시점에 함수 참조 — WOOS_ANALYZER 등록 타이밍과 무관
-      var _buildChart = null;
-      try {
-        if (typeof window !== 'undefined' && window.WOOS_ANALYZER && typeof window.WOOS_ANALYZER.buildGradeChangeChart === 'function') {
-          _buildChart = window.WOOS_ANALYZER.buildGradeChangeChart;
-        } else if (typeof v47_buildGradeChangeChart === 'function') {
-          _buildChart = v47_buildGradeChangeChart;
-        }
-      } catch(e) {}
-      if (!_buildChart) return;
-      var html = '';
-      try {
-        html = _buildChart(g);
-      } catch(e) {
-        console.error('[v48_prepareGroupsForRender] gradeChart fail', g && g.base, e);
-        html = '';
-      }
-      // fallback/empty 그래프는 캐싱하지 않음 → 데이터 도착 시 다음 렌더에서 재시도
-      if (html && html.indexOf('gcc-fallback') < 0 && html.indexOf('gcc-empty') < 0) {
-        g._gradeChartHtml = html;
-      }
-    });
-    // 3. representative에 group 상태 주입
-    groups.forEach(function(g) {
-      var rep = g.representative || (g.items && g.items[0]);
-      if (!rep) return;
-      rep._groupDisplayMode = g.displayMode || 'standard';
-      rep.displayMode = g.displayMode || 'standard';
-      rep._groupCount = (g.items && g.items.length) || 1;
-      rep._isMultiGroup = (g.items && g.items.length >= 2) || false;
-      rep.alertCount = (g.items && g.items.length) || 1;
-      // [v4.8.3] rep에 디버그 필드도 주입
-      rep._preciseReason = g._preciseReason || null;
-      rep._preciseSource = g._preciseSource || null;
-    });
-    // [v4.8.3] 정밀 코인 검증 디버그 로그 — window.WOOS_DEBUG_PRECISE = true 시만 출력
-    // 검증 방법: 콘솔에서 window.WOOS_DEBUG_PRECISE = true 설정 후 카드 새로고침
-    try {
-      if (typeof window !== 'undefined' && window.WOOS_DEBUG_PRECISE === true && typeof console !== 'undefined' && console.table) {
-        var debugRows = groups.filter(function(g){ return g.displayMode === 'deep' || g.displayMode === 'watch'; })
-          .map(function(g){
-            var firstItem = (g.items && g.items[0]) || {};
-            return {
-              base: g.base,
-              displayMode: g.displayMode,
-              groupCount: (g.items && g.items.length) || 0,
-              isAutoPrecise: !!firstItem.isAutoPrecise,
-              isWatchlist: !!firstItem.isWatchlist,
-              preciseReason: g._preciseReason || '(none)',
-              source: g._preciseSource || '(none)',
-              sCount24: g._sCount24Max || 0,
-              aCount24: g._aCount24Max || 0,
-            };
-          });
-        console.log('[v4.8.3 정밀 검증] 총 ' + debugRows.length + '개 (deep/watch)');
-        console.table(debugRows);
-      }
-    } catch(e) {}
-    return groups;
-  }
-  // 전역 노출 — 다른 스코프에서도 사용 가능
-  if (typeof window !== 'undefined') {
-    window.v48_prepareGroupsForRender = v48_prepareGroupsForRender;
   }
 
   // [v4.7.43] 3단계: group 기준 카운트 집계 (7개 필터 기준)
@@ -11384,15 +11253,6 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
     var watchMap = v4743_buildWatchMap();
     var af = (typeof _activeStatFilter !== 'undefined') ? _activeStatFilter : 'all';
 
-    // [v4.7.45] 파이프라인 조건 누락 시 로그
-    if (!(W && typeof W.adaptItemToTrack === 'function' && typeof W.groupTracks === 'function')) {
-      console.error('[GROUP_PIPELINE_MISSING]', {
-        hasWOOS: !!W,
-        adapt: W && typeof W.adaptItemToTrack,
-        group: W && typeof W.groupTracks,
-      });
-    }
-
     if (W && typeof W.adaptItemToTrack === 'function' && typeof W.groupTracks === 'function') {
       var allTracks = (_activeItemsCache || []).map(function(item){
         try { return W.adaptItemToTrack(item, _trackingMap[item.id] || null); } catch(e) { return null; }
@@ -11409,8 +11269,17 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       }
 
       allGroups = W.groupTracks(allTracks);
-      // [v4.8.0] 단일 진입점 — 정규화 + lazy 그래프 캐싱 + rep 주입 통합
-      allGroups = v48_prepareGroupsForRender(allGroups, watchMap);
+      allGroups = v4743_normalizeGroupFlags(allGroups, watchMap);
+
+      // [v4.7.45] 그래프 HTML 캐싱 — allGroups 생성 직후 1회만, 실패해도 렌더 계속
+      allGroups.forEach(function(g) {
+        try {
+          g._gradeChartHtml = v47_buildGradeChangeChart(g);
+        } catch(e) {
+          console.error('[GRADE_CHART_CACHE_FAIL]', g.base, e && e.message ? e.message : e);
+          g._gradeChartHtml = '';
+        }
+      });
     }
 
     // counts는 allGroups 기준 (필터 무관)
@@ -11951,9 +11820,6 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       escapeHtml: escapeHtml,
     },
   };
-
-  // [v4.7.45] renderAnalyzerSection 전역 노출 — 버튼 onclick 직접 호출용
-  global.renderAnalyzerSection = renderAnalyzerSection;
   
   /* ═══════════════════════════════════════════════════════════════
    * [Phase 4.0] Realtime Graph 분석기 모듈 (인라인 통합)
@@ -12884,9 +12750,15 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       return item;
     }
 
-    /* [v4.7.13] UI 전용 상태 판정 단일화: watch / deep / standard */
+    /* [v4.9.0 Core v2] UI 전용 상태 판정 단일화: watch / deep / standard
+       - tier A/B, trackingMode, windowDays/windowEnd 로 판단하지 않음
+       - group pipeline 에서 주입한 Core v2 state 를 1순위로 사용 */
     function getUiMode(item) {
       try {
+        if (item && item._coreV2State && item._coreV2State.analysisMode) return item._coreV2State.analysisMode;
+        if (item && item.displayMode) return item.displayMode;
+        if (item && item._groupDisplayMode) return item._groupDisplayMode;
+
         var base = item && (item.base || (item.meta && item.meta.base)) || '';
         var isWatch = !!(item && item.isWatchlist);
         try {
@@ -12894,21 +12766,15 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
             isWatch = v44_isWatchlist(base);
           }
         } catch(e) {}
-
         if (isWatch) return 'watch';
 
-        // [v4.7.30] windowDays>=7 단독으로 정밀 판정 금지.
-        // SOLV/API3처럼 표준인데 서버 windowEnd가 길게 들어온 케이스를 정밀/7d로 오판하지 않게 함.
-        if (
-          item &&
-          (
-            item.isAutoPrecise === true ||
-            item.trackingMode === 'deep' ||
-            item.trackingMode === 'precise'
-          )
-        ) {
-          return 'deep';
-        }
+        // 단일 item 경로 fallback: legacy raw 가 아니라 Core v2 item 평가만 사용
+        try {
+          if (typeof v49_evaluateItemCoreV2 === 'function') {
+            var m = v49_evaluateItemCoreV2(item, { now: Date.now() });
+            if (m && m.analysisMode) return m.analysisMode;
+          }
+        } catch(e2) {}
 
         return 'standard';
       } catch(e) {
@@ -12937,30 +12803,468 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
     }
     
 
+
+
+    /* ═══════════════════════════════════════════════════════════════
+     * [v4.9.0 Core v2 v3.2] 분석기 상태 머신
+     * - watchSlot / autoDeepSlot 완전 분리
+     * - watch 중 autoDeepSlot 백그라운드 갱신
+     * - S+ ready 2 / S+ 3 / S 4 / A 이상 5 조건식
+     * - prePump, tier, trackingMode, windowDays 판단 금지
+     * ═══════════════════════════════════════════════════════════════ */
+    var V49_CORE_V2_SLOT_KEY = 'woos_core_v2_slots_v32';
+    var V49_DAY_MS = 24 * 3600 * 1000;
+    var V49_SEVEN_DAYS_MS = 7 * V49_DAY_MS;
+
+    function v49_parseBool(value) {
+      if (value === true) return true;
+      if (value === false) return false;
+      if (value === 1) return true;
+      if (value === 0) return false;
+      var s = String(value == null ? '' : value).trim().toLowerCase();
+      if (s === 'true' || s === '1' || s === 'yes' || s === 'y' || s === 'on') return true;
+      if (s === 'false' || s === '0' || s === 'no' || s === 'n' || s === 'off' || s === '') return false;
+      return false;
+    }
+
+    function v49_normalizeTimeMs(value) {
+      if (value == null) return null;
+      if (typeof value === 'string') {
+        var parsed = Date.parse(value);
+        if (!Number.isNaN(parsed)) return parsed;
+      }
+      var n = Number(value);
+      if (!isFinite(n) || n <= 0) return null;
+      if (n < 1e12) return n * 1000;
+      return n;
+    }
+
+    function v49_normalizeGradeCode(raw) {
+      if (raw == null) return null;
+      var s = String(raw).trim().toUpperCase();
+      if (s === 'S+' || s === 'SPLUS' || s === 'S_PLUS' || s === 'S PLUS') return 'S+';
+      if (s === 'S') return 'S';
+      if (s === 'A') return 'A';
+      return null;
+    }
+
+    function v49_formatGradeCode(raw) {
+      return v49_normalizeGradeCode(raw) || '';
+    }
+
+    function v49_normalizeBase(raw) {
+      var x = String(raw || '').toUpperCase().trim();
+      if (!x) return '';
+      x = x.replace(/^KRW[-_\/]?/, '').replace(/^USDT[-_\/]?/, '').replace(/[-_\/]?USDT$/, '').replace(/[-_\/]?KRW$/, '').replace(/[-_\/]/g, '');
+      return x;
+    }
+
+    function v49_normalizeExchange(raw) {
+      return String(raw || 'UNKNOWN').toUpperCase().trim() || 'UNKNOWN';
+    }
+
+    function v49_loadSlotsMap() {
+      try {
+        var raw = (typeof localStorage !== 'undefined') ? localStorage.getItem(V49_CORE_V2_SLOT_KEY) : null;
+        var obj = raw ? JSON.parse(raw) : {};
+        return (obj && typeof obj === 'object' && !Array.isArray(obj)) ? obj : {};
+      } catch(e) { return {}; }
+    }
+
+    function v49_saveSlotsMap(map) {
+      try {
+        if (typeof localStorage !== 'undefined') localStorage.setItem(V49_CORE_V2_SLOT_KEY, JSON.stringify(map || {}));
+      } catch(e) {}
+    }
+
+    function v49_getBaseState(base) {
+      var b = v49_normalizeBase(base);
+      if (!b) return {};
+      var map = v49_loadSlotsMap();
+      var st = map[b];
+      return (st && typeof st === 'object') ? st : {};
+    }
+
+    function v49_setBaseState(base, state) {
+      var b = v49_normalizeBase(base);
+      if (!b) return;
+      var map = v49_loadSlotsMap();
+      map[b] = state || {};
+      v49_saveSlotsMap(map);
+    }
+
+    function v49_signalDedupeKey(signal, idx) {
+      var base = v49_normalizeBase(signal.base);
+      var ex = v49_normalizeExchange(signal.exchange);
+      var grade = v49_normalizeGradeCode(signal.gradeCode) || 'UNKNOWN';
+      var id = signal.signalId || signal.snapshotId || signal.eventId || signal.id;
+      var timeMs = v49_normalizeTimeMs(signal.time || signal.timestamp || signal.createdAt || signal.t || signal.ts);
+      if (id) return String(id) + '|' + base + '|' + ex + '|' + grade;
+      if (timeMs) return base + '|' + ex + '|' + grade + '|' + timeMs;
+      return null;
+    }
+
+    function v49_dedupeSignals(signals) {
+      var seen = {};
+      var valid = [];
+      var invalid = [];
+      (signals || []).forEach(function(sig, idx){
+        if (!sig) return;
+        var key = v49_signalDedupeKey(sig, idx);
+        if (!key) {
+          invalid.push({ reason: 'NO_ID_NO_TIME', signal: sig });
+          return;
+        }
+        if (seen[key]) return;
+        seen[key] = true;
+        sig._dedupeKey = key;
+        valid.push(sig);
+      });
+      return { validSignals: valid, invalidSignals: invalid };
+    }
+
+    function v49_readAlertSnapshot(track) {
+      try {
+        if (!track) return null;
+        if (track.snapshot && typeof track.snapshot === 'object') return track.snapshot;
+        if (track.alertSnapshot && typeof track.alertSnapshot === 'object') return track.alertSnapshot;
+        var meta = track.meta || {};
+        if (meta.alertSnapshot && typeof meta.alertSnapshot === 'object') return meta.alertSnapshot;
+        if (typeof v41_getAlertSnapshot === 'function') return v41_getAlertSnapshot(track);
+      } catch(e) {}
+      return null;
+    }
+
+    function v49_signalFromTrack(track, idx) {
+      track = track || {};
+      var meta = track.meta || {};
+      var snap = v49_readAlertSnapshot(track) || {};
+      var base = v49_normalizeBase(track.base || meta.base || snap.base || '');
+      var exchange = v49_normalizeExchange(track.exchange || meta.exchange || snap.exchange || 'UNKNOWN');
+      var grade = v49_normalizeGradeCode(
+        snap.gradeCode || snap.gradeLabel || track.gradeCode || track.gradeLabel || meta.gradeCode || meta.gradeLabel
+      );
+      var timeMs = v49_normalizeTimeMs(
+        snap.time || snap.timestamp || snap.createdAt || track.lastDuplicateAlertAt || track.startedAt || track.tierAssignedAt || meta.lastDuplicateAlertAt || meta.windowStart || meta.tierAssignedAt
+      );
+      var entryReady = v49_parseBool(
+        snap.entryReady != null ? snap.entryReady :
+        (snap.isEntryReady != null ? snap.isEntryReady :
+        (track.entryReady != null ? track.entryReady :
+        (track.isEntryReady != null ? track.isEntryReady :
+        (meta.entryReady != null ? meta.entryReady : meta.isEntryReady))))
+      );
+      var alertType = String(snap.alertType || track.alertType || meta.alertType || '').toUpperCase();
+      if (!entryReady && (alertType === 'ENTRY' || alertType === 'ENTRY_READY')) entryReady = true;
+      return {
+        signalId: track.signalId || snap.signalId || track.snapshotId || track.id || meta.snapshotId || ('track_' + idx),
+        snapshotId: track.snapshotId || track.id || meta.snapshotId || null,
+        eventId: track.eventId || snap.eventId || null,
+        base: base,
+        exchange: exchange,
+        gradeCode: grade,
+        gradeLabel: grade,
+        entryReady: entryReady,
+        setupState: entryReady ? 'entryReady' : (v49_parseBool(snap.prePump || track.prePump || meta.prePump) ? 'prePump' : null),
+        time: timeMs,
+        source: 'track-current'
+      };
+    }
+
+    function v49_historySignalFromPoint(point, track, idx) {
+      point = point || {};
+      track = track || {};
+      var meta = track.meta || {};
+      var base = v49_normalizeBase(point.base || track.base || meta.base || '');
+      var exchange = v49_normalizeExchange(point.exchange || point.ex || track.exchange || meta.exchange || 'UNKNOWN');
+      var grade = v49_normalizeGradeCode(point.gradeCode || point.gradeLabel || point.grade || point.tier);
+      var timeMs = v49_normalizeTimeMs(point.time || point.t || point.ts || point.timestamp || point.createdAt);
+      var entryReady = v49_parseBool(point.entryReady != null ? point.entryReady : point.isEntryReady);
+      var alertType = String(point.alertType || '').toUpperCase();
+      if (!entryReady && (alertType === 'ENTRY' || alertType === 'ENTRY_READY')) entryReady = true;
+      var baseId = track.snapshotId || track.id || meta.snapshotId || 'track';
+      return {
+        signalId: point.signalId || point.snapshotId || point.eventId || (baseId + '|gh|' + idx),
+        snapshotId: point.snapshotId || baseId,
+        eventId: point.eventId || null,
+        base: base,
+        exchange: exchange,
+        gradeCode: grade,
+        gradeLabel: grade,
+        entryReady: entryReady,
+        setupState: entryReady ? 'entryReady' : (v49_parseBool(point.prePump) ? 'prePump' : null),
+        time: timeMs,
+        source: 'grade-history'
+      };
+    }
+
+    function v49_collectSignalsFromGroup(group) {
+      var out = [];
+      var items = (group && Array.isArray(group.items)) ? group.items : [];
+      items.forEach(function(track, ti){
+        if (!track) return;
+        var meta = track.meta || {};
+        var hist = [];
+        if (Array.isArray(track.gradeHistory)) hist = hist.concat(track.gradeHistory);
+        if (Array.isArray(meta.gradeHistory)) hist = hist.concat(meta.gradeHistory);
+        if (hist.length) {
+          hist.forEach(function(pt, hi){
+            var sig = v49_historySignalFromPoint(pt, track, ti + '_' + hi);
+            if (sig && sig.gradeCode) out.push(sig);
+          });
+        }
+        var cur = v49_signalFromTrack(track, ti);
+        if (cur && cur.gradeCode) out.push(cur);
+      });
+      return out;
+    }
+
+    function v49_filterSignalsWithin24h(signals, now) {
+      now = now || Date.now();
+      return (signals || []).filter(function(sig){
+        var t = v49_normalizeTimeMs(sig.time || sig.timestamp || sig.createdAt);
+        return t && (now - t <= V49_DAY_MS) && (now >= t - 60000);
+      });
+    }
+
+    function v49_buildQualificationEventId(reason, sourceSignalIds) {
+      var ids = (sourceSignalIds || []).filter(Boolean).map(String).sort();
+      return reason + ':' + ids.join('|');
+    }
+
+    function v49_evaluateQualification(args) {
+      args = args || {};
+      var now = args.now || Date.now();
+      var recent = v49_filterSignalsWithin24h(args.signals || [], now);
+      var counts = { sPlusReadyCount24: 0, sPlusCount24: 0, sOnlyCount24: 0, aPlusCount24: 0 };
+      var byReason = { S_PLUS_READY_2_PLUS: [], S_PLUS_3_PLUS: [], S_4_PLUS: [], A_PLUS_5_PLUS: [] };
+
+      recent.forEach(function(sig){
+        var grade = v49_normalizeGradeCode(sig.gradeCode || sig.gradeLabel);
+        var ready = v49_parseBool(sig.entryReady);
+        var id = sig.signalId || sig.snapshotId || sig.eventId || sig._dedupeKey;
+        if (grade === 'S+') {
+          counts.sPlusCount24++;
+          counts.aPlusCount24++;
+          byReason.S_PLUS_3_PLUS.push(id);
+          byReason.A_PLUS_5_PLUS.push(id);
+          if (ready) {
+            counts.sPlusReadyCount24++;
+            byReason.S_PLUS_READY_2_PLUS.push(id);
+          }
+        } else if (grade === 'S') {
+          counts.sOnlyCount24++;
+          counts.aPlusCount24++;
+          byReason.S_4_PLUS.push(id);
+          byReason.A_PLUS_5_PLUS.push(id);
+        } else if (grade === 'A') {
+          counts.aPlusCount24++;
+          byReason.A_PLUS_5_PLUS.push(id);
+        }
+      });
+
+      var qualified = false, reason = 'NOT_QUALIFIED', sourceSignalIds = [];
+      if (counts.sPlusReadyCount24 >= 2) {
+        qualified = true; reason = 'S_PLUS_READY_2_PLUS'; sourceSignalIds = byReason.S_PLUS_READY_2_PLUS.slice(-2);
+      } else if (counts.sPlusCount24 >= 3) {
+        qualified = true; reason = 'S_PLUS_3_PLUS'; sourceSignalIds = byReason.S_PLUS_3_PLUS.slice(-3);
+      } else if (counts.sOnlyCount24 >= 4) {
+        qualified = true; reason = 'S_4_PLUS'; sourceSignalIds = byReason.S_4_PLUS.slice(-4);
+      } else if (counts.aPlusCount24 >= 5) {
+        qualified = true; reason = 'A_PLUS_5_PLUS'; sourceSignalIds = byReason.A_PLUS_5_PLUS.slice(-5);
+      }
+      var eventId = qualified ? v49_buildQualificationEventId(reason, sourceSignalIds) : null;
+      return {
+        qualified: qualified,
+        reason: reason,
+        counts: counts,
+        sourceSignalIds: sourceSignalIds,
+        qualificationEventId: eventId,
+        qualifiedAt: qualified ? now : null,
+        confidence: 'confirmed',
+        recentSignalCount24: recent.length
+      };
+    }
+
+    function v49_reconcileAutoDeepSlot(args) {
+      args = args || {};
+      var existing = args.existingAutoDeepSlot || null;
+      var qualification = args.qualification || null;
+      var now = args.now || Date.now();
+      var existingAlive = !!(existing && Number(existing.endsAt) > now);
+      if (!qualification || qualification.qualified !== true) {
+        if (existingAlive) {
+          var restored = Object.assign({}, existing);
+          restored.isNew = false;
+          return restored;
+        }
+        return null;
+      }
+      var eventId = qualification.qualificationEventId;
+      if (existingAlive && existing.qualificationEventId === eventId) {
+        var same = Object.assign({}, existing);
+        same.isNew = false;
+        return same;
+      }
+      var qualifiedAt = qualification.qualifiedAt || now;
+      return {
+        slotType: 'auto',
+        startedAt: qualifiedAt,
+        endsAt: qualifiedAt + V49_SEVEN_DAYS_MS,
+        reason: qualification.reason,
+        qualificationEventId: eventId,
+        sourceSignalIds: qualification.sourceSignalIds || [],
+        isNew: true
+      };
+    }
+
+    function v49_reconcileWatchSlot(args) {
+      args = args || {};
+      var watchState = args.watchState || {};
+      var existing = args.existingWatchSlot || null;
+      var now = args.now || Date.now();
+      if (watchState.isWatch !== true) return null;
+      var registeredAt = v49_normalizeTimeMs(watchState.registeredAt) || v49_normalizeTimeMs(existing && existing.startedAt) || now;
+      var endsAt = v49_normalizeTimeMs(watchState.watchEndsAt) || (now + V49_SEVEN_DAYS_MS);
+      return { slotType: 'watch', startedAt: registeredAt, endsAt: endsAt, reason: 'USER_WATCH' };
+    }
+
+    function v49_buildStandardWindow(args) {
+      args = args || {};
+      var now = args.now || Date.now();
+      var existing = args.existingStandardWindow || null;
+      if (existing && Number(existing.endsAt) > now) return existing;
+      var signals = args.signals || [];
+      var times = signals.map(function(sig){ return v49_normalizeTimeMs(sig.time || sig.timestamp || sig.createdAt); }).filter(function(t){ return !!t; });
+      var startedAt = times.length ? Math.min.apply(null, times) : now;
+      return { slotType: 'standard', startedAt: startedAt, endsAt: startedAt + V49_DAY_MS, reason: 'STANDARD_24H' };
+    }
+
+    function v49_resolveVisibleAnalysisMode(args) {
+      args = args || {};
+      var now = args.now || Date.now();
+      var watchState = args.watchState || {};
+      var watchSlot = args.watchSlot || null;
+      var autoDeepSlot = args.autoDeepSlot || null;
+      var standardWindow = args.standardWindow || null;
+      if (watchState.isWatch === true && watchSlot && watchSlot.endsAt > now) {
+        return { analysisMode: 'watch', reason: 'WATCHLIST', activeSlot: watchSlot };
+      }
+      if (autoDeepSlot && autoDeepSlot.endsAt > now) {
+        return { analysisMode: 'deep', reason: autoDeepSlot.isNew ? autoDeepSlot.reason : 'RESTORED_AUTO_DEEP_SLOT', activeSlot: autoDeepSlot };
+      }
+      if (standardWindow && standardWindow.endsAt > now) {
+        return { analysisMode: 'standard', reason: 'NOT_QUALIFIED', activeSlot: standardWindow };
+      }
+      return { analysisMode: 'standard', reason: 'WINDOW_EXPIRED', activeSlot: null, outcomeState: { isCompleted: true, status: 'expired' } };
+    }
+
+    function v49_buildTrackingWindowFromActiveSlot(activeSlot, analysisMode) {
+      if (!activeSlot) return { type: 'expired', windowDays: null, startedAt: null, endsAt: null };
+      if (analysisMode === 'watch') return { type: '7d-watch', windowDays: 7, startedAt: activeSlot.startedAt, endsAt: activeSlot.endsAt };
+      if (analysisMode === 'deep') return { type: activeSlot.isNew ? '7d-auto-new' : '7d-auto-restored', windowDays: 7, startedAt: activeSlot.startedAt, endsAt: activeSlot.endsAt };
+      return { type: '24h-standard', windowDays: 1, startedAt: activeSlot.startedAt, endsAt: activeSlot.endsAt };
+    }
+
+    function v49_getWatchStateForBase(base, watchMap) {
+      var b = v49_normalizeBase(base);
+      var isWatch = false;
+      try { isWatch = !!(watchMap && watchMap[b]); } catch(e) {}
+      try { if (!isWatch && typeof v44_isWatchlist === 'function') isWatch = v44_isWatchlist(b); } catch(e2) {}
+      var wmeta = null;
+      try {
+        var wm = (typeof v4723_getWatchMetaMap === 'function') ? v4723_getWatchMetaMap() : {};
+        wmeta = wm && wm[b];
+      } catch(e3) {}
+      return {
+        isWatch: !!isWatch,
+        registeredAt: wmeta && wmeta.startedAt,
+        watchEndsAt: wmeta && wmeta.endAt
+      };
+    }
+
+    function v49_evaluateCoreState(args) {
+      args = args || {};
+      var now = args.now || Date.now();
+      var base = v49_normalizeBase(args.base || '');
+      var rawSignals = args.signals || [];
+      var normalizedSignals = rawSignals.map(function(sig){ return Object.assign({}, sig, { gradeCode: v49_normalizeGradeCode(sig.gradeCode || sig.gradeLabel), base: v49_normalizeBase(sig.base || base), exchange: v49_normalizeExchange(sig.exchange), time: v49_normalizeTimeMs(sig.time || sig.timestamp || sig.createdAt) }); });
+      var deduped = v49_dedupeSignals(normalizedSignals);
+      var existingState = args.existingState || v49_getBaseState(base);
+      var watchState = args.watchState || v49_getWatchStateForBase(base, args.watchMap || {});
+      var qualification = v49_evaluateQualification({ signals: deduped.validSignals, now: now });
+      var autoDeepSlot = v49_reconcileAutoDeepSlot({ existingAutoDeepSlot: existingState && existingState.autoDeepSlot, qualification: qualification, now: now });
+      var watchSlot = v49_reconcileWatchSlot({ existingWatchSlot: existingState && existingState.watchSlot, watchState: watchState, now: now });
+      var standardWindow = v49_buildStandardWindow({ existingStandardWindow: existingState && existingState.standardWindow, signals: deduped.validSignals, now: now });
+      var visible = v49_resolveVisibleAnalysisMode({ watchState: watchState, watchSlot: watchSlot, autoDeepSlot: autoDeepSlot, standardWindow: standardWindow, now: now });
+      var trackingWindow = v49_buildTrackingWindowFromActiveSlot(visible.activeSlot, visible.analysisMode);
+      var state = {
+        schemaVersion: 'analyzer-core-v2.0',
+        qualificationProfile: 'CONDITION_V1',
+        base: base,
+        analysisMode: visible.analysisMode,
+        reason: visible.reason,
+        qualification: qualification,
+        watchState: watchState,
+        watchSlot: watchSlot,
+        autoDeepSlot: autoDeepSlot,
+        standardWindow: standardWindow,
+        trackingWindow: trackingWindow,
+        outcomeState: visible.outcomeState || { isCompleted: false, status: 'active' },
+        rawSources: { invalidSignals: deduped.invalidSignals, rawWindowState: args.rawWindowState || {} }
+      };
+      v49_setBaseState(base, { autoDeepSlot: autoDeepSlot, watchSlot: watchSlot, standardWindow: standardWindow, updatedAt: now });
+      return state;
+    }
+
+    function v49_evaluateGroupCoreV2(group, opts) {
+      opts = opts || {};
+      var base = v49_normalizeBase(group && group.base || group && group.key || '');
+      var signals = v49_collectSignalsFromGroup(group || {});
+      return v49_evaluateCoreState({ base: base, signals: signals, watchMap: opts.watchMap || {}, now: opts.now || Date.now(), rawWindowState: { note: 'legacy raw 보존 전용 — 판단 미사용' } });
+    }
+
+    function v49_evaluateItemCoreV2(item, opts) {
+      opts = opts || {};
+      var base = v49_normalizeBase(item && (item.base || (item.meta && item.meta.base)) || '');
+      var fakeGroup = { base: base, key: base, items: [item] };
+      return v49_evaluateGroupCoreV2(fakeGroup, opts);
+    }
+
+    try {
+      if (typeof window !== 'undefined') {
+        window.WOOS_CORE_V2 = {
+          VERSION: 'core-v2-v3.2',
+          parseBool: v49_parseBool,
+          normalizeTimeMs: v49_normalizeTimeMs,
+          normalizeGradeCode: v49_normalizeGradeCode,
+          evaluateQualification: v49_evaluateQualification,
+          evaluateCoreState: v49_evaluateCoreState,
+          evaluateGroup: v49_evaluateGroupCoreV2,
+          evaluateItem: v49_evaluateItemCoreV2,
+          loadSlots: v49_loadSlotsMap,
+          saveSlots: v49_saveSlotsMap,
+          clearSlots: function(){ try { localStorage.removeItem(V49_CORE_V2_SLOT_KEY); } catch(e) {} }
+        };
+      }
+    } catch(e) {}
+
     // [v4.7.30] 관심/정밀이 아닌 표준 코인은 7일 표시 금지.
     // 서버 응답이 6d/7d windowEnd를 들고 와도 UI에서는 표준 24h 기준으로 정규화한다.
     function v4730_normalizeNonWatchWindow(item) {
       try {
         if (!item) return item;
-        // [v4.7.49] getUiMode 완전 제거 — trackingMode 절대 신뢰 금지
-        // 관심 판정: isWatchlist 필드 OR localStorage watchlist 직접 확인
-        var isW = !!(item.isWatchlist);
-        try {
-          if (!isW && typeof v44_isWatchlist === 'function') {
-            isW = v44_isWatchlist(String(item.base || ''));
-          }
-        } catch(e0) {}
-        // 관심 코인 → 7d 상태 강제 합성
-        if (isW) return v4723_enforceWatchState(item);
-        // [v4.7.49] isAutoPrecise(Worker 박제) 코인만 deep window 보존
-        // trackingMode='deep'/'precise' 단독으로는 window 판단하지 않음
-        if (item.isAutoPrecise === true) return item;
-        // 비관심·비자동정밀 → 무조건 24h window 정규화
+        var mode = (typeof getUiMode === 'function') ? getUiMode(item) : 'standard';
+        if (mode === 'watch') return v4723_enforceWatchState(item);
+        if (mode === 'deep') return item;
+
         var start = Number(item.startedAt || item.tierAssignedAt || Date.now());
         var standardEnd = start + 24 * 3600 * 1000;
+        item.trackingMode = 'standard';
         item.windowDays = 1;
         item.windowEnd = standardEnd;
         item.endAt = standardEnd;
+
         var elapsedMs = Date.now() - start;
         item.progress = Math.min(100, Math.max(0, (elapsedMs / (24 * 3600 * 1000)) * 100));
         return item;
@@ -13132,24 +13436,6 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
         return { gradeCode: gradeCode, t: t, exchange: ex };
       }
 
-      // [v4.8.2] gradeCode 추출 우선순위 강화
-      // alertSnapshot.gradeCode → it.gradeCode → meta.gradeCode → it.gradeLabel → it.tier
-      // 단, 모두 없으면 null 반환 → filter(Boolean)에서 자동 제거 (하드코딩 금지)
-      function v482_extractGradeCode(it) {
-        if (!it) return null;
-        var m = it.meta || {};
-        var snap = (typeof v41_getAlertSnapshot === 'function') ? v41_getAlertSnapshot(it) : null;
-        var gc = (snap && snap.gradeCode)
-              || it.gradeCode
-              || m.gradeCode
-              || it.gradeLabel
-              || m.gradeLabel
-              || it.tier
-              || m.tier
-              || null;
-        return gc;
-      }
-
       var historyPoints = [];
       if (Array.isArray(rep.gradeHistory) && rep.gradeHistory.length > 0) {
         historyPoints = rep.gradeHistory.map(function(pt){ return normalizeGradeHistoryPoint(pt, rep.exchange); }).filter(Boolean);
@@ -13161,29 +13447,15 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
         });
         historyPoints = sortedItems.map(function(it){
           var m = it.meta || {};
-          var gc = v482_extractGradeCode(it);
-          if (!gc) return null;  // gradeCode 전혀 없으면 포인트 제외 (하드코딩 금지)
           return normalizeGradeHistoryPoint({
-            gradeCode: gc,
+            gradeCode: (v41_getAlertSnapshot && v41_getAlertSnapshot(it) && v41_getAlertSnapshot(it).gradeCode) || it.gradeCode || m.gradeCode,
             time: it.startedAt || m.windowStart || it.tierAssignedAt || 0,
             exchange: it.exchange || m.exchange || '',
           });
         }).filter(Boolean);
       }
 
-      // [v4.8.2] historyPoints 0개 → 대표 등급으로 1포인트 시도
-      // 단, 실제 등급 소스가 없으면 빈 배열 유지 → fallback HTML로 처리
-      if (historyPoints.length === 0) {
-        var fallbackGrade = v482_extractGradeCode(rep);
-        if (fallbackGrade) {
-          historyPoints = [{
-            gradeCode: fallbackGrade,
-            t: rep.startedAt || rep.tierAssignedAt || Date.now(),
-            exchange: rep.exchange || '',
-          }];
-        }
-        // 등급 소스 전혀 없으면 historyPoints 빈 배열 유지 → 아래 displayCount/fallback에서 처리
-      }
+      if (historyPoints.length === 0) return '';
 
       // 헤더 횟수: gradeHistory.length || alertCount || items.length
       var displayCount = historyPoints.length || rep.alertCount || (group.items && group.items.length) || 0;
@@ -13217,14 +13489,6 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
         return e.slice(0, 3);
       }
 
-      // [v4.8.2] historyPoints 빈 배열 안전 처리 — fallback 즉시 반환
-      if (historyPoints.length === 0) {
-        return '<div class="grade-change-chart gcc-fallback">'
-          + '<div class="gcc-header"><span class="gcc-title">📊 추적 등급 기록</span></div>'
-          + '<div class="gcc-empty">등급 이력 수집 중</div>'
-          + '</div>';
-      }
-
       // 시간순 정렬
       historyPoints.sort(function(a, b){ return a.t - b.t; });
       var firstT = historyPoints[0].t || Date.now();
@@ -13243,46 +13507,10 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
         });
       }
 
-      // [v4.8.2] rawPoints 0개 — gradeHistory 분기로 들어왔지만 등급 인식 불가
-      // group.items 기반으로 재시도 (gradeHistory 자체가 부실한 경우 흔함)
-      if (rawPoints.length === 0 && Array.isArray(group.items) && group.items.length > 0) {
-        var v482_retryItems = group.items.slice().sort(function(a, b){
-          return (a.startedAt || a.tierAssignedAt || 0) - (b.startedAt || b.tierAssignedAt || 0);
-        });
-        var v482_retryPoints = [];
-        for (var ri = 0; ri < v482_retryItems.length; ri++) {
-          var rit = v482_retryItems[ri];
-          var rgc = v482_extractGradeCode(rit);
-          if (!rgc) continue;
-          var ryi = gIdx(rgc);
-          if (ryi < 0) continue;
-          var rt = rit.startedAt || (rit.meta && rit.meta.windowStart) || rit.tierAssignedAt || 0;
-          var rex = String(rit.exchange || (rit.meta && rit.meta.exchange) || '').toUpperCase();
-          v482_retryPoints.push({ t: rt, gradeCode: rgc, exchange: rex });
-        }
-        if (v482_retryPoints.length > 0) {
-          v482_retryPoints.sort(function(a, b){ return a.t - b.t; });
-          var v482_firstT = v482_retryPoints[0].t || Date.now();
-          for (var rj = 0; rj < v482_retryPoints.length; rj++) {
-            var rp = v482_retryPoints[rj];
-            var ryi2 = gIdx(rp.gradeCode);
-            if (ryi2 < 0) continue;
-            var rh = (rp.t - v482_firstT) / 3600000;
-            rawPoints.push({
-              t: rp.t, h: rh, yi: ryi2,
-              grade: gLabel(rp.gradeCode), ex: rp.exchange,
-              exColor: exColor(rp.exchange), exShort: exShort(rp.exchange),
-            });
-          }
-          if (rawPoints.length > 0) firstT = v482_firstT;
-        }
-      }
-
-      // [v4.8.2] rawPoints 여전히 빈 배열 → 등급 인식 완전 불가 fallback (빈 문자열 반환 금지)
       if (rawPoints.length === 0) {
-        return '<div class="grade-change-chart gcc-fallback">'
-          + '<div class="gcc-header"><span class="gcc-title">📊 추적 등급 기록 (' + displayCount + '개)</span></div>'
-          + '<div class="gcc-empty">등급 이력 수집 중</div>'
+        return '<div class="grade-change-chart">'
+          + '<div class="gcc-header"><span class="gcc-title">📊 등급 변화 (' + displayCount + '회)</span></div>'
+          + '<div class="gcc-empty">등급 이력 없음</div>'
           + '</div>';
       }
 
@@ -13367,7 +13595,7 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       
       return '<div class="grade-change-chart">'
         + '<div class="gcc-header">'
-        +   '<span class="gcc-title">📊 추적 등급 기록 (' + displayCount + '개)</span>'
+        +   '<span class="gcc-title">📊 등급 변화 (' + displayCount + '회)</span>'
         +   legendHtml
         +   infoIcon
         + '</div>'
@@ -13879,6 +14107,9 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
     /* [Phase 4.6.2] 트랙별 trackingMode 추출 (Phase 4.6.1 박제값 + 분석기 fallback) */
     function v462_resolveTrackingMode(track) {
       var meta = track.meta || (track.keys && track.keys.meta && track.keys.meta.value) || {};
+      if (track && track._coreV2State && track._coreV2State.analysisMode) {
+        return track._coreV2State.analysisMode === 'standard' ? 'light' : 'deep';
+      }
       var mode = meta.trackingMode || track.trackingMode || null;
       if (mode === 'deep' || mode === 'light') return mode;
       // Fallback — 박제 안 됐으면 분석기 자체 결정
@@ -13968,12 +14199,15 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
     /* [Phase 4.6.2] trackingModeReason 표시 (Phase 4.6.1 박제 활용) */
     function v462_buildModeReasonBadge(track) {
       var meta = track.meta || (track.keys && track.keys.meta && track.keys.meta.value) || {};
-      // [v4.8.2] meta.trackingMode 기준 제거 — group.displayMode 단일 기준
-      // standard일 때는 배지 표시 안 함 (deep/watch에서만 표시)
-      var displayMode = track._groupDisplayMode || track.displayMode || 'standard';
-      if (displayMode !== 'deep' && displayMode !== 'watch') return '';
+      if (track && track._coreV2State && track._coreV2State.analysisMode) {
+        if (track._coreV2State.analysisMode === 'standard') return '';
+        var coreLabel = track._coreV2State.analysisMode === 'watch' ? '관심 등록' : (track._coreV2State.reason || 'Core v2 정밀 조건');
+        return '<span class="woos-mode-reason-badge">Core v2 · ' + v40_escapeHtml(coreLabel) + '</span>';
+      }
+      var mode = meta.trackingMode || 'light';
       var reason = meta.trackingModeReason || '';
-
+      if (mode !== 'deep') return '';
+      
       var labelMap = {
         'entryReady': '진입 가능 신호',
         'watchlist': '⭐ 관심 등록',
@@ -13984,10 +14218,8 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       } else if (reason && reason.indexOf('sCount24-') === 0) {
         label = '24h S급 ' + reason.split('-')[1] + '회';
       }
-
-      // [v4.8.2] watch/deep 공통 라벨 — 'deep'은 정밀, 'watch'는 관심
-      var modeLabel = (displayMode === 'watch') ? '관심' : '정밀분석';
-      return '<span class="woos-mode-reason-badge">' + modeLabel + (label ? ' · ' + v40_escapeHtml(label) : '') + '</span>';
+      
+      return '<span class="woos-mode-reason-badge">정밀분석 · ' + v40_escapeHtml(label) + '</span>';
     }
     
     /* [Phase 4.6.2] 7일/24h 진행률 분기 (Phase 4.6.1 windowDays 박제 활용) */
@@ -14198,20 +14430,10 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
         }
         return bLatest - aLatest;
       }
-      // [v4.7.51] itemUiModeForSort — trackingMode 신뢰 금지, _groupDisplayMode/isWatchlist/isAutoPrecise 직접 판정
-      function itemUiModeForSort(it) {
-        if (!it) return 'standard';
-        if (it._groupDisplayMode) return it._groupDisplayMode;
-        if (it.displayMode) return it.displayMode;
-        if (it.isWatchlist === true) return 'watch';
-        if (it.isAutoPrecise === true) return 'deep';
-        return 'standard';
-      }
       function compareByUiMode(a, b, selectedSort) {
         var order = { watch: 0, deep: 1, standard: 2 };
-        // [v4.7.51] getUiMode 완전 제거 — itemUiModeForSort 사용
-        var ma = itemUiModeForSort(a);
-        var mb = itemUiModeForSort(b);
+        var ma = (typeof getUiMode === 'function') ? getUiMode(a) : 'standard';
+        var mb = (typeof getUiMode === 'function') ? getUiMode(b) : 'standard';
         if (order[ma] !== order[mb]) return order[ma] - order[mb];
         // [v4.7.29] 사용자 선택 정렬을 먼저 적용. 최신/진행/상승/하락/횡보가 버튼 의미대로 작동하게 함.
         var primary = existingSort(a, b, selectedSort);
@@ -14474,69 +14696,12 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       }
       if (!item) return;
       
-      // [v4.8.3] _trackingMap 갱신 (cache 데이터 병합) — 박제값 보존
-      // cached에 isAutoPrecise/isWatchlist/preciseReason이 누락돼 있어도
-      // existingTd 또는 item의 truthy 값을 절대 false로 덮어쓰지 않음
+      // _trackingMap 갱신 (cache 데이터 병합)
       if (cached && window._trackingMap) {
         var existingTd = window._trackingMap[snapshotId] || {};
-        var existingMeta = existingTd.meta || {};
-        var cachedMeta = cached.meta || {};
-        // 박제값 OR 병합 — item, existingTd, cached, meta 모두에서 truthy면 true 유지
-        var v483_mergedIsAutoPrecise = (item && item.isAutoPrecise === true)
-          || (existingTd.isAutoPrecise === true) || (existingMeta.isAutoPrecise === true)
-          || (cached.isAutoPrecise === true) || (cachedMeta.isAutoPrecise === true);
-        var v483_mergedIsWatchlist = (item && item.isWatchlist === true)
-          || (existingTd.isWatchlist === true) || (existingMeta.isWatchlist === true)
-          || (cached.isWatchlist === true) || (cachedMeta.isWatchlist === true);
-        var v483_mergedTierARejected = (item && item.tierARejected === true)
-          || (existingTd.tierARejected === true) || (existingMeta.tierARejected === true)
-          || (cached.tierARejected === true) || (cachedMeta.tierARejected === true);
-        var v483_mergedSCount = Math.max(
-          Number((item && item.sCount24) || 0),
-          Number(existingTd.sCount24 || 0), Number(existingMeta.sCount24 || 0),
-          Number(cached.sCount24 || 0), Number(cachedMeta.sCount24 || 0)
-        );
-        var v483_mergedACount = Math.max(
-          Number((item && item.aCount24) || 0),
-          Number(existingTd.aCount24 || 0), Number(existingMeta.aCount24 || 0),
-          Number(cached.aCount24 || 0), Number(cachedMeta.aCount24 || 0)
-        );
-        var v483_mergedPreciseReason = (item && item.preciseReason)
-          || existingTd.preciseReason || existingMeta.preciseReason
-          || cached.preciseReason || cachedMeta.preciseReason
-          || null;
-        var v483_mergedDisplayMode = (item && item.displayMode)
-          || existingTd.displayMode || existingMeta.displayMode
-          || cached.displayMode || cachedMeta.displayMode
-          || null;
-        // 병합 결과 저장 — meta 내부 + 최상위 양쪽 모두 박제값 유지
         window._trackingMap[snapshotId] = Object.assign({}, existingTd, cached, {
-          meta: Object.assign({}, existingMeta, cachedMeta, {
-            isAutoPrecise: v483_mergedIsAutoPrecise,
-            isWatchlist: v483_mergedIsWatchlist,
-            tierARejected: v483_mergedTierARejected,
-            sCount24: v483_mergedSCount,
-            aCount24: v483_mergedACount,
-            preciseReason: v483_mergedPreciseReason,
-            displayMode: v483_mergedDisplayMode,
-          }),
-          isAutoPrecise: v483_mergedIsAutoPrecise,
-          isWatchlist: v483_mergedIsWatchlist,
-          tierARejected: v483_mergedTierARejected,
-          sCount24: v483_mergedSCount,
-          aCount24: v483_mergedACount,
-          preciseReason: v483_mergedPreciseReason,
-          displayMode: v483_mergedDisplayMode,
+          meta: Object.assign({}, existingTd.meta || {}, cached.meta || {}),
         });
-        // _activeItemsCache의 item도 업데이트 (다음 자동갱신 전까지 일관성 유지)
-        if (item) {
-          item.isAutoPrecise = v483_mergedIsAutoPrecise;
-          item.isWatchlist = v483_mergedIsWatchlist;
-          item.tierARejected = v483_mergedTierARejected;
-          item.sCount24 = v483_mergedSCount;
-          item.aCount24 = v483_mergedACount;
-          item.preciseReason = v483_mergedPreciseReason;
-        }
       }
       
       // 카드 빌드
@@ -14547,15 +14712,6 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
         var td = window._trackingMap[snapshotId] || trackingData;
         var track = W.adaptItemToTrack(item, td);
         var groups = W.groupTracks([track]);
-        // [v4.8.0] 단일 진입점 — 정규화 + lazy 그래프 캐싱 + rep 주입 통합
-        var watchMap = {};
-        try {
-          if (typeof v4743_buildWatchMap === 'function') watchMap = v4743_buildWatchMap();
-          else if (typeof W.getWatchlist === 'function') W.getWatchlist().forEach(function(b){ watchMap[String(b).toUpperCase()] = true; });
-        } catch(e) {}
-        if (typeof v48_prepareGroupsForRender === 'function') {
-          groups = v48_prepareGroupsForRender(groups, watchMap);
-        }
         var newHTML = W.buildGroupCardHTML(groups[0], { isFirstRender: false });
         
         // outerHTML 교체
@@ -14817,13 +14973,14 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       // "현재: A · 추적: 정밀·자동" 형식 (사용자 결정)
       var liveTierHeader = '';
       if (gradeCode || liveTier) {
-        // [v4.8.2] 추적 모드 라벨 — group.displayMode 단일 기준
-        // track.tier 기반 'A' → 정밀, 'B' → 표준 판정 완전 제거
+        // 추적 모드 라벨 (헤더 칩과 동일 우선순위)
         var v47bMode = '';
-        var v47bDisplayMode = track._groupDisplayMode || track.displayMode || 'standard';
-        if (v47bDisplayMode === 'watch') v47bMode = '관심';
-        else if (v47bDisplayMode === 'deep') v47bMode = track.isAutoPrecise ? '정밀·자동' : '정밀';
-        else v47bMode = '표준';
+        var v47bTier = String(track.tier || '').toUpperCase();
+        if (track.isWatchlist) v47bMode = '관심';
+        else if (track.isAutoPrecise) v47bMode = '정밀·자동';
+        else if (v47bTier === 'A') v47bMode = '정밀';
+        else if (v47bTier === 'B') v47bMode = '표준';
+        // C 등급 미표시
         
         liveTierHeader = '<div class="woos-tier-header">'
                        + '<span class="woos-tier-live">현재: <b>' + v40_escapeHtml(liveTier || gradeCode || '?') + '</b></span>';
@@ -15184,13 +15341,14 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       // [Phase 4.7 공사 4 — 1-3] 관심 코인 잔여 시간
       var remainingTimeLabel = v47_formatRemainingTime(track, meta);
       
-      // [v4.7.51] xN 카운트 — group.items.length 단일 기준
-      // opts._groupCount(신키) 또는 opts.groupCount(구키) 우선, 없으면 1
+      // [Phase 4.7.12] 그룹 배지 (알람 횟수 xN) — x1도 표시
       var groupBadge = '';
-      var v478_alarmCount = Number(
-        (opts && (opts._groupCount || opts.groupCount)) || 0
-      );
-      if (v478_alarmCount < 1) v478_alarmCount = 1;
+      var v478_alarmCount = 0;
+      var v478_sc = (track.sCount24 != null) ? track.sCount24 : 0;
+      var v478_ac = (track.aCount24 != null) ? track.aCount24 : 0;
+      v478_alarmCount = v478_sc + v478_ac;
+      if (!v478_alarmCount && opts.groupCount) v478_alarmCount = opts.groupCount;
+      if (!v478_alarmCount || v478_alarmCount < 1) v478_alarmCount = 1;
       var v479_alertTier;
       var v479_label;
       if (v478_alarmCount >= 8) {
@@ -15211,9 +15369,8 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       }
       groupBadge = '<span class="woos-group-badge v478-alert ' + v479_alertTier + '">' + v479_label + '</span>';
 
-      // [v4.7.51] 멀티 칩 — group.items.length >= 2 단일 기준 (신키/구키 둘 다 확인)
-      var multiChip = (opts && (opts._isMultiGroup === true || opts.isMultiGroup === true))
-        ? '<span class="woos-multi-chip">멀티</span>' : '';
+      // [v4.7.42] 멀티 태그 — x1~x8 횟수 태그는 기존 로직/색상 그대로 유지
+      var multiChip = (opts && (opts.isMultiGroup === true || Number(opts.groupCount || 0) >= 2 || Number(track.alertCount || 0) >= 2)) ? '<span class="woos-multi-chip">멀티</span>' : '';
 
       // [Phase 4.5] ⭐ 관심 코인 토글 버튼
       var watchBtn = v45_buildWatchButton(base);
@@ -15230,9 +15387,7 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       //   - 표준 → "표준" 칩 (다크 회색)
       //   - C 등급 미표시 (사용자 결정)
       function v47_buildModeChip(track) {
-        // [v4.7.48] group.displayMode 단일 기준 — getUiMode 완전 제거
-        var uiMode = track._groupDisplayMode || track.displayMode || 'standard';
-        if (uiMode === 'precise') uiMode = 'deep';
+        var uiMode = (typeof getUiMode === 'function') ? getUiMode(track) : 'standard';
         if (uiMode === 'watch') return '<span class="hdr-mode-chip mode-watch">관심</span>';
         if (uiMode === 'deep') return '<span class="hdr-mode-chip mode-precise">정밀</span>';
         return '<span class="hdr-mode-chip mode-standard">표준</span>';
@@ -15244,7 +15399,7 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       
       // [Phase 4.7 공사 1 — Q1] 등급: 가장 최근 알람 등급 (변화 화살표 X — 카드 안 그래프로 대체)
       var alertSnap = v41_getAlertSnapshot(track);
-      var gradeRaw = (alertSnap && alertSnap.gradeCode) || track.gradeCode || meta.gradeCode || meta.tier || '';
+      var gradeRaw = (alertSnap && alertSnap.gradeCode) || track.gradeCode || meta.gradeCode || ''; // Core v2: tier fallback 표시 금지
       var gradeDisplay = v465_fmtGrade(gradeRaw);
       var gradeChip = '';
       if (gradeDisplay) {
@@ -15318,9 +15473,7 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
     function v4742_exchangePriority(ex){ex=v4742_normalizeExchange(ex);if(ex==='BITHUMB')return 300;if(ex==='UPBIT')return 200;if(ex==='BINANCE')return 100;return 0;}
     function v4742_getTrackExchange(t){t=t||{};var m=t.meta||{};return v4742_normalizeExchange(t.exchange||m.exchange||(t.scanner&&t.scanner.exchange)||'');}
     function v4742_getTrackTime(t){t=t||{};var m=t.meta||{};return Number(t.lastDuplicateAlertAt||t.startedAt||t.tierAssignedAt||m.lastDuplicateAlertAt||m.windowStart||m.tierAssignedAt||0);}
-    // [v4.7.51] v4742_getTrackAlertCount: 항상 1 반환 — xN/멀티는 group.items.length 단일 기준
-    // 과거: alertCount||alarmCount24||sCount24||aCount24 → totalAlertCount 과대계산 원인
-    function v4742_getTrackAlertCount(t){ return 1; }
+    function v4742_getTrackAlertCount(t){t=t||{};var m=t.meta||{};var n=Number(t.alertCount||t.alarmCount24||m.alertCount||m.alertCountAtAlarm||0);return(isFinite(n)&&n>0)?n:1;}
     function v4742_pickRepresentativeByExchange(items){if(!Array.isArray(items)||!items.length)return null;return items.slice().sort(function(a,b){var pa=v4742_exchangePriority(v4742_getTrackExchange(a));var pb=v4742_exchangePriority(v4742_getTrackExchange(b));if(pb!==pa)return pb-pa;return v4742_getTrackTime(b)-v4742_getTrackTime(a);})[0]||null;}
 
     /* 그룹화 */
@@ -15342,8 +15495,8 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
         // 대표는 BITHUMB > UPBIT > BINANCE 우선, 같은 거래소면 최신
         g.representative = v4742_pickRepresentativeByExchange(g.items) || g.items[g.items.length - 1];
         g.exchange = v4742_getTrackExchange(g.representative);
-        g.totalAlertCount = g.items.length;  // [v4.7.51] items.length 단일 기준 (sCount24 기반 제거)
-        g.isMulti = g.items.length >= 2;      // [v4.7.51] items.length 단일 기준
+        g.totalAlertCount = g.items.reduce(function(sum,it){return sum + v4742_getTrackAlertCount(it);},0);
+        g.isMulti = (g.items.length >= 2 || g.totalAlertCount >= 2);
         g.gradeFlow = g.items.map(function(it){ return it.gradeLabel || it.gradeCode || (it.meta && (it.meta.gradeLabel || it.meta.gradeCode)) || '?'; });
         // [Phase 4.2 작업 B] liveTierFlow — 각 추적의 현재 반응 등급 시계열
         g.liveTierFlow = g.items.map(function(it){
@@ -15392,23 +15545,9 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       opts = opts || {};
       if (!group || !group.items || group.items.length === 0) return '';
       var rep = group.representative;
-
-      // [v4.7.47] rep에 group.displayMode 주입 — buildModeChip/카드 배지 통일
-      rep._groupDisplayMode = group.displayMode || 'standard';
-      rep.displayMode = group.displayMode || rep.displayMode || 'standard';
-      // [v4.7.50] rep에 group.items.length 기반 카운트/멀티 주입 — xN/멀티 불일치 해결
-      var v450_groupCount = group.items.length;
-      var v450_isMulti = v450_groupCount >= 2;
-      rep._groupCount = v450_groupCount;
-      rep._isMultiGroup = v450_isMulti;
-      rep.alertCount = v450_groupCount;  // 내부 UI용 강제 통일
-
       if (group.items.length === 1) {
-        // 단독: 일반 details 카드 — [v4.7.51] opts 구키/신키 병행 전달 (xN/멀티 일관성)
-        var inner = v40_buildTrackInner(rep, {
-          _groupCount: v450_groupCount, _isMultiGroup: v450_isMulti,
-          groupCount: v450_groupCount, isMultiGroup: v450_isMulti,
-        });
+        // 단독: 일반 details 카드
+        var inner = v40_buildTrackInner(rep);
         var attrs = 'data-snapshot-id="' + v40_escapeHtml(rep.snapshotId || rep.id || '') + '" data-tier="' + v40_escapeHtml(rep.tier || (rep.meta && rep.meta.tier) || 'B') + '" data-group-key="' + v40_escapeHtml(group.key) + '"';
         // [Phase 4.6.3] sessionStorage 펼침 상태 복원
         var v463_singleId = rep.snapshotId || rep.id || group.key;
@@ -15420,9 +15559,8 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
         } catch(e) {}
         var v463_singleOpenAttr = v463_singleOpen ? ' open' : '';
         var v463_singleToggleAttr = ' ontoggle="window.v462HandleCardToggle(event, this, \'' + v40_escapeHtml(v463_singleId) + '\')"';
-        // [v4.7.49] 캐시된 그래프 HTML 사용 — 없으면 fallback HTML (빈 문자열 금지)
-        var singleGradeChart = group._gradeChartHtml
-          || '<div class="grade-change-chart gcc-fallback"><div class="gcc-header"><span class="gcc-title">📊 추적 등급 기록</span></div><div class="gcc-empty">등급 이력 수집 중</div></div>';
+        // [v4.7.44] 캐시된 그래프 HTML 사용 (재계산 금지)
+        var singleGradeChart = group._gradeChartHtml || '';
         // body 안에 등급 그래프 삽입 (woos-body 시작 직후)
         var singleBody = inner.body.replace(
           /<div class="progress-rich-body woos-body([^"]*)">/,
@@ -15438,12 +15576,7 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       }
       // 그룹 카드 (size >= 2)
       // [Phase 4.2 작업 E] 그룹 dot 동기화: 대표가 아닌 그룹 전체 우선순위로
-      // [v4.7.51] opts 구키/신키 병행 전달
-      var repInner = v40_buildTrackInner(rep, {
-        _groupCount: v450_groupCount, _isMultiGroup: v450_isMulti,
-        groupCount: v450_groupCount, isMultiGroup: v450_isMulti,
-        overrideDotColor: group.groupDotColor,
-      });
+      var repInner = v40_buildTrackInner(rep, { groupCount: group.items.length, isMultiGroup: group.isMulti, overrideDotColor: group.groupDotColor });
       var others = group.items.filter(function(it){ return it !== rep; });
       var minisHtml = others.map(function(it, mIdx){
         var oSamples = v40_normalizeSamples(it);
@@ -15508,9 +15641,8 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       var v463_openAttr = v463_isOpen ? ' open' : '';
       var v463_toggleAttr = ' ontoggle="window.v462HandleCardToggle(event, this, \'' + v40_escapeHtml(v463_groupId) + '\')"';
       
-      // [v4.7.49] 캐시된 그래프 HTML 사용 — 없으면 fallback HTML (빈 문자열 금지)
-      var groupGradeChart = group._gradeChartHtml
-        || '<div class="grade-change-chart gcc-fallback"><div class="gcc-header"><span class="gcc-title">📊 추적 등급 기록</span></div><div class="gcc-empty">등급 이력 수집 중</div></div>';
+      // [v4.7.44] 캐시된 그래프 HTML 사용 (재계산 금지)
+      var groupGradeChart = group._gradeChartHtml || '';
 
       // [v4.7.44] group.displayMode 고정 사용 — getUiMode 직접 호출 제거
       var v478_groupMode = group.displayMode || 'standard';
@@ -15534,49 +15666,34 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
     
     /* 어댑터: _activeItemsCache 의 item + _trackingMap 의 td → 단일 track 객체 */
     function v40_adaptItemToTrack(item, td) {
+      item = item || {};
       td = td || {};
       var meta = td.meta || {};
-      // [v4.8.3] 박제 필드 OR 병합 — item과 td 양쪽 어디든 truthy면 보존
-      // 카드 재렌더 경로(renderAnalyzerCard에서 빈약한 item 전달)에서 박제값이 false로 초기화되는 회귀 차단
-      var v483_isAutoPrecise = (item.isAutoPrecise === true)
-        || (td.isAutoPrecise === true)
-        || (meta.isAutoPrecise === true);
-      var v483_isWatchlist = (item.isWatchlist === true)
-        || (td.isWatchlist === true)
-        || (meta.isWatchlist === true);
-      var v483_tierARejected = (item.tierARejected === true)
-        || (td.tierARejected === true)
-        || (meta.tierARejected === true);
-      var v483_sCount24 = Math.max(
-        Number(item.sCount24 || 0),
-        Number(td.sCount24 || 0),
-        Number(meta.sCount24 || 0)
-      );
-      var v483_aCount24 = Math.max(
-        Number(item.aCount24 || 0),
-        Number(td.aCount24 || 0),
-        Number(meta.aCount24 || 0)
-      );
-      // [v4.8.3] preciseReason — 정밀 판정 근거 (디버깅 + UI 표시용)
-      var v483_preciseReason = item.preciseReason
-        || td.preciseReason
-        || meta.preciseReason
-        || (v483_isWatchlist ? 'watchlist' : null)
-        || (v483_isAutoPrecise ? 'autoPrecise' : null)
-        || (v483_sCount24 >= 3 ? 'sCount24-' + v483_sCount24 : null)
-        || (v483_aCount24 >= 5 ? 'aCount24-' + v483_aCount24 : null)
-        || null;
+      var sid = item.snapshotId || item.id || meta.snapshotId || td.snapshotId || td.id || '';
       return {
-        snapshotId: item.id, id: item.id,
+        snapshotId: sid, id: sid,
+        signalId: item.signalId || meta.signalId || sid,
+        eventId: item.eventId || meta.eventId || null,
         base: item.base || meta.base || '',
         exchange: item.exchange || meta.exchange || '',
-        tier: item.tier || meta.tier || 'B',
+        // legacy raw 보존 전용 — Core v2 판단에는 사용하지 않음
+        tier: item.tier || meta.tier || null,
+        trackingMode: item.trackingMode || meta.trackingMode || null,
+        windowDays: item.windowDays || meta.windowDays || null,
         gradeCode: item.gradeCode || meta.gradeCode || null,
         gradeLabel: item.gradeLabel || meta.gradeLabel || null,
         startedAt: item.startedAt || item.tierAssignedAt || meta.windowStart || meta.tierAssignedAt,
         windowEnd: item.windowEnd || meta.windowEnd,
-        status: meta.status || 'active',
+        endAt: item.endAt || meta.endAt || item.windowEnd || meta.windowEnd,
+        status: meta.status || item.status || 'active',
         meta: meta,
+        snapshot: td.snapshot || item.snapshot || null,
+        alertSnapshot: item.alertSnapshot || td.alertSnapshot || meta.alertSnapshot || null,
+        gradeHistory: item.gradeHistory || meta.gradeHistory || td.gradeHistory || null,
+        entryReady: item.entryReady != null ? item.entryReady : (item.isEntryReady != null ? item.isEntryReady : (meta.entryReady != null ? meta.entryReady : meta.isEntryReady)),
+        isEntryReady: item.isEntryReady != null ? item.isEntryReady : (item.entryReady != null ? item.entryReady : (meta.isEntryReady != null ? meta.isEntryReady : meta.entryReady)),
+        alertType: item.alertType || meta.alertType || null,
+        prePump: item.prePump != null ? item.prePump : meta.prePump,
         samples: td.samples || [],
         thresholds: td.thresholds || null,
         tp1: td.tp1 || null,
@@ -15586,19 +15703,13 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
         prefetchedMfe: item.mfe != null ? item.mfe : null,
         prefetchedMae: item.mae != null ? item.mae : null,
         prefetchedSampleT: item.lastSampleT != null ? item.lastSampleT : null,
-        // [v4.8.3] 박제 OR 병합 — 재렌더 시 false로 초기화 방지
-        isWatchlist: v483_isWatchlist,
-        isAutoPrecise: v483_isAutoPrecise,
-        tierARejected: v483_tierARejected,
-        sCount24: v483_sCount24,
-        aCount24: v483_aCount24,
-        preciseReason: v483_preciseReason,  // [v4.8.3] 정밀 판정 근거
-        // [v4.7.51] alertCount = 1 고정 — xN/멀티는 group.items.length 단일 기준
-        alertCount: 1,
-        // [v4.7.47] 누락 필드 추가 — normalizeGroupFlags/gradeChart 정상 동작용
-        trackingMode: item.trackingMode || meta.trackingMode || null,
-        gradeHistory: item.gradeHistory || meta.gradeHistory || [],
-        displayMode: item.displayMode || meta.displayMode || null,
+        // legacy raw 보존 전용
+        isWatchlist: item.isWatchlist || false,
+        isAutoPrecise: item.isAutoPrecise || false,
+        tierARejected: item.tierARejected || false,
+        sCount24: item.sCount24 || 0,
+        aCount24: item.aCount24 || 0,
+        alertCount: item.alertCount || item.alarmCount24 || item.sCount24 || item.aCount24 || 1,
       };
     }
     
@@ -16466,7 +16577,7 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       c.innerHTML = '<div class="analyzer-timeout-box">'
         + '<b>추적 분석 응답 지연</b><br>'
         + '로딩이 오래 지속되어 중단했습니다.<br>'
-        + '<button type="button" onclick="renderAnalyzerSection && renderAnalyzerSection()">다시 불러오기</button>'
+        + '<button type="button" onclick="renderAnalyzerSection()">다시 불러오기</button>'
         + '</div>';
     }
   }
