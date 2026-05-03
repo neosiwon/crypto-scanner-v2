@@ -1,11 +1,36 @@
 <!DOCTYPE html>
+<!-- ════════════════════════════════════════════════════════════════
+     WOOS Crypto Scanner v3 — v4.9.1-w1r1b
+     ════════════════════════════════════════════════════════════════
+     Phase: 4.9.1 (Week 1 Round 1b 핫픽스)
+     Base:  v4.9.0-corev2-v3.2
+     
+     Round 1b 핫픽스 변경 영역:
+       - data-card-key 안정화 (single/group 통일 → 'active:<stableBaseKey>')
+       - 캐시 강제 리셋 VER 갱신 (4900-corev2-32 → v4910-w1r1b)
+       - HTML_VERSION 갱신 (v4.9.1-w1r1 → v4.9.1-w1r1b)
+     
+     Round 1 변경 영역 (이전 적용본 + Round 1b 적용 후):
+       - open/close 정확 상태 복원 (사용자 닫은 카드 보장)
+       - data-card-key 속성 추가 (active: namespace 통일) ⭐ Round 1b 안정화
+       - w1_getCardKey / w1_captureOpenCards / w1_restoreOpenCards 신설
+       - v47_rerenderActive 디바운스 100ms (4회 → 1회 통합)
+       - Phase 4.6.3 (v462_*) 재사용 X (메모리 capture/restore 우선)
+     
+     Round 1b 외 (수정 X):
+       - Worker 수정 X (Week 2+)
+       - Core v2 v3.2 내부 수정 X
+       - Round 2~4 작업 X (raw cache / Core v2 명시 / fetchAndRenderActive)
+       - 17개 동결 함수 수정 X
+       - renderInProgressCard data-card-key 추가 X (결함 #1, fallback 경로 — 후순위)
+     ════════════════════════════════════════════════════════════════ -->
 <html lang="ko">
 <head>
 
 <script>
 /* [v4.7.42] 캐시 강제 리셋 — SW 완전 제거 후 리로드 */
 (function(){
-  var VER = '4900-corev2-32';
+  var VER = 'v4910-w1r1b';  // [Round 1b 핫픽스] data-card-key 안정화 + 캐시 갱신
   try {
     var LKEY = 'woos_hard_reset_ver';
     if (localStorage.getItem(LKEY) === VER) return;
@@ -6816,8 +6841,14 @@ async function opsDashboard() {
 // 탭 시 상세 팝업
 // ═══════════════════════════════════════════════════════════════
 
-var HTML_VERSION = 'v4.9.0-corev2-v3.2';  // Core v2 v3.2 watchSlot/autoDeepSlot 분리 적용
+var HTML_VERSION = 'v4.9.1-w1r1b';  // Week 1 Round 1b 핫픽스: data-card-key 안정화 (active:<stableBaseKey>) + 캐시 VER 갱신
 var _cachedBuildInfo = null;
+
+// [Week 1 — Round 1b 핫픽스] 패치 확인용 — 페이지 로드 시 버전명 출력 (DevTools 콘솔)
+try {
+  console.log('[WOOS] ' + HTML_VERSION + ' loaded — Week 1 Round 1b 핫픽스 (data-card-key 안정화 + 캐시 갱신)');
+  window.WOOS_VERSION = HTML_VERSION;
+} catch(e) {}
 
 async function fetchBuildInfo() {
   var base = '';
@@ -15633,10 +15664,13 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       if (group.items.length === 1) {
         // 단독: 일반 details 카드
         var inner = v40_buildTrackInner(rep);
-        // [Week 1 — Round 1] data-card-key 속성 추가 (open/close 보존 전용)
-        // namespace prefix "single:" — group/completed 카드와 충돌 방지
-        var w1_singleCardKey = 'single:' + (rep.snapshotId || rep.id || '');
-        var attrs = 'data-snapshot-id="' + v40_escapeHtml(rep.snapshotId || rep.id || '') + '" data-card-key="' + v40_escapeHtml(w1_singleCardKey) + '" data-tier="' + v40_escapeHtml(rep.tier || (rep.meta && rep.meta.tier) || 'B') + '" data-group-key="' + v40_escapeHtml(group.key) + '"';
+        // [Week 1 — Round 1b 핫픽스] data-card-key 통일 — active:<stableBaseKey>
+        //   - 이전 (Round 1): 'single:' + rep.snapshotId (snapshotId 기반, 불안정)
+        //   - 현재 (Round 1b): 'active:' + stableBaseKey (base 기반, 안정)
+        //   - single ↔ group 전환 시 key 변경 X (open/close 보존 안정)
+        //   - snapshotId 변경 시 key 변경 X
+        var w1_cardKey = 'active:' + String(group.key || rep.base || (rep.meta && rep.meta.base) || '').toUpperCase();
+        var attrs = 'data-snapshot-id="' + v40_escapeHtml(rep.snapshotId || rep.id || '') + '" data-card-key="' + v40_escapeHtml(w1_cardKey) + '" data-tier="' + v40_escapeHtml(rep.tier || (rep.meta && rep.meta.tier) || 'B') + '" data-group-key="' + v40_escapeHtml(group.key) + '"';
         // [Phase 4.6.3] sessionStorage 펼침 상태 복원
         var v463_singleId = rep.snapshotId || rep.id || group.key;
         var v463_singleOpen = false;
@@ -15706,10 +15740,11 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       if (liveTierFlowStr && liveTierFlowStr !== gradeFlowStr) {
         flowsHtml += '<div class="woos-group-flow woos-group-flow-live"><span class="woos-flow-label">현재:</span> ' + liveTierFlowStr + '</div>';
       }
-      // [Week 1 — Round 1] data-card-key 속성 추가 (open/close 보존 전용)
-      // namespace prefix "active:" — completed 카드와 충돌 방지
-      var w1_groupCardKey = 'active:' + (group.key || rep.snapshotId || rep.id || '');
-      var groupAttrs = 'data-snapshot-id="' + v40_escapeHtml(rep.snapshotId || rep.id || '') + '" data-card-key="' + v40_escapeHtml(w1_groupCardKey) + '" data-tier="' + v40_escapeHtml(rep.tier || (rep.meta && rep.meta.tier) || 'B') + '" data-group-key="' + v40_escapeHtml(group.key) + '" data-group-size="' + group.items.length + '"';
+      // [Week 1 — Round 1b 핫픽스] data-card-key 통일 — active:<stableBaseKey>
+      //   - single 카드와 동일 형식 사용 → single ↔ group 전환 시 key 안정 유지
+      //   - String(...).toUpperCase()로 정규화 일관성 보장
+      var w1_cardKey = 'active:' + String(group.key || rep.base || (rep.meta && rep.meta.base) || '').toUpperCase();
+      var groupAttrs = 'data-snapshot-id="' + v40_escapeHtml(rep.snapshotId || rep.id || '') + '" data-card-key="' + v40_escapeHtml(w1_cardKey) + '" data-tier="' + v40_escapeHtml(rep.tier || (rep.meta && rep.meta.tier) || 'B') + '" data-group-key="' + v40_escapeHtml(group.key) + '" data-group-size="' + group.items.length + '"';
       // [Phase 4.5] 같은 코인 오버레이 SVG (size >= 2 시만)
       var overlayHtml = '';
       if (group.items.length >= 2) {
