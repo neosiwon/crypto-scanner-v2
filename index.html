@@ -1,46 +1,62 @@
 <!DOCTYPE html>
 <!-- ════════════════════════════════════════════════════════════════
-     WOOS Crypto Scanner v3 — v4.9.1-w1r1c-fetch-open-fix
+     WOOS Crypto Scanner v3 — v4.9.1-w1r2-state-lock
      ════════════════════════════════════════════════════════════════
-     Phase: 4.9.1 (옵션 C — fetch + open fix)
-     Base:  v4.9.1-w1r1c-legacy-lockdown
+     Phase: 4.9.1 (State Lock — vm 단일화)
+     Base:  v4.9.1-w1r1c-fetch-open-fix-2 (옵션 C 적용본)
      
-     옵션 C 변경 영역:
-       Step 1 (fetch 폭발 차단):
-         - v464_prefetchAllActive throttle (CONCURRENCY=6)
-         - v41_getAlertSnapshot lazy fetch 제거 (카드 빌드 시 fetch X)
-         - ERR_INSUFFICIENT_RESOURCES 차단
-       
-       Step 2 (open 시스템 단일화):
-         - v463_singleOpenAttr / v463_openAttr 항상 '' (Phase 4.6.3 박음 제거)
-         - v464_rerenderSingleCard: DOM 직접 조회 (isCardOpen 의존 X)
-         - 12407 영역 단일 카드 교체: DOM 직접 조회
-         - capture/restore (Round 1)만 open 결정 (단일 시스템)
-         - 시나리오 H-4 (ontoggle 비동기 + isCardOpen stale) 차단
-       
-       부가:
-         - 캐시 VER 갱신 (v4910-w1r1c-fetch-open-fix)
-         - HTML_VERSION 갱신
+     ═══ State Lock 변경 영역 (v3.8 파이프라인 적용) ═══
+     
+     절대 파이프라인:
+       raw _activeItemsCache → groupTracks → Core v2 pure state →
+       WatchState → CardViewModel → RenderBridge → DOM
+     
+     9개 표시 상태 모두 vm.* 필드에서 파생:
+       1. 별표:        vm.watchState.isWatch
+       2. 모드 태그:   vm.modeState.modeLabel ('관심'|'정밀'|'표준'|'만료')
+       3. 추적기간:    vm.trackingWindow (modeState 파생)
+       4. 진행률:      vm.progress
+       5. 잔여시간:    vm.remainingLabel
+       6. 상단 카운트: w1_calcCountsFromVMs (vm.modeState.displayMode 기준)
+       7. 모달 조건:   w1_getEffectiveWatchState.isWatch
+       8. 카드 class:  vm.modeState.cardModeClass
+       9. data-card-key: 'active:' + vm.canonicalBaseKey
+     
+     변경 영역 18건:
+       [w1_resolveModeLabel/CardClass] expired 분기 + '정밀·자동' → '정밀' 단순화
+       [w1_resolveTrackingWindow] modeState에서 파생 (raw windowDays X)
+       [w1_buildCardViewModel] modeState 'expired' + 4단계 우선순위
+       [w1_calcCountsFromVMs] 신설 (allGroupVMs 기준 카운트)
+       [_renderActiveTrackingList] vm 배열 생성 + 카운트 vm 기준 + 카드 빌드 시 vm 전달
+       [v40_buildGroupCardHTML] vm.modeState.cardModeClass + data-card-key vm 기준
+       [v40_buildTrackInner] opts.vm 전달
+       [v40_buildCompactSummary] vm.watchState/modeState/progress/remainingLabel
+       [v40_buildExpandedBody] opts.vm + vm.modeState.modeLabel
+       [v45HandleWatchToggle] 모달 조건 vm.watchState 기준 + pending overlay 등록
+       [v47_executeWatchOn] pending overlay isWatch=true
+       [v47_executeEndWatchMode] pending overlay isWatch=false
+       [VER + HTML_VERSION + console + HTML 주석 헤더]
+     
+     fallback 정책:
+       vm 미존재 또는 누락 → 기존 raw 사용 (회귀 안전)
+       P0-4 진입 시 fallback 제거
      
      보존 영역:
-       - v462HandleCardToggle 본체 (sessionStorage 갱신은 유지)
+       - v462HandleCardToggle 본체 (sessionStorage 갱신 유지)
        - w1_captureOpenCards / w1_restoreOpenCards (Round 1)
-       - WEEK1-P0 VIEWMODEL BRIDGE (P0-1 신설 함수 14개 — 정의만, 사용 X)
+       - WEEK1-P0 VIEWMODEL BRIDGE (P0-1 신설 함수 14개 + State Lock 보정)
        - legacy raw mutator (v4723/v4730/v4720/v4743) 함수 정의 그대로
        - 17개 동결 함수 그대로
+       - Worker 미터치
+       - Core v2 v3.2 내부 미수정
      
      누적 변경 (v4.9.0 → 현재):
        - Round 1: open/close 정확 상태 복원 + 디바운스
        - Round 1b: data-card-key 'active:<canonical>' 통일
        - P0 Lockdown: 11353 legacy map 격리
-       - P0-1: WEEK1-P0 VIEWMODEL BRIDGE 신설 (정의만)
-       - 옵션 C: fetch throttle + open 시스템 단일화 ⭐ 신규
-     
-     수정 X:
-       - Worker
-       - Core v2 v3.2 내부
-       - 17개 동결 함수
-       - legacy raw mutator 함수 정의
+       - P0-1: WEEK1-P0 VIEWMODEL BRIDGE 신설 (14개 함수 정의만)
+       - 옵션 C: fetch throttle + open 시스템 단일화
+       - State Lock: vm 9개 항목 단일화 ⭐ 신규
      ════════════════════════════════════════════════════════════════ -->
 <html lang="ko">
 <head>
@@ -48,7 +64,7 @@
 <script>
 /* [v4.7.42] 캐시 강제 리셋 — SW 완전 제거 후 리로드 */
 (function(){
-  var VER = 'v4910-w1r1c-fetch-open-fix-2';  // [옵션 C+] fetch throttle + open 단일화 + v47_buildGradeChangeChart W export 사용
+  var VER = 'v4910-w1r2-state-lock';  // [State Lock] CardViewModel 단일화 — 별/태그/기간/카운트/모달/class 모두 vm 기준
   try {
     var LKEY = 'woos_hard_reset_ver';
     if (localStorage.getItem(LKEY) === VER) return;
@@ -6859,12 +6875,12 @@ async function opsDashboard() {
 // 탭 시 상세 팝업
 // ═══════════════════════════════════════════════════════════════
 
-var HTML_VERSION = 'v4.9.1-w1r1c-fetch-open-fix-2';  // 옵션 C + v47_buildGradeChangeChart W export 사용 (회귀 수정)
+var HTML_VERSION = 'v4.9.1-w1r2-state-lock';  // State Lock: vm 단일화 (9개 표시 상태 모두 vm.* 파생)
 var _cachedBuildInfo = null;
 
-// [옵션 C+] 패치 확인용 — 페이지 로드 시 버전명 출력 (DevTools 콘솔)
+// [State Lock] 패치 확인용 — 페이지 로드 시 버전명 출력 (DevTools 콘솔)
 try {
-  console.log('[WOOS] ' + HTML_VERSION + ' loaded — 옵션 C + GradeChart W export (회귀 수정)');
+  console.log('[WOOS] ' + HTML_VERSION + ' loaded — State Lock (CardViewModel 단일화: 별/태그/기간/카운트/모달/class)');
   window.WOOS_VERSION = HTML_VERSION;
 } catch(e) {}
 
@@ -11347,62 +11363,89 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
   function w1_resolveModeLabel(displayMode, watchState, rep) {
     if (watchState && watchState.isWatch) return '관심';
     if (displayMode === 'watch') return '관심';
-    if (displayMode === 'deep') {
-      if (rep && rep.isAutoPrecise) return '정밀·자동';
-      return '정밀';
-    }
+    if (displayMode === 'deep') return '정밀';  // [State Lock] '정밀·자동' 통합 → '정밀'
+    if (displayMode === 'expired') return '만료';  // [State Lock] expired 분기
     return '표준';
   }
 
   /**
    * w1_resolveCardClass — 카드 모드 클래스 결정
    *
-   * 출력: 'is-watch woos-card-mode-watch' | 'is-deep ...' | 'is-standard ...'
+   * 출력: 'is-watch woos-card-mode-watch' | 'is-deep ...' | 'is-standard ...' | 'is-expired ...'
    */
   function w1_resolveCardClass(displayMode) {
     if (displayMode === 'watch') return 'is-watch woos-card-mode-watch';
     if (displayMode === 'deep') return 'is-deep woos-card-mode-deep';
+    if (displayMode === 'expired') return 'is-expired woos-card-mode-expired';  // [State Lock]
     return 'is-standard woos-card-mode-standard';
   }
 
   /**
-   * w1_resolveTrackingWindow — 추적 윈도우 결정
+   * w1_resolveTrackingWindow — 추적 윈도우 결정 (State Lock 명세 4)
+   *
+   * 추적기간은 raw item.windowDays가 아니라 displayMode에서 파생한다.
    *
    * 우선순위:
-   *   1. watchState.isPending && isWatch → watchOverlay (즉시반영용)
-   *   2. coreState.trackingWindow → coreV2
-   *   3. fallback → standardFallback (24h)
+   *   1. displayMode === 'watch'    → 7일 (관심 등록 시)
+   *   2. displayMode === 'deep'     → 7일 (정밀)
+   *   3. displayMode === 'standard' → 1일 (표준)
+   *   4. displayMode === 'expired'  → null (만료)
+   *
+   * startedAt / endsAt:
+   *   - watch + isPending → now ~ now+windowDays (즉시반영)
+   *   - 그 외 → coreState.trackingWindow 또는 rep 기반 fallback
+   *
+   * 중요: raw item.windowDays/windowEnd는 표시에 사용하지 않는다.
    */
-  function w1_resolveTrackingWindow(coreState, watchState, rep) {
+  function w1_resolveTrackingWindow(displayMode, coreState, watchState, rep) {
     var now = Date.now();
 
-    // 1. pending watch (토글 직후 즉시반영)
-    if (watchState && watchState.isPending && watchState.isWatch) {
+    // displayMode 기반 windowDays
+    var windowDays;
+    if (displayMode === 'watch')         windowDays = 7;
+    else if (displayMode === 'deep')     windowDays = 7;
+    else if (displayMode === 'standard') windowDays = 1;
+    else                                  windowDays = null;  // expired
+
+    // expired
+    if (displayMode === 'expired' || windowDays === null) {
+      return {
+        windowDays: null,
+        startedAt: null,
+        endsAt: null,
+        source: 'expired'
+      };
+    }
+
+    // pending watch (토글 직후 즉시반영)
+    if (displayMode === 'watch' && watchState && watchState.isPending) {
       return {
         windowDays: 7,
         startedAt: now,
         endsAt: now + 7 * 24 * 3600 * 1000,
-        source: 'watchOverlay'
+        source: 'watch'
       };
     }
 
-    // 2. Core v2 trackingWindow
-    if (coreState && coreState.trackingWindow) {
+    // Core v2 trackingWindow가 있으면 startedAt/endsAt만 채택
+    if (coreState && coreState.trackingWindow && coreState.trackingWindow.startedAt) {
+      var coreStart = Number(coreState.trackingWindow.startedAt) || now;
+      // displayMode 기반 windowDays로 endsAt 재계산 (raw windowEnd 무시)
       return {
-        windowDays: Number(coreState.trackingWindow.windowDays) || 1,
-        startedAt: Number(coreState.trackingWindow.startedAt) || now,
-        endsAt: Number(coreState.trackingWindow.endsAt) || (now + 24 * 3600 * 1000),
-        source: 'coreV2'
+        windowDays: windowDays,
+        startedAt: coreStart,
+        endsAt: coreStart + windowDays * 24 * 3600 * 1000,
+        source: displayMode  // 'watch' | 'deep' | 'standard'
       };
     }
 
-    // 3. fallback (standard 24h)
+    // fallback (rep 기반)
     var startedAt = (rep && (rep.startedAt || rep.tierAssignedAt)) || now;
     return {
-      windowDays: 1,
+      windowDays: windowDays,
       startedAt: startedAt,
-      endsAt: startedAt + 24 * 3600 * 1000,
-      source: 'standardFallback'
+      endsAt: startedAt + windowDays * 24 * 3600 * 1000,
+      source: displayMode
     };
   }
 
@@ -11482,16 +11525,34 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
 
     var canonicalBase = w1_getCanonicalBaseKey(group.key || group.base || rep.base || '');
 
-    // displayMode 결정
-    var displayMode = (coreState && coreState.displayMode) || 'standard';
-    // watchState가 우선 (관심 코인이면 displayMode='watch'로 강제 표시)
+    // [State Lock 명세 3] modeState 결정 — watchState + Core v2 pure state
+    //   1. watchState.isWatch === true       → 'watch'
+    //   2. Core v2 autoDeepSlot alive        → 'deep'
+    //   3. standardWindow alive              → 'standard'
+    //   4. 모두 만료                          → 'expired'
+    var displayMode;
+    var modeSource;
     if (watchState && watchState.isWatch) {
       displayMode = 'watch';
+      modeSource = 'watchState';
+    } else if (coreState && coreState._rawCoreModel && coreState._rawCoreModel.outcomeState && coreState._rawCoreModel.outcomeState.isCompleted) {
+      // Core v2가 outcomeState.isCompleted 반환 → expired
+      displayMode = 'expired';
+      modeSource = 'expired';
+    } else if (coreState && coreState.displayMode === 'deep') {
+      displayMode = 'deep';
+      modeSource = 'coreV2';
+    } else if (coreState && coreState.displayMode === 'standard') {
+      displayMode = 'standard';
+      modeSource = 'standardWindow';
+    } else {
+      displayMode = 'standard';
+      modeSource = 'fallback';
     }
 
     var modeLabel = w1_resolveModeLabel(displayMode, watchState, rep);
     var cardModeClass = w1_resolveCardClass(displayMode);
-    var trackingWindow = w1_resolveTrackingWindow(coreState, watchState, rep);
+    var trackingWindow = w1_resolveTrackingWindow(displayMode, coreState, watchState, rep);
     var progress = w1_computeProgress(trackingWindow);
     var remainingLabel = w1_formatRemaining(trackingWindow);
 
@@ -11512,15 +11573,16 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       // 관심 상태 (단일 진입점 보장)
       watchState: watchState || { isWatch: false, isPending: false, source: 'none' },
 
-      // 표시 모드
+      // [State Lock 명세 3] 표시 모드
       modeState: {
-        displayMode: displayMode,
-        modeLabel: modeLabel,
-        cardModeClass: cardModeClass,
+        displayMode: displayMode,            // 'watch' | 'deep' | 'standard' | 'expired'
+        modeLabel: modeLabel,                // '관심' | '정밀' | '표준' | '만료'
+        cardModeClass: cardModeClass,        // 'is-watch ...' | 'is-deep ...' | 'is-standard ...' | 'is-expired ...'
+        source: modeSource,                  // 'watchState' | 'coreV2' | 'standardWindow' | 'expired' | 'fallback'
         reason: (coreState && coreState.reason) || ''
       },
 
-      // 추적 윈도우
+      // [State Lock 명세 4] 추적 윈도우 (modeState에서 파생, raw 무시)
       trackingWindow: trackingWindow,
 
       // 표시값
@@ -11567,6 +11629,42 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
            '" data-base="' + escFn(base) +
            '" onclick="window.v45HandleWatchToggle(event, \'' + escFn(base) + '\')" ' +
            'aria-label="관심 코인">' + icon + '</button>';
+  }
+
+  /**
+   * w1_calcCountsFromVMs — 상단 카운트 계산 (State Lock 명세 5)
+   *
+   * 카운트는 vm.modeState.displayMode 기준으로 계산한다.
+   * group.displayMode 직접 사용 X.
+   * raw item 개수 사용 X.
+   *
+   * 입력: vms (CardViewModel 배열, allGroups 기준)
+   * 출력: { total, watch, deep, standard, expired, profit, loss, flat, rawAlerts }
+   */
+  function w1_calcCountsFromVMs(vms, rawAlertCount) {
+    vms = Array.isArray(vms) ? vms : [];
+    var counts = {
+      total: vms.length, rawAlerts: rawAlertCount || 0,
+      watch: 0, deep: 0, standard: 0, expired: 0,
+      profit: 0, loss: 0, flat: 0
+    };
+    vms.forEach(function(vm) {
+      if (!vm || !vm.modeState) return;
+      var dm = vm.modeState.displayMode || 'standard';
+      if (dm === 'watch')         counts.watch++;
+      else if (dm === 'deep')     counts.deep++;
+      else if (dm === 'expired')  counts.expired++;
+      else                         counts.standard++;
+
+      // profit/loss/flat — group representative 기반 (변경 X)
+      var g = vm._rawGroup;
+      var pct = (g && g.representative && typeof v4729_currentPct === 'function')
+              ? v4729_currentPct(g.representative) : 0;
+      if (pct > 0.2) counts.profit++;
+      else if (pct < -0.2) counts.loss++;
+      else counts.flat++;
+    });
+    return counts;
   }
 
   // ════════════════════════════════════════════════════════════════════════
@@ -11899,13 +11997,50 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       });
     }
 
-    // counts는 allGroups 기준 (필터 무관)
-    var groupCounts = v4743_calcGroupCounts(allGroups, rawAlertCount);
+    // ════════════════════════════════════════════════════════════════════
+    // [State Lock] CardViewModel 배열 생성 — 모든 표시 상태 단일화
+    //
+    // 9개 표시 상태 (별/태그/기간/진행률/잔여시간/카운트/모달/class/필터정렬)
+    // 모두 vm.* 필드에서만 파생.
+    //
+    // 매 렌더마다 생성 (캐싱 X).
+    // ════════════════════════════════════════════════════════════════════
+    var allVMs = allGroups.map(function(g) {
+      try {
+        var coreState = (typeof w1_computeCoreState === 'function') ? w1_computeCoreState(g) : null;
+        var canonicalBase = (typeof w1_getCanonicalBaseKey === 'function')
+          ? w1_getCanonicalBaseKey(g.key || (g.representative && g.representative.base) || '')
+          : String(g.key || '').toUpperCase();
+        var watchState = (typeof w1_getEffectiveWatchState === 'function')
+          ? w1_getEffectiveWatchState(canonicalBase, g)
+          : { isWatch: false, isPending: false, source: 'none' };
+        return (typeof w1_buildCardViewModel === 'function')
+          ? w1_buildCardViewModel(g, coreState, watchState)
+          : null;
+      } catch(e) {
+        try { console.warn('[State Lock] vm build failed', g && g.key, e && e.message); } catch(_) {}
+        return null;
+      }
+    });
+
+    // [State Lock 명세 5] 상단 카운트 — vm.modeState.displayMode 기준 (allGroups 기준, visibleGroups X)
+    var groupCounts = (typeof w1_calcCountsFromVMs === 'function')
+      ? w1_calcCountsFromVMs(allVMs.filter(Boolean), rawAlertCount)
+      : v4743_calcGroupCounts(allGroups, rawAlertCount);  // fallback
     var statsHtml = v4729_buildTrackingStatsCard(groupCounts);
 
     // visibleGroups = 상태 필터 + 정렬 적용
     var visibleGroups = v4743_filterGroups(allGroups, af);
     visibleGroups = v4743_sortGroups(visibleGroups, _activeSortBy, af);
+
+    // [State Lock] visibleVMs 매핑 — group → vm 빠른 조회
+    var vmByGroupKey = {};
+    allVMs.forEach(function(vm, idx) {
+      if (vm && allGroups[idx]) {
+        var k = allGroups[idx].key || (allGroups[idx].representative && allGroups[idx].representative.base) || '';
+        if (k) vmByGroupKey[k] = vm;
+      }
+    });
     
     // 전역 노출
     try {
@@ -11945,13 +12080,18 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
     }
 
     // [v4.7.43] cardsHtml — visibleGroups 렌더
+    // [State Lock] vm 전달 — 카드 빌드 함수가 vm 기준으로만 표시 결정
     var cardsHtml = '';
     try {
       if (visibleGroups.length === 0) {
         cardsHtml = '<div class="analyzer-empty">표시할 추적 카드가 없습니다.</div>';
       } else if (W && typeof W.buildGroupCardHTML === 'function') {
         cardsHtml = visibleGroups.map(function(group){
-          try { return W.buildGroupCardHTML(group, { isFirstRender: true }); }
+          try {
+            var k = group.key || (group.representative && group.representative.base) || '';
+            var vm = vmByGroupKey[k] || null;
+            return W.buildGroupCardHTML(group, { isFirstRender: true, vm: vm });
+          }
           catch(e2) { return '<div class="analyzer-empty">카드 렌더 실패: ' + (group && group.base || '') + '</div>'; }
         }).join('');
       }
@@ -15600,9 +15740,11 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
     }
     
     /* 펼친 카드의 본문 (summary 제외) — 기존 details/summary 구조에 끼워 넣기용 */
-    function v40_buildExpandedBody(track, samples, metrics, entryInfo, levels) {
+    function v40_buildExpandedBody(track, samples, metrics, entryInfo, levels, opts) {
+      opts = opts || {};
+      var vm = opts.vm || null;  // [State Lock] vm 매개변수
       var meta = track.meta || (track.keys && track.keys.meta && track.keys.meta.value) || {};
-      var progressPct = v40_computeProgressPct(track);
+      var progressPct = (vm && typeof vm.progress === 'number') ? vm.progress : v40_computeProgressPct(track);
       var pseudoMark = (entryInfo && entryInfo.isPseudo) ? '<span class="woos-pseudo-mark">※ 첫 샘플 기준</span>' : '';
       
       // [Phase 4.1] alertSnapshot + liveTier
@@ -15614,14 +15756,19 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       // "현재: A · 추적: 정밀·자동" 형식 (사용자 결정)
       var liveTierHeader = '';
       if (gradeCode || liveTier) {
-        // 추적 모드 라벨 (헤더 칩과 동일 우선순위)
+        // [State Lock 명세 7] 추적 모드 라벨 — vm.modeState.modeLabel 우선 (raw X)
         var v47bMode = '';
-        var v47bTier = String(track.tier || '').toUpperCase();
-        if (track.isWatchlist) v47bMode = '관심';
-        else if (track.isAutoPrecise) v47bMode = '정밀·자동';
-        else if (v47bTier === 'A') v47bMode = '정밀';
-        else if (v47bTier === 'B') v47bMode = '표준';
-        // C 등급 미표시
+        if (vm && vm.modeState && vm.modeState.modeLabel) {
+          v47bMode = vm.modeState.modeLabel;
+        } else {
+          // fallback (기존 raw 로직)
+          var v47bTier = String(track.tier || '').toUpperCase();
+          if (track.isWatchlist) v47bMode = '관심';
+          else if (track.isAutoPrecise) v47bMode = '정밀·자동';
+          else if (v47bTier === 'A') v47bMode = '정밀';
+          else if (v47bTier === 'B') v47bMode = '표준';
+          // C 등급 미표시
+        }
         
         liveTierHeader = '<div class="woos-tier-header">'
                        + '<span class="woos-tier-live">현재: <b>' + v40_escapeHtml(liveTier || gradeCode || '?') + '</b></span>';
@@ -15868,10 +16015,12 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
     /* 닫힌 summary (기존 progress-compact-summary 구조 유지) */
     function v40_buildCompactSummary(track, metrics, dotColor, opts) {
       opts = opts || {};
+      var vm = opts.vm || null;  // [State Lock] vm 매개변수
       var meta = track.meta || (track.keys && track.keys.meta && track.keys.meta.value) || {};
       var base = track.base || meta.base || '?';
       var startedAt = track.startedAt || meta.windowStart || meta.tierAssignedAt || Date.now();
-      var progressPct = v40_computeProgressPct(track);
+      // [State Lock 명세 7] 진행률 — vm.progress 우선
+      var progressPct = (vm && typeof vm.progress === 'number') ? vm.progress : v40_computeProgressPct(track);
       
       // [Phase 4.7 공사 1 — Q7] SPLUS → S+ 전역 강제 헬퍼
       function v465_fmtGrade(g) {
@@ -15979,8 +16128,8 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       // [Phase 4.7 공사 4 — 1-1] "5분 전" 라벨
       var sampleAgeLabel = v47_formatLastSampleAge(track);
       
-      // [Phase 4.7 공사 4 — 1-3] 관심 코인 잔여 시간
-      var remainingTimeLabel = v47_formatRemainingTime(track, meta);
+      // [State Lock 명세 7] 잔여 시간 — vm.remainingLabel 우선 (raw track.windowEnd X)
+      var remainingTimeLabel = (vm && vm.remainingLabel) ? vm.remainingLabel : v47_formatRemainingTime(track, meta);
       
       // [Phase 4.7.12] 그룹 배지 (알람 횟수 xN) — x1도 표시
       var groupBadge = '';
@@ -16013,27 +16162,31 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       // [v4.7.42] 멀티 태그 — x1~x8 횟수 태그는 기존 로직/색상 그대로 유지
       var multiChip = (opts && (opts.isMultiGroup === true || Number(opts.groupCount || 0) >= 2 || Number(track.alertCount || 0) >= 2)) ? '<span class="woos-multi-chip">멀티</span>' : '';
 
-      // [Phase 4.5] ⭐ 관심 코인 토글 버튼
-      var watchBtn = v45_buildWatchButton(base);
+      // [State Lock 명세 7] 별표 — vm.watchState 우선 (v44_isWatchlist 직접 호출 X)
+      var watchBtn;
+      if (vm && vm.watchState && typeof w1_buildWatchButtonFromVM === 'function') {
+        watchBtn = w1_buildWatchButtonFromVM(vm);
+      } else {
+        watchBtn = v45_buildWatchButton(base);  // fallback
+      }
       
-      // [Phase 4.7 공사 4 — HF-C] 추적 모드 칩 (관심/정밀/표준)
-      // [Phase 4.7.8 R6-F] 형식 변경:
-      //   - 관심 → 표시 X (⭐ 별표로 충분, 사용자 결정)
-      //   - 자동정밀/정밀 → "정" (단축)
-      //   - 표준 → "표" (단축)
-      //   - C 등급 미표시 (사용자 결정)
-      //   [Phase 4.7.11 R11-2] 사용자 결정 — 전체 텍스트 칩 사용 (단축 표현 X)
-      //   - 관심 → "관심" 칩 (시안 그라디언트, ⭐ 별표 + 칩 동시 표시)
-      //   - 자동정밀/정밀 → "정밀" 칩 (보라 그라디언트)
-      //   - 표준 → "표준" 칩 (다크 회색)
-      //   - C 등급 미표시 (사용자 결정)
+      // [State Lock 명세 7] 모드 칩 — vm.modeState.modeLabel 우선 (group.displayMode/getUiMode X)
       function v47_buildModeChip(track) {
         var uiMode = (typeof getUiMode === 'function') ? getUiMode(track) : 'standard';
         if (uiMode === 'watch') return '<span class="hdr-mode-chip mode-watch">관심</span>';
         if (uiMode === 'deep') return '<span class="hdr-mode-chip mode-precise">정밀</span>';
         return '<span class="hdr-mode-chip mode-standard">표준</span>';
       }
-      var modeChip = v47_buildModeChip(track);
+      var modeChip;
+      if (vm && vm.modeState && vm.modeState.modeLabel) {
+        var modeCls = vm.modeState.displayMode === 'watch' ? 'mode-watch'
+                    : vm.modeState.displayMode === 'deep' ? 'mode-precise'
+                    : vm.modeState.displayMode === 'expired' ? 'mode-expired'
+                    : 'mode-standard';
+        modeChip = '<span class="hdr-mode-chip ' + modeCls + '">' + v40_escapeHtml(vm.modeState.modeLabel) + '</span>';
+      } else {
+        modeChip = v47_buildModeChip(track);  // fallback
+      }
       
       // [Phase 4.7 공사 4 — 2-7] 자동 정밀 라벨 — HF-C 칩에 흡수, 별도 라벨 삭제
       // var autoPreciseLabel — 사용 안 함 (modeChip 으로 대체)
@@ -16048,9 +16201,13 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
         gradeChip = '<span class="hdr-grade-chip ' + gradeClass + '">' + v40_escapeHtml(gradeDisplay) + '</span>';
       }
       
-      // [Phase 4.7 공사 4 — 1-2] 진행률 바 색상 — 관심 코인 노랑
-      // 일반: cyan (기존), 관심: #ffea00 (네온 노랑)
-      var watchClass = track.isWatchlist ? ' is-watch' : '';
+      // [State Lock 명세 7] 진행률 바 색상 — vm.watchState.isWatch 우선 (track.isWatchlist raw X)
+      var watchClass;
+      if (vm && vm.watchState) {
+        watchClass = vm.watchState.isWatch ? ' is-watch' : '';
+      } else {
+        watchClass = track.isWatchlist ? ' is-watch' : '';  // fallback
+      }
       
       // [Phase 4.7.12] 카드 헤더 최종 구조
       //   1줄: ★ ● 코인명                         수익률
@@ -16102,7 +16259,7 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       var dotColor = opts.overrideDotColor || v40_decideDotColor(track, metrics, levels);
       return {
         summary: v40_buildCompactSummary(track, metrics, dotColor, opts),
-        body: v40_buildExpandedBody(track, samples, metrics, entryInfo, levels),
+        body: v40_buildExpandedBody(track, samples, metrics, entryInfo, levels, opts),  // [State Lock] opts 전달
         dotColor: dotColor,
         metrics: metrics,
       };
@@ -16185,16 +16342,15 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
     function v40_buildGroupCardHTML(group, opts) {
       opts = opts || {};
       if (!group || !group.items || group.items.length === 0) return '';
+      var vm = opts.vm || null;  // [State Lock] vm 매개변수 (단일화)
       var rep = group.representative;
       if (group.items.length === 1) {
         // 단독: 일반 details 카드
-        var inner = v40_buildTrackInner(rep);
-        // [Week 1 — Round 1b 핫픽스] data-card-key 통일 — active:<stableBaseKey>
-        //   - 이전 (Round 1): 'single:' + rep.snapshotId (snapshotId 기반, 불안정)
-        //   - 현재 (Round 1b): 'active:' + stableBaseKey (base 기반, 안정)
-        //   - single ↔ group 전환 시 key 변경 X (open/close 보존 안정)
-        //   - snapshotId 변경 시 key 변경 X
-        var w1_cardKey = 'active:' + String(group.key || rep.base || (rep.meta && rep.meta.base) || '').toUpperCase();
+        var inner = v40_buildTrackInner(rep, { vm: vm });  // [State Lock] vm 전달
+        // [State Lock] data-card-key — vm.canonicalBaseKey 우선 (raw fallback)
+        var w1_cardKey = (vm && vm.canonicalBaseKey)
+          ? ('active:' + vm.canonicalBaseKey)
+          : ('active:' + String(group.key || rep.base || (rep.meta && rep.meta.base) || '').toUpperCase());
         var attrs = 'data-snapshot-id="' + v40_escapeHtml(rep.snapshotId || rep.id || '') + '" data-card-key="' + v40_escapeHtml(w1_cardKey) + '" data-tier="' + v40_escapeHtml(rep.tier || (rep.meta && rep.meta.tier) || 'B') + '" data-group-key="' + v40_escapeHtml(group.key) + '"';
         // [Phase 4.6.3] sessionStorage 펼침 상태 복원
         // [옵션 C Step 2] open 시스템 단일화 — Phase 4.6.3 isCardOpen 기반 박음 제거
@@ -16210,17 +16366,21 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
           /<div class="progress-rich-body woos-body([^"]*)">/,
           '<div class="progress-rich-body woos-body$1">' + singleGradeChart
         );
-        // [v4.7.44] group.displayMode 고정 사용 — getUiMode 직접 호출 제거
-        var v478_singleMode = group.displayMode || 'standard';
+        // [State Lock] vm.modeState.cardModeClass 우선 (group.displayMode fallback)
         var v478_singleClasses = 'progress-rich-card woos-card v477-track-card v480-glass-card';
-        if (v478_singleMode === 'watch') v478_singleClasses += ' is-watch woos-card-mode-watch';
-        else if (v478_singleMode === 'deep') v478_singleClasses += ' is-deep woos-card-mode-deep';
-        else v478_singleClasses += ' is-standard woos-card-mode-standard';
+        if (vm && vm.modeState && vm.modeState.cardModeClass) {
+          v478_singleClasses += ' ' + vm.modeState.cardModeClass;
+        } else {
+          var v478_singleMode = group.displayMode || 'standard';
+          if (v478_singleMode === 'watch') v478_singleClasses += ' is-watch woos-card-mode-watch';
+          else if (v478_singleMode === 'deep') v478_singleClasses += ' is-deep woos-card-mode-deep';
+          else v478_singleClasses += ' is-standard woos-card-mode-standard';
+        }
         return '<details class="' + v478_singleClasses + '" ' + attrs + v463_singleOpenAttr + v463_singleToggleAttr + '>' + inner.summary + singleBody + '</details>';
       }
       // 그룹 카드 (size >= 2)
       // [Phase 4.2 작업 E] 그룹 dot 동기화: 대표가 아닌 그룹 전체 우선순위로
-      var repInner = v40_buildTrackInner(rep, { groupCount: group.items.length, isMultiGroup: group.isMulti, overrideDotColor: group.groupDotColor });
+      var repInner = v40_buildTrackInner(rep, { groupCount: group.items.length, isMultiGroup: group.isMulti, overrideDotColor: group.groupDotColor, vm: vm });  // [State Lock] vm 전달
       var others = group.items.filter(function(it){ return it !== rep; });
       var minisHtml = others.map(function(it, mIdx){
         var oSamples = v40_normalizeSamples(it);
@@ -16265,7 +16425,10 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       // [Week 1 — Round 1b 핫픽스] data-card-key 통일 — active:<stableBaseKey>
       //   - single 카드와 동일 형식 사용 → single ↔ group 전환 시 key 안정 유지
       //   - String(...).toUpperCase()로 정규화 일관성 보장
-      var w1_cardKey = 'active:' + String(group.key || rep.base || (rep.meta && rep.meta.base) || '').toUpperCase();
+      // [State Lock] data-card-key — vm.canonicalBaseKey 우선
+      var w1_cardKey = (vm && vm.canonicalBaseKey)
+        ? ('active:' + vm.canonicalBaseKey)
+        : ('active:' + String(group.key || rep.base || (rep.meta && rep.meta.base) || '').toUpperCase());
       var groupAttrs = 'data-snapshot-id="' + v40_escapeHtml(rep.snapshotId || rep.id || '') + '" data-card-key="' + v40_escapeHtml(w1_cardKey) + '" data-tier="' + v40_escapeHtml(rep.tier || (rep.meta && rep.meta.tier) || 'B') + '" data-group-key="' + v40_escapeHtml(group.key) + '" data-group-size="' + group.items.length + '"';
       // [Phase 4.5] 같은 코인 오버레이 SVG (size >= 2 시만)
       var overlayHtml = '';
@@ -16287,12 +16450,16 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       // [v4.7.44] 캐시된 그래프 HTML 사용 (재계산 금지)
       var groupGradeChart = group._gradeChartHtml || '';
 
-      // [v4.7.44] group.displayMode 고정 사용 — getUiMode 직접 호출 제거
-      var v478_groupMode = group.displayMode || 'standard';
+      // [State Lock] vm.modeState.cardModeClass 우선 (group.displayMode fallback)
       var v478_groupClasses = 'progress-rich-card woos-card woos-group v477-track-card v480-glass-card';
-      if (v478_groupMode === 'watch') v478_groupClasses += ' is-watch woos-card-mode-watch';
-      else if (v478_groupMode === 'deep') v478_groupClasses += ' is-deep woos-card-mode-deep';
-      else v478_groupClasses += ' is-standard woos-card-mode-standard';
+      if (vm && vm.modeState && vm.modeState.cardModeClass) {
+        v478_groupClasses += ' ' + vm.modeState.cardModeClass;
+      } else {
+        var v478_groupMode = group.displayMode || 'standard';
+        if (v478_groupMode === 'watch') v478_groupClasses += ' is-watch woos-card-mode-watch';
+        else if (v478_groupMode === 'deep') v478_groupClasses += ' is-deep woos-card-mode-deep';
+        else v478_groupClasses += ' is-standard woos-card-mode-standard';
+      }
       
       return '<details class="' + v478_groupClasses + '" ' + groupAttrs + v463_openAttr + v463_toggleAttr + '>'
            + repInner.summary
@@ -16542,30 +16709,42 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
         if (event && typeof event.preventDefault === 'function') event.preventDefault();
         if (!base || !window.WOOS_ANALYZER || typeof window.WOOS_ANALYZER.toggleWatchlist !== 'function') return;
         
-        // [Phase 4.7 공사 4 — 6-2] OFF 시 7일 추적 있으면 모달 표시
-        // 현재 관심 등록 상태 + active 7일 추적 검사
-        var v47off_isCurrentlyWatch = (typeof window.WOOS_ANALYZER.isWatchlist === 'function')
-          ? window.WOOS_ANALYZER.isWatchlist(base) : false;
-        var v47off_active7d = [];
-        try {
-          var v47off_cache = window._activeItemsCache || [];
-          for (var v47off_i = 0; v47off_i < v47off_cache.length; v47off_i++) {
-            var v47off_it = v47off_cache[v47off_i];
-            if (!v47off_it) continue;
-            var v47off_b = String(v47off_it.base || '').toUpperCase();
-            if (v47off_b === String(base).toUpperCase()
-                && v47off_it.trackingMode === 'deep') {
-              v47off_active7d.push({
-                exchange: v47off_it.exchange,
-                entryPrice: v47off_it.lastPrice,  // 박제 lastPrice 를 새 24h 추적의 entryPrice 로
-                prevSnapshotId: v47off_it.id,
-              });
-            }
-          }
-        } catch(v47off_ce) {}
+        // [State Lock 명세 6] 관심 해제 모달 조건 — w1_getEffectiveWatchState 기준
+        //   raw trackingMode === 'deep' 기반 X
+        //   raw windowDays === 7 기반 X
+        //   _activeItemsCache 7일 추적 검색 X
+        var canonicalBase = (typeof w1_getCanonicalBaseKey === 'function')
+          ? w1_getCanonicalBaseKey(base)
+          : String(base || '').toUpperCase();
+        var effectiveWatch = (typeof w1_getEffectiveWatchState === 'function')
+          ? w1_getEffectiveWatchState(canonicalBase)
+          : { isWatch: false };
+        var v47off_isCurrentlyWatch = effectiveWatch.isWatch;
         
-        // OFF + 7일 추적 있음 → 모달 (사용자 결정 #9)
-        if (v47off_isCurrentlyWatch && v47off_active7d.length > 0) {
+        // 모달 표시용: 같은 base의 active 거래소 정보 수집 (raw cache 조회는 표시 정보용만, 모달 조건 X)
+        var v47off_active7d = [];
+        if (v47off_isCurrentlyWatch) {
+          try {
+            var v47off_cache = window._activeItemsCache || [];
+            for (var v47off_i = 0; v47off_i < v47off_cache.length; v47off_i++) {
+              var v47off_it = v47off_cache[v47off_i];
+              if (!v47off_it) continue;
+              var v47off_b = (typeof w1_getCanonicalBaseKey === 'function')
+                ? w1_getCanonicalBaseKey(v47off_it.base || '')
+                : String(v47off_it.base || '').toUpperCase();
+              if (v47off_b === canonicalBase) {
+                v47off_active7d.push({
+                  exchange: v47off_it.exchange,
+                  entryPrice: v47off_it.lastPrice,
+                  prevSnapshotId: v47off_it.id,
+                });
+              }
+            }
+          } catch(v47off_ce) {}
+        }
+        
+        // [State Lock 명세 6] 관심 상태면 무조건 모달 (active 거래소 0개여도 모달 표시)
+        if (v47off_isCurrentlyWatch) {
           v47_showWatchOffModal(base, v47off_active7d);
           return;  // 모달 [확인] 시 실제 처리
         }
@@ -16576,7 +16755,11 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
           return;
         }
 
-        // 그 외 OFF 케이스 (24h 추적 / 추적 없음) — 즉시 해제
+        // 그 외 (보호 fallback)
+        // [State Lock] pending overlay 즉시 반영
+        if (typeof w1_setPendingWatch === 'function') {
+          w1_setPendingWatch(canonicalBase, !v47off_isCurrentlyWatch);
+        }
         var nowIsWatch = window.WOOS_ANALYZER.toggleWatchlist(base);
         v47_applyWatchVisual(base, nowIsWatch);
         v47_syncWatchApi(base, nowIsWatch);
@@ -16606,6 +16789,12 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
             ? window.WOOS_ANALYZER.isWatchlist(base) : false;
         } catch(e0) {}
         if (alreadyWatch) return;
+        
+        // [State Lock] pending overlay 등록 — 다음 vm 계산에서 즉시 isWatch=true 반영
+        if (typeof w1_setPendingWatch === 'function' && typeof w1_getCanonicalBaseKey === 'function') {
+          w1_setPendingWatch(w1_getCanonicalBaseKey(base), true);
+        }
+        
         var nowIsWatch = window.WOOS_ANALYZER.toggleWatchlist(base);
         v47_applyWatchVisual(base, nowIsWatch);
         v47_syncWatchApi(base, nowIsWatch);
@@ -16854,6 +17043,11 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
     // [Phase 4.7 공사 4 — 6-2] end-watch-mode 라우트 호출 + UI 갱신
     function v47_executeEndWatchMode(base, exchanges) {
       try {
+        // [State Lock] pending overlay 등록 — 다음 vm 계산에서 즉시 isWatch=false 반영
+        if (typeof w1_setPendingWatch === 'function' && typeof w1_getCanonicalBaseKey === 'function') {
+          w1_setPendingWatch(w1_getCanonicalBaseKey(base), false);
+        }
+        
         // 클라이언트 watchlist 즉시 토글 OFF (UI 반영)
         if (window.WOOS_ANALYZER && window.WOOS_ANALYZER.toggleWatchlist) {
           window.WOOS_ANALYZER.toggleWatchlist(base);
