@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <!-- ════════════════════════════════════════════════════════════════
-     WOOS Crypto Scanner v3 — v4.9.1-w1r4-state-lock-2-action-fix-2-2
+     WOOS Crypto Scanner v3 — v4.9.1-w1r4-state-lock-2-action-fix-2-3
      ════════════════════════════════════════════════════════════════
-     Phase: 4.9.1 (State Lock 2 fix-2-2 — Worker watch reconcile)
+     Phase: 4.9.1 (State Lock 2 fix-2-3 — server watch fallback)
      Base:  v4.9.1-w1r4-state-lock-2-action-fix-1
      
      ═══ State Lock 2 fix-2-1 변경 영역 (Watch Action 안정화) ═══
@@ -150,7 +150,7 @@
 <script>
 /* [v4.7.42] 캐시 강제 리셋 — SW 완전 제거 후 리로드 */
 (function(){
-  var VER = 'v4910-w1r4-state-lock-2-action-fix-2-2';  // [State Lock 2 fix-2-2] Worker watch state → local watchlist reconcile
+  var VER = 'v4910-w1r4-state-lock-2-action-fix-2-3';  // [State Lock 2 fix-2-3] server watch fallback + local reconcile
   try {
     var LKEY = 'woos_hard_reset_ver';
     if (localStorage.getItem(LKEY) === VER) return;
@@ -6985,12 +6985,12 @@ async function opsDashboard() {
 // 탭 시 상세 팝업
 // ═══════════════════════════════════════════════════════════════
 
-var HTML_VERSION = 'v4.9.1-w1r4-state-lock-2-action-fix-2-2';  // State Lock 2 fix-2-2: Worker watch state reconcile
+var HTML_VERSION = 'v4.9.1-w1r4-state-lock-2-action-fix-2-3';  // State Lock 2 fix-2-3: server watch fallback
 var _cachedBuildInfo = null;
 
-// [State Lock 2 Action fix-2-2] 패치 확인용 — 페이지 로드 시 버전명 출력 (DevTools 콘솔)
+// [State Lock 2 Action fix-2-3] 패치 확인용 — 페이지 로드 시 버전명 출력 (DevTools 콘솔)
 try {
-  console.log('[WOOS] ' + HTML_VERSION + ' loaded — State Lock 2 fix-2-2 (Worker watch state reconcile + pending mutex)');
+  console.log('[WOOS] ' + HTML_VERSION + ' loaded — State Lock 2 fix-2-3 (server watch fallback + local reconcile + pending mutex)');
   window.WOOS_VERSION = HTML_VERSION;
 } catch(e) {}
 
@@ -11427,7 +11427,26 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       }
     } catch(e) {}
 
-    // 3순위: none (raw item.isWatchlist 보조값 제거됨 — State Lock 2)
+    // 3순위: 현재 active cache 의 Worker truth
+    try {
+      var activeCache = (typeof window !== 'undefined' && window._activeItemsCache) ? window._activeItemsCache : _activeItemsCache;
+      if (Array.isArray(activeCache)) {
+        for (var i = 0; i < activeCache.length; i++) {
+          var activeItem = activeCache[i];
+          if (!activeItem) continue;
+          var activeBase = w1_getCanonicalBaseKey(activeItem.base || (activeItem.meta && activeItem.meta.base) || '');
+          if (activeBase === key && activeItem.isWatchlist === true) {
+            return {
+              isWatch: true,
+              isPending: false,
+              source: 'server'
+            };
+          }
+        }
+      }
+    } catch(e2) {}
+
+    // 4순위: none
     return { isWatch: false, isPending: false, source: 'none' };
   }
 
