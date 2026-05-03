@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <!-- ════════════════════════════════════════════════════════════════
-     WOOS Crypto Scanner v3 — v4.9.1-w1r4-state-lock-2-action-fix-2-4
+     WOOS Crypto Scanner v3 — v4.9.1-w1r4-state-lock-2-action-fix-2-5
      ════════════════════════════════════════════════════════════════
-     Phase: 4.9.1 (State Lock 2 fix-2-4 — modal confirm local/server sync)
+     Phase: 4.9.1 (State Lock 2 fix-2-5 — watch reconcile add-only)
      Base:  v4.9.1-w1r4-state-lock-2-action-fix-1
      
      ═══ State Lock 2 fix-2-1 변경 영역 (Watch Action 안정화) ═══
@@ -150,7 +150,7 @@
 <script>
 /* [v4.7.42] 캐시 강제 리셋 — SW 완전 제거 후 리로드 */
 (function(){
-  var VER = 'v4910-w1r4-state-lock-2-action-fix-2-4';  // [State Lock 2 fix-2-4] modal confirm local/server sync
+  var VER = 'v4910-w1r4-state-lock-2-action-fix-2-5';  // [State Lock 2 fix-2-5] watch reconcile add-only
   try {
     var LKEY = 'woos_hard_reset_ver';
     if (localStorage.getItem(LKEY) === VER) return;
@@ -6985,12 +6985,12 @@ async function opsDashboard() {
 // 탭 시 상세 팝업
 // ═══════════════════════════════════════════════════════════════
 
-var HTML_VERSION = 'v4.9.1-w1r4-state-lock-2-action-fix-2-4';  // State Lock 2 fix-2-4: modal confirm local/server sync
+var HTML_VERSION = 'v4.9.1-w1r4-state-lock-2-action-fix-2-5';  // State Lock 2 fix-2-5: watch reconcile add-only
 var _cachedBuildInfo = null;
 
-// [State Lock 2 Action fix-2-4] 패치 확인용 — 페이지 로드 시 버전명 출력 (DevTools 콘솔)
+// [State Lock 2 Action fix-2-5] 패치 확인용 — 페이지 로드 시 버전명 출력 (DevTools 콘솔)
 try {
-  console.log('[WOOS] ' + HTML_VERSION + ' loaded — State Lock 2 fix-2-4 (modal confirm local/server sync + pending mutex)');
+  console.log('[WOOS] ' + HTML_VERSION + ' loaded — State Lock 2 fix-2-5 (watch reconcile add-only + pending mutex)');
   window.WOOS_VERSION = HTML_VERSION;
 } catch(e) {}
 
@@ -11450,9 +11450,6 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
             map[key] = true;
             touched = true;
           }
-        } else if (Object.prototype.hasOwnProperty.call(map, key)) {
-          delete map[key];
-          touched = true;
         }
       });
 
