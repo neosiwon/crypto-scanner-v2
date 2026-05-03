@@ -152,7 +152,7 @@
 <script>
 /* [v4.7.42] 캐시 강제 리셋 — SW 완전 제거 후 리로드 */
 (function(){
-  var VER = 'v4910-w1r4-state-lock-2-action-fix-2c';  // [State Lock 2 fix-2c] BRIDGE↔WOOS_ANALYZER sibling IIFE 우회 (v44_* → WOOS_ANALYZER.*)
+  var VER = 'v4910-w1r4-state-lock-2-action-fix-2d-cardheader';  // [State Lock 2 fix-2d-cardheader] v4721BlockSummaryToggle selector 좁히기 — 카드헤더 토글 차단 해소
   try {
     var LKEY = 'woos_hard_reset_ver';
     if (localStorage.getItem(LKEY) === VER) return;
@@ -6987,7 +6987,7 @@ async function opsDashboard() {
 // 탭 시 상세 팝업
 // ═══════════════════════════════════════════════════════════════
 
-var HTML_VERSION = 'v4.9.1-w1r4-state-lock-2-action-fix-2c';  // State Lock 2 fix-2c: BRIDGE↔WOOS_ANALYZER sibling IIFE 우회 (vm.watchState 복구)
+var HTML_VERSION = 'v4.9.1-w1r4-state-lock-2-action-fix-2d-cardheader';  // State Lock 2 fix-2d-cardheader: v4721BlockSummaryToggle selector 좁히기 (카드헤더 토글 정상화)
 var _cachedBuildInfo = null;
 
 // [State Lock 2 Action fix-2c] 패치 확인용 — 페이지 로드 시 버전명 출력 (DevTools 콘솔)
@@ -17244,8 +17244,12 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
     window.v4721BlockSummaryToggle = function(event) {
       try {
         var t = event && event.target;
-        // 별/버튼/입력 등 실제 컨트롤 클릭만 summary 토글 차단
-        if (t && t.closest && t.closest('button, input, select, textarea, a, .woos-watch-btn')) {
+        // [fix-2d-cardheader] 차단 selector를 명시 대상으로만 좁힘.
+        //   기존 'button, input, select, textarea, a' 광범위 selector가 summary HTML 안의
+        //   다른 컨트롤(예: 수익% pill, mode chip)까지 잡아 카드 토글이 의도치 않게 막힘.
+        //   별 버튼은 v45HandleWatchToggle.stopPropagation으로 이미 보호되므로 여기서는
+        //   '.woos-watch-btn'과 향후 명시 opt-out용 '[data-no-summary-toggle]'만 차단.
+        if (t && t.closest && t.closest('.woos-watch-btn, [data-no-summary-toggle]')) {
           if (event && typeof event.preventDefault === 'function') event.preventDefault();
           if (event && typeof event.stopPropagation === 'function') event.stopPropagation();
           return false;
