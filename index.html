@@ -11507,23 +11507,31 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
     var canonicalBase = (typeof w1_getCanonicalBaseKey === 'function')
       ? w1_getCanonicalBaseKey(base)
       : String(base || '').toUpperCase();
-    if (!canonicalBase || !window.WOOS_ANALYZER || typeof window.WOOS_ANALYZER.toggleWatchlist !== 'function') {
+    if (!canonicalBase || typeof localStorage === 'undefined') {
       return !!desiredWatch;
     }
 
-    var currentWatch = false;
     try {
-      currentWatch = (typeof window.WOOS_ANALYZER.isWatchlist === 'function')
-        ? !!window.WOOS_ANALYZER.isWatchlist(canonicalBase)
-        : false;
-    } catch(e) {}
+      var list = (typeof v44_getWatchlist === 'function') ? v44_getWatchlist() : [];
+      var map = {};
+      if (Array.isArray(list)) {
+        list.forEach(function(baseKey) {
+          var key = (typeof w1_getCanonicalBaseKey === 'function')
+            ? w1_getCanonicalBaseKey(baseKey)
+            : String(baseKey || '').toUpperCase();
+          if (key) map[key] = true;
+        });
+      }
 
-    if (currentWatch !== !!desiredWatch) {
-      try {
-        currentWatch = !!window.WOOS_ANALYZER.toggleWatchlist(canonicalBase);
-      } catch(e2) {}
+      if (desiredWatch) map[canonicalBase] = true;
+      else delete map[canonicalBase];
+
+      localStorage.setItem('woos_v44_watchlist', JSON.stringify(Object.keys(map)));
+      return !!desiredWatch;
+    } catch(e) {
+      try { console.warn('[w1_forceLocalWatchState]', e && e.message ? e.message : e); } catch(_e) {}
+      return !!desiredWatch;
     }
-    return !!currentWatch;
   }
   if (typeof window !== 'undefined') {
     window.w1_pendingWatchOverlay = w1_pendingWatchOverlay;
@@ -17408,10 +17416,12 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
         if (typeof w1_setPendingWatch === 'function') {
           w1_setPendingWatch(canonicalBase, !v47off_isCurrentlyWatch);
         }
-        var nowIsWatch = window.WOOS_ANALYZER.toggleWatchlist(canonicalBase);
+        var nowIsWatch = (typeof w1_forceLocalWatchState === 'function')
+          ? w1_forceLocalWatchState(canonicalBase, !v47off_isCurrentlyWatch)
+          : !v47off_isCurrentlyWatch;
         v47_applyWatchVisual(canonicalBase, nowIsWatch);
-        v47_syncWatchApi(canonicalBase, nowIsWatch);
         v47_rerenderActive();
+        v47_syncWatchApi(canonicalBase, nowIsWatch);
       } catch(e) {
         console.error('[v45HandleWatchToggle]', e);
       }
@@ -17448,7 +17458,7 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
 
         var nowIsWatch = (typeof w1_forceLocalWatchState === 'function')
           ? w1_forceLocalWatchState(canonicalBase, true)
-          : window.WOOS_ANALYZER.toggleWatchlist(canonicalBase);
+          : true;
         v47_applyWatchVisual(canonicalBase, nowIsWatch);
         v47_rerenderActive();
         v47_syncWatchApi(canonicalBase, nowIsWatch);
