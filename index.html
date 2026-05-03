@@ -1,11 +1,11 @@
 <!DOCTYPE html>
 <!-- ════════════════════════════════════════════════════════════════
-     WOOS Crypto Scanner v3 — v4.9.1-w1r4-state-lock-2-action-fix-2-2
+     WOOS Crypto Scanner v3 — v4.9.1-w1r4-state-lock-2-action-fix-2c
      ════════════════════════════════════════════════════════════════
-     Phase: 4.9.1 (State Lock 2 fix-2-2 — Worker watch reconcile)
-     Base:  v4.9.1-w1r4-state-lock-2-action-fix-1
-     
-     ═══ State Lock 2 fix-2-1 변경 영역 (Watch Action 안정화) ═══
+     Phase: 4.9.1 (State Lock 2 fix-2c — BRIDGE↔WOOS_ANALYZER sibling IIFE 우회)
+     Base:  v4.9.1-w1r4-state-lock-2-action-fix-2 (main)
+
+     ═══ State Lock 2 fix-2 변경 영역 (Watch Action 안정화) ═══
      
      절대 파이프라인:
        raw _activeItemsCache → groupTracks → Core v2 pure state →
@@ -17,7 +17,7 @@
        → _activeItemsCache + _trackingMap 직접 변형 차단
        → 1회성 정밀 표시 / refresh 후 꼬임 / 관심 해제 안 됨 — 모두 같은 원인 해결
      
-     ═══ fix-2-1 변경 영역 ═══
+     ═══ fix-2 변경 9건 ═══
      
      [수정 1] v47_syncWatchApi 17417 v4720 호출 제거
          - v4720_applyWatchActiveOverlay(base, isWatch) ← 1줄 제거
@@ -55,7 +55,7 @@
          - legacy URL: /watchlist/<canonicalBase>
          - v44 저장 키와 Worker 키 통일
      
-     [수정 9] VER: v4910-w1r4-state-lock-2-action-fix-2-1
+     [수정 9] VER: v4910-w1r4-state-lock-2-action-fix-2
      [수정 10] HTML_VERSION + console + HTML 주석 헤더 (이 영역)
      
      ⏸ 수정 8: fetchAndRenderActive 후 Worker/local reconcile (Week 2 보류)
@@ -83,7 +83,8 @@
        10. firstSeenRegistry 신설 + vm 통합
        11. 버전 + HTML 주석
      
-     [묶음 6: fix-2-1 — Watch Action legacy mutator 차단]
+     [묶음 6: fix-2 — 9건] ⭐
+     [묶음 7: fix-2c — BRIDGE↔WOOS_ANALYZER sibling IIFE 우회 — 3건] ⭐ 신규
        12. v47_syncWatchApi v4720 호출 제거
        13. w1_isPendingWatch 신설
        14. v45HandleWatchToggle mutex 가드
@@ -142,7 +143,8 @@
        - State Lock 2 (Sort/Filter/Label): timeState/performance/labelState
        - State Lock 2 Action: Watch Action / Deep Qual / Label UI / Style
        - State Lock 2 Action fix-1: Core v2 원복 + migration + registry
-      - State Lock 2 Action fix-2-1: v4720/v4723 action mutator 차단 + mutex + sync 후 clear ⭐ 신규
+       - State Lock 2 Action fix-2: v4720 차단 + mutex + sync 후 clear
+       - State Lock 2 Action fix-2c: BRIDGE↔WOOS_ANALYZER sibling IIFE 우회 (v44_* → WOOS_ANALYZER.*) ⭐ 신규
      ════════════════════════════════════════════════════════════════ -->
 <html lang="ko">
 <head>
@@ -6988,9 +6990,9 @@ async function opsDashboard() {
 var HTML_VERSION = 'v4.9.1-w1r4-state-lock-2-action-fix-2c';  // State Lock 2 fix-2c: BRIDGE↔WOOS_ANALYZER sibling IIFE 우회 (vm.watchState 복구)
 var _cachedBuildInfo = null;
 
-// [State Lock 2 Action fix-2-1] 패치 확인용 — 페이지 로드 시 버전명 출력 (DevTools 콘솔)
+// [State Lock 2 Action fix-2c] 패치 확인용 — 페이지 로드 시 버전명 출력 (DevTools 콘솔)
 try {
-  console.log('[WOOS] ' + HTML_VERSION + ' loaded — State Lock 2 fix-2-2 (Worker watch state reconcile + pending mutex)');
+  console.log('[WOOS] ' + HTML_VERSION + ' loaded — State Lock 2 fix-2c (BRIDGE↔WOOS_ANALYZER sibling IIFE 우회: v44_* → WOOS_ANALYZER.*)');
   window.WOOS_VERSION = HTML_VERSION;
 } catch(e) {}
 
