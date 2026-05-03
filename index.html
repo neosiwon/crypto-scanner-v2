@@ -152,7 +152,7 @@
 <script>
 /* [v4.7.42] 캐시 강제 리셋 — SW 완전 제거 후 리로드 */
 (function(){
-  var VER = 'v4910-w1r4-state-lock-2-action-fix-2g-cardheader-race';  // [State Lock 2 fix-2g-cardheader-race] w1_captureOpenCards storage cross-check — race 차단 + fetch 폭주 해소
+  var VER = 'v4.9.2';  // Deep Pipeline Lock — Core v2 evaluator BRIDGE IIFE 우회 (정밀 카운트 + 만료 잘못 표시 해소)
   try {
     var LKEY = 'woos_hard_reset_ver';
     if (localStorage.getItem(LKEY) === VER) return;
@@ -6987,12 +6987,12 @@ async function opsDashboard() {
 // 탭 시 상세 팝업
 // ═══════════════════════════════════════════════════════════════
 
-var HTML_VERSION = 'v4.9.1-w1r4-state-lock-2-action-fix-2g-cardheader-race';  // State Lock 2 fix-2g-cardheader-race: w1_captureOpenCards storage cross-check (race 차단 + fetch 폭주 해소)
+var HTML_VERSION = 'v4.9.2';  // Deep Pipeline Lock — Core v2 evaluator BRIDGE IIFE 우회
 var _cachedBuildInfo = null;
 
 // [State Lock 2 Action fix-2c] 패치 확인용 — 페이지 로드 시 버전명 출력 (DevTools 콘솔)
 try {
-  console.log('[WOOS] ' + HTML_VERSION + ' loaded — State Lock 2 fix-2g-cardheader-race (w1_captureOpenCards storage cross-check, race 차단 + fetch 폭주 해소)');
+  console.log('[WOOS] ' + HTML_VERSION + ' loaded — Deep Pipeline Lock');
   window.WOOS_VERSION = HTML_VERSION;
 } catch(e) {}
 
@@ -11499,8 +11499,12 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
 
     var coreModel = null;
     try {
-      if (typeof v49_evaluateGroupCoreV2 === 'function') {
-        coreModel = v49_evaluateGroupCoreV2(group, {
+      // [v4.9.2] BRIDGE IIFE에서 v49_evaluateGroupCoreV2 직접 호출 불가 (sibling IIFE).
+      //   WOOS_ANALYZER export 우회. 미해결이면 coreModel=null → standard fallback →
+      //   vm.windowDays=1 → endsAt 과거 → "만료됨" 잘못 표시 + 정밀 카운트 0.
+      var W_cv2 = (typeof window !== 'undefined') ? window.WOOS_ANALYZER : null;
+      if (W_cv2 && typeof W_cv2.evaluateGroupCoreV2 === 'function') {
+        coreModel = W_cv2.evaluateGroupCoreV2(group, {
           watchMap: watchMap,
           now: Date.now()
         });
@@ -17286,6 +17290,9 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       isWatchlist: v44_isWatchlist,
       toggleWatchlist: v44_toggleWatchlist,
       enforceWatchState4723: v4723_enforceWatchState,
+      // [v4.9.2] Core v2 evaluator export — BRIDGE IIFE에서 우회 호출용
+      evaluateGroupCoreV2: v49_evaluateGroupCoreV2,
+      evaluateItemCoreV2: v49_evaluateItemCoreV2,
       buildCoinStatsBadge: v44_buildCoinStatsBadge,
       // [Phase 4.5] 오버레이 + Watchlist UI + 관심 상단 고정
       generateOverlayChart: v45_generateOverlayChart,
