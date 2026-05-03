@@ -5,7 +5,7 @@
 <script>
 /* [v4.7.42] 캐시 강제 리셋 — SW 완전 제거 후 리로드 */
 (function(){
-  var VER = '4903-corev2-32-renderfix';
+  var VER = '4900-corev2-32';
   try {
     var LKEY = 'woos_hard_reset_ver';
     if (localStorage.getItem(LKEY) === VER) return;
@@ -6816,7 +6816,7 @@ async function opsDashboard() {
 // 탭 시 상세 팝업
 // ═══════════════════════════════════════════════════════════════
 
-var HTML_VERSION = 'v4.9.3-corev2-v3.2-renderfix';  // Core v2 v3.2 + watchSlot immediate render debounce
+var HTML_VERSION = 'v4.9.0-corev2-v3.2';  // Core v2 v3.2 watchSlot/autoDeepSlot 분리 적용
 var _cachedBuildInfo = null;
 
 async function fetchBuildInfo() {
@@ -11238,6 +11238,82 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
     return { total: items.length, watch: 0, deep: 0, standard: 0, profit: 0, loss: 0, flat: 0 };
   }
 
+  // ════════════════════════════════════════════════════════════════
+  // [Week 1 — Round 1] open/close 정확 상태 복원 (Phase 4.6.3 재사용 X)
+  //
+  // 목적:
+  //   container.innerHTML 전체 교체로 인한 카드 펼침 상태 손실 방지.
+  //
+  // 정책 (사용자 결정):
+  //   - 정책 1: Phase 4.6.3 (v462_*) 재사용 X
+  //   - sessionStorage 메인 저장 X (메모리 capture/restore 우선)
+  //   - 정확 상태 복원: 캡처 당시 상태와 정확히 같게
+  //     · 모든 details[data-card-key] open 속성 제거 (초기화)
+  //     · capture된 key에 해당하는 카드만 다시 open
+  //     · stale open 카드 무효화 (사용자가 닫은 카드 보장)
+  //
+  // 식별자: data-card-key
+  //   - active 카드: "active:" + group.key (또는 fallback)
+  //   - single 카드: "single:" + rep.snapshotId (또는 fallback)
+  //   - completed 카드: "completed:" + ... (Round 1 외)
+  //   - 사용 범위 제한: open/close 보존 전용 (Core v2 / Worker ID 사용 X)
+  //
+  // w1_* 네임스페이스: Week 1 안정화용 임시 namespace
+  //   기존 v462 / v4720 / v4723 / v4730을 직접 신뢰하지 않는다.
+  //   나중에 RenderBridge / WatchlistState 정식 모듈로 흡수 가능.
+  // ════════════════════════════════════════════════════════════════
+  
+  function w1_getCardKey(detailsEl) {
+    if (!detailsEl) return '';
+    return detailsEl.getAttribute('data-card-key') || '';
+  }
+  
+  function w1_captureOpenCards() {
+    var keys = [];
+    try {
+      var nodes = document.querySelectorAll('details.progress-rich-card[open]');
+      for (var i = 0; i < nodes.length; i++) {
+        var k = w1_getCardKey(nodes[i]);
+        if (k) keys.push(k);
+      }
+    } catch(e) {
+      // capture 실패 시 빈 배열 (안전 fallback)
+    }
+    return keys;
+  }
+  
+  function w1_restoreOpenCards(keys) {
+    // ⚠ 정확 상태 복원 정책 (사용자 결정):
+    //   "캡처된 카드만 열기" X
+    //   "캡처 당시 상태와 정확히 같게 복원" O
+    //   
+    //   절차:
+    //     1. 모든 details[data-card-key]의 open 속성 제거 (초기화)
+    //     2. capture된 key에 해당하는 카드만 다시 open
+    try {
+      var openSet = {};
+      if (Array.isArray(keys)) {
+        for (var i = 0; i < keys.length; i++) {
+          if (keys[i]) openSet[keys[i]] = true;
+        }
+      }
+      
+      var nodes = document.querySelectorAll('details[data-card-key]');
+      for (var j = 0; j < nodes.length; j++) {
+        var el = nodes[j];
+        var key = w1_getCardKey(el);
+        
+        if (key && openSet[key]) {
+          if (!el.open) el.setAttribute('open', '');
+        } else {
+          if (el.open) el.removeAttribute('open');
+        }
+      }
+    } catch(e) {
+      // restore 실패 시 무시 (다른 기능 정상 표시 보장)
+    }
+  }
+
   // [Phase 3.9] 추적 중 목록 렌더 (검색+정렬+페이지화 적용)
   function _renderActiveTrackingList(totalCount, byTier) {
     var container = document.getElementById('analyzerContent');
@@ -11352,7 +11428,16 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
                             + controlHtml + searchInfo + cardsHtml + moreBtnHtml
                             + '</div>';
     var headerHtml = tabsHtml + statsHtml;
+    
+    // [Week 1 — Round 1] 11355 직전 — 현재 펼친 카드 키 캡처 (메모리, sessionStorage X)
+    var __w1_opened = (typeof w1_captureOpenCards === 'function') ? w1_captureOpenCards() : null;
+    
     container.innerHTML = headerHtml + activeContainerHtml + historyContainerHtml;
+    
+    // [Week 1 — Round 1] 11355 직후 — 정확 상태 복원 (빈 배열도 호출, stale open 무효화)
+    if (typeof w1_restoreOpenCards === 'function' && __w1_opened !== null) {
+      w1_restoreOpenCards(__w1_opened);
+    }
 
     // [v4.7.29] 분석 완료 탭 카운트 선반영
     try {
@@ -12642,32 +12727,18 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
     
     /* [Phase 4.4 작업 5 초석] Watchlist 관리 (localStorage) */
     var V44_WATCHLIST_KEY = 'woos_v44_watchlist';
-    function v44_normalizeWatchBase(base) {
-      if (!base) return '';
-      try {
-        if (typeof v49_normalizeBase === 'function') return v49_normalizeBase(base);
-      } catch(e) {}
-      return String(base).toUpperCase();
-    }
     function v44_getWatchlist() {
       try {
         var raw = (typeof localStorage !== 'undefined') ? localStorage.getItem(V44_WATCHLIST_KEY) : null;
         if (!raw) return [];
         var list = JSON.parse(raw);
-        if (!Array.isArray(list)) return [];
-        var seen = {};
-        return list.map(function(x){ return v44_normalizeWatchBase(x); }).filter(function(x){
-          if (!x || seen[x]) return false;
-          seen[x] = true;
-          return true;
-        });
+        return Array.isArray(list) ? list : [];
       } catch(e) { return []; }
     }
     function v44_isWatchlist(base) {
       if (!base) return false;
-      var b = v44_normalizeWatchBase(base);
       var list = v44_getWatchlist();
-      return list.indexOf(b) >= 0;
+      return list.indexOf(String(base).toUpperCase()) >= 0;
     }
 
 
@@ -12688,33 +12759,24 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
         if (typeof localStorage !== 'undefined') localStorage.setItem(V4723_WATCH_META_KEY, JSON.stringify(map || {}));
       } catch(e) {}
     }
-    function v4723_touchWatchMeta(base, item, forceRenew) {
-      var b = '';
-      try {
-        b = (typeof v44_normalizeWatchBase === 'function') ? v44_normalizeWatchBase(base) : String(base || '').toUpperCase();
-      } catch(e0) { b = String(base || '').toUpperCase(); }
+    function v4723_touchWatchMeta(base, item) {
+      var b = String(base || '').toUpperCase();
       if (!b) return null;
       var now = Date.now();
       var map = v4723_getWatchMetaMap();
       var meta = map[b];
-
-      // [v4.9.2] watchSlot은 사용자 수동 7일 슬롯이다.
-      // - 관심 등록/재등록 시 forceRenew=true → now+7d로 새로 연장
-      // - 렌더 보정(enforceWatchState)에서는 forceRenew=false → 기존 endsAt 보존
-      if (forceRenew || !meta || typeof meta !== 'object') {
+      if (!meta || typeof meta !== 'object') {
+        var serverEnd = item && Number(item.windowEnd || item.endAt || 0);
         var serverStart = item && Number(item.startedAt || item.tierAssignedAt || 0);
         meta = {
-          startedAt: forceRenew ? now : ((serverStart && serverStart > 0) ? serverStart : now),
-          endAt: now + 7 * 24 * 3600 * 1000,
+          startedAt: (serverStart && serverStart > 0) ? serverStart : now,
+          endAt: (serverEnd && serverEnd > now && serverEnd - now > 6 * 24 * 3600 * 1000) ? serverEnd : now + 7 * 24 * 3600 * 1000,
           windowDays: 7,
-          updatedAt: now,
-          source: forceRenew ? 'watch-slot-manual-renew' : 'watch-slot-init'
+          updatedAt: now
         };
       }
-
       if (!meta.startedAt || meta.startedAt <= 0) meta.startedAt = now;
-      // forceRenew가 아닌 렌더 루프에서는 살아있는 endAt을 절대 now+7d로 반복 갱신하지 않는다.
-      if (!meta.endAt || meta.endAt <= now) meta.endAt = now + 7 * 24 * 3600 * 1000;
+      if (!meta.endAt || meta.endAt <= now) meta.endAt = meta.startedAt + 7 * 24 * 3600 * 1000;
       meta.windowDays = 7;
       meta.updatedAt = now;
       map[b] = meta;
@@ -12722,7 +12784,7 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       return meta;
     }
     function v4723_deleteWatchMeta(base) {
-      var b = (typeof v44_normalizeWatchBase === 'function') ? v44_normalizeWatchBase(base) : String(base || '').toUpperCase();
+      var b = String(base || '').toUpperCase();
       if (!b) return;
       var map = v4723_getWatchMetaMap();
       if (map && Object.prototype.hasOwnProperty.call(map, b)) {
@@ -12806,7 +12868,7 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
     }
     function v44_toggleWatchlist(base) {
       if (!base) return false;
-      var b = v44_normalizeWatchBase(base);
+      var b = String(base).toUpperCase();
       var list = v44_getWatchlist();
       var idx = list.indexOf(b);
       if (idx >= 0) {
@@ -12819,7 +12881,7 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       } catch(e) {}
       var isNowWatch = list.indexOf(b) >= 0;
       try {
-        if (isNowWatch) v4723_touchWatchMeta(b, null, true);
+        if (isNowWatch) v4723_touchWatchMeta(b, null);
         else v4723_deleteWatchMeta(b);
       } catch(e2) {}
       return isNowWatch;  // 토글 후 상태 반환
@@ -13197,7 +13259,7 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       var wmeta = null;
       try {
         var wm = (typeof v4723_getWatchMetaMap === 'function') ? v4723_getWatchMetaMap() : {};
-        wmeta = wm && (wm[b] || wm[String(base || '').toUpperCase()]);
+        wmeta = wm && wm[b];
       } catch(e3) {}
       return {
         isWatch: !!isWatch,
@@ -15571,7 +15633,10 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       if (group.items.length === 1) {
         // 단독: 일반 details 카드
         var inner = v40_buildTrackInner(rep);
-        var attrs = 'data-snapshot-id="' + v40_escapeHtml(rep.snapshotId || rep.id || '') + '" data-tier="' + v40_escapeHtml(rep.tier || (rep.meta && rep.meta.tier) || 'B') + '" data-group-key="' + v40_escapeHtml(group.key) + '"';
+        // [Week 1 — Round 1] data-card-key 속성 추가 (open/close 보존 전용)
+        // namespace prefix "single:" — group/completed 카드와 충돌 방지
+        var w1_singleCardKey = 'single:' + (rep.snapshotId || rep.id || '');
+        var attrs = 'data-snapshot-id="' + v40_escapeHtml(rep.snapshotId || rep.id || '') + '" data-card-key="' + v40_escapeHtml(w1_singleCardKey) + '" data-tier="' + v40_escapeHtml(rep.tier || (rep.meta && rep.meta.tier) || 'B') + '" data-group-key="' + v40_escapeHtml(group.key) + '"';
         // [Phase 4.6.3] sessionStorage 펼침 상태 복원
         var v463_singleId = rep.snapshotId || rep.id || group.key;
         var v463_singleOpen = false;
@@ -15641,7 +15706,10 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       if (liveTierFlowStr && liveTierFlowStr !== gradeFlowStr) {
         flowsHtml += '<div class="woos-group-flow woos-group-flow-live"><span class="woos-flow-label">현재:</span> ' + liveTierFlowStr + '</div>';
       }
-      var groupAttrs = 'data-snapshot-id="' + v40_escapeHtml(rep.snapshotId || rep.id || '') + '" data-tier="' + v40_escapeHtml(rep.tier || (rep.meta && rep.meta.tier) || 'B') + '" data-group-key="' + v40_escapeHtml(group.key) + '" data-group-size="' + group.items.length + '"';
+      // [Week 1 — Round 1] data-card-key 속성 추가 (open/close 보존 전용)
+      // namespace prefix "active:" — completed 카드와 충돌 방지
+      var w1_groupCardKey = 'active:' + (group.key || rep.snapshotId || rep.id || '');
+      var groupAttrs = 'data-snapshot-id="' + v40_escapeHtml(rep.snapshotId || rep.id || '') + '" data-card-key="' + v40_escapeHtml(w1_groupCardKey) + '" data-tier="' + v40_escapeHtml(rep.tier || (rep.meta && rep.meta.tier) || 'B') + '" data-group-key="' + v40_escapeHtml(group.key) + '" data-group-size="' + group.items.length + '"';
       // [Phase 4.5] 같은 코인 오버레이 SVG (size >= 2 시만)
       var overlayHtml = '';
       if (group.items.length >= 2) {
@@ -15932,9 +16000,8 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
           for (var v47off_i = 0; v47off_i < v47off_cache.length; v47off_i++) {
             var v47off_it = v47off_cache[v47off_i];
             if (!v47off_it) continue;
-            var v47off_b = (typeof v44_normalizeWatchBase === 'function') ? v44_normalizeWatchBase(v47off_it.base || '') : String(v47off_it.base || '').toUpperCase();
-            var v47off_target = (typeof v44_normalizeWatchBase === 'function') ? v44_normalizeWatchBase(base) : String(base).toUpperCase();
-            if (v47off_b === v47off_target
+            var v47off_b = String(v47off_it.base || '').toUpperCase();
+            if (v47off_b === String(base).toUpperCase()
                 && v47off_it.trackingMode === 'deep') {
               v47off_active7d.push({
                 exchange: v47off_it.exchange,
@@ -15960,27 +16027,14 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
         // 그 외 OFF 케이스 (24h 추적 / 추적 없음) — 즉시 해제
         var nowIsWatch = window.WOOS_ANALYZER.toggleWatchlist(base);
         v47_applyWatchVisual(base, nowIsWatch);
-        // [v4.9.3] 서버 동기화는 백그라운드만 수행. 즉시 렌더는 optimistic overlay 1회로 제한한다.
         v47_syncWatchApi(base, nowIsWatch);
+        v47_rerenderActive();
       } catch(e) {
         console.error('[v45HandleWatchToggle]', e);
       }
     };
     
     // [Phase 4.7 공사 4 — 6-2] 시각 변경 (별 아이콘)
-    var v493_rerenderTimer = null;
-    function v493_rerenderActiveOnce(reason) {
-      try {
-        if (v493_rerenderTimer) clearTimeout(v493_rerenderTimer);
-        v493_rerenderTimer = setTimeout(function(){
-          v493_rerenderTimer = null;
-          if (typeof v47_rerenderActive === 'function') v47_rerenderActive();
-        }, 40);
-      } catch(e) {
-        try { if (typeof v47_rerenderActive === 'function') v47_rerenderActive(); } catch(_e) {}
-      }
-    }
-
     function v47_applyWatchVisual(base, isWatch) {
       try {
         var btns = document.querySelectorAll('.woos-watch-btn[data-base="' + base + '"]');
@@ -16002,8 +16056,8 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
         if (alreadyWatch) return;
         var nowIsWatch = window.WOOS_ANALYZER.toggleWatchlist(base);
         v47_applyWatchVisual(base, nowIsWatch);
-        // [v4.9.3] 서버 동기화는 백그라운드만 수행. 즉시 렌더는 optimistic overlay 1회로 제한한다.
         v47_syncWatchApi(base, nowIsWatch);
+        v47_rerenderActive();
       } catch(e) {
         console.error('[v47_executeWatchOn]', e);
       }
@@ -16054,10 +16108,10 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
     // [v4.7.21-detail-toggle-fix] 관심 상태 즉시 UI 반영 + 7d optimistic overlay
     function v4720_applyWatchActiveOverlay(base, isWatch) {
       try {
-        var b = (typeof v44_normalizeWatchBase === 'function') ? v44_normalizeWatchBase(base) : String(base || '').toUpperCase();
+        var b = String(base || '').toUpperCase();
         if (!b) return;
         var now = Date.now();
-        var localMeta = isWatch ? v4723_touchWatchMeta(b, null, true) : null;
+        var localMeta = isWatch ? v4723_touchWatchMeta(b, null) : null;
         if (!isWatch) v4723_deleteWatchMeta(b);
         var end7d = localMeta ? localMeta.endAt : (now + 7 * 24 * 60 * 60 * 1000);
         var start7d = localMeta ? localMeta.startedAt : now;
@@ -16065,9 +16119,7 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
         if (!Array.isArray(cache)) return;
         for (var i = 0; i < cache.length; i++) {
           var item = cache[i];
-          if (!item) continue;
-          var itemBaseNorm = (typeof v44_normalizeWatchBase === 'function') ? v44_normalizeWatchBase(item.base || (item.meta && item.meta.base) || '') : String(item.base || '').toUpperCase();
-          if (itemBaseNorm !== b) continue;
+          if (!item || String(item.base || '').toUpperCase() !== b) continue;
           item.isWatchlist = !!isWatch;
           if (isWatch) {
             item.trackingMode = 'deep';
@@ -16099,8 +16151,7 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
             }
           } catch(e2) {}
         }
-        if (typeof v493_rerenderActiveOnce === 'function') v493_rerenderActiveOnce('watch-overlay');
-        else v47_rerenderActive();
+        v47_rerenderActive();
       } catch(e) {
         console.warn('[v4720_applyWatchActiveOverlay]', e);
       }
@@ -16125,6 +16176,7 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
 
         if (!workerBase) {
           console.warn('[v47_syncWatchApi] WORKER_BASE_URL missing - local watch only');
+          v47_rerenderActive();
           return;
         }
 
@@ -16159,12 +16211,10 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
               console.warn('[v47_syncWatchApi] watch synced but no active item upgraded', syncResult);
             }
           } catch(e2) {}
-          // [v4.9.3] 서버 응답 직후 active 재조회 금지.
-          // Worker 반영 전 stale 응답이 local watchSlot을 덮어써 즉시 적용이 풀리는 문제 방지.
-          return true;
+          return refetchActive();
         }).catch(function(err2){
           console.error('[v47_syncWatchApi] server sync failed', err2);
-          // local optimistic 상태는 유지한다.
+          v47_rerenderActive();
         });
       } catch(e) {
         console.error('[v47_syncWatchApi]', e);
@@ -16173,7 +16223,11 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
     }
     
     // [Phase 4.7 공사 4 — 6-2] active 리스트 재렌더링
-    function v47_rerenderActive() {
+    // [Week 1 — Round 1] 디바운스 wrapper (관심 토글 4회 호출 → 100ms 안 1회 통합)
+    //   - 기존 본체는 v47_rerenderActive_inner로 분리 (정책 5: wrapper)
+    //   - wrapper가 100ms 디바운스 후 _inner 호출
+    //   - 같은 100ms 안 호출은 마지막 호출만 실행 (clearTimeout cancel/restart)
+    function v47_rerenderActive_inner() {
       try {
         if (typeof window._renderActiveTrackingList === 'function' && typeof window._activeItemsCache !== 'undefined') {
           var byTier = { S: 0, A: 0, B: 0, C: 0 };
@@ -16183,10 +16237,23 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
             byTier[ti] = (byTier[ti] || 0) + 1;
           }
           window._renderActiveTrackingList(cache.length, byTier);
-          // [v4.9.3] 관심 토글 직후 열린 카드 lazy fetch 자동 재호출 금지.
-          // 카드 DOM 교체/재fetch 반복으로 깜빡임과 닫힘 실패가 생기는 것을 방지한다.
         }
       } catch(e) {}
+    }
+    
+    var __w1_rerenderTimer = null;
+    function v47_rerenderActive() {
+      if (__w1_rerenderTimer) {
+        clearTimeout(__w1_rerenderTimer);
+      }
+      __w1_rerenderTimer = setTimeout(function() {
+        __w1_rerenderTimer = null;
+        try {
+          v47_rerenderActive_inner();
+        } catch(e) {
+          console.error('[w1 rerender]', e);
+        }
+      }, 100);
     }
     
     // [Phase 4.7 공사 4 — 6-2] 관심 OFF 모달 (P7 모달 컴포넌트 재사용)
@@ -16240,7 +16307,6 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
           window.WOOS_ANALYZER.toggleWatchlist(base);
         }
         v47_applyWatchVisual(base, false);
-        try { v4720_applyWatchActiveOverlay(base, false); } catch(_offOverlayErr) {}
         
         var apiUrl = (window.WORKER_BASE_URL || '') + '/tracking/end-watch-mode/' + encodeURIComponent(base);
         var validExchanges = (exchanges || []).filter(function(x){
@@ -16254,12 +16320,16 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
         }).then(function(res){
           return res.ok ? res.json() : null;
         }).then(function(data){
-          // [v4.9.3] OFF도 local optimistic 상태를 유지한다.
-          // 서버 반영 전 stale active 재조회로 화면이 되돌아가는 문제 방지.
-          return true;
+          // 응답 받은 후 active 리스트 재로드
+          if (typeof window.fetchAndRenderActive === 'function') {
+            window.fetchAndRenderActive();
+          } else {
+            // fallback — 캐시 재렌더 (서버 데이터 갱신 X 라도 UI 반영)
+            v47_rerenderActive();
+          }
         }).catch(function(err){
           console.error('[end-watch-mode]', err);
-          // local optimistic 상태는 유지한다.
+          v47_rerenderActive();
         });
       } catch(e) {
         console.error('[v47_executeEndWatchMode]', e);
