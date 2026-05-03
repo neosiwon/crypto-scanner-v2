@@ -1,40 +1,46 @@
 <!DOCTYPE html>
 <!-- ════════════════════════════════════════════════════════════════
-     WOOS Crypto Scanner v3 — v4.9.1-w1r1c-legacy-lockdown
+     WOOS Crypto Scanner v3 — v4.9.1-w1r1c-fetch-open-fix
      ════════════════════════════════════════════════════════════════
-     Phase: 4.9.1 (Week 1 P0 Legacy Lockdown)
-     Base:  v4.9.0-corev2-v3.2
+     Phase: 4.9.1 (옵션 C — fetch + open fix)
+     Base:  v4.9.1-w1r1c-legacy-lockdown
      
-     P0 Legacy Lockdown 변경 영역 (격리 정책):
-       - 11353 legacy map 호출 격리 (호출 자체 차단)
-         · v4730_normalizeNonWatchWindow(v4723_enforceWatchState(it)) 호출 X
-         · _activeItemsCache 렌더 중 변형 차단
-         · 관심 이력 코인의 잔여 박제 (trackingMode='deep' / windowDays=7) 차단
-       - 캐시 VER 갱신 (v4910-w1r1b → v4910-w1r1c-legacy-lockdown)
-       - HTML_VERSION 갱신 (v4.9.1-w1r1b → v4.9.1-w1r1c-legacy-lockdown)
+     옵션 C 변경 영역:
+       Step 1 (fetch 폭발 차단):
+         - v464_prefetchAllActive throttle (CONCURRENCY=6)
+         - v41_getAlertSnapshot lazy fetch 제거 (카드 빌드 시 fetch X)
+         - ERR_INSUFFICIENT_RESOURCES 차단
+       
+       Step 2 (open 시스템 단일화):
+         - v463_singleOpenAttr / v463_openAttr 항상 '' (Phase 4.6.3 박음 제거)
+         - v464_rerenderSingleCard: DOM 직접 조회 (isCardOpen 의존 X)
+         - 12407 영역 단일 카드 교체: DOM 직접 조회
+         - capture/restore (Round 1)만 open 결정 (단일 시스템)
+         - 시나리오 H-4 (ontoggle 비동기 + isCardOpen stale) 차단
+       
+       부가:
+         - 캐시 VER 갱신 (v4910-w1r1c-fetch-open-fix)
+         - HTML_VERSION 갱신
      
-     P0 격리 원칙 (정책 5):
-       - v4723_enforceWatchState 함수 정의 그대로 (12826) ⛔ 삭제 X
-       - v4730_normalizeNonWatchWindow 함수 정의 그대로 (13370) ⛔ 삭제 X
-       - 다른 호출처 (12717, 13258, 16023 등) 그대로 ⛔ 격리 유지
-       - 11353 호출만 끊음 (격리 = 호출 X)
+     보존 영역:
+       - v462HandleCardToggle 본체 (sessionStorage 갱신은 유지)
+       - w1_captureOpenCards / w1_restoreOpenCards (Round 1)
+       - WEEK1-P0 VIEWMODEL BRIDGE (P0-1 신설 함수 14개 — 정의만, 사용 X)
+       - legacy raw mutator (v4723/v4730/v4720/v4743) 함수 정의 그대로
+       - 17개 동결 함수 그대로
      
-     Round 1 + 1b + 1c 누적 변경 영역:
-       - open/close 정확 상태 복원 (사용자 닫은 카드 보장)
-       - data-card-key 'active:<stableBaseKey>' 통일 (single ↔ group 안정)
-       - w1_getCardKey / w1_captureOpenCards / w1_restoreOpenCards 신설
-       - v47_rerenderActive 디바운스 100ms (4회 → 1회 통합)
-       - Phase 4.6.3 (v462_*) 재사용 X (메모리 capture/restore 우선)
-       - 11353 legacy map 호출 격리 ⭐ 신규 (P0 Lockdown)
+     누적 변경 (v4.9.0 → 현재):
+       - Round 1: open/close 정확 상태 복원 + 디바운스
+       - Round 1b: data-card-key 'active:<canonical>' 통일
+       - P0 Lockdown: 11353 legacy map 격리
+       - P0-1: WEEK1-P0 VIEWMODEL BRIDGE 신설 (정의만)
+       - 옵션 C: fetch throttle + open 시스템 단일화 ⭐ 신규
      
-     P0 외 (수정 X):
-       - Worker 수정 X (Week 2+)
-       - Core v2 v3.2 내부 수정 X
-       - Round 2~4 동시 수정 X
-       - v4720 raw overlay 수정 X
-       - 17개 동결 함수 수정 X
-       - 새 기능 추가 X
-       - 11049 fetchTrackingActive 응답 직후 변형 (별도 — 사용자 결정 대기)
+     수정 X:
+       - Worker
+       - Core v2 v3.2 내부
+       - 17개 동결 함수
+       - legacy raw mutator 함수 정의
      ════════════════════════════════════════════════════════════════ -->
 <html lang="ko">
 <head>
@@ -42,7 +48,7 @@
 <script>
 /* [v4.7.42] 캐시 강제 리셋 — SW 완전 제거 후 리로드 */
 (function(){
-  var VER = 'v4910-w1r1c-legacy-lockdown';  // [P0 Legacy Lockdown] 11353 legacy map 호출 격리 + 캐시 갱신
+  var VER = 'v4910-w1r1c-fetch-open-fix';  // [옵션 C] fetch throttle (6 동시) + open 시스템 단일화 (capture/restore만)
   try {
     var LKEY = 'woos_hard_reset_ver';
     if (localStorage.getItem(LKEY) === VER) return;
@@ -6853,12 +6859,12 @@ async function opsDashboard() {
 // 탭 시 상세 팝업
 // ═══════════════════════════════════════════════════════════════
 
-var HTML_VERSION = 'v4.9.1-w1r1c-legacy-lockdown';  // P0 Legacy Lockdown: 11353 legacy map 호출 격리 (v4723/v4730 함수 정의 그대로)
+var HTML_VERSION = 'v4.9.1-w1r1c-fetch-open-fix';  // 옵션 C: fetch throttle (6 동시) + open 시스템 단일화
 var _cachedBuildInfo = null;
 
-// [Week 1 — P0 Legacy Lockdown] 패치 확인용 — 페이지 로드 시 버전명 출력 (DevTools 콘솔)
+// [옵션 C] 패치 확인용 — 페이지 로드 시 버전명 출력 (DevTools 콘솔)
 try {
-  console.log('[WOOS] ' + HTML_VERSION + ' loaded — P0 Legacy Lockdown (11353 legacy map 격리, _activeItemsCache 렌더 중 변형 차단)');
+  console.log('[WOOS] ' + HTML_VERSION + ' loaded — 옵션 C (fetch throttle 6 동시 + open 시스템 capture/restore 단일화)');
   window.WOOS_VERSION = HTML_VERSION;
 } catch(e) {}
 
@@ -12400,14 +12406,12 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
     temp.innerHTML = newHtml;
     var newCard = temp.firstElementChild;
     if (newCard && card.parentNode) {
-      // [Phase 4.7] sessionStorage 기준으로 open 상태 결정 (강제 X)
+      // [옵션 C Step 2] DOM 직접 조회 (isCardOpen 의존 X)
       try {
-        if (window.WOOS_ANALYZER && window.WOOS_ANALYZER.isCardOpen) {
-          if (window.WOOS_ANALYZER.isCardOpen(sid)) {
-            newCard.setAttribute('open', '');
-          } else {
-            newCard.removeAttribute('open');
-          }
+        if (card && card.open) {
+          newCard.setAttribute('open', '');
+        } else {
+          newCard.removeAttribute('open');
         }
       } catch(e) {}
       card.parentNode.replaceChild(newCard, card);
@@ -15267,17 +15271,37 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       return promise;
     }
     
-    /* 모든 active 코인 prefetch (병렬, 페이지 로드 직후 1회) */
+    /* 모든 active 코인 prefetch (병렬 6개 제한, 페이지 로드 직후 1회) */
     function v464_prefetchAllActive(activeList) {
       if (!Array.isArray(activeList) || activeList.length === 0) return Promise.resolve([]);
-      var promises = activeList.map(function(item){
+      
+      // [옵션 C Step 1] 동시 fetch 6개 제한 (모바일 ERR_INSUFFICIENT_RESOURCES 차단)
+      var CONCURRENCY = 6;
+      var queue = activeList.filter(function(item){
+        var sid = item && (item.id || item.snapshotId);
+        return sid && !v464_cacheGet(sid);
+      });
+      
+      var results = [];
+      var index = 0;
+      
+      function runNext() {
+        if (index >= queue.length) return Promise.resolve();
+        var item = queue[index++];
         var sid = item.id || item.snapshotId;
-        if (!sid) return null;
-        // cache miss 만 fetch
-        if (v464_cacheGet(sid)) return Promise.resolve(null);
-        return v464_fetchSnapshot(sid);
-      }).filter(Boolean);
-      return Promise.all(promises);
+        return v464_fetchSnapshot(sid).then(function(data){
+          results.push(data);
+          return runNext();
+        }, function(){
+          return runNext();
+        });
+      }
+      
+      var workers = [];
+      for (var w = 0; w < CONCURRENCY; w++) {
+        workers.push(runNext());
+      }
+      return Promise.all(workers).then(function(){ return results; });
     }
     
     /* 카드 부분 재렌더 — 단일 details outerHTML 교체 */
@@ -15332,9 +15356,11 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
         var newEl = temp.firstElementChild;
         if (!newEl) return;
         
-        // [Phase 4.7 공사 1 — 토글 fix 2] sessionStorage 기준으로 결정 (wasOpen 강제 X)
+        // [옵션 C Step 2] open 상태를 옛 카드의 DOM에서 직접 복사
+        //   - sessionStorage 의존 X (ontoggle 비동기 발화 충돌 차단)
+        //   - 사용자 클릭 직후 fetch 응답 도착 시에도 정합성 보장
         try {
-          if (W && W.isCardOpen && W.isCardOpen(snapshotId)) {
+          if (detailsEl && detailsEl.open) {
             newEl.setAttribute('open', '');
           } else {
             newEl.removeAttribute('open');
@@ -15396,15 +15422,10 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
           if (cmeta.alertSnapshot && typeof cmeta.alertSnapshot === 'object') return cmeta.alertSnapshot;
           if (cached.alertSnapshot && typeof cached.alertSnapshot === 'object') return cached.alertSnapshot;
         }
-        // [Phase 4.6.4] cache miss + 아직 fetch 안 함 → lazy fetch 트리거 (비동기, 결과는 다음 렌더에 반영)
-        if (typeof v464_fetchSnapshot === 'function' && typeof v464_cacheStatus === 'function') {
-          var status = v464_cacheStatus(sid);
-          if (status === 'unloaded') {
-            v464_fetchSnapshot(sid).then(function(data){
-              if (data && typeof v464_rerenderSingleCard === 'function') v464_rerenderSingleCard(sid);
-            });
-          }
-        }
+        // [옵션 C Step 1] lazy fetch 제거 — 카드 빌드 시 fetch 트리거 X (ERR 차단)
+        //   - prefetchAllActive (페이지 로드 + cron)이 cache 채움
+        //   - handleCardExpand가 펼침 시 fetch 트리거 (필요 시점)
+        //   - 카드 빌드 중 fetch 폭발 차단
       }
       return null;
     }
@@ -16168,14 +16189,11 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
         var w1_cardKey = 'active:' + String(group.key || rep.base || (rep.meta && rep.meta.base) || '').toUpperCase();
         var attrs = 'data-snapshot-id="' + v40_escapeHtml(rep.snapshotId || rep.id || '') + '" data-card-key="' + v40_escapeHtml(w1_cardKey) + '" data-tier="' + v40_escapeHtml(rep.tier || (rep.meta && rep.meta.tier) || 'B') + '" data-group-key="' + v40_escapeHtml(group.key) + '"';
         // [Phase 4.6.3] sessionStorage 펼침 상태 복원
+        // [옵션 C Step 2] open 시스템 단일화 — Phase 4.6.3 isCardOpen 기반 박음 제거
+        //   - capture/restore (Round 1)만 open 결정
+        //   - sessionStorage 의존 X (ontoggle 비동기 발화 충돌 차단)
         var v463_singleId = rep.snapshotId || rep.id || group.key;
-        var v463_singleOpen = false;
-        try {
-          if (window.WOOS_ANALYZER && window.WOOS_ANALYZER.isCardOpen) {
-            v463_singleOpen = window.WOOS_ANALYZER.isCardOpen(v463_singleId);
-          }
-        } catch(e) {}
-        var v463_singleOpenAttr = v463_singleOpen ? ' open' : '';
+        var v463_singleOpenAttr = '';  // [옵션 C Step 2] 항상 '' (capture/restore가 결정)
         var v463_singleToggleAttr = ' ontoggle="window.v462HandleCardToggle(event, this, \'' + v40_escapeHtml(v463_singleId) + '\')"';
         // [v4.7.44] 캐시된 그래프 HTML 사용 (재계산 금지)
         var singleGradeChart = group._gradeChartHtml || '';
@@ -16253,14 +16271,9 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
         }
       }
       // [Phase 4.6.3] sessionStorage 에서 펼친 상태 복원 (자동 펼침 버그 수정)
+      // [옵션 C Step 2] open 시스템 단일화 — Phase 4.6.3 isCardOpen 기반 박음 제거
       var v463_groupId = rep.snapshotId || rep.id || group.key;
-      var v463_isOpen = false;
-      try {
-        if (window.WOOS_ANALYZER && window.WOOS_ANALYZER.isCardOpen) {
-          v463_isOpen = window.WOOS_ANALYZER.isCardOpen(v463_groupId);
-        }
-      } catch(e) {}
-      var v463_openAttr = v463_isOpen ? ' open' : '';
+      var v463_openAttr = '';  // [옵션 C Step 2] 항상 '' (capture/restore가 결정)
       var v463_toggleAttr = ' ontoggle="window.v462HandleCardToggle(event, this, \'' + v40_escapeHtml(v463_groupId) + '\')"';
       
       // [v4.7.44] 캐시된 그래프 HTML 사용 (재계산 금지)
