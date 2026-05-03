@@ -1,78 +1,73 @@
 <!DOCTYPE html>
 <!-- ════════════════════════════════════════════════════════════════
-     WOOS Crypto Scanner v3 — v4.9.1-w1r4-state-lock-2-action-fix-1
+     WOOS Crypto Scanner v3 — v4.9.1-w1r4-state-lock-2-action-fix-2
      ════════════════════════════════════════════════════════════════
-     Phase: 4.9.1 (State Lock 2 fix-1 — Core v2 기존 조건 복원 + canonical migration + firstSeenRegistry)
-     Base:  v4.9.1-w1r4-state-lock-2-action
+     Phase: 4.9.1 (State Lock 2 fix-2 — Watch Action / Timing Lock 안정화)
+     Base:  v4.9.1-w1r4-state-lock-2-action-fix-1
      
-     ═══ State Lock 2 fix-1 변경 영역 ═══
+     ═══ State Lock 2 fix-2 변경 영역 (Watch Action 안정화) ═══
      
      절대 파이프라인:
        raw _activeItemsCache → groupTracks → Core v2 pure state →
        WatchState → CardViewModel → RenderBridge → DOM
      
-     사용자 정책 정정 (fix-1):
-       1. Core v2 정밀 조건은 기존 기준 유지 (합산 X)
-       2. canonical migration 자동 적용 (KRW-/USDT- 잔존 정리)
-       3. firstSeenRegistry 적용 (refresh 안정성 보장)
-       4. PASS 표현 정정 ("정적 백테스트 PASS, 운영 검증 후 최종")
-       5. P0-4 진입 금지 (운영 검증 통과 전)
+     핵심 변경 (사용자 보고 ReferenceError 해결):
+       v4720_applyWatchActiveOverlay 호출 차단
+       → v4723_touchWatchMeta is not defined 에러 0건
+       → _activeItemsCache + _trackingMap 직접 변형 차단
+       → 1회성 정밀 표시 / refresh 후 꼬임 / 관심 해제 안 됨 — 모두 같은 원인 해결
      
-     ═══ fix-1 변경 영역 (4건) ═══
+     ═══ fix-2 변경 9건 ═══
      
-     [A] v49_evaluateQualification 원복 (Core v2 기존 조건 복원)
-         이전 (잘못된 변경 4): S/S+ 합산 3회 + A 이상 5회
-         원복 (사용자 정책 정정):
-           · S+ ready 2회 → S_PLUS_READY_2_PLUS
-           · S+ 단독 3회 → S_PLUS_3_PLUS
-           · S 단독 4회 → S_4_PLUS
-           · A 단독 5회 → A_5_PLUS
-         
-         카운트 변수:
-           · counts.sPlusReadyCount24 (S+ ready 단독)
-           · counts.sPlusCount24 (S+ 단독)
-           · counts.sOnlyCount24 (S 단독)
-           · counts.aOnlyCount24 (A 단독, 신설)
-           · counts.aPlusCount24 (alias = aOnlyCount24, 하위 호환)
-         
-         원칙: S/S+/A 합산 X, 단독 카운트만, prePump 직접 포함 X
+     [수정 1] v47_syncWatchApi 17417 v4720 호출 제거
+         - v4720_applyWatchActiveOverlay(base, isWatch) ← 1줄 제거
+         - 즉시반영은 pending overlay (vm.watchState) + v47_applyWatchVisual로 처리
+         - legacy raw mutator 차단 (사용자 절대 금지 정책 부합)
      
-     [B] w1_migrateWatchlistToCanonical 신설 (보정 1)
-         페이지 로드 시 1회 자동 실행:
-           · 'woos_v44_watchlist' (배열) → canonical 통일 + 중복 제거
-           · 'woos_v4723_watch_meta' (객체) → canonical 통일 + 최신 updatedAt 유지
-         
-         시나리오:
-           기존: ['KRW-MEGA', 'MEGA', 'BTCUSDT']  (raw 혼재)
-           변환: ['MEGA', 'BTC']                   (canonical 통일)
-         
-         안전성: try/catch + 메모리 캐시 fallback + migration 1회만
+     [수정 2] w1_isPendingWatch 신설 (mutex 가드용)
+         - canonicalBaseKey 단위 mutex
+         - pending 중 같은 base 추가 클릭 차단
+         - Worker 요청 base당 1회만 보장
      
-     [C] w1_firstSeenRegistry 신설 (보정 2)
-         localStorage 'woos_first_seen_registry':
-           · canonicalBaseKey → firstSeenAt 1:1 mapping
-           · 7일 이상 된 항목 자동 정리
-           · localStorage 미지원 시 메모리 캐시 fallback
-         
-         w1_buildCardViewModel 통합:
-           · registry 조회 → 기존 값 있으면 그대로 사용 (안정)
-           · 없으면 우선순위 fallback 후 등록
-           · timeSource: 'registry' | 'snapshot' | 'started' | 'tier' | 'fallback'
-         
-         결과: 60초 refresh 후에도 동일한 firstSeenAt 보장
+     [수정 3] v45HandleWatchToggle mutex 가드 (진입 직후)
+         - w1_isPendingWatch(canonicalBase) → 재클릭 차단
+         - 빠른 연속 클릭 방지
      
-     [D] HTML 주석 헤더 + console + 버전 갱신
-         · v4910-w1r4-state-lock-2-action-fix-1
-         · v4.9.1-w1r4-state-lock-2-action-fix-1
+     [수정 4] v47_executeWatchOn mutex 가드 (모달 [확인] 후)
+         - canonical 정규화
+         - mutex 가드
+         - syncWatchApi에 canonicalBase 전달
      
-     ═══ 누적 11건 (State Lock 2 Action 전체) ═══
+     [수정 5] v47_executeEndWatchMode mutex 가드 (모달 [확인] 후)
+         - canonical 정규화
+         - mutex 가드
+         - sync 성공/실패 후 pending clear
+     
+     [수정 6] v47_syncWatchApi sync 응답 후 pending clear
+         - .then (성공) → w1_clearPendingWatch(canonicalBase)
+         - .catch (실패) → w1_clearPendingWatch(canonicalBase)
+         - WORKER 미존재 시도 clear
+         - try/catch 블록도 안전망 clear
+     
+     [수정 7] v47_syncWatchApi 입력 base canonical 정규화
+         - canonicalBase 변수 신설
+         - POST body { base: canonicalBase, ... }
+         - legacy URL: /watchlist/<canonicalBase>
+         - v44 저장 키와 Worker 키 통일
+     
+     [수정 9] VER: v4910-w1r4-state-lock-2-action-fix-2
+     [수정 10] HTML_VERSION + console + HTML 주석 헤더 (이 영역)
+     
+     ⏸ 수정 8: fetchAndRenderActive 후 Worker/local reconcile (Week 2 보류)
+     
+     ═══ 누적 14건 (State Lock 2 Action 전체) ═══
      
      [묶음 1: Watch Action — 3건]
        1. w1_getEffectiveWatchState 3순위 raw 보조값 제거
        2. v45_buildWatchButton legacy fallback canonical 정규화
        3. v45HandleWatchToggle canonical 보장
      
-     [묶음 2: Deep Qualification — 1건] ⚠ fix-1에서 원복
+     [묶음 2: Deep Qualification — 1건]  ⚠ fix-1에서 원복
        4. v49_evaluateQualification 기존 Core v2 조건 유지 (합산 X)
      
      [묶음 3: Label — 3건]
@@ -83,60 +78,71 @@
      [묶음 4: Watch Progress Style — 1건]
        8. watchClass = vm.modeState.displayMode === 'watch' 기준
      
-     [묶음 5: fix-1 — 3건 신설]
+     [묶음 5: fix-1 — 3건]
        9. canonical migration 자동 적용
        10. firstSeenRegistry 신설 + vm 통합
-       11. 버전 + HTML 주석 + console
+       11. 버전 + HTML 주석
      
-     ═══ 백테스트 (정적 PASS — 운영 검증 후 최종 PASS 판정) ═══
+     [묶음 6: fix-2 — 9건] ⭐ 신규
+       12. v47_syncWatchApi v4720 호출 제거
+       13. w1_isPendingWatch 신설
+       14. v45HandleWatchToggle mutex 가드
+       15. v47_executeWatchOn mutex 가드 + canonical
+       16. v47_executeEndWatchMode mutex 가드 + canonical + clear
+       17. v47_syncWatchApi sync 후 pending clear
+       18. v47_syncWatchApi canonical 정규화
+       19. 버전 갱신
+       20. HTML 주석 + console
      
-       S1.  관심 카드 클릭 → 해제 모달 (정적 PASS)
-       S2.  비관심 카드 클릭 → 등록 모달 (정적 PASS)
-       S3.  다른 브라우저 sync 후 일관성 (정적 PASS, canonical 통일)
-       S4.  raw isWatchlist stale → action 영향 X (정적 PASS, 3순위 제거)
-       S5.  S+ ready 2회 → 정밀 (정적 PASS, 기존 Core v2 조건)
-       S6.  S+ 단독 3회 → 정밀 (정적 PASS)
-       S7.  S 단독 4회 → 정밀 (정적 PASS)
-       S8.  A 단독 5회 → 정밀 (정적 PASS)
-       S9.  S+ 1회 + S 2회 → 표준 (정적 PASS, 합산 X)
-       S10. A 3회 + S 2회 → 표준 (정적 PASS, 합산 X)
-       S11. 1회성 카드 → 표준 (정적 PASS)
-       S12. 신규 라벨 1시간만 표시 (정적 PASS)
-       S13. refresh 후 firstSeenAt 안정 (registry — 운영 검증 필요)
-       S14. 마감임박 종료 1시간 전 ~ 종료 (정적 PASS)
-       S15. 만료 후 마감임박 X (정적 PASS)
-       S16. 기존 'KRW-MEGA' 잔존 → migration 'MEGA' 통합 (운영 검증 필요)
-       S17. progress bar 시안 (정적 PASS)
-       S18. 정렬/필터/카운트 vm (정적 PASS, State Lock 1차)
+     ═══ 정적 백테스트 (운영 검증 후 최종 PASS 판정) ═══
      
-     → 운영 환경 검증 통과 시 최종 PASS 판정
-     → 검증 미통과 시 추가 진단
+     [Watch Action]
+       B1. 관심 등록 시 v4720_applyWatchActiveOverlay 호출 0건 (정적 PASS)
+       B2. 관심 해제 시 v4720_applyWatchActiveOverlay 호출 0건 (정적 PASS)
+       B3. v4723_touchWatchMeta is not defined 에러 0건 (정적 PASS)
+       B4. 관심 등록/해제 refresh 이후에도 작동 (운영 검증)
+       B5. 이미 관심 카드 → 해제 모달 (정적 PASS)
+       B6. 비관심 카드 → 등록 모달 (정적 PASS)
+       B7. 빠른 연속 클릭 → Worker 요청 base당 1회만 (정적 PASS, mutex)
+       B8. pending 30초 이내 정리 (정적 PASS, sync 후 즉시 clear)
      
-     ═══ 절대 금지 ═══
+     [Core v2 Deep]
+       B9. S+ ready 2회 → 정밀 (정적 PASS)
+       B10. S+ 단독 3회 → 정밀 (정적 PASS)
+       B11. S 단독 4회 → 정밀 (정적 PASS)
+       B12. A 단독 5회 → 정밀 (정적 PASS)
+       B13. 잘못된 합산 조건으로 정밀 처리 X (정적 PASS)
+       B14. 1회성 카드 → 표준 (정적 PASS, raw 박제 차단으로 자동 해결)
+       B15. 정밀 태그/카운트/필터/정렬 vm 기준 (정적 PASS)
+     
+     [Refresh]
+       B16. 60초 refresh 후 관심 상태 안 꼬임 (운영 검증)
+       B17. refresh 후 신규 라벨 다시 생성 X (정적 PASS, registry)
+       B18. pending stale 차단 (정적 PASS, sync 후 즉시 clear + 30초 TTL)
+       B19. local + Worker reconcile (Week 2 보류)
+     
+     ═══ 절대 금지 (모두 부합) ═══
      
        🚫 17개 동결 함수 수정 X
        🚫 Worker 수정 X
-       🚫 v4723/v4730/v4720/v4743 정의 변경 X
-       🚫 _activeItemsCache / _trackingMap 변형 X
-       🚫 group.displayMode 직접 사용 X
-       🚫 v44_isWatchlist 카드 빌드 직접 호출 X
-       🚫 표시 레이어에서 억지로 deep 처리 X
-       🚫 raw trackingMode === 'deep'만 보고 정밀 표시 X
-       🚫 S/S+/A 합산 카운트 X (단독만)
-       🚫 P0-4 진입 X (legacy raw mutator 격리는 운영 검증 통과 후)
+       🚫 v4723_touchWatchMeta 재노출 X
+       🚫 v4720 내부 수정해서 계속 사용 X (호출 차단만)
+       🚫 _activeItemsCache 직접 변형 X
+       🚫 _trackingMap 직접 변형 X
+       🚫 Core v2 정밀 조건 추가 변경 X (fix-1 그대로)
+       🚫 P0-4 진입 X (운영 검증 통과 후)
        🚫 특정 코인 기준 샘플화 X
      
      ═══ 누적 변경 (v4.9.0 → 현재) ═══
      
-       - Round 1: open/close 정확 상태 복원 + 디바운스
-       - Round 1b: data-card-key 'active:<canonical>' 통일
-       - P0 Lockdown: 11353 legacy map 격리
-       - P0-1: WEEK1-P0 VIEWMODEL BRIDGE 신설 (14개 함수 정의만)
+       - Round 1 / 1b / Lockdown
+       - P0-1: WEEK1-P0 VIEWMODEL BRIDGE 신설
        - 옵션 C: fetch throttle + open 시스템 단일화
        - State Lock 1차: vm 9개 항목 단일화
-       - State Lock 2 (Sort/Filter/Label): vm.timeState/performance/labelState 신설
+       - State Lock 2 (Sort/Filter/Label): timeState/performance/labelState
        - State Lock 2 Action: Watch Action / Deep Qual / Label UI / Style
-       - State Lock 2 Action fix-1: Core v2 원복 + migration + registry ⭐ 신규
+       - State Lock 2 Action fix-1: Core v2 원복 + migration + registry
+       - State Lock 2 Action fix-2: v4720 차단 + mutex + sync 후 clear ⭐ 신규
      ════════════════════════════════════════════════════════════════ -->
 <html lang="ko">
 <head>
@@ -144,7 +150,7 @@
 <script>
 /* [v4.7.42] 캐시 강제 리셋 — SW 완전 제거 후 리로드 */
 (function(){
-  var VER = 'v4910-w1r4-state-lock-2-action-fix-1';  // [State Lock 2 fix-1] Core v2 원복 + canonical migration + firstSeenRegistry
+  var VER = 'v4910-w1r4-state-lock-2-action-fix-2';  // [State Lock 2 fix-2] v4720 호출 차단 + pending mutex + sync 후 clear + canonical 정규화
   try {
     var LKEY = 'woos_hard_reset_ver';
     if (localStorage.getItem(LKEY) === VER) return;
@@ -6979,12 +6985,12 @@ async function opsDashboard() {
 // 탭 시 상세 팝업
 // ═══════════════════════════════════════════════════════════════
 
-var HTML_VERSION = 'v4.9.1-w1r4-state-lock-2-action-fix-1';  // State Lock 2 fix-1: Core v2 원복 + canonical migration + firstSeenRegistry
+var HTML_VERSION = 'v4.9.1-w1r4-state-lock-2-action-fix-2';  // State Lock 2 fix-2: v4720 호출 차단 + pending mutex + sync 후 clear
 var _cachedBuildInfo = null;
 
-// [State Lock 2 Action fix-1] 패치 확인용 — 페이지 로드 시 버전명 출력 (DevTools 콘솔)
+// [State Lock 2 Action fix-2] 패치 확인용 — 페이지 로드 시 버전명 출력 (DevTools 콘솔)
 try {
-  console.log('[WOOS] ' + HTML_VERSION + ' loaded — State Lock 2 fix-1 (Core v2 기존 조건 복원: S+ ready 2 / S+ 3 / S 4 / A 5 + canonical migration + firstSeenRegistry)');
+  console.log('[WOOS] ' + HTML_VERSION + ' loaded — State Lock 2 fix-2 (Watch Action / Timing Lock: v4720 호출 차단 + pending mutex + sync 후 clear + canonical 정규화)');
   window.WOOS_VERSION = HTML_VERSION;
 } catch(e) {}
 
@@ -11339,6 +11345,27 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       delete w1_pendingWatchTimers[key];
     }
     delete w1_pendingWatchOverlay[key];
+  }
+
+  /**
+   * w1_isPendingWatch — pending mutex 가드 (State Lock 2 fix-2)
+   *
+   * 입력: canonical base
+   * 출력: 해당 base가 pending 중이면 true (sync 진행 중 → 재클릭 차단)
+   *
+   * 사용:
+   *   if (w1_isPendingWatch(canonicalBase)) return;  // 클릭 무시
+   *
+   * 정책:
+   *   - canonicalBaseKey 단위 mutex
+   *   - pending 중 같은 base 추가 클릭 차단
+   *   - 빠른 연속 클릭으로 Worker 요청 중복 발송 방지
+   *   - 30초 TTL 또는 sync 응답 후 자동 clear
+   */
+  function w1_isPendingWatch(base) {
+    var key = w1_getCanonicalBaseKey(base);
+    if (!key) return false;
+    return w1_pendingWatchOverlay.hasOwnProperty(key);
   }
 
   /**
@@ -17212,6 +17239,15 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
         var canonicalBase = (typeof w1_getCanonicalBaseKey === 'function')
           ? w1_getCanonicalBaseKey(base)
           : String(base || '').toUpperCase();
+        
+        // [State Lock 2 fix-2] pending mutex 가드
+        //   같은 base의 pending sync 중에는 재클릭 차단
+        //   Worker 요청 base당 1회만 보장 (빠른 연속 클릭 차단)
+        if (typeof w1_isPendingWatch === 'function' && w1_isPendingWatch(canonicalBase)) {
+          try { console.log('[v45HandleWatchToggle] pending sync — click ignored', canonicalBase); } catch(_) {}
+          return;
+        }
+        
         var effectiveWatch = (typeof w1_getEffectiveWatchState === 'function')
           ? w1_getEffectiveWatchState(canonicalBase)
           : { isWatch: false };
@@ -17284,21 +17320,31 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
         function v47_executeWatchOn(base) {
       try {
         if (!base || !window.WOOS_ANALYZER || typeof window.WOOS_ANALYZER.toggleWatchlist !== 'function') return;
+        
+        // [State Lock 2 fix-2] canonical 정규화 + pending mutex 가드
+        var canonicalBase = (typeof w1_getCanonicalBaseKey === 'function')
+          ? w1_getCanonicalBaseKey(base)
+          : String(base || '').toUpperCase();
+        if (typeof w1_isPendingWatch === 'function' && w1_isPendingWatch(canonicalBase)) {
+          try { console.log('[v47_executeWatchOn] pending sync — ignored', canonicalBase); } catch(_) {}
+          return;
+        }
+        
         var alreadyWatch = false;
         try {
           alreadyWatch = (typeof window.WOOS_ANALYZER.isWatchlist === 'function')
-            ? window.WOOS_ANALYZER.isWatchlist(base) : false;
+            ? window.WOOS_ANALYZER.isWatchlist(canonicalBase) : false;
         } catch(e0) {}
         if (alreadyWatch) return;
         
         // [State Lock] pending overlay 등록 — 다음 vm 계산에서 즉시 isWatch=true 반영
-        if (typeof w1_setPendingWatch === 'function' && typeof w1_getCanonicalBaseKey === 'function') {
-          w1_setPendingWatch(w1_getCanonicalBaseKey(base), true);
+        if (typeof w1_setPendingWatch === 'function') {
+          w1_setPendingWatch(canonicalBase, true);
         }
         
-        var nowIsWatch = window.WOOS_ANALYZER.toggleWatchlist(base);
-        v47_applyWatchVisual(base, nowIsWatch);
-        v47_syncWatchApi(base, nowIsWatch);
+        var nowIsWatch = window.WOOS_ANALYZER.toggleWatchlist(canonicalBase);
+        v47_applyWatchVisual(canonicalBase, nowIsWatch);
+        v47_syncWatchApi(canonicalBase, nowIsWatch);
         v47_rerenderActive();
       } catch(e) {
         console.error('[v47_executeWatchOn]', e);
@@ -17411,13 +17457,25 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
     // [v4.7.21-detail-toggle-fix] Worker API 동기화 + active 재조회
     function v47_syncWatchApi(base, isWatch) {
       try {
+        // [State Lock 2 fix-2] canonical base 정규화 (v44/Worker 키 통일)
+        var canonicalBase = (typeof w1_getCanonicalBaseKey === 'function')
+          ? w1_getCanonicalBaseKey(base)
+          : String(base || '').toUpperCase();
         var workerBase = v4720_getTrackingWorkerBase();
 
-        // 서버 응답 전이라도 관심 ON은 즉시 정밀/7d로 보이게 한다. 서버 동기화 실패 시 콘솔에 남긴다.
-        v4720_applyWatchActiveOverlay(base, isWatch);
+        // [State Lock 2 fix-2] v4720_applyWatchActiveOverlay 호출 제거됨
+        //   - legacy raw mutator: _activeItemsCache + _trackingMap 직접 변형 (절대 금지)
+        //   - v4723_touchWatchMeta is not defined ReferenceError 발생 지점
+        //   - 즉시반영은 pending overlay (vm.watchState) + v47_applyWatchVisual로 처리
+        //   - Core v2 raw 박제 차단 (1회성 정밀 표시 등 부작용 제거)
+        // (이전: v4720_applyWatchActiveOverlay(base, isWatch); — 제거됨)
 
         if (!workerBase) {
           console.warn('[v47_syncWatchApi] WORKER_BASE_URL missing - local watch only');
+          // [State Lock 2 fix-2] WORKER 미존재 — pending clear (이미 local 반영됨)
+          if (typeof w1_clearPendingWatch === 'function') {
+            w1_clearPendingWatch(canonicalBase);
+          }
           v47_rerenderActive();
           return;
         }
@@ -17428,7 +17486,7 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
         }
 
         function callLegacyWatchApi() {
-          var legacyUrl = workerBase + '/watchlist/' + encodeURIComponent(String(base || '').toUpperCase());
+          var legacyUrl = workerBase + '/watchlist/' + encodeURIComponent(canonicalBase);
           return fetch(legacyUrl, { method: isWatch ? 'PUT' : 'DELETE' }).then(function(res){
             if (!res || !res.ok) throw new Error('legacy watchlist sync failed: ' + (res ? res.status : 'no-response'));
             return res.json().catch(function(){ return { ok:true, legacy:true }; });
@@ -17439,7 +17497,7 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
         fetch(apiUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ base: base, enabled: !!isWatch })
+          body: JSON.stringify({ base: canonicalBase, enabled: !!isWatch })
         }).then(function(res){
           if (!res || !res.ok) throw new Error('POST /tracking/watchlist failed: ' + (res ? res.status : 'no-response'));
           return res.json().catch(function(){ return { ok:true }; });
@@ -17453,13 +17511,32 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
               console.warn('[v47_syncWatchApi] watch synced but no active item upgraded', syncResult);
             }
           } catch(e2) {}
+          // [State Lock 2 fix-2] sync 성공 → pending clear (조건 1)
+          if (typeof w1_clearPendingWatch === 'function') {
+            w1_clearPendingWatch(canonicalBase);
+          }
           return refetchActive();
         }).catch(function(err2){
           console.error('[v47_syncWatchApi] server sync failed', err2);
+          // [State Lock 2 fix-2] sync 실패 → pending clear (조건 2)
+          //   - 30초 TTL까지 기다리지 않고 즉시 clear
+          //   - 다음 vm 생성에서 local watch 기준으로 정합성 회복
+          if (typeof w1_clearPendingWatch === 'function') {
+            w1_clearPendingWatch(canonicalBase);
+          }
           v47_rerenderActive();
         });
       } catch(e) {
         console.error('[v47_syncWatchApi]', e);
+        // [State Lock 2 fix-2] catch 블록도 pending clear (안전망)
+        if (typeof w1_clearPendingWatch === 'function') {
+          try {
+            var canonicalBaseSafe = (typeof w1_getCanonicalBaseKey === 'function')
+              ? w1_getCanonicalBaseKey(base)
+              : String(base || '').toUpperCase();
+            w1_clearPendingWatch(canonicalBaseSafe);
+          } catch(_e) {}
+        }
         v47_rerenderActive();
       }
     }
@@ -17544,18 +17621,27 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
     // [Phase 4.7 공사 4 — 6-2] end-watch-mode 라우트 호출 + UI 갱신
     function v47_executeEndWatchMode(base, exchanges) {
       try {
+        // [State Lock 2 fix-2] canonical 정규화 + pending mutex 가드
+        var canonicalBase = (typeof w1_getCanonicalBaseKey === 'function')
+          ? w1_getCanonicalBaseKey(base)
+          : String(base || '').toUpperCase();
+        if (typeof w1_isPendingWatch === 'function' && w1_isPendingWatch(canonicalBase)) {
+          try { console.log('[v47_executeEndWatchMode] pending sync — ignored', canonicalBase); } catch(_) {}
+          return;
+        }
+        
         // [State Lock] pending overlay 등록 — 다음 vm 계산에서 즉시 isWatch=false 반영
-        if (typeof w1_setPendingWatch === 'function' && typeof w1_getCanonicalBaseKey === 'function') {
-          w1_setPendingWatch(w1_getCanonicalBaseKey(base), false);
+        if (typeof w1_setPendingWatch === 'function') {
+          w1_setPendingWatch(canonicalBase, false);
         }
         
         // 클라이언트 watchlist 즉시 토글 OFF (UI 반영)
         if (window.WOOS_ANALYZER && window.WOOS_ANALYZER.toggleWatchlist) {
-          window.WOOS_ANALYZER.toggleWatchlist(base);
+          window.WOOS_ANALYZER.toggleWatchlist(canonicalBase);
         }
-        v47_applyWatchVisual(base, false);
+        v47_applyWatchVisual(canonicalBase, false);
         
-        var apiUrl = (window.WORKER_BASE_URL || '') + '/tracking/end-watch-mode/' + encodeURIComponent(base);
+        var apiUrl = (window.WORKER_BASE_URL || '') + '/tracking/end-watch-mode/' + encodeURIComponent(canonicalBase);
         var validExchanges = (exchanges || []).filter(function(x){
           return x && x.exchange && x.entryPrice;
         });
@@ -17567,6 +17653,10 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
         }).then(function(res){
           return res.ok ? res.json() : null;
         }).then(function(data){
+          // [State Lock 2 fix-2] sync 성공 → pending clear
+          if (typeof w1_clearPendingWatch === 'function') {
+            w1_clearPendingWatch(canonicalBase);
+          }
           // 응답 받은 후 active 리스트 재로드
           if (typeof window.fetchAndRenderActive === 'function') {
             window.fetchAndRenderActive();
@@ -17576,6 +17666,10 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
           }
         }).catch(function(err){
           console.error('[end-watch-mode]', err);
+          // [State Lock 2 fix-2] sync 실패 → pending clear
+          if (typeof w1_clearPendingWatch === 'function') {
+            w1_clearPendingWatch(canonicalBase);
+          }
           v47_rerenderActive();
         });
       } catch(e) {
