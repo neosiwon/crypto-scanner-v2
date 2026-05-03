@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <!-- ════════════════════════════════════════════════════════════════
-     WOOS Crypto Scanner v3 — v4.9.1-w1r4-state-lock-2-action-fix-2c
+     WOOS Crypto Scanner v3 — v4.9.1-w1r4-state-lock-2-action-fix-2e
      ════════════════════════════════════════════════════════════════
-     Phase: 4.9.1 (State Lock 2 fix-2c — watch action pending stale/key/event fix)
+     Phase: 4.9.1 (State Lock 2 fix-2e — watch action pending shape guard)
      Base:  v4.9.1-w1r4-state-lock-2-action-fix-1
      
      ═══ State Lock 2 fix-2-1 변경 영역 (Watch Action 안정화) ═══
@@ -150,7 +150,7 @@
 <script>
 /* [v4.7.42] 캐시 강제 리셋 — SW 완전 제거 후 리로드 */
 (function(){
-  var VER = 'v4910-w1r4-state-lock-2-action-fix-2c';  // [State Lock 2 fix-2c] watch action pending stale/key/event fix
+  var VER = 'v4910-w1r4-state-lock-2-action-fix-2e';  // [State Lock 2 fix-2e] watch action pending shape guard
   try {
     var LKEY = 'woos_hard_reset_ver';
     if (localStorage.getItem(LKEY) === VER) return;
@@ -6985,12 +6985,12 @@ async function opsDashboard() {
 // 탭 시 상세 팝업
 // ═══════════════════════════════════════════════════════════════
 
-var HTML_VERSION = 'v4.9.1-w1r4-state-lock-2-action-fix-2c';  // State Lock 2 fix-2c: watch action pending stale/key/event fix
+var HTML_VERSION = 'v4.9.1-w1r4-state-lock-2-action-fix-2e';  // State Lock 2 fix-2e: watch action pending shape guard
 var _cachedBuildInfo = null;
 
-// [State Lock 2 Action fix-2c] 패치 확인용 — 페이지 로드 시 버전명 출력 (DevTools 콘솔)
+// [State Lock 2 Action fix-2e] 패치 확인용 — 페이지 로드 시 버전명 출력 (DevTools 콘솔)
 try {
-  console.log('[WOOS] ' + HTML_VERSION + ' loaded — State Lock 2 fix-2c (watch action pending stale/key/event fix)');
+  console.log('[WOOS] ' + HTML_VERSION + ' loaded — State Lock 2 fix-2e (watch action pending shape guard)');
   window.WOOS_VERSION = HTML_VERSION;
 } catch(e) {}
 
@@ -11308,9 +11308,7 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
    *   - clear 5조건: sync 성공/실패/reconcile/30초 TTL/페이지 재시작
    *   - SoT 아님 (즉시반영용)
    */
-  var w1_pendingWatchOverlay = (typeof window !== 'undefined' && window.w1_pendingWatchOverlay && typeof window.w1_pendingWatchOverlay === 'object')
-    ? window.w1_pendingWatchOverlay
-    : {};
+  var w1_pendingWatchOverlay = {};
   var w1_pendingWatchTimers = {};  // setTimeout id 저장 (TTL 관리)
 
   /**
@@ -11404,7 +11402,11 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
     if (!key) return false;
     var store = w1_pendingWatchOverlay || {};
     var p = store[key];
-    if (!p || typeof p !== 'object') return false;
+    if (!p) return false;
+    if (typeof p !== 'object') {
+      delete store[key];
+      return false;
+    }
 
     var now = Date.now();
     var createdAt = Number(p.createdAt || 0);
@@ -11452,6 +11454,10 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
     // 1순위: pending overlay
     if (w1_pendingWatchOverlay.hasOwnProperty(key)) {
       var pendingEntry = w1_pendingWatchOverlay[key] || {};
+      if (typeof pendingEntry !== 'object') {
+        delete w1_pendingWatchOverlay[key];
+        return { isWatch: false, isPending: false, source: 'none' };
+      }
       return {
         isWatch: !!pendingEntry.desiredState,
         isPending: true,
