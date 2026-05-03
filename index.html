@@ -11358,6 +11358,25 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
   function w1_clearPendingWatch(base) {
     var key = w1_getCanonicalBaseKey(base);
     if (!key) return;
+    var store = w1_pendingWatchOverlay || {};
+    var pendingEntry = store[key];
+    var now = Date.now();
+    var lockUntil = pendingEntry && typeof pendingEntry === 'object'
+      ? Number(pendingEntry.lockUntil || 0)
+      : 0;
+
+    if (lockUntil && now < lockUntil) {
+      if (w1_pendingWatchTimers[key]) {
+        try { clearTimeout(w1_pendingWatchTimers[key]); } catch(e0) {}
+      }
+      w1_pendingWatchTimers[key] = setTimeout(function(){
+        try {
+          delete w1_pendingWatchOverlay[key];
+          delete w1_pendingWatchTimers[key];
+        } catch(e1) {}
+      }, Math.max(0, lockUntil - now));
+      return;
+    }
     if (w1_pendingWatchTimers[key]) {
       try { clearTimeout(w1_pendingWatchTimers[key]); } catch(e) {}
       delete w1_pendingWatchTimers[key];
