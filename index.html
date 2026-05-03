@@ -152,7 +152,7 @@
 <script>
 /* [v4.7.42] 캐시 강제 리셋 — SW 완전 제거 후 리로드 */
 (function(){
-  var VER = 'v4.9.3';  // Fetch Storm Lock — fetchTrackingData inFlight dedupe + 30s cache
+  var VER = 'v4.9.4';  // 신호 근거 블록 중복 제거 (MFE 그래프 상단)
   try {
     var LKEY = 'woos_hard_reset_ver';
     if (localStorage.getItem(LKEY) === VER) return;
@@ -6987,12 +6987,12 @@ async function opsDashboard() {
 // 탭 시 상세 팝업
 // ═══════════════════════════════════════════════════════════════
 
-var HTML_VERSION = 'v4.9.3';  // Fetch Storm Lock
+var HTML_VERSION = 'v4.9.4';  // 신호 근거 블록 중복 제거
 var _cachedBuildInfo = null;
 
 // [State Lock 2 Action fix-2c] 패치 확인용 — 페이지 로드 시 버전명 출력 (DevTools 콘솔)
 try {
-  console.log('[WOOS] ' + HTML_VERSION + ' loaded — Fetch Storm Lock');
+  console.log('[WOOS] ' + HTML_VERSION + ' loaded — Signal Reason 중복 제거');
   window.WOOS_VERSION = HTML_VERSION;
 } catch(e) {}
 
@@ -16628,7 +16628,7 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
         stateBlockHtml +                            /* [Phase 4.6.2] 6가지 상태 + 디테일 해석 */
         briefingHtml +                              /* [Phase 4.4] 동적 브리핑 (최상단) */
         '<div class="woos-progress"><div class="woos-progress-bar"><div class="woos-progress-fill" style="width:' + progressPct.toFixed(0) + '%"></div></div><div class="woos-progress-pct">' + progressPct.toFixed(0) + '%</div></div>' +
-        v41_buildSignalReasonBlock(alertSnap, track) +    /* [Phase 4.1] 신호 근거 — Phase 4.6.4 track 추가 */
+        /* [v4.9.4] 신호 근거 블록 제거 — MFE 그래프 상단 중복 표시 해소 (v41_buildSignalReasonBlock 호출 삭제) */
         /* [Phase 4.7 공사 4 — 3-1] 속도/안정성/기회 영역 1 (간단 ver) 삭제
          * 사용자 결정: 영역 2 (스캐너 채점표 — scoringTableHtml) 만 유지
          * 이전: metricsHtml + curBig (간단 ver) → 삭제 */
