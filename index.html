@@ -152,7 +152,7 @@
 <script>
 /* [v4.7.42] 캐시 강제 리셋 — SW 완전 제거 후 리로드 */
 (function(){
-  var VER = 'v4.9.2';  // Deep Pipeline Lock — Core v2 evaluator BRIDGE IIFE 우회 (정밀 카운트 + 만료 잘못 표시 해소)
+  var VER = 'v4.9.2';  // Deep Pipeline Lock + Grade Chart Source Lock
   try {
     var LKEY = 'woos_hard_reset_ver';
     if (localStorage.getItem(LKEY) === VER) return;
@@ -6987,12 +6987,12 @@ async function opsDashboard() {
 // 탭 시 상세 팝업
 // ═══════════════════════════════════════════════════════════════
 
-var HTML_VERSION = 'v4.9.2';  // Deep Pipeline Lock — Core v2 evaluator BRIDGE IIFE 우회
+var HTML_VERSION = 'v4.9.2';  // Deep Pipeline Lock + Grade Chart Source Lock
 var _cachedBuildInfo = null;
 
 // [State Lock 2 Action fix-2c] 패치 확인용 — 페이지 로드 시 버전명 출력 (DevTools 콘솔)
 try {
-  console.log('[WOOS] ' + HTML_VERSION + ' loaded — Deep Pipeline Lock');
+  console.log('[WOOS] ' + HTML_VERSION + ' loaded — Deep Pipeline + Grade Chart Source Lock');
   window.WOOS_VERSION = HTML_VERSION;
 } catch(e) {}
 
@@ -11499,9 +11499,10 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
 
     var coreModel = null;
     try {
-      // [v4.9.2] BRIDGE IIFE에서 v49_evaluateGroupCoreV2 직접 호출 불가 (sibling IIFE).
-      //   WOOS_ANALYZER export 우회. 미해결이면 coreModel=null → standard fallback →
-      //   vm.windowDays=1 → endsAt 과거 → "만료됨" 잘못 표시 + 정밀 카운트 0.
+      // [v4.9.2 Deep Pipeline Lock] BRIDGE↔WOOS_ANALYZER sibling IIFE 분리로
+      //   v49_evaluateGroupCoreV2 bare 호출 불가 → WOOS_ANALYZER export 우회.
+      //   미해결이면 coreModel=null → standard fallback → vm.windowDays=1 →
+      //   endsAt 과거 → 정밀 카운트 0 + "만료됨" 잘못 표시.
       var W_cv2 = (typeof window !== 'undefined') ? window.WOOS_ANALYZER : null;
       if (W_cv2 && typeof W_cv2.evaluateGroupCoreV2 === 'function') {
         coreModel = W_cv2.evaluateGroupCoreV2(group, {
@@ -14770,38 +14771,95 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       var rep = group.representative || {};
       var meta = rep.meta || {};
 
-      // [v4.7.43] 데이터 소스 우선순위: gradeHistory → meta.gradeHistory → group.items
+      // [v4.9.2 Grade Chart Source Lock — C안] group 전체 source 통합 + dedupe + count 분리 표시
+      //   기존: rep.gradeHistory 우선 → 1순위 만나면 멈춤 → representative 1개 item만 그래프
+      //   문제: 헤더 xCount(group sCount24+aCount24)와 그래프 dot count가 source mismatch
+      //   해결: group 전체 source(rep + meta + items[].* + items[].meta.*) 모두 수집 → dedupe → 시간순
+      //         실제 수집 결과가 헤더 xCount보다 부족하면 "N회 / 알람 xM"으로 source 차이 명시
+      //         fake dot 절대 생성 X
       function normalizeGradeHistoryPoint(pt, fallbackExchange) {
         if (!pt) return null;
         var gradeCode = pt.gradeCode || pt.grade || '?';
         var t = pt.time || pt.t || pt.at || pt.startedAt || 0;
         var ex = pt.exchange || fallbackExchange || '';
-        return { gradeCode: gradeCode, t: t, exchange: ex };
+        var sid = pt.snapshotId || pt.id || '';
+        return { gradeCode: gradeCode, t: t, exchange: ex, snapshotId: sid };
       }
 
-      var historyPoints = [];
-      if (Array.isArray(rep.gradeHistory) && rep.gradeHistory.length > 0) {
-        historyPoints = rep.gradeHistory.map(function(pt){ return normalizeGradeHistoryPoint(pt, rep.exchange); }).filter(Boolean);
-      } else if (Array.isArray(meta.gradeHistory) && meta.gradeHistory.length > 0) {
-        historyPoints = meta.gradeHistory.map(function(pt){ return normalizeGradeHistoryPoint(pt, rep.exchange); }).filter(Boolean);
-      } else if (Array.isArray(group.items) && group.items.length > 0) {
-        var sortedItems = group.items.slice().sort(function(a, b){
-          return (a.startedAt || a.tierAssignedAt || 0) - (b.startedAt || b.tierAssignedAt || 0);
-        });
-        historyPoints = sortedItems.map(function(it){
-          var m = it.meta || {};
-          return normalizeGradeHistoryPoint({
-            gradeCode: (v41_getAlertSnapshot && v41_getAlertSnapshot(it) && v41_getAlertSnapshot(it).gradeCode) || it.gradeCode || m.gradeCode,
-            time: it.startedAt || m.windowStart || it.tierAssignedAt || 0,
-            exchange: it.exchange || m.exchange || '',
-          });
-        }).filter(Boolean);
+      var rawCollected = [];
+      // 1. representative.gradeHistory
+      if (Array.isArray(rep.gradeHistory)) {
+        rep.gradeHistory.forEach(function(pt){ var n = normalizeGradeHistoryPoint(pt, rep.exchange); if (n) rawCollected.push(n); });
       }
+      // 2. representative.meta.gradeHistory
+      if (Array.isArray(meta.gradeHistory)) {
+        meta.gradeHistory.forEach(function(pt){ var n = normalizeGradeHistoryPoint(pt, rep.exchange); if (n) rawCollected.push(n); });
+      }
+      // 3. group.items[].gradeHistory + items[].meta.gradeHistory
+      if (Array.isArray(group.items)) {
+        group.items.forEach(function(it){
+          if (!it) return;
+          var im = it.meta || {};
+          if (Array.isArray(it.gradeHistory)) {
+            it.gradeHistory.forEach(function(pt){ var n = normalizeGradeHistoryPoint(pt, it.exchange || im.exchange); if (n) rawCollected.push(n); });
+          }
+          if (Array.isArray(im.gradeHistory)) {
+            im.gradeHistory.forEach(function(pt){ var n = normalizeGradeHistoryPoint(pt, it.exchange || im.exchange); if (n) rawCollected.push(n); });
+          }
+          // 4. item 자체의 현재 grade — timestamp 있을 때만 (snapshotId/exchange 포함하여 dedupe 가능)
+          var itemTs = it.startedAt || im.windowStart || it.tierAssignedAt || 0;
+          var itemGrade = (typeof v41_getAlertSnapshot === 'function' && v41_getAlertSnapshot(it) && v41_getAlertSnapshot(it).gradeCode) || it.gradeCode || im.gradeCode;
+          if (itemTs && itemGrade) {
+            rawCollected.push({
+              gradeCode: itemGrade,
+              t: itemTs,
+              exchange: it.exchange || im.exchange || '',
+              snapshotId: it.id || it.snapshotId || ''
+            });
+          }
+        });
+      }
+
+      // dedupe: snapshotId+t+exchange+grade 우선, 없으면 t+exchange+grade
+      var dedup = {};
+      var historyPoints = [];
+      rawCollected.forEach(function(p){
+        if (!p || !p.t) return;
+        var key = (p.snapshotId || '') + '|' + p.t + '|' + (p.exchange || '') + '|' + (p.gradeCode || '');
+        if (dedup[key]) return;
+        dedup[key] = true;
+        historyPoints.push(p);
+      });
 
       if (historyPoints.length === 0) return '';
 
-      // 헤더 횟수: gradeHistory.length || alertCount || items.length
-      var displayCount = historyPoints.length || rep.alertCount || (group.items && group.items.length) || 0;
+      // 헤더 alarm count (group 24h sCount24+aCount24 합)
+      var headerAlertCount = 0;
+      try {
+        if (Array.isArray(group.items)) {
+          group.items.forEach(function(it){
+            if (!it) return;
+            headerAlertCount += (Number(it.sCount24) || 0) + (Number(it.aCount24) || 0);
+          });
+        }
+        if (!headerAlertCount) {
+          headerAlertCount = (Number(rep.sCount24) || 0) + (Number(rep.aCount24) || 0);
+        }
+        if (!headerAlertCount && rep.alertCount) headerAlertCount = Number(rep.alertCount) || 0;
+      } catch(_e) {}
+
+      // chartCount는 실제 수집된 grade events
+      var chartCount = historyPoints.length;
+      // displayCount는 source 차이 분리 표시용
+      // chartCount === headerAlertCount 또는 headerAlertCount===0 → '등급 변화 (N회)'
+      // chartCount < headerAlertCount → '등급 변화 (N회 / 알람 xM)'
+      var displayCount = chartCount;
+      var displayCountLabel;
+      if (headerAlertCount > 0 && chartCount < headerAlertCount) {
+        displayCountLabel = chartCount + '회 / 알람 x' + headerAlertCount;
+      } else {
+        displayCountLabel = chartCount + '회';
+      }
 
       // [v4.7.43] B 포함 4단계
       function gIdx(g) {
@@ -14852,7 +14910,7 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
 
       if (rawPoints.length === 0) {
         return '<div class="grade-change-chart">'
-          + '<div class="gcc-header"><span class="gcc-title">📊 등급 변화 (' + displayCount + '회)</span></div>'
+          + '<div class="gcc-header"><span class="gcc-title">📊 등급 변화 (' + displayCountLabel + ')</span></div>'
           + '<div class="gcc-empty">등급 이력 없음</div>'
           + '</div>';
       }
@@ -14938,7 +14996,7 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       
       return '<div class="grade-change-chart">'
         + '<div class="gcc-header">'
-        +   '<span class="gcc-title">📊 등급 변화 (' + displayCount + '회)</span>'
+        +   '<span class="gcc-title">📊 등급 변화 (' + displayCountLabel + ')</span>'
         +   legendHtml
         +   infoIcon
         + '</div>'
