@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <!-- ════════════════════════════════════════════════════════════════
-     WOOS Crypto Scanner v3 — v4.9.1-w1r4-state-lock-2-action-fix-2-1
+     WOOS Crypto Scanner v3 — v4.9.1-w1r4-state-lock-2-action-fix-2-2
      ════════════════════════════════════════════════════════════════
-     Phase: 4.9.1 (State Lock 2 fix-2-1 — Watch Action legacy mutator 차단)
+     Phase: 4.9.1 (State Lock 2 fix-2-2 — Worker watch reconcile)
      Base:  v4.9.1-w1r4-state-lock-2-action-fix-1
      
      ═══ State Lock 2 fix-2-1 변경 영역 (Watch Action 안정화) ═══
@@ -150,7 +150,7 @@
 <script>
 /* [v4.7.42] 캐시 강제 리셋 — SW 완전 제거 후 리로드 */
 (function(){
-  var VER = 'v4910-w1r4-state-lock-2-action-fix-2-1';  // [State Lock 2 fix-2-1] Watch Action v4723 meta mutator 차단
+  var VER = 'v4910-w1r4-state-lock-2-action-fix-2-2';  // [State Lock 2 fix-2-2] Worker watch state → local watchlist reconcile
   try {
     var LKEY = 'woos_hard_reset_ver';
     if (localStorage.getItem(LKEY) === VER) return;
@@ -6985,12 +6985,12 @@ async function opsDashboard() {
 // 탭 시 상세 팝업
 // ═══════════════════════════════════════════════════════════════
 
-var HTML_VERSION = 'v4.9.1-w1r4-state-lock-2-action-fix-2-1';  // State Lock 2 fix-2-1: Watch Action v4723 meta mutator 차단
+var HTML_VERSION = 'v4.9.1-w1r4-state-lock-2-action-fix-2-2';  // State Lock 2 fix-2-2: Worker watch state reconcile
 var _cachedBuildInfo = null;
 
-// [State Lock 2 Action fix-2-1] 패치 확인용 — 페이지 로드 시 버전명 출력 (DevTools 콘솔)
+// [State Lock 2 Action fix-2-2] 패치 확인용 — 페이지 로드 시 버전명 출력 (DevTools 콘솔)
 try {
-  console.log('[WOOS] ' + HTML_VERSION + ' loaded — State Lock 2 fix-2-1 (Watch Action: v4720/v4723 legacy mutator 차단 + pending mutex)');
+  console.log('[WOOS] ' + HTML_VERSION + ' loaded — State Lock 2 fix-2-2 (Worker watch state reconcile + pending mutex)');
   window.WOOS_VERSION = HTML_VERSION;
 } catch(e) {}
 
@@ -11048,6 +11048,11 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       
       // 활성 추적 데이터 캐싱
       if (activeData && activeData.active) {
+        try {
+          if (typeof w1_reconcileWatchlistFromActive === 'function') {
+            w1_reconcileWatchlistFromActive(activeData.active);
+          }
+        } catch(e0) {}
         activeData.active.forEach(function(item){
           if (!_trackingMap[item.id]) {
             _trackingMap[item.id] = {
@@ -11148,6 +11153,11 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
         container.innerHTML = '<div class="analyzer-empty">현재 추적 중인 알람 없음</div>';
         return;
       }
+      try {
+        if (typeof w1_reconcileWatchlistFromActive === 'function') {
+          w1_reconcileWatchlistFromActive(active);
+        }
+      } catch(e0) {}
       var byTier = activeData.byTier || {};
       
       // [Phase 3.9] active 항목 캐시 + 진행률 계산
@@ -11189,8 +11199,8 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
           alertCount: item.alertCount || item.alarmCount24 || item.sCount24 || item.aCount24 || 1,
         };
       });
-      // [v4.7.23] 관심 코인은 fetchTrackingActive 결과가 표준 8h로 내려와도 렌더 전 7d 상태를 재합성한다.
-      try { _activeItemsCache = _activeItemsCache.map(function(it){ return v4723_enforceWatchState(it); }); } catch(e) {}
+      // [State Lock 2 fix-2-2] legacy v4723 raw state enforcement is blocked.
+      // Worker watch state is reconciled into the local watchlist before VM build.
 
       // [v4.7.45] _renderActiveTrackingList try/catch — 렌더 에러와 Worker 에러 분리
       try {
@@ -11421,6 +11431,37 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
     return { isWatch: false, isPending: false, source: 'none' };
   }
 
+  function w1_reconcileWatchlistFromActive(activeList) {
+    if (!Array.isArray(activeList) || typeof localStorage === 'undefined') return;
+    try {
+      var list = (typeof v44_getWatchlist === 'function') ? v44_getWatchlist() : [];
+      var map = {};
+      list.forEach(function(base){
+        var k = w1_getCanonicalBaseKey(base);
+        if (k) map[k] = true;
+      });
+
+      var touched = false;
+      activeList.forEach(function(item){
+        var key = w1_getCanonicalBaseKey(item && (item.base || (item.meta && item.meta.base) || item.id || ''));
+        if (!key) return;
+        if (item && item.isWatchlist === true) {
+          if (!map[key]) {
+            map[key] = true;
+            touched = true;
+          }
+        } else if (Object.prototype.hasOwnProperty.call(map, key)) {
+          delete map[key];
+          touched = true;
+        }
+      });
+
+      if (!touched) return;
+      localStorage.setItem('woos_v44_watchlist', JSON.stringify(Object.keys(map)));
+    } catch(e) {
+      try { console.warn('[w1_reconcileWatchlistFromActive]', e && e.message ? e.message : e); } catch(_e) {}
+    }
+  }
   /**
    * w1_computeCoreState — Core v2 pure evaluation (보정 1번)
    *
@@ -17846,6 +17887,11 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       Promise.all([activeP].concat(samplePromises)).then(function(results){
         var activeData = results[0];
         if (activeData && activeData.active) {
+          try {
+            if (typeof w1_reconcileWatchlistFromActive === 'function') {
+              w1_reconcileWatchlistFromActive(activeData.active);
+            }
+          } catch(e0) {}
           // [Phase 3.9 → v4.7.5 R0] _activeItemsCache 매핑 통일
           // 9890줄과 동일한 박제 10필드 매핑 (대원칙 3 — 신규 X, 기존 패턴 재사용)
           // 60초 자동 갱신마다 박제 데이터 정확히 적용 — Q4/Q11 통합 해결
