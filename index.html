@@ -1,62 +1,142 @@
 <!DOCTYPE html>
 <!-- ════════════════════════════════════════════════════════════════
-     WOOS Crypto Scanner v3 — v4.9.1-w1r2-state-lock
+     WOOS Crypto Scanner v3 — v4.9.1-w1r4-state-lock-2-action-fix-1
      ════════════════════════════════════════════════════════════════
-     Phase: 4.9.1 (State Lock — vm 단일화)
-     Base:  v4.9.1-w1r1c-fetch-open-fix-2 (옵션 C 적용본)
+     Phase: 4.9.1 (State Lock 2 fix-1 — Core v2 기존 조건 복원 + canonical migration + firstSeenRegistry)
+     Base:  v4.9.1-w1r4-state-lock-2-action
      
-     ═══ State Lock 변경 영역 (v3.8 파이프라인 적용) ═══
+     ═══ State Lock 2 fix-1 변경 영역 ═══
      
      절대 파이프라인:
        raw _activeItemsCache → groupTracks → Core v2 pure state →
        WatchState → CardViewModel → RenderBridge → DOM
      
-     9개 표시 상태 모두 vm.* 필드에서 파생:
-       1. 별표:        vm.watchState.isWatch
-       2. 모드 태그:   vm.modeState.modeLabel ('관심'|'정밀'|'표준'|'만료')
-       3. 추적기간:    vm.trackingWindow (modeState 파생)
-       4. 진행률:      vm.progress
-       5. 잔여시간:    vm.remainingLabel
-       6. 상단 카운트: w1_calcCountsFromVMs (vm.modeState.displayMode 기준)
-       7. 모달 조건:   w1_getEffectiveWatchState.isWatch
-       8. 카드 class:  vm.modeState.cardModeClass
-       9. data-card-key: 'active:' + vm.canonicalBaseKey
+     사용자 정책 정정 (fix-1):
+       1. Core v2 정밀 조건은 기존 기준 유지 (합산 X)
+       2. canonical migration 자동 적용 (KRW-/USDT- 잔존 정리)
+       3. firstSeenRegistry 적용 (refresh 안정성 보장)
+       4. PASS 표현 정정 ("정적 백테스트 PASS, 운영 검증 후 최종")
+       5. P0-4 진입 금지 (운영 검증 통과 전)
      
-     변경 영역 18건:
-       [w1_resolveModeLabel/CardClass] expired 분기 + '정밀·자동' → '정밀' 단순화
-       [w1_resolveTrackingWindow] modeState에서 파생 (raw windowDays X)
-       [w1_buildCardViewModel] modeState 'expired' + 4단계 우선순위
-       [w1_calcCountsFromVMs] 신설 (allGroupVMs 기준 카운트)
-       [_renderActiveTrackingList] vm 배열 생성 + 카운트 vm 기준 + 카드 빌드 시 vm 전달
-       [v40_buildGroupCardHTML] vm.modeState.cardModeClass + data-card-key vm 기준
-       [v40_buildTrackInner] opts.vm 전달
-       [v40_buildCompactSummary] vm.watchState/modeState/progress/remainingLabel
-       [v40_buildExpandedBody] opts.vm + vm.modeState.modeLabel
-       [v45HandleWatchToggle] 모달 조건 vm.watchState 기준 + pending overlay 등록
-       [v47_executeWatchOn] pending overlay isWatch=true
-       [v47_executeEndWatchMode] pending overlay isWatch=false
-       [VER + HTML_VERSION + console + HTML 주석 헤더]
+     ═══ fix-1 변경 영역 (4건) ═══
      
-     fallback 정책:
-       vm 미존재 또는 누락 → 기존 raw 사용 (회귀 안전)
-       P0-4 진입 시 fallback 제거
+     [A] v49_evaluateQualification 원복 (Core v2 기존 조건 복원)
+         이전 (잘못된 변경 4): S/S+ 합산 3회 + A 이상 5회
+         원복 (사용자 정책 정정):
+           · S+ ready 2회 → S_PLUS_READY_2_PLUS
+           · S+ 단독 3회 → S_PLUS_3_PLUS
+           · S 단독 4회 → S_4_PLUS
+           · A 단독 5회 → A_5_PLUS
+         
+         카운트 변수:
+           · counts.sPlusReadyCount24 (S+ ready 단독)
+           · counts.sPlusCount24 (S+ 단독)
+           · counts.sOnlyCount24 (S 단독)
+           · counts.aOnlyCount24 (A 단독, 신설)
+           · counts.aPlusCount24 (alias = aOnlyCount24, 하위 호환)
+         
+         원칙: S/S+/A 합산 X, 단독 카운트만, prePump 직접 포함 X
      
-     보존 영역:
-       - v462HandleCardToggle 본체 (sessionStorage 갱신 유지)
-       - w1_captureOpenCards / w1_restoreOpenCards (Round 1)
-       - WEEK1-P0 VIEWMODEL BRIDGE (P0-1 신설 함수 14개 + State Lock 보정)
-       - legacy raw mutator (v4723/v4730/v4720/v4743) 함수 정의 그대로
-       - 17개 동결 함수 그대로
-       - Worker 미터치
-       - Core v2 v3.2 내부 미수정
+     [B] w1_migrateWatchlistToCanonical 신설 (보정 1)
+         페이지 로드 시 1회 자동 실행:
+           · 'woos_v44_watchlist' (배열) → canonical 통일 + 중복 제거
+           · 'woos_v4723_watch_meta' (객체) → canonical 통일 + 최신 updatedAt 유지
+         
+         시나리오:
+           기존: ['KRW-MEGA', 'MEGA', 'BTCUSDT']  (raw 혼재)
+           변환: ['MEGA', 'BTC']                   (canonical 통일)
+         
+         안전성: try/catch + 메모리 캐시 fallback + migration 1회만
      
-     누적 변경 (v4.9.0 → 현재):
+     [C] w1_firstSeenRegistry 신설 (보정 2)
+         localStorage 'woos_first_seen_registry':
+           · canonicalBaseKey → firstSeenAt 1:1 mapping
+           · 7일 이상 된 항목 자동 정리
+           · localStorage 미지원 시 메모리 캐시 fallback
+         
+         w1_buildCardViewModel 통합:
+           · registry 조회 → 기존 값 있으면 그대로 사용 (안정)
+           · 없으면 우선순위 fallback 후 등록
+           · timeSource: 'registry' | 'snapshot' | 'started' | 'tier' | 'fallback'
+         
+         결과: 60초 refresh 후에도 동일한 firstSeenAt 보장
+     
+     [D] HTML 주석 헤더 + console + 버전 갱신
+         · v4910-w1r4-state-lock-2-action-fix-1
+         · v4.9.1-w1r4-state-lock-2-action-fix-1
+     
+     ═══ 누적 11건 (State Lock 2 Action 전체) ═══
+     
+     [묶음 1: Watch Action — 3건]
+       1. w1_getEffectiveWatchState 3순위 raw 보조값 제거
+       2. v45_buildWatchButton legacy fallback canonical 정규화
+       3. v45HandleWatchToggle canonical 보장
+     
+     [묶음 2: Deep Qualification — 1건] ⚠ fix-1에서 원복
+       4. v49_evaluateQualification 기존 Core v2 조건 유지 (합산 X)
+     
+     [묶음 3: Label — 3건]
+       5. W1_NEW_LABEL_MS = 60 * 60 * 1000 (1시간)
+       6. 신규 / 마감임박 UI 라벨 칩 추가
+       7. CSS 추가 (.hdr-label-new, .hdr-label-near-end)
+     
+     [묶음 4: Watch Progress Style — 1건]
+       8. watchClass = vm.modeState.displayMode === 'watch' 기준
+     
+     [묶음 5: fix-1 — 3건 신설]
+       9. canonical migration 자동 적용
+       10. firstSeenRegistry 신설 + vm 통합
+       11. 버전 + HTML 주석 + console
+     
+     ═══ 백테스트 (정적 PASS — 운영 검증 후 최종 PASS 판정) ═══
+     
+       S1.  관심 카드 클릭 → 해제 모달 (정적 PASS)
+       S2.  비관심 카드 클릭 → 등록 모달 (정적 PASS)
+       S3.  다른 브라우저 sync 후 일관성 (정적 PASS, canonical 통일)
+       S4.  raw isWatchlist stale → action 영향 X (정적 PASS, 3순위 제거)
+       S5.  S+ ready 2회 → 정밀 (정적 PASS, 기존 Core v2 조건)
+       S6.  S+ 단독 3회 → 정밀 (정적 PASS)
+       S7.  S 단독 4회 → 정밀 (정적 PASS)
+       S8.  A 단독 5회 → 정밀 (정적 PASS)
+       S9.  S+ 1회 + S 2회 → 표준 (정적 PASS, 합산 X)
+       S10. A 3회 + S 2회 → 표준 (정적 PASS, 합산 X)
+       S11. 1회성 카드 → 표준 (정적 PASS)
+       S12. 신규 라벨 1시간만 표시 (정적 PASS)
+       S13. refresh 후 firstSeenAt 안정 (registry — 운영 검증 필요)
+       S14. 마감임박 종료 1시간 전 ~ 종료 (정적 PASS)
+       S15. 만료 후 마감임박 X (정적 PASS)
+       S16. 기존 'KRW-MEGA' 잔존 → migration 'MEGA' 통합 (운영 검증 필요)
+       S17. progress bar 시안 (정적 PASS)
+       S18. 정렬/필터/카운트 vm (정적 PASS, State Lock 1차)
+     
+     → 운영 환경 검증 통과 시 최종 PASS 판정
+     → 검증 미통과 시 추가 진단
+     
+     ═══ 절대 금지 ═══
+     
+       🚫 17개 동결 함수 수정 X
+       🚫 Worker 수정 X
+       🚫 v4723/v4730/v4720/v4743 정의 변경 X
+       🚫 _activeItemsCache / _trackingMap 변형 X
+       🚫 group.displayMode 직접 사용 X
+       🚫 v44_isWatchlist 카드 빌드 직접 호출 X
+       🚫 표시 레이어에서 억지로 deep 처리 X
+       🚫 raw trackingMode === 'deep'만 보고 정밀 표시 X
+       🚫 S/S+/A 합산 카운트 X (단독만)
+       🚫 P0-4 진입 X (legacy raw mutator 격리는 운영 검증 통과 후)
+       🚫 특정 코인 기준 샘플화 X
+     
+     ═══ 누적 변경 (v4.9.0 → 현재) ═══
+     
        - Round 1: open/close 정확 상태 복원 + 디바운스
        - Round 1b: data-card-key 'active:<canonical>' 통일
        - P0 Lockdown: 11353 legacy map 격리
        - P0-1: WEEK1-P0 VIEWMODEL BRIDGE 신설 (14개 함수 정의만)
        - 옵션 C: fetch throttle + open 시스템 단일화
-       - State Lock: vm 9개 항목 단일화 ⭐ 신규
+       - State Lock 1차: vm 9개 항목 단일화
+       - State Lock 2 (Sort/Filter/Label): vm.timeState/performance/labelState 신설
+       - State Lock 2 Action: Watch Action / Deep Qual / Label UI / Style
+       - State Lock 2 Action fix-1: Core v2 원복 + migration + registry ⭐ 신규
      ════════════════════════════════════════════════════════════════ -->
 <html lang="ko">
 <head>
@@ -64,7 +144,7 @@
 <script>
 /* [v4.7.42] 캐시 강제 리셋 — SW 완전 제거 후 리로드 */
 (function(){
-  var VER = 'v4910-w1r3-state-lock-2';  // [State Lock 2] Sort/Filter/Label vm 단일화 (timeState/performance/labelState 신설, w1_sortVMs/w1_filterVMs)
+  var VER = 'v4910-w1r4-state-lock-2-action-fix-1';  // [State Lock 2 fix-1] Core v2 원복 + canonical migration + firstSeenRegistry
   try {
     var LKEY = 'woos_hard_reset_ver';
     if (localStorage.getItem(LKEY) === VER) return;
@@ -4076,6 +4156,30 @@ details.progress-rich-card.woos-group[open] { border-color: rgba(124, 58, 237, 0
   margin-left: 4px;
   height: 22px; line-height: 1;
 }
+/* [State Lock 2] 신규 라벨 칩 — vm.labelState.isNew 기준 (1시간) */
+.hdr-label-new {
+  display: inline-flex; align-items: center;
+  padding: 2px 9px; border-radius: 999px;
+  font-size: 0.66rem; font-weight: 850;
+  height: 22px; line-height: 1;
+  color: #001a14;
+  background: linear-gradient(135deg, #36ffbd, #00e6a8);
+  border: 1px solid rgba(54, 255, 189, 0.55);
+  box-shadow: 0 0 12px rgba(54, 255, 189, 0.45);
+  white-space: nowrap;
+}
+/* [State Lock 2] 마감임박 라벨 칩 — vm.labelState.isNearEnd 기준 (종료 1시간 전 ~ 종료) */
+.hdr-label-near-end {
+  display: inline-flex; align-items: center;
+  padding: 2px 9px; border-radius: 999px;
+  font-size: 0.66rem; font-weight: 850;
+  height: 22px; line-height: 1;
+  color: #2a1500;
+  background: linear-gradient(135deg, #ffb84d, #ff8a3d);
+  border: 1px solid rgba(255, 138, 61, 0.55);
+  box-shadow: 0 0 12px rgba(255, 138, 61, 0.45);
+  white-space: nowrap;
+}
 /* [Phase 4.7.11 R11-2] 관심 칩 — 시안 그라디언트 (사용자 결정 — 사진 의도) */
 .hdr-mode-chip.mode-watch {
   color: #00151f;
@@ -6875,12 +6979,12 @@ async function opsDashboard() {
 // 탭 시 상세 팝업
 // ═══════════════════════════════════════════════════════════════
 
-var HTML_VERSION = 'v4.9.1-w1r3-state-lock-2';  // State Lock 2: Sort/Filter/Label vm 단일화
+var HTML_VERSION = 'v4.9.1-w1r4-state-lock-2-action-fix-1';  // State Lock 2 fix-1: Core v2 원복 + canonical migration + firstSeenRegistry
 var _cachedBuildInfo = null;
 
-// [State Lock 2] 패치 확인용 — 페이지 로드 시 버전명 출력 (DevTools 콘솔)
+// [State Lock 2 Action fix-1] 패치 확인용 — 페이지 로드 시 버전명 출력 (DevTools 콘솔)
 try {
-  console.log('[WOOS] ' + HTML_VERSION + ' loaded — State Lock 2 (Sort/Filter/Label vm 단일 — w1_sortVMs/w1_filterVMs/labelState)');
+  console.log('[WOOS] ' + HTML_VERSION + ' loaded — State Lock 2 fix-1 (Core v2 기존 조건 복원: S+ ready 2 / S+ 3 / S 4 / A 5 + canonical migration + firstSeenRegistry)');
   window.WOOS_VERSION = HTML_VERSION;
 } catch(e) {}
 
@@ -11258,6 +11362,14 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
     var key = w1_getCanonicalBaseKey(canonicalBase);
     if (!key) return { isWatch: false, isPending: false, source: 'none' };
 
+    // [State Lock 2] 우선순위 (3순위 raw 보조값 제거)
+    //   1순위: pending overlay (즉시반영)
+    //   2순위: synced local watch cache (Worker 동기 후 local)
+    //   3순위: none
+    //
+    // raw item.isWatchlist는 사용자 정책에 따라 action/표시 판단에서 제외.
+    // → 다른 PC stale raw 잔존 → 항상 isWatch=true 잡혀 해제 불가 문제 차단.
+
     // 1순위: pending overlay
     if (w1_pendingWatchOverlay.hasOwnProperty(key)) {
       return {
@@ -11267,7 +11379,7 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       };
     }
 
-    // 2순위: local watchlist 캐시 (v44_isWatchlist 함수 호출 — vm 생성 시점에만)
+    // 2순위: local watchlist 캐시 (canonical key로 조회)
     try {
       if (typeof v44_isWatchlist === 'function' && v44_isWatchlist(key)) {
         return {
@@ -11278,27 +11390,7 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       }
     } catch(e) {}
 
-    // 3순위: raw item.isWatchlist 보조값 (조회만, 변형 X)
-    if (group && group.representative && group.representative.isWatchlist === true) {
-      return {
-        isWatch: true,
-        isPending: false,
-        source: 'raw'
-      };
-    }
-    if (group && Array.isArray(group.items)) {
-      for (var i = 0; i < group.items.length; i++) {
-        if (group.items[i] && group.items[i].isWatchlist === true) {
-          return {
-            isWatch: true,
-            isPending: false,
-            source: 'raw'
-          };
-        }
-      }
-    }
-
-    // 4순위: none
+    // 3순위: none (raw item.isWatchlist 보조값 제거됨 — State Lock 2)
     return { isWatch: false, isPending: false, source: 'none' };
   }
 
@@ -11559,25 +11651,43 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
     // [State Lock 2 — TimeState] firstSeenAt 안정 기준 (렌더 시각 의존 X)
     //   우선순위: alertSnapshot.createdAt > meta.snapshotTime > startedAt > tierAssignedAt
     //   신규 라벨 / 마감임박 라벨 결정 기준 (vm.labelState 파생)
+    //
+    // [State Lock 2 fix-1] firstSeenRegistry 사용 (refresh 안정성 보장)
+    //   - canonicalBaseKey로 registry 조회
+    //   - 기존 registry 값 있으면 그대로 사용 (refresh마다 변화 X)
+    //   - 없으면 우선순위로 fallbackTs 계산 후 registry 등록
     var meta = (rep && rep.meta) || {};
     var alertSnap = (typeof v41_getAlertSnapshot === 'function') ? v41_getAlertSnapshot(rep) : null;
-    var firstSeenAt = 0;
+    var fallbackFirstSeen = 0;
     var timeSource = 'fallback';
     if (alertSnap && alertSnap.createdAt) {
-      firstSeenAt = Number(alertSnap.createdAt) || 0;
-      if (firstSeenAt > 0) timeSource = 'snapshot';
+      fallbackFirstSeen = Number(alertSnap.createdAt) || 0;
+      if (fallbackFirstSeen > 0) timeSource = 'snapshot';
     }
-    if (!firstSeenAt && meta.snapshotTime) {
-      firstSeenAt = Number(meta.snapshotTime) || 0;
-      if (firstSeenAt > 0) timeSource = 'snapshot';
+    if (!fallbackFirstSeen && meta.snapshotTime) {
+      fallbackFirstSeen = Number(meta.snapshotTime) || 0;
+      if (fallbackFirstSeen > 0) timeSource = 'snapshot';
     }
-    if (!firstSeenAt && rep.startedAt) {
-      firstSeenAt = Number(rep.startedAt) || 0;
-      if (firstSeenAt > 0) timeSource = 'started';
+    if (!fallbackFirstSeen && rep.startedAt) {
+      fallbackFirstSeen = Number(rep.startedAt) || 0;
+      if (fallbackFirstSeen > 0) timeSource = 'started';
     }
-    if (!firstSeenAt && rep.tierAssignedAt) {
-      firstSeenAt = Number(rep.tierAssignedAt) || 0;
-      if (firstSeenAt > 0) timeSource = 'tier';
+    if (!fallbackFirstSeen && rep.tierAssignedAt) {
+      fallbackFirstSeen = Number(rep.tierAssignedAt) || 0;
+      if (fallbackFirstSeen > 0) timeSource = 'tier';
+    }
+
+    // [State Lock 2 fix-1] registry 조회 — 안정 firstSeenAt 보장
+    var firstSeenAt = fallbackFirstSeen;
+    if (canonicalBase && typeof w1_firstSeenRegistry !== 'undefined' && w1_firstSeenRegistry) {
+      var registryTs = w1_firstSeenRegistry.peek(canonicalBase);
+      if (registryTs > 0) {
+        firstSeenAt = registryTs;
+        timeSource = 'registry';
+      } else if (fallbackFirstSeen > 0) {
+        // 신규 등록
+        firstSeenAt = w1_firstSeenRegistry.get(canonicalBase, fallbackFirstSeen);
+      }
     }
     var startedAt = (trackingWindow && trackingWindow.startedAt) || firstSeenAt;
 
@@ -11586,7 +11696,7 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
     try { changePct = (typeof v4729_currentPct === 'function') ? Number(v4729_currentPct(rep)) || 0 : 0; } catch(_e) {}
 
     // [State Lock 2 — LabelState] 신규 / 마감임박 (firstSeenAt + endsAt 기준)
-    var W1_NEW_LABEL_MS = 30 * 60 * 1000;        // 30분
+    var W1_NEW_LABEL_MS = 60 * 60 * 1000;        // 1시간 (사용자 정책 — State Lock 2)
     var W1_NEAR_END_MS = 60 * 60 * 1000;          // 1시간
     var nowTs = Date.now();
     var isNew = !!(firstSeenAt > 0 && (nowTs - firstSeenAt) <= W1_NEW_LABEL_MS);
@@ -11809,6 +11919,205 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
     });
     return vms;
   }
+
+  /**
+   * w1_migrateWatchlistToCanonical — 기존 watchlist canonical migration (보정 1)
+   *
+   * 정책:
+   *   - 페이지 로드 시 1회 자동 실행
+   *   - localStorage 'woos_v44_watchlist' (배열) 모든 키를 canonical로 변환
+   *   - localStorage 'woos_v4723_watch_meta' (객체) 모든 키를 canonical로 변환
+   *   - 중복 제거 (canonical 통합)
+   *   - 콘솔 로그로 변환 결과 알림 (raw 잔존 시)
+   *
+   * 시나리오:
+   *   기존: ['KRW-MEGA', 'MEGA', 'BTCUSDT']  (raw 혼재)
+   *   변환: ['MEGA', 'BTC']                   (canonical 통일 + 중복 제거)
+   *
+   * 안전성:
+   *   - try/catch (오류 시 원본 유지)
+   *   - localStorage 미지원 환경 대응
+   *   - migration이 한 번만 일어나게 보장 (변경 없으면 저장 X)
+   */
+  function w1_migrateWatchlistToCanonical() {
+    if (typeof localStorage === 'undefined') return;
+    if (typeof w1_getCanonicalBaseKey !== 'function') return;
+
+    var migrated = { v44: 0, v4723: 0, totalChanged: 0 };
+
+    // [1/2] v44 watchlist 배열 migration
+    try {
+      var V44_KEY = 'woos_v44_watchlist';
+      var raw44 = localStorage.getItem(V44_KEY);
+      if (raw44) {
+        var list = JSON.parse(raw44);
+        if (Array.isArray(list)) {
+          var canonicalSet = {};
+          var hadChange = false;
+          for (var i = 0; i < list.length; i++) {
+            var orig = String(list[i] || '');
+            var canon = w1_getCanonicalBaseKey(orig);
+            if (canon && !canonicalSet[canon]) {
+              canonicalSet[canon] = true;
+              if (canon !== orig.toUpperCase().trim()) hadChange = true;
+            } else if (canonicalSet[canon]) {
+              hadChange = true;  // 중복 발견
+            }
+          }
+          if (hadChange) {
+            var canonList = Object.keys(canonicalSet);
+            localStorage.setItem(V44_KEY, JSON.stringify(canonList));
+            migrated.v44 = list.length - canonList.length;
+            migrated.totalChanged += migrated.v44;
+          }
+        }
+      }
+    } catch(e) {
+      try { console.warn('[w1_migrateWatchlistToCanonical] v44 migration error', e && e.message); } catch(_) {}
+    }
+
+    // [2/2] v4723 watch meta map migration
+    try {
+      var V4723_KEY = 'woos_v4723_watch_meta';
+      var raw4723 = localStorage.getItem(V4723_KEY);
+      if (raw4723) {
+        var map = JSON.parse(raw4723);
+        if (map && typeof map === 'object' && !Array.isArray(map)) {
+          var canonicalMap = {};
+          var hadChange2 = false;
+          var keys = Object.keys(map);
+          for (var k = 0; k < keys.length; k++) {
+            var origKey = keys[k];
+            var canonKey = w1_getCanonicalBaseKey(origKey);
+            if (!canonKey) continue;
+            if (canonicalMap[canonKey]) {
+              // 중복 — updatedAt 더 최신 것 유지
+              var existing = canonicalMap[canonKey];
+              var incoming = map[origKey];
+              if (incoming && incoming.updatedAt && (!existing.updatedAt || incoming.updatedAt > existing.updatedAt)) {
+                canonicalMap[canonKey] = incoming;
+              }
+              hadChange2 = true;
+            } else {
+              canonicalMap[canonKey] = map[origKey];
+              if (canonKey !== origKey.toUpperCase().trim()) hadChange2 = true;
+            }
+          }
+          if (hadChange2) {
+            localStorage.setItem(V4723_KEY, JSON.stringify(canonicalMap));
+            migrated.v4723 = keys.length - Object.keys(canonicalMap).length;
+            migrated.totalChanged += migrated.v4723;
+          }
+        }
+      }
+    } catch(e2) {
+      try { console.warn('[w1_migrateWatchlistToCanonical] v4723 migration error', e2 && e2.message); } catch(_) {}
+    }
+
+    if (migrated.totalChanged > 0) {
+      try {
+        console.log('[w1_migrateWatchlistToCanonical] migrated raw → canonical: v44=' + migrated.v44 + ', v4723=' + migrated.v4723 + ' (총 ' + migrated.totalChanged + '건 통합)');
+      } catch(_) {}
+    }
+  }
+
+  // [State Lock 2 fix-1] 페이지 로드 시 1회 자동 migration
+  try { w1_migrateWatchlistToCanonical(); } catch(e) {}
+
+  /**
+   * w1_firstSeenRegistry — firstSeenAt 안정 registry (보정 2)
+   *
+   * 정책:
+   *   - canonicalBaseKey → firstSeenAt 1:1 mapping
+   *   - localStorage 'woos_first_seen_registry'
+   *   - vm 생성 시 registry 조회 → 없으면 새로 기록
+   *   - 60초 refresh 후에도 동일한 firstSeenAt 보장
+   *
+   * 안전성:
+   *   - localStorage 미지원 시 메모리 캐시 fallback
+   *   - 7일 이상 된 항목 자동 정리 (저장 X)
+   *
+   * 사용:
+   *   var ts = w1_firstSeenRegistry.get(canonicalBase, fallbackTs);
+   *   - 등록된 값 있으면 반환
+   *   - 없으면 fallbackTs 등록 + 반환
+   */
+  var w1_firstSeenRegistry = (function() {
+    var FSR_KEY = 'woos_first_seen_registry';
+    var FSR_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;  // 7일
+    var memCache = null;  // 메모리 캐시 (localStorage 미지원 fallback)
+
+    function loadMap() {
+      if (memCache) return memCache;
+      try {
+        if (typeof localStorage === 'undefined') {
+          memCache = {};
+          return memCache;
+        }
+        var raw = localStorage.getItem(FSR_KEY);
+        var map = raw ? JSON.parse(raw) : {};
+        if (!map || typeof map !== 'object' || Array.isArray(map)) map = {};
+        // 7일 이상 된 항목 정리
+        var now = Date.now();
+        var cleaned = {};
+        Object.keys(map).forEach(function(k){
+          var ts = Number(map[k]) || 0;
+          if (ts > 0 && (now - ts) <= FSR_MAX_AGE_MS) cleaned[k] = ts;
+        });
+        memCache = cleaned;
+        return memCache;
+      } catch(e) {
+        memCache = {};
+        return memCache;
+      }
+    }
+
+    function saveMap(map) {
+      memCache = map;
+      try {
+        if (typeof localStorage !== 'undefined') {
+          localStorage.setItem(FSR_KEY, JSON.stringify(map));
+        }
+      } catch(e) {}
+    }
+
+    return {
+      /**
+       * get(canonicalBase, fallbackTs) — registry 조회 + 등록
+       * @param canonicalBase — canonical key
+       * @param fallbackTs — registry에 없을 때 등록할 timestamp
+       * @returns 안정 firstSeenAt
+       */
+      get: function(canonicalBase, fallbackTs) {
+        if (!canonicalBase) return Number(fallbackTs) || 0;
+        var map = loadMap();
+        var existing = Number(map[canonicalBase]) || 0;
+        if (existing > 0) return existing;  // 기존 값 안정 유지
+        var ts = Number(fallbackTs) || 0;
+        if (ts > 0) {
+          map[canonicalBase] = ts;
+          saveMap(map);
+          return ts;
+        }
+        return 0;
+      },
+      /**
+       * peek(canonicalBase) — 조회만 (등록 X)
+       */
+      peek: function(canonicalBase) {
+        if (!canonicalBase) return 0;
+        var map = loadMap();
+        return Number(map[canonicalBase]) || 0;
+      },
+      /**
+       * size() — registry 크기 (디버깅용)
+       */
+      size: function() {
+        var map = loadMap();
+        return Object.keys(map).length;
+      }
+    };
+  })();
 
   // ════════════════════════════════════════════════════════════════════════
   // [WEEK1-P0 VIEWMODEL BRIDGE — 끝]
@@ -13951,8 +14260,18 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       args = args || {};
       var now = args.now || Date.now();
       var recent = v49_filterSignalsWithin24h(args.signals || [], now);
-      var counts = { sPlusReadyCount24: 0, sPlusCount24: 0, sOnlyCount24: 0, aPlusCount24: 0 };
-      var byReason = { S_PLUS_READY_2_PLUS: [], S_PLUS_3_PLUS: [], S_4_PLUS: [], A_PLUS_5_PLUS: [] };
+      // [State Lock 2 — fix-1] 기존 Core v2 기준 복원 (사용자 정책 정정)
+      //   - S/S+/A 합산 X (단독 카운트만)
+      //   - aOnlyCount24 신설 (A 단독)
+      //   - aPlusCount24 alias 유지 (= aOnlyCount24, 하위 호환)
+      //   - 조건:
+      //     · S+ ready 2회 → S_PLUS_READY_2_PLUS
+      //     · S+ 단독 3회 → S_PLUS_3_PLUS
+      //     · S 단독 4회 → S_4_PLUS
+      //     · A 단독 5회 → A_5_PLUS
+      //   - prePump 직접 포함 X (signal source가 grade 기준이므로 자동 부합)
+      var counts = { sPlusReadyCount24: 0, sPlusCount24: 0, sOnlyCount24: 0, aOnlyCount24: 0 };
+      var byReason = { S_PLUS_READY_2_PLUS: [], S_PLUS_3_PLUS: [], S_4_PLUS: [], A_5_PLUS: [] };
 
       recent.forEach(function(sig){
         var grade = v49_normalizeGradeCode(sig.gradeCode || sig.gradeLabel);
@@ -13960,24 +14279,25 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
         var id = sig.signalId || sig.snapshotId || sig.eventId || sig._dedupeKey;
         if (grade === 'S+') {
           counts.sPlusCount24++;
-          counts.aPlusCount24++;
           byReason.S_PLUS_3_PLUS.push(id);
-          byReason.A_PLUS_5_PLUS.push(id);
           if (ready) {
             counts.sPlusReadyCount24++;
             byReason.S_PLUS_READY_2_PLUS.push(id);
           }
         } else if (grade === 'S') {
           counts.sOnlyCount24++;
-          counts.aPlusCount24++;
           byReason.S_4_PLUS.push(id);
-          byReason.A_PLUS_5_PLUS.push(id);
         } else if (grade === 'A') {
-          counts.aPlusCount24++;
-          byReason.A_PLUS_5_PLUS.push(id);
+          counts.aOnlyCount24++;
+          byReason.A_5_PLUS.push(id);
         }
       });
 
+      // [State Lock 2 — fix-1] aPlusCount24 alias 유지 (하위 호환)
+      //   기존 Core v2 호출처가 counts.aPlusCount24 참조 시 동일 값 반환
+      counts.aPlusCount24 = counts.aOnlyCount24;
+
+      // [State Lock 2 — fix-1] 기존 Core v2 조건식 복원
       var qualified = false, reason = 'NOT_QUALIFIED', sourceSignalIds = [];
       if (counts.sPlusReadyCount24 >= 2) {
         qualified = true; reason = 'S_PLUS_READY_2_PLUS'; sourceSignalIds = byReason.S_PLUS_READY_2_PLUS.slice(-2);
@@ -13985,8 +14305,8 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
         qualified = true; reason = 'S_PLUS_3_PLUS'; sourceSignalIds = byReason.S_PLUS_3_PLUS.slice(-3);
       } else if (counts.sOnlyCount24 >= 4) {
         qualified = true; reason = 'S_4_PLUS'; sourceSignalIds = byReason.S_4_PLUS.slice(-4);
-      } else if (counts.aPlusCount24 >= 5) {
-        qualified = true; reason = 'A_PLUS_5_PLUS'; sourceSignalIds = byReason.A_PLUS_5_PLUS.slice(-5);
+      } else if (counts.aOnlyCount24 >= 5) {
+        qualified = true; reason = 'A_5_PLUS'; sourceSignalIds = byReason.A_5_PLUS.slice(-5);
       }
       var eventId = qualified ? v49_buildQualificationEventId(reason, sourceSignalIds) : null;
       return {
@@ -14970,10 +15290,15 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
     /* [Phase 4.5 작업 2] Watchlist ⭐ 버튼 HTML */
     function v45_buildWatchButton(base) {
       if (!base) return '';
-      var isW = v44_isWatchlist(base);
+      // [State Lock 2] canonical base로 정규화 (KRW-/USDT- 제거 → 'MEGA' 형식)
+      // legacy fallback에서도 vm 흐름과 동일한 키 사용 보장
+      var canonicalBase = (typeof w1_getCanonicalBaseKey === 'function')
+        ? w1_getCanonicalBaseKey(base)
+        : String(base || '').toUpperCase();
+      var isW = v44_isWatchlist(canonicalBase);
       var icon = isW ? '⭐' : '☆';
       var cls = isW ? 'woos-watch-btn woos-watch-on' : 'woos-watch-btn';
-      return '<button type="button" class="' + cls + '" data-base="' + v40_escapeHtml(base) + '" onclick="window.v45HandleWatchToggle(event, \'' + v40_escapeHtml(base) + '\')" aria-label="관심 코인">' + icon + '</button>';
+      return '<button type="button" class="' + cls + '" data-base="' + v40_escapeHtml(canonicalBase) + '" onclick="window.v45HandleWatchToggle(event, \'' + v40_escapeHtml(canonicalBase) + '\')" aria-label="관심 코인">' + icon + '</button>';
     }
     
     /* [Phase 4.5] 관심 코인 상단 고정 정렬 */
@@ -16308,6 +16633,21 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
         v479_alertTier = 'x1';
         v479_label = 'x1';
       }
+      // [State Lock 2] 신규 / 마감임박 라벨 칩 (vm.labelState 기준)
+      //   - 신규: active 카드 최초 진입 후 1시간 동안만 (firstSeenAt 안정 기준)
+      //   - 마감임박: 종료 1시간 전 ~ 종료 시점까지
+      //   - 만료된 카드는 마감임박 표시 X (vm.labelState.isNearEnd가 자동 false)
+      var newLabelChip = '';
+      var nearEndLabelChip = '';
+      if (vm && vm.labelState) {
+        if (vm.labelState.isNew) {
+          newLabelChip = '<span class="hdr-label-new">신규</span>';
+        }
+        if (vm.labelState.isNearEnd) {
+          nearEndLabelChip = '<span class="hdr-label-near-end">마감임박</span>';
+        }
+      }
+
       groupBadge = '<span class="woos-group-badge v478-alert ' + v479_alertTier + '">' + v479_label + '</span>';
 
       // [v4.7.42] 멀티 태그 — x1~x8 횟수 태그는 기존 로직/색상 그대로 유지
@@ -16352,12 +16692,15 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
         gradeChip = '<span class="hdr-grade-chip ' + gradeClass + '">' + v40_escapeHtml(gradeDisplay) + '</span>';
       }
       
-      // [State Lock 명세 7] 진행률 바 색상 — vm.watchState.isWatch 우선 (track.isWatchlist raw X)
+      // [State Lock 2] 진행률 바 색상 — vm.modeState.displayMode === 'watch' 기준
+      //   사용자 정책: 관심 색상은 raw가 아니라 vm.modeState.displayMode === 'watch' 기준으로만 적용
+      //   색상은 시안 유지 (CSS .compact-bar-thin-fill.is-watch는 시안+민트, 변경 X)
+      //   raw isWatchlist fallback 제거 (사용자 정책 — raw 보조값 X)
       var watchClass;
-      if (vm && vm.watchState) {
-        watchClass = vm.watchState.isWatch ? ' is-watch' : '';
+      if (vm && vm.modeState) {
+        watchClass = (vm.modeState.displayMode === 'watch') ? ' is-watch' : '';
       } else {
-        watchClass = track.isWatchlist ? ' is-watch' : '';  // fallback
+        watchClass = '';  // vm 미존재 시 색상 적용 X (raw 보조값 X)
       }
       
       // [Phase 4.7.12] 카드 헤더 최종 구조
@@ -16377,6 +16720,8 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
         +   '<div class="v478-row2">'
         +     modeChip
         +     gradeChip
+        +     newLabelChip
+        +     nearEndLabelChip
         +     multiChip
         +     groupBadge
         +     sampleAgeLabel
@@ -16895,25 +17240,30 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
         }
         
         // [State Lock 명세 6] 관심 상태면 무조건 모달 (active 거래소 0개여도 모달 표시)
+        // [State Lock 2] 모달에 canonical 전달 (모달 [확인] 시 toggleWatchlist에 canonical 사용)
         if (v47off_isCurrentlyWatch) {
-          v47_showWatchOffModal(base, v47off_active7d);
+          v47_showWatchOffModal(canonicalBase, v47off_active7d);
           return;  // 모달 [확인] 시 실제 처리
         }
         
         // OFF→ON 은 사용자 확인 모달 후 등록한다.
         if (!v47off_isCurrentlyWatch) {
-          v47_showWatchOnModal(base);
+          v47_showWatchOnModal(canonicalBase);
           return;
         }
 
         // 그 외 (보호 fallback)
+        // [State Lock 2] canonical base로 모든 호출 통일
+        //   - toggleWatchlist 입력 = canonical (v44 저장 키 통일)
+        //   - applyWatchVisual / syncWatchApi 입력 = canonical
+        //   - data-base는 canonical로 박힘 (변경 2)
         // [State Lock] pending overlay 즉시 반영
         if (typeof w1_setPendingWatch === 'function') {
           w1_setPendingWatch(canonicalBase, !v47off_isCurrentlyWatch);
         }
-        var nowIsWatch = window.WOOS_ANALYZER.toggleWatchlist(base);
-        v47_applyWatchVisual(base, nowIsWatch);
-        v47_syncWatchApi(base, nowIsWatch);
+        var nowIsWatch = window.WOOS_ANALYZER.toggleWatchlist(canonicalBase);
+        v47_applyWatchVisual(canonicalBase, nowIsWatch);
+        v47_syncWatchApi(canonicalBase, nowIsWatch);
         v47_rerenderActive();
       } catch(e) {
         console.error('[v45HandleWatchToggle]', e);
