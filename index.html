@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <!-- ════════════════════════════════════════════════════════════════
-     WOOS Crypto Scanner v3 — v4.9.1-w1r4-state-lock-2-action-fix-2
+     WOOS Crypto Scanner v3 — v4.9.1-w1r4-state-lock-2-action-fix-2c
      ════════════════════════════════════════════════════════════════
-     Phase: 4.9.1 (State Lock 2 fix-2 — Watch Action / Timing Lock 안정화)
-     Base:  v4.9.1-w1r4-state-lock-2-action-fix-1
-     
+     Phase: 4.9.1 (State Lock 2 fix-2c — BRIDGE↔WOOS_ANALYZER sibling IIFE 우회)
+     Base:  v4.9.1-w1r4-state-lock-2-action-fix-2 (main)
+
      ═══ State Lock 2 fix-2 변경 영역 (Watch Action 안정화) ═══
      
      절대 파이프라인:
@@ -83,7 +83,8 @@
        10. firstSeenRegistry 신설 + vm 통합
        11. 버전 + HTML 주석
      
-     [묶음 6: fix-2 — 9건] ⭐ 신규
+     [묶음 6: fix-2 — 9건] ⭐
+     [묶음 7: fix-2c — BRIDGE↔WOOS_ANALYZER sibling IIFE 우회 — 3건] ⭐ 신규
        12. v47_syncWatchApi v4720 호출 제거
        13. w1_isPendingWatch 신설
        14. v45HandleWatchToggle mutex 가드
@@ -142,7 +143,8 @@
        - State Lock 2 (Sort/Filter/Label): timeState/performance/labelState
        - State Lock 2 Action: Watch Action / Deep Qual / Label UI / Style
        - State Lock 2 Action fix-1: Core v2 원복 + migration + registry
-       - State Lock 2 Action fix-2: v4720 차단 + mutex + sync 후 clear ⭐ 신규
+       - State Lock 2 Action fix-2: v4720 차단 + mutex + sync 후 clear
+       - State Lock 2 Action fix-2c: BRIDGE↔WOOS_ANALYZER sibling IIFE 우회 (v44_* → WOOS_ANALYZER.*) ⭐ 신규
      ════════════════════════════════════════════════════════════════ -->
 <html lang="ko">
 <head>
@@ -150,7 +152,7 @@
 <script>
 /* [v4.7.42] 캐시 강제 리셋 — SW 완전 제거 후 리로드 */
 (function(){
-  var VER = 'v4910-w1r4-state-lock-2-action-fix-2';  // [State Lock 2 fix-2] v4720 호출 차단 + pending mutex + sync 후 clear + canonical 정규화
+  var VER = 'v4910-w1r4-state-lock-2-action-fix-2c';  // [State Lock 2 fix-2c] BRIDGE↔WOOS_ANALYZER sibling IIFE 우회 (v44_* → WOOS_ANALYZER.*)
   try {
     var LKEY = 'woos_hard_reset_ver';
     if (localStorage.getItem(LKEY) === VER) return;
@@ -6985,12 +6987,12 @@ async function opsDashboard() {
 // 탭 시 상세 팝업
 // ═══════════════════════════════════════════════════════════════
 
-var HTML_VERSION = 'v4.9.1-w1r4-state-lock-2-action-fix-2';  // State Lock 2 fix-2: v4720 호출 차단 + pending mutex + sync 후 clear
+var HTML_VERSION = 'v4.9.1-w1r4-state-lock-2-action-fix-2c';  // State Lock 2 fix-2c: BRIDGE↔WOOS_ANALYZER sibling IIFE 우회 (vm.watchState 복구)
 var _cachedBuildInfo = null;
 
-// [State Lock 2 Action fix-2] 패치 확인용 — 페이지 로드 시 버전명 출력 (DevTools 콘솔)
+// [State Lock 2 Action fix-2c] 패치 확인용 — 페이지 로드 시 버전명 출력 (DevTools 콘솔)
 try {
-  console.log('[WOOS] ' + HTML_VERSION + ' loaded — State Lock 2 fix-2 (Watch Action / Timing Lock: v4720 호출 차단 + pending mutex + sync 후 clear + canonical 정규화)');
+  console.log('[WOOS] ' + HTML_VERSION + ' loaded — State Lock 2 fix-2c (BRIDGE↔WOOS_ANALYZER sibling IIFE 우회: v44_* → WOOS_ANALYZER.*)');
   window.WOOS_VERSION = HTML_VERSION;
 } catch(e) {}
 
@@ -11048,6 +11050,11 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       
       // 활성 추적 데이터 캐싱
       if (activeData && activeData.active) {
+        try {
+          if (typeof w1_reconcileWatchlistFromActive === 'function') {
+            w1_reconcileWatchlistFromActive(activeData.active);
+          }
+        } catch(e0) {}
         activeData.active.forEach(function(item){
           if (!_trackingMap[item.id]) {
             _trackingMap[item.id] = {
@@ -11148,6 +11155,11 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
         container.innerHTML = '<div class="analyzer-empty">현재 추적 중인 알람 없음</div>';
         return;
       }
+      try {
+        if (typeof w1_reconcileWatchlistFromActive === 'function') {
+          w1_reconcileWatchlistFromActive(active);
+        }
+      } catch(e0) {}
       var byTier = activeData.byTier || {};
       
       // [Phase 3.9] active 항목 캐시 + 진행률 계산
@@ -11189,8 +11201,8 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
           alertCount: item.alertCount || item.alarmCount24 || item.sCount24 || item.aCount24 || 1,
         };
       });
-      // [v4.7.23] 관심 코인은 fetchTrackingActive 결과가 표준 8h로 내려와도 렌더 전 7d 상태를 재합성한다.
-      try { _activeItemsCache = _activeItemsCache.map(function(it){ return v4723_enforceWatchState(it); }); } catch(e) {}
+      // [State Lock 2 fix-2-2] legacy v4723 raw state enforcement is blocked.
+      // Worker watch state is reconciled into the local watchlist before VM build.
 
       // [v4.7.45] _renderActiveTrackingList try/catch — 렌더 에러와 Worker 에러 분리
       try {
@@ -11407,8 +11419,11 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
     }
 
     // 2순위: local watchlist 캐시 (canonical key로 조회)
+    // [State Lock 2 fix-2c] BRIDGE IIFE와 WOOS_ANALYZER IIFE는 sibling — bare v44_isWatchlist 호출 불가.
+    //   window.WOOS_ANALYZER.isWatchlist 우회로 local watch cache 조회 (export는 17195 라인 참조).
     try {
-      if (typeof v44_isWatchlist === 'function' && v44_isWatchlist(key)) {
+      var W_isWl = (typeof window !== 'undefined' && window.WOOS_ANALYZER) ? window.WOOS_ANALYZER : null;
+      if (W_isWl && typeof W_isWl.isWatchlist === 'function' && W_isWl.isWatchlist(key)) {
         return {
           isWatch: true,
           isPending: false,
@@ -11419,6 +11434,41 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
 
     // 3순위: none (raw item.isWatchlist 보조값 제거됨 — State Lock 2)
     return { isWatch: false, isPending: false, source: 'none' };
+  }
+
+  function w1_reconcileWatchlistFromActive(activeList) {
+    if (!Array.isArray(activeList) || typeof localStorage === 'undefined') return;
+    try {
+      // [State Lock 2 fix-2c] BRIDGE IIFE에서 v44_getWatchlist 직접 호출 불가 (sibling IIFE).
+      //   WOOS_ANALYZER export 우회. 미해결이면 list=[]로 떨어져 server raw에 의해 local이 박살남.
+      var W_rec = (typeof window !== 'undefined' && window.WOOS_ANALYZER) ? window.WOOS_ANALYZER : null;
+      var list = (W_rec && typeof W_rec.getWatchlist === 'function') ? W_rec.getWatchlist() : [];
+      var map = {};
+      list.forEach(function(base){
+        var k = w1_getCanonicalBaseKey(base);
+        if (k) map[k] = true;
+      });
+
+      var touched = false;
+      activeList.forEach(function(item){
+        var key = w1_getCanonicalBaseKey(item && (item.base || (item.meta && item.meta.base) || item.id || ''));
+        if (!key) return;
+        if (item && item.isWatchlist === true) {
+          if (!map[key]) {
+            map[key] = true;
+            touched = true;
+          }
+        } else if (Object.prototype.hasOwnProperty.call(map, key)) {
+          delete map[key];
+          touched = true;
+        }
+      });
+
+      if (!touched) return;
+      localStorage.setItem('woos_v44_watchlist', JSON.stringify(Object.keys(map)));
+    } catch(e) {
+      try { console.warn('[w1_reconcileWatchlistFromActive]', e && e.message ? e.message : e); } catch(_e) {}
+    }
   }
 
   /**
@@ -11436,8 +11486,11 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
   function w1_computeCoreState(group) {
     var watchMap = {};
     try {
-      if (typeof v44_getWatchlist === 'function') {
-        v44_getWatchlist().forEach(function(b){
+      // [State Lock 2 fix-2c] BRIDGE IIFE에서 v44_getWatchlist 직접 호출 불가 (sibling IIFE).
+      //   WOOS_ANALYZER export 우회. 미해결이면 watchMap={} → Core v2가 watch 판정 못해서 displayMode='standard'.
+      var W_cs = (typeof window !== 'undefined' && window.WOOS_ANALYZER) ? window.WOOS_ANALYZER : null;
+      if (W_cs && typeof W_cs.getWatchlist === 'function') {
+        W_cs.getWatchlist().forEach(function(b){
           var k = w1_getCanonicalBaseKey(b);
           if (k) watchMap[k] = true;
         });
@@ -14046,10 +14099,8 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
         if (typeof localStorage !== 'undefined') localStorage.setItem(V44_WATCHLIST_KEY, JSON.stringify(list));
       } catch(e) {}
       var isNowWatch = list.indexOf(b) >= 0;
-      try {
-        if (isNowWatch) v4723_touchWatchMeta(b, null);
-        else v4723_deleteWatchMeta(b);
-      } catch(e2) {}
+      // [State Lock 2 fix-2-1] Watch Action 경로에서 legacy v4723 meta mutator를 호출하지 않는다.
+      // 즉시 표시 상태는 pending overlay + local watchlist + Worker sync 결과만 사용한다.
       return isNowWatch;  // 토글 후 상태 반환
     }
     
@@ -17348,6 +17399,12 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
         v47_rerenderActive();
       } catch(e) {
         console.error('[v47_executeWatchOn]', e);
+        // [State Lock 2 fix-2] sync 시작 전 예외가 나도 pending은 남기지 않는다.
+        try {
+          if (typeof w1_clearPendingWatch === 'function' && canonicalBase) {
+            w1_clearPendingWatch(canonicalBase);
+          }
+        } catch(_e) {}
       }
     }
 
@@ -17674,6 +17731,12 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
         });
       } catch(e) {
         console.error('[v47_executeEndWatchMode]', e);
+        // [State Lock 2 fix-2] sync 시작 전 예외가 나도 pending은 남기지 않는다.
+        try {
+          if (typeof w1_clearPendingWatch === 'function' && canonicalBase) {
+            w1_clearPendingWatch(canonicalBase);
+          }
+        } catch(_e) {}
       }
     }
   }
@@ -17836,6 +17899,11 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       Promise.all([activeP].concat(samplePromises)).then(function(results){
         var activeData = results[0];
         if (activeData && activeData.active) {
+          try {
+            if (typeof w1_reconcileWatchlistFromActive === 'function') {
+              w1_reconcileWatchlistFromActive(activeData.active);
+            }
+          } catch(e0) {}
           // [Phase 3.9 → v4.7.5 R0] _activeItemsCache 매핑 통일
           // 9890줄과 동일한 박제 10필드 매핑 (대원칙 3 — 신규 X, 기존 패턴 재사용)
           // 60초 자동 갱신마다 박제 데이터 정확히 적용 — Q4/Q11 통합 해결
