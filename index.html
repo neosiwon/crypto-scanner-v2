@@ -17348,6 +17348,12 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
         v47_rerenderActive();
       } catch(e) {
         console.error('[v47_executeWatchOn]', e);
+        // [State Lock 2 fix-2] sync 시작 전 예외가 나도 pending은 남기지 않는다.
+        try {
+          if (typeof w1_clearPendingWatch === 'function' && canonicalBase) {
+            w1_clearPendingWatch(canonicalBase);
+          }
+        } catch(_e) {}
       }
     }
 
@@ -17674,6 +17680,12 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
         });
       } catch(e) {
         console.error('[v47_executeEndWatchMode]', e);
+        // [State Lock 2 fix-2] sync 시작 전 예외가 나도 pending은 남기지 않는다.
+        try {
+          if (typeof w1_clearPendingWatch === 'function' && canonicalBase) {
+            w1_clearPendingWatch(canonicalBase);
+          }
+        } catch(_e) {}
       }
     }
   }
