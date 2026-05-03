@@ -1,11 +1,11 @@
 <!DOCTYPE html>
 <!-- ════════════════════════════════════════════════════════════════
-     WOOS Crypto Scanner v3 — v4.9.1-w1r4-state-lock-2-action-fix-2
+     WOOS Crypto Scanner v3 — v4.9.1-w1r4-state-lock-2-action-fix-2-1
      ════════════════════════════════════════════════════════════════
-     Phase: 4.9.1 (State Lock 2 fix-2 — Watch Action / Timing Lock 안정화)
+     Phase: 4.9.1 (State Lock 2 fix-2-1 — Watch Action legacy mutator 차단)
      Base:  v4.9.1-w1r4-state-lock-2-action-fix-1
      
-     ═══ State Lock 2 fix-2 변경 영역 (Watch Action 안정화) ═══
+     ═══ State Lock 2 fix-2-1 변경 영역 (Watch Action 안정화) ═══
      
      절대 파이프라인:
        raw _activeItemsCache → groupTracks → Core v2 pure state →
@@ -17,7 +17,7 @@
        → _activeItemsCache + _trackingMap 직접 변형 차단
        → 1회성 정밀 표시 / refresh 후 꼬임 / 관심 해제 안 됨 — 모두 같은 원인 해결
      
-     ═══ fix-2 변경 9건 ═══
+     ═══ fix-2-1 변경 영역 ═══
      
      [수정 1] v47_syncWatchApi 17417 v4720 호출 제거
          - v4720_applyWatchActiveOverlay(base, isWatch) ← 1줄 제거
@@ -55,7 +55,7 @@
          - legacy URL: /watchlist/<canonicalBase>
          - v44 저장 키와 Worker 키 통일
      
-     [수정 9] VER: v4910-w1r4-state-lock-2-action-fix-2
+     [수정 9] VER: v4910-w1r4-state-lock-2-action-fix-2-1
      [수정 10] HTML_VERSION + console + HTML 주석 헤더 (이 영역)
      
      ⏸ 수정 8: fetchAndRenderActive 후 Worker/local reconcile (Week 2 보류)
@@ -83,7 +83,7 @@
        10. firstSeenRegistry 신설 + vm 통합
        11. 버전 + HTML 주석
      
-     [묶음 6: fix-2 — 9건] ⭐ 신규
+     [묶음 6: fix-2-1 — Watch Action legacy mutator 차단]
        12. v47_syncWatchApi v4720 호출 제거
        13. w1_isPendingWatch 신설
        14. v45HandleWatchToggle mutex 가드
@@ -142,7 +142,7 @@
        - State Lock 2 (Sort/Filter/Label): timeState/performance/labelState
        - State Lock 2 Action: Watch Action / Deep Qual / Label UI / Style
        - State Lock 2 Action fix-1: Core v2 원복 + migration + registry
-       - State Lock 2 Action fix-2: v4720 차단 + mutex + sync 후 clear ⭐ 신규
+      - State Lock 2 Action fix-2-1: v4720/v4723 action mutator 차단 + mutex + sync 후 clear ⭐ 신규
      ════════════════════════════════════════════════════════════════ -->
 <html lang="ko">
 <head>
@@ -150,7 +150,7 @@
 <script>
 /* [v4.7.42] 캐시 강제 리셋 — SW 완전 제거 후 리로드 */
 (function(){
-  var VER = 'v4910-w1r4-state-lock-2-action-fix-2';  // [State Lock 2 fix-2] v4720 호출 차단 + pending mutex + sync 후 clear + canonical 정규화
+  var VER = 'v4910-w1r4-state-lock-2-action-fix-2-1';  // [State Lock 2 fix-2-1] Watch Action v4723 meta mutator 차단
   try {
     var LKEY = 'woos_hard_reset_ver';
     if (localStorage.getItem(LKEY) === VER) return;
@@ -6985,12 +6985,12 @@ async function opsDashboard() {
 // 탭 시 상세 팝업
 // ═══════════════════════════════════════════════════════════════
 
-var HTML_VERSION = 'v4.9.1-w1r4-state-lock-2-action-fix-2';  // State Lock 2 fix-2: v4720 호출 차단 + pending mutex + sync 후 clear
+var HTML_VERSION = 'v4.9.1-w1r4-state-lock-2-action-fix-2-1';  // State Lock 2 fix-2-1: Watch Action v4723 meta mutator 차단
 var _cachedBuildInfo = null;
 
-// [State Lock 2 Action fix-2] 패치 확인용 — 페이지 로드 시 버전명 출력 (DevTools 콘솔)
+// [State Lock 2 Action fix-2-1] 패치 확인용 — 페이지 로드 시 버전명 출력 (DevTools 콘솔)
 try {
-  console.log('[WOOS] ' + HTML_VERSION + ' loaded — State Lock 2 fix-2 (Watch Action / Timing Lock: v4720 호출 차단 + pending mutex + sync 후 clear + canonical 정규화)');
+  console.log('[WOOS] ' + HTML_VERSION + ' loaded — State Lock 2 fix-2-1 (Watch Action: v4720/v4723 legacy mutator 차단 + pending mutex)');
   window.WOOS_VERSION = HTML_VERSION;
 } catch(e) {}
 
@@ -14046,10 +14046,8 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
         if (typeof localStorage !== 'undefined') localStorage.setItem(V44_WATCHLIST_KEY, JSON.stringify(list));
       } catch(e) {}
       var isNowWatch = list.indexOf(b) >= 0;
-      try {
-        if (isNowWatch) v4723_touchWatchMeta(b, null);
-        else v4723_deleteWatchMeta(b);
-      } catch(e2) {}
+      // [State Lock 2 fix-2-1] Watch Action 경로에서 legacy v4723 meta mutator를 호출하지 않는다.
+      // 즉시 표시 상태는 pending overlay + local watchlist + Worker sync 결과만 사용한다.
       return isNowWatch;  // 토글 후 상태 반환
     }
     
