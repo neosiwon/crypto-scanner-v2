@@ -48,7 +48,7 @@
 <script>
 /* [v4.7.42] 캐시 강제 리셋 — SW 완전 제거 후 리로드 */
 (function(){
-  var VER = 'v4910-w1r1c-fetch-open-fix';  // [옵션 C] fetch throttle (6 동시) + open 시스템 단일화 (capture/restore만)
+  var VER = 'v4910-w1r1c-fetch-open-fix-2';  // [옵션 C+] fetch throttle + open 단일화 + v47_buildGradeChangeChart W export 사용
   try {
     var LKEY = 'woos_hard_reset_ver';
     if (localStorage.getItem(LKEY) === VER) return;
@@ -6859,12 +6859,12 @@ async function opsDashboard() {
 // 탭 시 상세 팝업
 // ═══════════════════════════════════════════════════════════════
 
-var HTML_VERSION = 'v4.9.1-w1r1c-fetch-open-fix';  // 옵션 C: fetch throttle (6 동시) + open 시스템 단일화
+var HTML_VERSION = 'v4.9.1-w1r1c-fetch-open-fix-2';  // 옵션 C + v47_buildGradeChangeChart W export 사용 (회귀 수정)
 var _cachedBuildInfo = null;
 
-// [옵션 C] 패치 확인용 — 페이지 로드 시 버전명 출력 (DevTools 콘솔)
+// [옵션 C+] 패치 확인용 — 페이지 로드 시 버전명 출력 (DevTools 콘솔)
 try {
-  console.log('[WOOS] ' + HTML_VERSION + ' loaded — 옵션 C (fetch throttle 6 동시 + open 시스템 capture/restore 단일화)');
+  console.log('[WOOS] ' + HTML_VERSION + ' loaded — 옵션 C + GradeChart W export (회귀 수정)');
   window.WOOS_VERSION = HTML_VERSION;
 } catch(e) {}
 
@@ -11881,9 +11881,17 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       allGroups = v4743_normalizeGroupFlags(allGroups, watchMap);
 
       // [v4.7.45] 그래프 HTML 캐싱 — allGroups 생성 직후 1회만, 실패해도 렌더 계속
+      // [v4.9.1-w1r1c-fetch-open-fix-2] W.buildGradeChangeChart export 사용 (IIFE 스코프)
+      //   v47_buildGradeChangeChart는 11833/12449 nested IIFE 안에 정의되어 있어
+      //   외부 IIFE에서 직접 호출 시 ReferenceError 발생.
+      //   WOOS_ANALYZER export로 접근.
       allGroups.forEach(function(g) {
         try {
-          g._gradeChartHtml = v47_buildGradeChangeChart(g);
+          if (W && typeof W.buildGradeChangeChart === 'function') {
+            g._gradeChartHtml = W.buildGradeChangeChart(g);
+          } else {
+            g._gradeChartHtml = '';
+          }
         } catch(e) {
           console.error('[GRADE_CHART_CACHE_FAIL]', g.base, e && e.message ? e.message : e);
           g._gradeChartHtml = '';
