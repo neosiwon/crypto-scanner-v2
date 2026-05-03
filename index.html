@@ -152,7 +152,7 @@
 <script>
 /* [v4.7.42] 캐시 강제 리셋 — SW 완전 제거 후 리로드 */
 (function(){
-  var VER = 'v4910-w1r4-state-lock-2-action-fix-2f-cardheader-storage';  // [State Lock 2 fix-2f-cardheader-storage] _renderActiveTrackingList 시작부 storage 사전 정리 — 박제 영구 해소
+  var VER = 'v4910-w1r4-state-lock-2-action-fix-2g-cardheader-race';  // [State Lock 2 fix-2g-cardheader-race] w1_captureOpenCards storage cross-check — race 차단 + fetch 폭주 해소
   try {
     var LKEY = 'woos_hard_reset_ver';
     if (localStorage.getItem(LKEY) === VER) return;
@@ -6987,12 +6987,12 @@ async function opsDashboard() {
 // 탭 시 상세 팝업
 // ═══════════════════════════════════════════════════════════════
 
-var HTML_VERSION = 'v4.9.1-w1r4-state-lock-2-action-fix-2f-cardheader-storage';  // State Lock 2 fix-2f-cardheader-storage: _renderActiveTrackingList 시작부 storage 사전 정리 (박제 영구 해소)
+var HTML_VERSION = 'v4.9.1-w1r4-state-lock-2-action-fix-2g-cardheader-race';  // State Lock 2 fix-2g-cardheader-race: w1_captureOpenCards storage cross-check (race 차단 + fetch 폭주 해소)
 var _cachedBuildInfo = null;
 
 // [State Lock 2 Action fix-2c] 패치 확인용 — 페이지 로드 시 버전명 출력 (DevTools 콘솔)
 try {
-  console.log('[WOOS] ' + HTML_VERSION + ' loaded — State Lock 2 fix-2f-cardheader-storage (_renderActiveTrackingList 시작부 storage 사전 정리, 박제 영구 해소)');
+  console.log('[WOOS] ' + HTML_VERSION + ' loaded — State Lock 2 fix-2g-cardheader-race (w1_captureOpenCards storage cross-check, race 차단 + fetch 폭주 해소)');
   window.WOOS_VERSION = HTML_VERSION;
 } catch(e) {}
 
@@ -12420,9 +12420,20 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
     var keys = [];
     try {
       var nodes = document.querySelectorAll('details.progress-rich-card[open]');
+      // [State Lock 2 fix-2g-cardheader-race] storage cross-check
+      //   DOM open=true이지만 v462 sessionStorage에 없는 카드는 사용자가 닫은 직후
+      //   race로 DOM 잔존 open인 stale 케이스 → capture 제외 → restore가
+      //   stale open 복원 못함 → race 차단 + handleCardExpand fetch 폭주 해소
+      var W_csg = (typeof window !== 'undefined') ? window.WOOS_ANALYZER : null;
+      var hasIsCardOpen = W_csg && typeof W_csg.isCardOpen === 'function';
       for (var i = 0; i < nodes.length; i++) {
         var k = w1_getCardKey(nodes[i]);
-        if (k) keys.push(k);
+        if (!k) continue;
+        if (hasIsCardOpen) {
+          var sid = nodes[i].getAttribute('data-snapshot-id');
+          if (sid && !W_csg.isCardOpen(sid)) continue;  // storage에 없으면 capture 제외
+        }
+        keys.push(k);
       }
     } catch(e) {
       // capture 실패 시 빈 배열 (안전 fallback)
