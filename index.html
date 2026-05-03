@@ -152,7 +152,7 @@
 <script>
 /* [v4.7.42] 캐시 강제 리셋 — SW 완전 제거 후 리로드 */
 (function(){
-  var VER = 'v4910-w1r4-state-lock-2-action-fix-2d-cardheader';  // [State Lock 2 fix-2d-cardheader] v4721BlockSummaryToggle selector 좁히기 — 카드헤더 토글 차단 해소
+  var VER = 'v4910-w1r4-state-lock-2-action-fix-2e-cardheader';  // [State Lock 2 fix-2e-cardheader] details toggle 이벤트로 v462 sessionStorage 즉시 동기화 — 박제 해소
   try {
     var LKEY = 'woos_hard_reset_ver';
     if (localStorage.getItem(LKEY) === VER) return;
@@ -6987,12 +6987,12 @@ async function opsDashboard() {
 // 탭 시 상세 팝업
 // ═══════════════════════════════════════════════════════════════
 
-var HTML_VERSION = 'v4.9.1-w1r4-state-lock-2-action-fix-2d-cardheader';  // State Lock 2 fix-2d-cardheader: v4721BlockSummaryToggle selector 좁히기 (카드헤더 토글 정상화)
+var HTML_VERSION = 'v4.9.1-w1r4-state-lock-2-action-fix-2e-cardheader';  // State Lock 2 fix-2e-cardheader: details toggle → v462 setCardOpen 즉시 동기화 (sessionStorage 박제 해소)
 var _cachedBuildInfo = null;
 
 // [State Lock 2 Action fix-2c] 패치 확인용 — 페이지 로드 시 버전명 출력 (DevTools 콘솔)
 try {
-  console.log('[WOOS] ' + HTML_VERSION + ' loaded — State Lock 2 fix-2c (BRIDGE↔WOOS_ANALYZER sibling IIFE 우회: v44_* → WOOS_ANALYZER.*)');
+  console.log('[WOOS] ' + HTML_VERSION + ' loaded — State Lock 2 fix-2e-cardheader (details toggle → v462 setCardOpen 즉시 동기화, sessionStorage 박제 해소)');
   window.WOOS_VERSION = HTML_VERSION;
 } catch(e) {}
 
@@ -15701,7 +15701,61 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
         }
       } catch(e) {}
     }
-    
+
+    /* [State Lock 2 fix-2e-cardheader] details toggle 이벤트로 v462 sessionStorage 즉시 동기화
+     *
+     * 원인:
+     *   v462_setCardOpen은 사용자가 카드를 펼칠 때만 호출되고 닫을 때는 호출 안 됨.
+     *   v47_validateOpenCardsSessionStorage(15677)은 60초 자동 갱신 시점에만 정리.
+     *   사용자가 카드 닫으면 details.open=false 자체는 작동하지만, 그 직후 발생하는
+     *   rerender(_renderActiveTrackingList)가 sessionStorage 박제값으로 카드를 다시 open.
+     *   사용자 증상: "카드 화면이 한 번 리프레시 되는 느낌 + 박제된 기분".
+     *
+     * 해결:
+     *   document.body 'toggle' 이벤트(capture phase) 1회만 등록.
+     *   사용자가 카드 열거나 닫는 즉시 v462_setCardOpen(cardId, !!d.open) 호출.
+     *   cardId는 v47_validateOpenCardsSessionStorage(15686-15695)와 동일한 추출 규칙 사용
+     *   (data-snapshot-id → data-group-key → history는 'hist:'+data-id).
+     *
+     * 범위:
+     *   - v462 open-card sessionStorage 동기화만
+     *   - Watch Action / Core v2 / 17개 동결 함수 / Worker 무영향
+     *   - v462_setCardOpen 함수 자체 수정 X (재사용만)
+     */
+    function v47e_bindV462ToggleSync() {
+      if (typeof window === 'undefined' || typeof document === 'undefined') return;
+      if (window._w1_v462ToggleSyncBound) return;
+      if (!document.body) {
+        if (document.addEventListener) {
+          document.addEventListener('DOMContentLoaded', v47e_bindV462ToggleSync);
+        }
+        return;
+      }
+      window._w1_v462ToggleSyncBound = true;
+      document.body.addEventListener('toggle', function(e) {
+        try {
+          var d = e && e.target;
+          if (!d || typeof d.matches !== 'function') return;
+
+          // 1순위: active tracking card
+          if (d.matches('details.progress-rich-card')) {
+            var sid = d.getAttribute('data-snapshot-id') || d.getAttribute('data-group-key') || '';
+            if (sid) v462_setCardOpen(sid, !!d.open);
+            return;
+          }
+          // 2순위: history card
+          if (d.matches('details.woos-history-card')) {
+            var hid = d.getAttribute('data-id');
+            if (hid) v462_setCardOpen('hist:' + hid, !!d.open);
+            return;
+          }
+        } catch(err) {
+          try { console.warn('[fix-2e v462ToggleSync]', err && err.message ? err.message : err); } catch(_) {}
+        }
+      }, true);  // capture phase — 사용자 클릭으로 인한 native toggle 직후 즉시 동기화
+    }
+    try { v47e_bindV462ToggleSync(); } catch(e) {}
+
     /* [v4.7.13] 정렬: 관심 → 정밀 → 알람횟수 → 사용자 선택 → 최신 */
     function v462_sortItems(items, sortBy) {
       if (!Array.isArray(items)) return [];
