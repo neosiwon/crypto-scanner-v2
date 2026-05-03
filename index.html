@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <!-- ════════════════════════════════════════════════════════════════
-     WOOS Crypto Scanner v3 — v4.9.1-w1r4-state-lock-2-action-fix-2-3
+     WOOS Crypto Scanner v3 — v4.9.1-w1r4-state-lock-2-action-fix-2-4
      ════════════════════════════════════════════════════════════════
-     Phase: 4.9.1 (State Lock 2 fix-2-3 — server watch fallback)
+     Phase: 4.9.1 (State Lock 2 fix-2-4 — modal confirm local/server sync)
      Base:  v4.9.1-w1r4-state-lock-2-action-fix-1
      
      ═══ State Lock 2 fix-2-1 변경 영역 (Watch Action 안정화) ═══
@@ -150,7 +150,7 @@
 <script>
 /* [v4.7.42] 캐시 강제 리셋 — SW 완전 제거 후 리로드 */
 (function(){
-  var VER = 'v4910-w1r4-state-lock-2-action-fix-2-3';  // [State Lock 2 fix-2-3] server watch fallback + local reconcile
+  var VER = 'v4910-w1r4-state-lock-2-action-fix-2-4';  // [State Lock 2 fix-2-4] modal confirm local/server sync
   try {
     var LKEY = 'woos_hard_reset_ver';
     if (localStorage.getItem(LKEY) === VER) return;
@@ -6985,12 +6985,12 @@ async function opsDashboard() {
 // 탭 시 상세 팝업
 // ═══════════════════════════════════════════════════════════════
 
-var HTML_VERSION = 'v4.9.1-w1r4-state-lock-2-action-fix-2-3';  // State Lock 2 fix-2-3: server watch fallback
+var HTML_VERSION = 'v4.9.1-w1r4-state-lock-2-action-fix-2-4';  // State Lock 2 fix-2-4: modal confirm local/server sync
 var _cachedBuildInfo = null;
 
-// [State Lock 2 Action fix-2-3] 패치 확인용 — 페이지 로드 시 버전명 출력 (DevTools 콘솔)
+// [State Lock 2 Action fix-2-4] 패치 확인용 — 페이지 로드 시 버전명 출력 (DevTools 콘솔)
 try {
-  console.log('[WOOS] ' + HTML_VERSION + ' loaded — State Lock 2 fix-2-3 (server watch fallback + local reconcile + pending mutex)');
+  console.log('[WOOS] ' + HTML_VERSION + ' loaded — State Lock 2 fix-2-4 (modal confirm local/server sync + pending mutex)');
   window.WOOS_VERSION = HTML_VERSION;
 } catch(e) {}
 
@@ -11384,11 +11384,10 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
    * 입력: canonicalBase (정규화된 base), group? (옵션, raw 보조값 참조용)
    * 출력: { isWatch, isPending, source }
    *
-   * 우선순위 4단계:
-   *   1. pending overlay (토글 직후 Worker 응답 전)
-   *   2. local watchlist 캐시 (v44_isWatchlist — 단, 카드 빌드 X 이 함수 안에서만)
-   *   3. raw item.isWatchlist (조회만, 변형 X — group 인자 있을 때만)
-   *   4. none
+    * 우선순위 3단계:
+    *   1. pending overlay (토글 직후 Worker 응답 전)
+    *   2. local watchlist 캐시 (v44_isWatchlist — 단, 카드 빌드 X 이 함수 안에서만)
+    *   3. none
    *
    * 원칙:
    *   - raw item / group 변형 X
@@ -11399,13 +11398,14 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
     var key = w1_getCanonicalBaseKey(canonicalBase);
     if (!key) return { isWatch: false, isPending: false, source: 'none' };
 
-    // [State Lock 2] 우선순위 (3순위 raw 보조값 제거)
+    // [State Lock 2] 우선순위
     //   1순위: pending overlay (즉시반영)
     //   2순위: synced local watch cache (Worker 동기 후 local)
     //   3순위: none
     //
-    // raw item.isWatchlist는 사용자 정책에 따라 action/표시 판단에서 제외.
-    // → 다른 PC stale raw 잔존 → 항상 isWatch=true 잡혀 해제 불가 문제 차단.
+    // active cache / raw item.isWatchlist fallback 은 제거.
+    // → stale active cache 가 해제 직후 다시 isWatch=true 로 덮어써서
+    //   모달 확인 후 즉시 해제가 안 보이는 문제를 차단한다.
 
     // 1순위: pending overlay
     if (w1_pendingWatchOverlay.hasOwnProperty(key)) {
@@ -11427,26 +11427,7 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       }
     } catch(e) {}
 
-    // 3순위: 현재 active cache 의 Worker truth
-    try {
-      var activeCache = (typeof window !== 'undefined' && window._activeItemsCache) ? window._activeItemsCache : _activeItemsCache;
-      if (Array.isArray(activeCache)) {
-        for (var i = 0; i < activeCache.length; i++) {
-          var activeItem = activeCache[i];
-          if (!activeItem) continue;
-          var activeBase = w1_getCanonicalBaseKey(activeItem.base || (activeItem.meta && activeItem.meta.base) || '');
-          if (activeBase === key && activeItem.isWatchlist === true) {
-            return {
-              isWatch: true,
-              isPending: false,
-              source: 'server'
-            };
-          }
-        }
-      }
-    } catch(e2) {}
-
-    // 4순위: none
+    // 3순위: none
     return { isWatch: false, isPending: false, source: 'none' };
   }
 
@@ -11480,6 +11461,29 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
     } catch(e) {
       try { console.warn('[w1_reconcileWatchlistFromActive]', e && e.message ? e.message : e); } catch(_e) {}
     }
+  }
+
+  function w1_forceLocalWatchState(base, desiredWatch) {
+    var canonicalBase = (typeof w1_getCanonicalBaseKey === 'function')
+      ? w1_getCanonicalBaseKey(base)
+      : String(base || '').toUpperCase();
+    if (!canonicalBase || !window.WOOS_ANALYZER || typeof window.WOOS_ANALYZER.toggleWatchlist !== 'function') {
+      return !!desiredWatch;
+    }
+
+    var currentWatch = false;
+    try {
+      currentWatch = (typeof window.WOOS_ANALYZER.isWatchlist === 'function')
+        ? !!window.WOOS_ANALYZER.isWatchlist(canonicalBase)
+        : false;
+    } catch(e) {}
+
+    if (currentWatch !== !!desiredWatch) {
+      try {
+        currentWatch = !!window.WOOS_ANALYZER.toggleWatchlist(canonicalBase);
+      } catch(e2) {}
+    }
+    return !!currentWatch;
   }
   /**
    * w1_computeCoreState — Core v2 pure evaluation (보정 1번)
@@ -17388,19 +17392,14 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
           return;
         }
         
-        var alreadyWatch = false;
-        try {
-          alreadyWatch = (typeof window.WOOS_ANALYZER.isWatchlist === 'function')
-            ? window.WOOS_ANALYZER.isWatchlist(canonicalBase) : false;
-        } catch(e0) {}
-        if (alreadyWatch) return;
-        
         // [State Lock] pending overlay 등록 — 다음 vm 계산에서 즉시 isWatch=true 반영
         if (typeof w1_setPendingWatch === 'function') {
           w1_setPendingWatch(canonicalBase, true);
         }
-        
-        var nowIsWatch = window.WOOS_ANALYZER.toggleWatchlist(canonicalBase);
+
+        var nowIsWatch = (typeof w1_forceLocalWatchState === 'function')
+          ? w1_forceLocalWatchState(canonicalBase, true)
+          : window.WOOS_ANALYZER.toggleWatchlist(canonicalBase);
         v47_applyWatchVisual(canonicalBase, nowIsWatch);
         v47_syncWatchApi(canonicalBase, nowIsWatch);
         v47_rerenderActive();
@@ -17699,11 +17698,11 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
           w1_setPendingWatch(canonicalBase, false);
         }
         
-        // 클라이언트 watchlist 즉시 토글 OFF (UI 반영)
-        if (window.WOOS_ANALYZER && window.WOOS_ANALYZER.toggleWatchlist) {
-          window.WOOS_ANALYZER.toggleWatchlist(canonicalBase);
-        }
-        v47_applyWatchVisual(canonicalBase, false);
+        // 클라이언트 watchlist 즉시 OFF 동기화 (UI 반영)
+        var nowIsWatch = (typeof w1_forceLocalWatchState === 'function')
+          ? w1_forceLocalWatchState(canonicalBase, false)
+          : false;
+        v47_applyWatchVisual(canonicalBase, nowIsWatch);
         
         var apiUrl = (window.WORKER_BASE_URL || '') + '/tracking/end-watch-mode/' + encodeURIComponent(canonicalBase);
         var validExchanges = (exchanges || []).filter(function(x){
