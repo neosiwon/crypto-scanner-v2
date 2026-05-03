@@ -152,7 +152,7 @@
 <script>
 /* [v4.7.42] 캐시 강제 리셋 — SW 완전 제거 후 리로드 */
 (function(){
-  var VER = 'v4.9.2';  // Deep Pipeline Lock + Grade Chart Source Lock
+  var VER = 'v4.9.3';  // Fetch Storm Lock — fetchTrackingData inFlight dedupe + 30s cache
   try {
     var LKEY = 'woos_hard_reset_ver';
     if (localStorage.getItem(LKEY) === VER) return;
@@ -6987,12 +6987,12 @@ async function opsDashboard() {
 // 탭 시 상세 팝업
 // ═══════════════════════════════════════════════════════════════
 
-var HTML_VERSION = 'v4.9.2';  // Deep Pipeline Lock + Grade Chart Source Lock
+var HTML_VERSION = 'v4.9.3';  // Fetch Storm Lock
 var _cachedBuildInfo = null;
 
 // [State Lock 2 Action fix-2c] 패치 확인용 — 페이지 로드 시 버전명 출력 (DevTools 콘솔)
 try {
-  console.log('[WOOS] ' + HTML_VERSION + ' loaded — Deep Pipeline + Grade Chart Source Lock');
+  console.log('[WOOS] ' + HTML_VERSION + ' loaded — Fetch Storm Lock');
   window.WOOS_VERSION = HTML_VERSION;
 } catch(e) {}
 
@@ -11019,12 +11019,37 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       .catch(function(){ return null; });
   }
   
+  // [v4.9.3 Fetch Storm Lock] inFlight dedupe + 30초 캐시
+  //   동일 snapshotId+모드 요청이 동시에 진행 중이면 기존 Promise 재사용.
+  //   30초 안 동일 키 요청은 캐시된 데이터 반환.
+  //   60초 자동 갱신 + 광클 시 ERR_INSUFFICIENT_RESOURCES 폭주 차단.
+  var _fetchTrackingInFlight = {};   // {key: Promise}
+  var _fetchTrackingCache = {};      // {key: {data, ts}}
+  var FETCH_TRACKING_TTL_MS = 30 * 1000;
   function fetchTrackingData(snapshotId, includeSamples) {
+    var key = String(snapshotId || '') + (includeSamples ? '|full' : '|lite');
+    // 1. 캐시 hit
+    var cached = _fetchTrackingCache[key];
+    if (cached && (Date.now() - cached.ts) < FETCH_TRACKING_TTL_MS) {
+      return Promise.resolve(cached.data);
+    }
+    // 2. inFlight 재사용
+    if (_fetchTrackingInFlight[key]) {
+      return _fetchTrackingInFlight[key];
+    }
+    // 3. 새 fetch
     var url = WORKER_URL + '/tracking/' + encodeURIComponent(snapshotId);
     if (includeSamples) url += '?includeSamples=1';
-    return woosFetchWithTimeout(url, {}, 12000)
+    var p = woosFetchWithTimeout(url, {}, 12000)
       .then(function(r){ return (r && !r.__woosTimeout && r.ok) ? r.json() : null; })
-      .catch(function(){ return null; });
+      .catch(function(){ return null; })
+      .then(function(data){
+        if (data) _fetchTrackingCache[key] = { data: data, ts: Date.now() };
+        delete _fetchTrackingInFlight[key];
+        return data;
+      });
+    _fetchTrackingInFlight[key] = p;
+    return p;
   }
   
   // ══ 메인 진입점 (모든 데이터 로드 + 렌더) ══════════════════════
