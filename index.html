@@ -150,7 +150,7 @@
 <script>
 /* [v4.7.42] 캐시 강제 리셋 — SW 완전 제거 후 리로드 */
 (function(){
-  var VER = 'v4910-w1r4-state-lock-2-action-fix-2-2';  // [State Lock 2 fix-2-2] Worker watch state → local watchlist reconcile
+  var VER = 'v4910-w1r4-state-lock-2-action-fix-2c';  // [State Lock 2 fix-2c] BRIDGE↔WOOS_ANALYZER sibling IIFE 우회 (v44_* → WOOS_ANALYZER.*)
   try {
     var LKEY = 'woos_hard_reset_ver';
     if (localStorage.getItem(LKEY) === VER) return;
@@ -6985,7 +6985,7 @@ async function opsDashboard() {
 // 탭 시 상세 팝업
 // ═══════════════════════════════════════════════════════════════
 
-var HTML_VERSION = 'v4.9.1-w1r4-state-lock-2-action-fix-2-2';  // State Lock 2 fix-2-2: Worker watch state reconcile
+var HTML_VERSION = 'v4.9.1-w1r4-state-lock-2-action-fix-2c';  // State Lock 2 fix-2c: BRIDGE↔WOOS_ANALYZER sibling IIFE 우회 (vm.watchState 복구)
 var _cachedBuildInfo = null;
 
 // [State Lock 2 Action fix-2-1] 패치 확인용 — 페이지 로드 시 버전명 출력 (DevTools 콘솔)
@@ -11417,8 +11417,11 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
     }
 
     // 2순위: local watchlist 캐시 (canonical key로 조회)
+    // [State Lock 2 fix-2c] BRIDGE IIFE와 WOOS_ANALYZER IIFE는 sibling — bare v44_isWatchlist 호출 불가.
+    //   window.WOOS_ANALYZER.isWatchlist 우회로 local watch cache 조회 (export는 17195 라인 참조).
     try {
-      if (typeof v44_isWatchlist === 'function' && v44_isWatchlist(key)) {
+      var W_isWl = (typeof window !== 'undefined' && window.WOOS_ANALYZER) ? window.WOOS_ANALYZER : null;
+      if (W_isWl && typeof W_isWl.isWatchlist === 'function' && W_isWl.isWatchlist(key)) {
         return {
           isWatch: true,
           isPending: false,
@@ -11434,7 +11437,10 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
   function w1_reconcileWatchlistFromActive(activeList) {
     if (!Array.isArray(activeList) || typeof localStorage === 'undefined') return;
     try {
-      var list = (typeof v44_getWatchlist === 'function') ? v44_getWatchlist() : [];
+      // [State Lock 2 fix-2c] BRIDGE IIFE에서 v44_getWatchlist 직접 호출 불가 (sibling IIFE).
+      //   WOOS_ANALYZER export 우회. 미해결이면 list=[]로 떨어져 server raw에 의해 local이 박살남.
+      var W_rec = (typeof window !== 'undefined' && window.WOOS_ANALYZER) ? window.WOOS_ANALYZER : null;
+      var list = (W_rec && typeof W_rec.getWatchlist === 'function') ? W_rec.getWatchlist() : [];
       var map = {};
       list.forEach(function(base){
         var k = w1_getCanonicalBaseKey(base);
@@ -11478,8 +11484,11 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
   function w1_computeCoreState(group) {
     var watchMap = {};
     try {
-      if (typeof v44_getWatchlist === 'function') {
-        v44_getWatchlist().forEach(function(b){
+      // [State Lock 2 fix-2c] BRIDGE IIFE에서 v44_getWatchlist 직접 호출 불가 (sibling IIFE).
+      //   WOOS_ANALYZER export 우회. 미해결이면 watchMap={} → Core v2가 watch 판정 못해서 displayMode='standard'.
+      var W_cs = (typeof window !== 'undefined' && window.WOOS_ANALYZER) ? window.WOOS_ANALYZER : null;
+      if (W_cs && typeof W_cs.getWatchlist === 'function') {
+        W_cs.getWatchlist().forEach(function(b){
           var k = w1_getCanonicalBaseKey(b);
           if (k) watchMap[k] = true;
         });
