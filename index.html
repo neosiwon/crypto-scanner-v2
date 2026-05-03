@@ -1,28 +1,40 @@
 <!DOCTYPE html>
 <!-- ════════════════════════════════════════════════════════════════
-     WOOS Crypto Scanner v3 — v4.9.1-w1r1b
+     WOOS Crypto Scanner v3 — v4.9.1-w1r1c-legacy-lockdown
      ════════════════════════════════════════════════════════════════
-     Phase: 4.9.1 (Week 1 Round 1b 핫픽스)
+     Phase: 4.9.1 (Week 1 P0 Legacy Lockdown)
      Base:  v4.9.0-corev2-v3.2
      
-     Round 1b 핫픽스 변경 영역:
-       - data-card-key 안정화 (single/group 통일 → 'active:<stableBaseKey>')
-       - 캐시 강제 리셋 VER 갱신 (4900-corev2-32 → v4910-w1r1b)
-       - HTML_VERSION 갱신 (v4.9.1-w1r1 → v4.9.1-w1r1b)
+     P0 Legacy Lockdown 변경 영역 (격리 정책):
+       - 11353 legacy map 호출 격리 (호출 자체 차단)
+         · v4730_normalizeNonWatchWindow(v4723_enforceWatchState(it)) 호출 X
+         · _activeItemsCache 렌더 중 변형 차단
+         · 관심 이력 코인의 잔여 박제 (trackingMode='deep' / windowDays=7) 차단
+       - 캐시 VER 갱신 (v4910-w1r1b → v4910-w1r1c-legacy-lockdown)
+       - HTML_VERSION 갱신 (v4.9.1-w1r1b → v4.9.1-w1r1c-legacy-lockdown)
      
-     Round 1 변경 영역 (이전 적용본 + Round 1b 적용 후):
+     P0 격리 원칙 (정책 5):
+       - v4723_enforceWatchState 함수 정의 그대로 (12826) ⛔ 삭제 X
+       - v4730_normalizeNonWatchWindow 함수 정의 그대로 (13370) ⛔ 삭제 X
+       - 다른 호출처 (12717, 13258, 16023 등) 그대로 ⛔ 격리 유지
+       - 11353 호출만 끊음 (격리 = 호출 X)
+     
+     Round 1 + 1b + 1c 누적 변경 영역:
        - open/close 정확 상태 복원 (사용자 닫은 카드 보장)
-       - data-card-key 속성 추가 (active: namespace 통일) ⭐ Round 1b 안정화
+       - data-card-key 'active:<stableBaseKey>' 통일 (single ↔ group 안정)
        - w1_getCardKey / w1_captureOpenCards / w1_restoreOpenCards 신설
        - v47_rerenderActive 디바운스 100ms (4회 → 1회 통합)
        - Phase 4.6.3 (v462_*) 재사용 X (메모리 capture/restore 우선)
+       - 11353 legacy map 호출 격리 ⭐ 신규 (P0 Lockdown)
      
-     Round 1b 외 (수정 X):
+     P0 외 (수정 X):
        - Worker 수정 X (Week 2+)
        - Core v2 v3.2 내부 수정 X
-       - Round 2~4 작업 X (raw cache / Core v2 명시 / fetchAndRenderActive)
+       - Round 2~4 동시 수정 X
+       - v4720 raw overlay 수정 X
        - 17개 동결 함수 수정 X
-       - renderInProgressCard data-card-key 추가 X (결함 #1, fallback 경로 — 후순위)
+       - 새 기능 추가 X
+       - 11049 fetchTrackingActive 응답 직후 변형 (별도 — 사용자 결정 대기)
      ════════════════════════════════════════════════════════════════ -->
 <html lang="ko">
 <head>
@@ -30,7 +42,7 @@
 <script>
 /* [v4.7.42] 캐시 강제 리셋 — SW 완전 제거 후 리로드 */
 (function(){
-  var VER = 'v4910-w1r1b';  // [Round 1b 핫픽스] data-card-key 안정화 + 캐시 갱신
+  var VER = 'v4910-w1r1c-legacy-lockdown';  // [P0 Legacy Lockdown] 11353 legacy map 호출 격리 + 캐시 갱신
   try {
     var LKEY = 'woos_hard_reset_ver';
     if (localStorage.getItem(LKEY) === VER) return;
@@ -6841,12 +6853,12 @@ async function opsDashboard() {
 // 탭 시 상세 팝업
 // ═══════════════════════════════════════════════════════════════
 
-var HTML_VERSION = 'v4.9.1-w1r1b';  // Week 1 Round 1b 핫픽스: data-card-key 안정화 (active:<stableBaseKey>) + 캐시 VER 갱신
+var HTML_VERSION = 'v4.9.1-w1r1c-legacy-lockdown';  // P0 Legacy Lockdown: 11353 legacy map 호출 격리 (v4723/v4730 함수 정의 그대로)
 var _cachedBuildInfo = null;
 
-// [Week 1 — Round 1b 핫픽스] 패치 확인용 — 페이지 로드 시 버전명 출력 (DevTools 콘솔)
+// [Week 1 — P0 Legacy Lockdown] 패치 확인용 — 페이지 로드 시 버전명 출력 (DevTools 콘솔)
 try {
-  console.log('[WOOS] ' + HTML_VERSION + ' loaded — Week 1 Round 1b 핫픽스 (data-card-key 안정화 + 캐시 갱신)');
+  console.log('[WOOS] ' + HTML_VERSION + ' loaded — P0 Legacy Lockdown (11353 legacy map 격리, _activeItemsCache 렌더 중 변형 차단)');
   window.WOOS_VERSION = HTML_VERSION;
 } catch(e) {}
 
@@ -11349,8 +11361,23 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
   function _renderActiveTrackingList(totalCount, byTier) {
     var container = document.getElementById('analyzerContent');
     if (!container) return;
-    // [v4.7.23] 재렌더/정렬/필터 때마다 관심 7d 상태를 다시 합성한다.
-    try { _activeItemsCache = (_activeItemsCache || []).map(function(it){ return v4730_normalizeNonWatchWindow(v4723_enforceWatchState(it)); }); } catch(e) {}
+    // [P0 Legacy Lockdown — v4910-w1r1c] 렌더 중 _activeItemsCache 변형 금지 (격리)
+    //
+    // 정책 5: 기존 함수는 "wrapper / 격리 / 대체" 대상
+    //   - v4723_enforceWatchState 함수 정의 그대로 유지 (12826 — 격리, 삭제 X)
+    //   - v4730_normalizeNonWatchWindow 함수 정의 그대로 유지 (13370 — 격리, 삭제 X)
+    //   - 다른 호출처 (12717, 13258, 16023 등) 그대로 유지 (격리)
+    //   - 본 라인의 호출만 끊음 (격리 = 호출 X)
+    //
+    // 기존 호출 (격리됨, 실행 X):
+    //   try { _activeItemsCache = (_activeItemsCache || []).map(function(it){
+    //     return v4730_normalizeNonWatchWindow(v4723_enforceWatchState(it));
+    //   }); } catch(e) {}
+    //
+    // 차단 효과:
+    //   - 관심 이력 코인의 trackingMode='deep' / windowDays=7 / windowEnd 잔여 박제 X
+    //   - _activeItemsCache 자체 변형 X (Worker SoT 그대로)
+    //   - _trackingMap 박제 X (v4723 호출 X)
 
     var rawAlertCount = (_activeItemsCache || []).length;
 
