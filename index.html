@@ -64,7 +64,7 @@
 <script>
 /* [v4.7.42] 캐시 강제 리셋 — SW 완전 제거 후 리로드 */
 (function(){
-  var VER = 'v4910-w1r2-state-lock';  // [State Lock] CardViewModel 단일화 — 별/태그/기간/카운트/모달/class 모두 vm 기준
+  var VER = 'v4910-w1r3-state-lock-2';  // [State Lock 2] Sort/Filter/Label vm 단일화 (timeState/performance/labelState 신설, w1_sortVMs/w1_filterVMs)
   try {
     var LKEY = 'woos_hard_reset_ver';
     if (localStorage.getItem(LKEY) === VER) return;
@@ -6875,12 +6875,12 @@ async function opsDashboard() {
 // 탭 시 상세 팝업
 // ═══════════════════════════════════════════════════════════════
 
-var HTML_VERSION = 'v4.9.1-w1r2-state-lock';  // State Lock: vm 단일화 (9개 표시 상태 모두 vm.* 파생)
+var HTML_VERSION = 'v4.9.1-w1r3-state-lock-2';  // State Lock 2: Sort/Filter/Label vm 단일화
 var _cachedBuildInfo = null;
 
-// [State Lock] 패치 확인용 — 페이지 로드 시 버전명 출력 (DevTools 콘솔)
+// [State Lock 2] 패치 확인용 — 페이지 로드 시 버전명 출력 (DevTools 콘솔)
 try {
-  console.log('[WOOS] ' + HTML_VERSION + ' loaded — State Lock (CardViewModel 단일화: 별/태그/기간/카운트/모달/class)');
+  console.log('[WOOS] ' + HTML_VERSION + ' loaded — State Lock 2 (Sort/Filter/Label vm 단일 — w1_sortVMs/w1_filterVMs/labelState)');
   window.WOOS_VERSION = HTML_VERSION;
 } catch(e) {}
 
@@ -11556,6 +11556,43 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
     var progress = w1_computeProgress(trackingWindow);
     var remainingLabel = w1_formatRemaining(trackingWindow);
 
+    // [State Lock 2 — TimeState] firstSeenAt 안정 기준 (렌더 시각 의존 X)
+    //   우선순위: alertSnapshot.createdAt > meta.snapshotTime > startedAt > tierAssignedAt
+    //   신규 라벨 / 마감임박 라벨 결정 기준 (vm.labelState 파생)
+    var meta = (rep && rep.meta) || {};
+    var alertSnap = (typeof v41_getAlertSnapshot === 'function') ? v41_getAlertSnapshot(rep) : null;
+    var firstSeenAt = 0;
+    var timeSource = 'fallback';
+    if (alertSnap && alertSnap.createdAt) {
+      firstSeenAt = Number(alertSnap.createdAt) || 0;
+      if (firstSeenAt > 0) timeSource = 'snapshot';
+    }
+    if (!firstSeenAt && meta.snapshotTime) {
+      firstSeenAt = Number(meta.snapshotTime) || 0;
+      if (firstSeenAt > 0) timeSource = 'snapshot';
+    }
+    if (!firstSeenAt && rep.startedAt) {
+      firstSeenAt = Number(rep.startedAt) || 0;
+      if (firstSeenAt > 0) timeSource = 'started';
+    }
+    if (!firstSeenAt && rep.tierAssignedAt) {
+      firstSeenAt = Number(rep.tierAssignedAt) || 0;
+      if (firstSeenAt > 0) timeSource = 'tier';
+    }
+    var startedAt = (trackingWindow && trackingWindow.startedAt) || firstSeenAt;
+
+    // [State Lock 2 — Performance] changePct (raw 함수 재사용, 의존 X)
+    var changePct = 0;
+    try { changePct = (typeof v4729_currentPct === 'function') ? Number(v4729_currentPct(rep)) || 0 : 0; } catch(_e) {}
+
+    // [State Lock 2 — LabelState] 신규 / 마감임박 (firstSeenAt + endsAt 기준)
+    var W1_NEW_LABEL_MS = 30 * 60 * 1000;        // 30분
+    var W1_NEAR_END_MS = 60 * 60 * 1000;          // 1시간
+    var nowTs = Date.now();
+    var isNew = !!(firstSeenAt > 0 && (nowTs - firstSeenAt) <= W1_NEW_LABEL_MS);
+    var endsAtVal = (trackingWindow && trackingWindow.endsAt) || 0;
+    var isNearEnd = !!(endsAtVal > 0 && (endsAtVal - nowTs) > 0 && (endsAtVal - nowTs) <= W1_NEAR_END_MS);
+
     // 미니 카드 ViewModel
     var itemVMs = (Array.isArray(group.items) ? group.items : []).map(function(it){
       return w1_buildItemViewModel(it, coreState, watchState);
@@ -11584,6 +11621,25 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
 
       // [State Lock 명세 4] 추적 윈도우 (modeState에서 파생, raw 무시)
       trackingWindow: trackingWindow,
+
+      // [State Lock 2] 시간 상태 (안정 기준 — 렌더 시각 의존 X)
+      timeState: {
+        startedAt: startedAt,
+        firstSeenAt: firstSeenAt,
+        source: timeSource              // 'snapshot' | 'started' | 'tier' | 'fallback'
+      },
+
+      // [State Lock 2] 성능 (raw 함수 재사용, vm 의존성 0)
+      performance: {
+        changePct: changePct
+      },
+
+      // [State Lock 2] 라벨 상태 (firstSeenAt + endsAt 기준 — 렌더 시각 의존 X)
+      labelState: {
+        isNew: isNew,                   // now - firstSeenAt <= 30분
+        isNearEnd: isNearEnd,           // endsAt - now <= 1시간
+        source: 'time-based'
+      },
 
       // 표시값
       progress: progress,
@@ -11656,15 +11712,102 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       else if (dm === 'expired')  counts.expired++;
       else                         counts.standard++;
 
-      // profit/loss/flat — group representative 기반 (변경 X)
-      var g = vm._rawGroup;
-      var pct = (g && g.representative && typeof v4729_currentPct === 'function')
-              ? v4729_currentPct(g.representative) : 0;
+      // profit/loss/flat — vm.performance.changePct 기준 (State Lock 2)
+      var pct = (vm.performance && typeof vm.performance.changePct === 'number') ? vm.performance.changePct : 0;
       if (pct > 0.2) counts.profit++;
       else if (pct < -0.2) counts.loss++;
       else counts.flat++;
     });
     return counts;
+  }
+
+  /**
+   * w1_filterVMs — vm 기준 필터 (State Lock 2 명세 1)
+   *
+   * 입력: vms (CardViewModel[]), activeFilter
+   * 출력: 필터 통과한 vm 배열
+   *
+   * 원칙:
+   *   ⛔ g.displayMode 사용 X (vm.modeState.displayMode만)
+   *   ⛔ raw item 사용 X
+   *   ✅ vm 필드만 참조 (pure function)
+   */
+  function w1_filterVMs(vms, activeFilter) {
+    vms = Array.isArray(vms) ? vms : [];
+    if (!activeFilter || activeFilter === 'all') return vms.slice();
+    return vms.filter(function(vm) {
+      if (!vm) return false;
+      var dm = (vm.modeState && vm.modeState.displayMode) || 'standard';
+      var pct = (vm.performance && typeof vm.performance.changePct === 'number') ? vm.performance.changePct : 0;
+      var isNew = !!(vm.labelState && vm.labelState.isNew);
+      var isNearEnd = !!(vm.labelState && vm.labelState.isNearEnd);
+
+      if (activeFilter === 'watch')    return dm === 'watch';
+      if (activeFilter === 'deep')     return dm === 'deep';
+      if (activeFilter === 'standard') return dm === 'standard';
+      if (activeFilter === 'expired')  return dm === 'expired';
+      if (activeFilter === 'profit')   return pct > 0.2;
+      if (activeFilter === 'loss')     return pct < -0.2;
+      if (activeFilter === 'new')      return isNew;
+      if (activeFilter === 'nearEnd' || activeFilter === 'deadline') return isNearEnd;
+      return true;
+    });
+  }
+
+  /**
+   * w1_sortVMs — vm 기준 정렬 (State Lock 2 명세 1)
+   *
+   * 입력: vms, sortBy, activeFilter
+   * 출력: 정렬된 vm 배열
+   *
+   * 원칙:
+   *   ⛔ g.displayMode 사용 X (vm.modeState.displayMode만)
+   *   ⛔ raw item.startedAt / windowEnd 사용 X
+   *   ✅ vm.timeState / trackingWindow / performance / labelState 사용
+   *   ✅ pure function (vm 변형 X)
+   */
+  function w1_sortVMs(vms, sortBy, activeFilter) {
+    vms = Array.isArray(vms) ? vms.slice() : [];
+    var nowTs = Date.now();
+    var W1_NEW_MS = 30 * 60 * 1000;
+    var W1_DEADLINE_MS = 60 * 60 * 1000;
+    var modeOrder = { watch: 0, deep: 1, standard: 2, expired: 3 };
+
+    function getMode(vm) { return (vm && vm.modeState && vm.modeState.displayMode) || 'standard'; }
+    function getStartedAt(vm) { return (vm && vm.timeState && vm.timeState.startedAt) || 0; }
+    function getFirstSeen(vm) { return (vm && vm.timeState && vm.timeState.firstSeenAt) || getStartedAt(vm); }
+    function getEndsAt(vm) { return (vm && vm.trackingWindow && vm.trackingWindow.endsAt) || 0; }
+    function getPct(vm) { return (vm && vm.performance && typeof vm.performance.changePct === 'number') ? vm.performance.changePct : 0; }
+    function getIsNew(vm) { return !!(vm && vm.labelState && vm.labelState.isNew); }
+    function getIsNearEnd(vm) { return !!(vm && vm.labelState && vm.labelState.isNearEnd); }
+
+    vms.sort(function(a, b) {
+      // all 필터일 때만 모드 우선순위 (관심 → 정밀 → 표준 → 만료)
+      if (!activeFilter || activeFilter === 'all') {
+        var ma = modeOrder[getMode(a)] != null ? modeOrder[getMode(a)] : 99;
+        var mb = modeOrder[getMode(b)] != null ? modeOrder[getMode(b)] : 99;
+        if (ma !== mb) return ma - mb;
+      }
+      if (sortBy === 'time-old')  return getStartedAt(a) - getStartedAt(b);
+      if (sortBy === 'rising')    return getPct(b) - getPct(a);
+      if (sortBy === 'falling')   return getPct(a) - getPct(b);
+      if (sortBy === 'new') {
+        var aN = getIsNew(a), bN = getIsNew(b);
+        if (aN !== bN) return aN ? -1 : 1;
+        return getFirstSeen(b) - getFirstSeen(a);
+      }
+      if (sortBy === 'deadline') {
+        var aR = getEndsAt(a) ? getEndsAt(a) - nowTs : Infinity;
+        var bR = getEndsAt(b) ? getEndsAt(b) - nowTs : Infinity;
+        var aU = aR > 0 && aR <= W1_DEADLINE_MS;
+        var bU = bR > 0 && bR <= W1_DEADLINE_MS;
+        if (aU !== bU) return aU ? -1 : 1;
+        return aR - bR;
+      }
+      // default: 최신순 (startedAt 내림차순)
+      return getStartedAt(b) - getStartedAt(a);
+    });
+    return vms;
   }
 
   // ════════════════════════════════════════════════════════════════════════
@@ -12029,15 +12172,23 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       : v4743_calcGroupCounts(allGroups, rawAlertCount);  // fallback
     var statsHtml = v4729_buildTrackingStatsCard(groupCounts);
 
-    // visibleGroups = 상태 필터 + 정렬 적용
-    var visibleGroups = v4743_filterGroups(allGroups, af);
-    visibleGroups = v4743_sortGroups(visibleGroups, _activeSortBy, af);
+    // [State Lock 2] visibleVMs = vm 기준 필터 + 정렬 (legacy v4743_filterGroups/sortGroups 격리)
+    var allVMsClean = allVMs.filter(Boolean);
+    var visibleVMs = (typeof w1_filterVMs === 'function')
+      ? w1_filterVMs(allVMsClean, af)
+      : allVMsClean.slice();
+    visibleVMs = (typeof w1_sortVMs === 'function')
+      ? w1_sortVMs(visibleVMs, _activeSortBy, af)
+      : visibleVMs;
+    
+    // visibleGroups = visibleVMs에서 _rawGroup 추출 (카드 빌드용 호환)
+    var visibleGroups = visibleVMs.map(function(vm) { return vm && vm._rawGroup; }).filter(Boolean);
 
-    // [State Lock] visibleVMs 매핑 — group → vm 빠른 조회
+    // [State Lock] visibleVMs 매핑 — group → vm 빠른 조회 (vm 우선)
     var vmByGroupKey = {};
-    allVMs.forEach(function(vm, idx) {
-      if (vm && allGroups[idx]) {
-        var k = allGroups[idx].key || (allGroups[idx].representative && allGroups[idx].representative.base) || '';
+    visibleVMs.forEach(function(vm) {
+      if (vm) {
+        var k = (vm._rawGroup && (vm._rawGroup.key || (vm._rawGroup.representative && vm._rawGroup.representative.base))) || vm.canonicalBaseKey;
         if (k) vmByGroupKey[k] = vm;
       }
     });
