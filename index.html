@@ -152,7 +152,7 @@
 <script>
 /* [v4.7.42] 캐시 강제 리셋 — SW 완전 제거 후 리로드 */
 (function(){
-  var VER = 'v4910-w1r4-state-lock-2-action-fix-2e-cardheader';  // [State Lock 2 fix-2e-cardheader] details toggle 이벤트로 v462 sessionStorage 즉시 동기화 — 박제 해소
+  var VER = 'v4910-w1r4-state-lock-2-action-fix-2f-cardheader-storage';  // [State Lock 2 fix-2f-cardheader-storage] _renderActiveTrackingList 시작부 storage 사전 정리 — 박제 영구 해소
   try {
     var LKEY = 'woos_hard_reset_ver';
     if (localStorage.getItem(LKEY) === VER) return;
@@ -6987,12 +6987,12 @@ async function opsDashboard() {
 // 탭 시 상세 팝업
 // ═══════════════════════════════════════════════════════════════
 
-var HTML_VERSION = 'v4.9.1-w1r4-state-lock-2-action-fix-2e-cardheader';  // State Lock 2 fix-2e-cardheader: details toggle → v462 setCardOpen 즉시 동기화 (sessionStorage 박제 해소)
+var HTML_VERSION = 'v4.9.1-w1r4-state-lock-2-action-fix-2f-cardheader-storage';  // State Lock 2 fix-2f-cardheader-storage: _renderActiveTrackingList 시작부 storage 사전 정리 (박제 영구 해소)
 var _cachedBuildInfo = null;
 
 // [State Lock 2 Action fix-2c] 패치 확인용 — 페이지 로드 시 버전명 출력 (DevTools 콘솔)
 try {
-  console.log('[WOOS] ' + HTML_VERSION + ' loaded — State Lock 2 fix-2e-cardheader (details toggle → v462 setCardOpen 즉시 동기화, sessionStorage 박제 해소)');
+  console.log('[WOOS] ' + HTML_VERSION + ' loaded — State Lock 2 fix-2f-cardheader-storage (_renderActiveTrackingList 시작부 storage 사전 정리, 박제 영구 해소)');
   window.WOOS_VERSION = HTML_VERSION;
 } catch(e) {}
 
@@ -12466,6 +12466,21 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
   function _renderActiveTrackingList(totalCount, byTier) {
     var container = document.getElementById('analyzerContent');
     if (!container) return;
+
+    // [State Lock 2 fix-2f-cardheader-storage] sessionStorage open-cards 사전 정리
+    //   카드 HTML 생성 / innerHTML 교체 / v462_isCardOpen 읽기 전에 storage를
+    //   현재 DOM 실제 open 상태 기준으로 동기화. fix-2e의 toggle event listener가
+    //   실측 상황(card.open property 변경 + native toggle event 미발동)에서
+    //   storage 정리를 못 잡는 케이스에 대한 사전 보강.
+    //   - 사용자 닫음 → DOM open=false → 이 시점에 storage에서 ID 제거 → 다음 빌드에서 닫힌 채 그려짐
+    //   - 사용자 열음 유지 → DOM open=true → storage 유지 → 다음 빌드에서 펼친 채 그려짐
+    //   v47_validateOpenCardsSessionStorage 정의 자체는 그대로 (재사용만).
+    try {
+      if (window.WOOS_ANALYZER && typeof window.WOOS_ANALYZER.validateOpenCardsSessionStorage === 'function') {
+        window.WOOS_ANALYZER.validateOpenCardsSessionStorage();
+      }
+    } catch(e) {}
+
     // [P0 Legacy Lockdown — v4910-w1r1c] 렌더 중 _activeItemsCache 변형 금지 (격리)
     //
     // 정책 5: 기존 함수는 "wrapper / 격리 / 대체" 대상
@@ -17281,6 +17296,8 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       setExpanded: v40_setExpanded,
       isFirstRender: v40_isFirstRender,
       markRendered: v40_markRendered,
+      // [State Lock 2 fix-2f-cardheader-storage] open-cards storage 검증 (DOM 기준 정리)
+      validateOpenCardsSessionStorage: v47_validateOpenCardsSessionStorage,
       // 상수
       SVG: V40_SVG,
     });
