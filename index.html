@@ -152,7 +152,7 @@
 <script>
 /* [v4.7.42] 캐시 강제 리셋 — SW 완전 제거 후 리로드 */
 (function(){
-  var VER = 'v4.9.5-speed-architecture-lock';  // Lazy Body / Standard Lite / Mobile Glass Optimization
+  var VER = 'v4.9.6';  // Core v2 Fallback Hotfix — sCount24>=4 / aCount24>=5 fallback (gradeHistory 부재 케이스)
   try {
     var LKEY = 'woos_hard_reset_ver';
     if (localStorage.getItem(LKEY) === VER) return;
@@ -7032,12 +7032,12 @@ async function opsDashboard() {
 // 탭 시 상세 팝업
 // ═══════════════════════════════════════════════════════════════
 
-var HTML_VERSION = 'v4.9.5-speed-architecture-lock';  // Lazy Body / Standard Lite / Mobile Glass Optimization
+var HTML_VERSION = 'v4.9.6';  // Core v2 Fallback Hotfix — sCount24/aCount24 fallback
 var _cachedBuildInfo = null;
 
 // [State Lock 2 Action fix-2c] 패치 확인용 — 페이지 로드 시 버전명 출력 (DevTools 콘솔)
 try {
-  console.log('[WOOS] ' + HTML_VERSION + ' loaded — Lazy Body / Standard Lite / Mobile Glass Optimization');
+  console.log('[WOOS] ' + HTML_VERSION + ' loaded — Core v2 Fallback Hotfix (sCount24/aCount24 fallback)');
   window.WOOS_VERSION = HTML_VERSION;
 } catch(e) {}
 
@@ -14647,7 +14647,44 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       opts = opts || {};
       var base = v49_normalizeBase(group && group.base || group && group.key || '');
       var signals = v49_collectSignalsFromGroup(group || {});
-      return v49_evaluateCoreState({ base: base, signals: signals, watchMap: opts.watchMap || {}, now: opts.now || Date.now(), rawWindowState: { note: 'legacy raw 보존 전용 — 판단 미사용' } });
+      var v496_now = opts.now || Date.now();
+      var state = v49_evaluateCoreState({ base: base, signals: signals, watchMap: opts.watchMap || {}, now: v496_now, rawWindowState: { note: 'legacy raw 보존 전용 — 판단 미사용' } });
+
+      // [v4.9.6 Core v2 Fallback Hotfix] active payload sCount24/aCount24 fallback
+      //   gradeHistory가 active payload에 없는 케이스 (Worker 미보강) 보완.
+      //   조건: state.analysisMode='standard' + qualification 미충족
+      //   fallback 평가:
+      //     - group.items의 sCount24 합 >= 4 → S_4_PLUS_FALLBACK
+      //     - group.items의 aCount24 합 >= 5 → A_5_PLUS_FALLBACK
+      //   S+ 조건은 fallback 안 함 (sCount만으론 ready 구분 불가능 → Core v2 정신 보호)
+      //   raw 박제 X — state 객체만 변경 (setBaseState 미호출, items 미수정)
+      if (state && state.analysisMode === 'standard' && state.qualification && !state.qualification.qualified) {
+        var v496_sSum = 0, v496_aSum = 0;
+        var v496_items = (group && Array.isArray(group.items)) ? group.items : [];
+        for (var v496_i = 0; v496_i < v496_items.length; v496_i++) {
+          var v496_it = v496_items[v496_i];
+          if (!v496_it) continue;
+          v496_sSum += Number(v496_it.sCount24) || 0;
+          v496_aSum += Number(v496_it.aCount24) || 0;
+        }
+        var v496_fbReason = null;
+        if (v496_sSum >= 4) v496_fbReason = 'S_4_PLUS_FALLBACK';
+        else if (v496_aSum >= 5) v496_fbReason = 'A_5_PLUS_FALLBACK';
+        if (v496_fbReason) {
+          var v496_endsAt = v496_now + 7 * 24 * 3600 * 1000;
+          state.analysisMode = 'deep';
+          state.reason = v496_fbReason;
+          state.autoDeepSlot = {
+            startedAt: v496_now,
+            endsAt: v496_endsAt,
+            reason: v496_fbReason,
+            isNew: true,
+            isFallback: true
+          };
+          state.trackingWindow = { type: '7d-fallback', windowDays: 7, startedAt: v496_now, endsAt: v496_endsAt };
+        }
+      }
+      return state;
     }
 
     function v49_evaluateItemCoreV2(item, opts) {
