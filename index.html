@@ -152,7 +152,7 @@
 <script>
 /* [v4.7.42] 캐시 강제 리셋 — SW 완전 제거 후 리로드 */
 (function(){
-  var VER = 'v4.9.4';  // 신호 근거 블록 중복 제거 (MFE 그래프 상단)
+  var VER = 'v4.9.5-completed-filter';  // [분석 완료 이관] w1_filterVMs 'all'에서 expired 자동 제외 (v462_buildHistoryCard 인프라 그대로 활용)
   try {
     var LKEY = 'woos_hard_reset_ver';
     if (localStorage.getItem(LKEY) === VER) return;
@@ -6987,7 +6987,7 @@ async function opsDashboard() {
 // 탭 시 상세 팝업
 // ═══════════════════════════════════════════════════════════════
 
-var HTML_VERSION = 'v4.9.4';  // 신호 근거 블록 중복 제거
+var HTML_VERSION = 'v4.9.5-completed-filter';  // [분석 완료 이관] w1_filterVMs 'all'에서 expired 자동 제외
 var _cachedBuildInfo = null;
 
 // [State Lock 2 Action fix-2c] 패치 확인용 — 페이지 로드 시 버전명 출력 (DevTools 콘솔)
@@ -11954,7 +11954,15 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
    */
   function w1_filterVMs(vms, activeFilter) {
     vms = Array.isArray(vms) ? vms : [];
-    if (!activeFilter || activeFilter === 'all') return vms.slice();
+    if (!activeFilter || activeFilter === 'all') {
+      // [v4.9.5-completed-filter] expired 카드는 '전체' 탭에서 자동 제외
+      //   → 만료된 추적은 '분석 완료' 탭(/tracking/completed)에서 별도 표시
+      //   → '만료' 필터(activeFilter='expired')에서만 active 탭에 표시
+      //   → 기존 분석 완료 탭 인프라 그대로 활용 (v462_buildHistoryCard / computeHistoryStats)
+      return vms.filter(function(vm) {
+        return vm && vm.modeState && vm.modeState.displayMode !== 'expired';
+      });
+    }
     return vms.filter(function(vm) {
       if (!vm) return false;
       var dm = (vm.modeState && vm.modeState.displayMode) || 'standard';
