@@ -152,7 +152,7 @@
 <script>
 /* [v4.7.42] 캐시 강제 리셋 — SW 완전 제거 후 리로드 */
 (function(){
-  var VER = 'v4.9.5-completed-filter';  // [분석 완료 이관] w1_filterVMs 'all'에서 expired 자동 제외 (v462_buildHistoryCard 인프라 그대로 활용)
+  var VER = 'v4.9.5-speed-architecture-lock';  // Lazy Body / Standard Lite / Mobile Glass Optimization
   try {
     var LKEY = 'woos_hard_reset_ver';
     if (localStorage.getItem(LKEY) === VER) return;
@@ -5579,6 +5579,51 @@ details.v477-track-card[open] > .progress-rich-body {
   color: rgba(235,244,255,.92) !important;
 }
 
+/* [v4.9.5 Speed Architecture Lock] CSS contain — 닫힌 카드 paint/reflow 격리 (디자인 변화 0%) */
+details.v477-track-card:not([open]) {
+  contain: layout paint;
+}
+
+/* [v4.9.5] 모바일 backdrop-filter 약화 (768px 이하 — PC 디자인은 그대로) */
+@media (max-width: 768px) {
+  .v480-glass-card,
+  details.v477-track-card {
+    backdrop-filter: blur(8px) saturate(140%) !important;
+    -webkit-backdrop-filter: blur(8px) saturate(140%) !important;
+  }
+  details.v477-track-card[open] .progress-rich-body .metric-card,
+  details.v477-track-card[open] .progress-rich-body .analysis-card,
+  details.v477-track-card[open] .progress-rich-body .briefing-box,
+  details.v477-track-card[open] .progress-rich-body .structure-box,
+  details.v477-track-card[open] .progress-rich-body .detail-card,
+  details.v477-track-card[open] .progress-rich-body .analysis-panel,
+  details.v477-track-card[open] .progress-rich-body .risk-panel,
+  details.v477-track-card[open] .progress-rich-body .score-group,
+  details.v477-track-card[open] .progress-rich-body .score-head-card {
+    backdrop-filter: blur(6px) saturate(130%) !important;
+    -webkit-backdrop-filter: blur(6px) saturate(130%) !important;
+  }
+}
+
+/* [v4.9.5] Standard Lite Body — 표준 카드 펼침 시 단일값 기반 기본정보 (무거운 blur/filter 없음) */
+.woos-lazy-expanded-body { display: none; }
+.woos-lite-body { padding: 12px 14px; }
+.lite-header { display: flex; align-items: center; gap: 6px; margin-bottom: 10px; font-size: 0.78rem; }
+.lite-mode-label { color: rgba(190,220,255,.8); font-weight: 500; }
+.lite-stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px; }
+.lite-stat { background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.06); border-radius: 8px; padding: 6px 10px; }
+.lite-stat-label { display: block; font-size: 0.7rem; color: rgba(190,220,255,.55); margin-bottom: 2px; }
+.lite-stat-value { font-size: 0.92rem; font-weight: 600; color: rgba(235,244,255,.92); }
+.lite-stat-value.profit { color: #00e676; }
+.lite-stat-value.loss { color: #ff8c42; }
+.lite-prices { background: rgba(255,255,255,.02); border: 1px solid rgba(255,255,255,.05); border-radius: 8px; padding: 8px 12px; margin-bottom: 8px; }
+.lite-price-row { display: flex; justify-content: space-between; font-size: 0.78rem; padding: 3px 0; color: rgba(190,220,255,.85); }
+.lite-price-row span { color: rgba(190,220,255,.55); }
+.lite-price-row b { font-weight: 600; color: rgba(235,244,255,.92); }
+.lite-price-row b.profit { color: #00e676; }
+.lite-price-row b.loss { color: #ff8c42; }
+.lite-hint { font-size: 0.7rem; color: rgba(190,220,255,.45); text-align: center; margin-top: 8px; padding: 4px; }
+
 /* 펼침 내부 주요 박스류를 읽기 쉬운 유리 카드로 통일 */
 details.v477-track-card[open] .progress-rich-body .metric-card,
 details.v477-track-card[open] .progress-rich-body .analysis-card,
@@ -6987,12 +7032,12 @@ async function opsDashboard() {
 // 탭 시 상세 팝업
 // ═══════════════════════════════════════════════════════════════
 
-var HTML_VERSION = 'v4.9.5-completed-filter';  // [분석 완료 이관] w1_filterVMs 'all'에서 expired 자동 제외
+var HTML_VERSION = 'v4.9.5-speed-architecture-lock';  // Lazy Body / Standard Lite / Mobile Glass Optimization
 var _cachedBuildInfo = null;
 
 // [State Lock 2 Action fix-2c] 패치 확인용 — 페이지 로드 시 버전명 출력 (DevTools 콘솔)
 try {
-  console.log('[WOOS] ' + HTML_VERSION + ' loaded — Signal Reason 중복 제거');
+  console.log('[WOOS] ' + HTML_VERSION + ' loaded — Lazy Body / Standard Lite / Mobile Glass Optimization');
   window.WOOS_VERSION = HTML_VERSION;
 } catch(e) {}
 
@@ -12685,6 +12730,9 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
 
     // [v4.7.43] cardsHtml — visibleGroups 렌더
     // [State Lock] vm 전달 — 카드 빌드 함수가 vm 기준으로만 표시 결정
+    // [v4.9.5 Speed Architecture Lock] cardsHtml 생성 직전 capture — isExpanded 결정용
+    //   capture 키 형식 = 'active:' + canonical (w1_getCardKey와 일치)
+    var __w1_opened = (typeof w1_captureOpenCards === 'function') ? w1_captureOpenCards() : null;
     var cardsHtml = '';
     try {
       if (visibleGroups.length === 0) {
@@ -12694,7 +12742,8 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
           try {
             var k = group.key || (group.representative && group.representative.base) || '';
             var vm = vmByGroupKey[k] || null;
-            return W.buildGroupCardHTML(group, { isFirstRender: true, vm: vm });
+            // [v4.9.5] openedKeys 전달 — 새 cardKey 계산 금지. buildGroupCardHTML가 기존 w1_cardKey 형식으로 isExpanded 판단
+            return W.buildGroupCardHTML(group, { isFirstRender: true, vm: vm, openedKeys: __w1_opened });
           }
           catch(e2) { return '<div class="analyzer-empty">카드 렌더 실패: ' + (group && group.base || '') + '</div>'; }
         }).join('');
@@ -12714,9 +12763,9 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
                             + '</div>';
     var headerHtml = tabsHtml + statsHtml;
     
-    // [Week 1 — Round 1] 11355 직전 — 현재 펼친 카드 키 캡처 (메모리, sessionStorage X)
-    var __w1_opened = (typeof w1_captureOpenCards === 'function') ? w1_captureOpenCards() : null;
-    
+    // [v4.9.5] 기존 capture 호출 제거 — cardsHtml 생성 직전으로 이동됨 (위 참조)
+    //   __w1_opened 변수는 동일 함수 스코프에서 재사용 (restore 호출 위해 그대로 살아있음)
+
     container.innerHTML = headerHtml + activeContainerHtml + historyContainerHtml;
     
     // [Week 1 — Round 1] 11355 직후 — 정확 상태 복원 (빈 배열도 호출, stale open 무효화)
@@ -16250,12 +16299,28 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       }
     }
     
-    /* 카드 펼침 시 lazy load — cache miss 시 즉시 fetch + 재렌더 */
+    /* 카드 펼침 시 lazy load — cache miss 시 즉시 fetch + 재렌더
+     * [v4.9.5] cache hit이어도 body가 lazy placeholder면 1회 rerender (body 생성)
+     */
     function v464_handleCardExpand(snapshotId) {
       if (!snapshotId) return;
+      // [v4.9.5] lazy marker 검사 — 닫힌 카드의 lazy placeholder가 남아 있는지
+      var v495_needsBodyRender = false;
+      try {
+        var v495_card = document.querySelector('details[data-snapshot-id="' + snapshotId + '"]');
+        if (v495_card && v495_card.querySelector('[data-lazy-body="1"]')) {
+          v495_needsBodyRender = true;
+        }
+      } catch(_e495) {}
       var cached = v464_cacheGet(snapshotId);
       // cache hit + alertSnapshot 있으면 — 이미 최신
-      if (cached && cached.meta && cached.meta.alertSnapshot) return;
+      if (cached && cached.meta && cached.meta.alertSnapshot) {
+        // [v4.9.5] cache hit + lazy marker → rerender 1회 (body 생성)
+        if (v495_needsBodyRender && typeof v464_rerenderSingleCard === 'function') {
+          v464_rerenderSingleCard(snapshotId);
+        }
+        return;
+      }
       // 그 외에는 즉시 fetch + 재렌더
       v464_fetchSnapshot(snapshotId).then(function(data){
         if (data) v464_rerenderSingleCard(snapshotId);
@@ -16988,6 +17053,93 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
         + '</summary>';
     }
     
+    /* [v4.9.5 Speed Architecture Lock] Standard Lite Detail
+     * 표준 카드 펼침 시 무거운 Full Detail 대신 단일값 기반 기본정보만 표시.
+     * 절대 금지:
+     *   - v40_buildExpandedBody 본체 사용 X
+     *   - v40_generateTrackingSVGChart 호출 X
+     *   - samples.length / .map / .reduce 접근 X
+     *   - fetchTrackingData 호출 X
+     *   - 전략 A/B / MFE marker / 점수 시각화 X
+     * 허용 source: vm / track 단일값 / metrics / entryInfo / levels
+     * fallback: 값 없음 → '-'
+     */
+    function v40_buildStandardLiteBody(track, metrics, entryInfo, levels, opts) {
+      opts = opts || {};
+      var vm = opts.vm || null;
+      var item = track || {};
+      var meta = item.meta || {};
+
+      function safe(val, fb) { return (val == null || val === '') ? (fb || '-') : val; }
+      function pct(val) { return (typeof val === 'number') ? (val.toFixed(2) + '%') : '-'; }
+      function num(val) {
+        if (typeof val !== 'number') return '-';
+        return val.toLocaleString('en-US', { maximumFractionDigits: 8 });
+      }
+
+      var changePct = (vm && vm.performance && typeof vm.performance.changePct === 'number')
+        ? vm.performance.changePct
+        : ((metrics && typeof metrics.currentPct === 'number') ? metrics.currentPct : null);
+      var progress = (vm && typeof vm.progress === 'number') ? vm.progress : 0;
+      var remainingHTML = (vm && vm.remainingLabel) || '-';
+      var modeLabel = (vm && vm.modeState && vm.modeState.modeLabel) || '표준';
+      var endsAtVal = (vm && vm.trackingWindow && vm.trackingWindow.endsAt) || 0;
+      var endsAtStr = endsAtVal ? new Date(endsAtVal).toLocaleString('ko-KR') : '-';
+
+      var lastPrice = (typeof item.lastPrice === 'number') ? item.lastPrice : null;
+      var entryPrice = (entryInfo && typeof entryInfo.value === 'number') ? entryInfo.value
+                     : (typeof meta.openPrice === 'number') ? meta.openPrice
+                     : (typeof meta.entryPrice === 'number') ? meta.entryPrice
+                     : null;
+
+      // mfe/mae는 객체 또는 number 둘 다 처리 (active payload는 객체일 수 있고 metrics는 number)
+      function extractPctVal(v) {
+        if (typeof v === 'number') return v;
+        if (v && typeof v === 'object') {
+          if (typeof v.pct === 'number') return v.pct;
+          if (typeof v.value === 'number') return v.value;
+          if (typeof v.peak === 'number') return v.peak;
+        }
+        return null;
+      }
+      var mfeVal = extractPctVal(item.mfe);
+      if (mfeVal === null && metrics && typeof metrics.mfe === 'number') mfeVal = metrics.mfe;
+      var maeVal = extractPctVal(item.mae);
+      if (maeVal === null && metrics && typeof metrics.mae === 'number') maeVal = metrics.mae;
+
+      var sCount = (item.sCount24 != null) ? item.sCount24 : (meta.sCount24 || 0);
+      var aCount = (item.aCount24 != null) ? item.aCount24 : (meta.aCount24 || 0);
+      var totalSignal = sCount + aCount;
+
+      var newLabelChip = (vm && vm.labelState && vm.labelState.isNew)
+        ? '<span class="hdr-label-new">신규</span>' : '';
+      var nearEndLabelChip = (vm && vm.labelState && vm.labelState.isNearEnd)
+        ? '<span class="hdr-label-near-end">마감임박</span>' : '';
+
+      var changeCls = (typeof changePct === 'number' && changePct >= 0) ? 'profit' : 'loss';
+
+      return '<div class="progress-rich-body woos-body woos-lite-body">'
+           +   '<div class="lite-header">'
+           +     '<span class="lite-mode-label">' + safe(modeLabel) + '</span>'
+           +     newLabelChip + nearEndLabelChip
+           +   '</div>'
+           +   '<div class="lite-stats-grid">'
+           +     '<div class="lite-stat"><span class="lite-stat-label">현재 수익률</span><b class="lite-stat-value ' + changeCls + '">' + pct(changePct) + '</b></div>'
+           +     '<div class="lite-stat"><span class="lite-stat-label">진행률</span><b class="lite-stat-value">' + Math.round(progress) + '%</b></div>'
+           +     '<div class="lite-stat"><span class="lite-stat-label">잔여시간</span><b class="lite-stat-value">' + remainingHTML + '</b></div>'
+           +     '<div class="lite-stat"><span class="lite-stat-label">누적 신호</span><b class="lite-stat-value">x' + totalSignal + '</b></div>'
+           +   '</div>'
+           +   '<div class="lite-prices">'
+           +     '<div class="lite-price-row"><span>현재가</span><b>' + num(lastPrice) + '</b></div>'
+           +     '<div class="lite-price-row"><span>알람가</span><b>' + num(entryPrice) + '</b></div>'
+           +     '<div class="lite-price-row"><span>MFE</span><b class="profit">' + (mfeVal !== null ? '+' + mfeVal.toFixed(2) + '%' : '-') + '</b></div>'
+           +     '<div class="lite-price-row"><span>MAE</span><b class="loss">' + (maeVal !== null ? maeVal.toFixed(2) + '%' : '-') + '</b></div>'
+           +     '<div class="lite-price-row"><span>종료 예정</span><b>' + endsAtStr + '</b></div>'
+           +   '</div>'
+           +   '<div class="lite-hint">관심 등록 또는 정밀 추적 진입 시 상세 그래프가 표시됩니다.</div>'
+           + '</div>';
+    }
+
     /* 단일 추적의 세트 (summary + body) — details 안에 들어갈 내용 */
     function v40_buildTrackInner(track, opts) {
       opts = opts || {};
@@ -17006,9 +17158,30 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       var metrics = v40_computeLiveMetrics(samples, entryInfo.value, levels, prefetched);
       // [Phase 4.2 작업 E] overrideDotColor 가 있으면 (그룹 dot 동기화 시 대표 카드용) 사용
       var dotColor = opts.overrideDotColor || v40_decideDotColor(track, metrics, levels);
+
+      // [v4.9.5 Speed Architecture Lock] DetailLevel 분기 — 닫힌 카드 lazy / 표준 펼침 lite / 관심·정밀 펼침 full
+      //   - 닫힌 카드: lazy placeholder (buildExpandedBody / SVG 호출 0건)
+      //   - 표준 펼침: v40_buildStandardLiteBody (samples 미접근)
+      //   - 관심·정밀 펼침: 기존 v40_buildExpandedBody (Full Detail 그대로)
+      var v495_isExpanded = !!opts.isExpanded;
+      var v495_displayMode = (opts && opts.vm && opts.vm.modeState)
+        ? opts.vm.modeState.displayMode
+        : 'standard';
+      var v495_detailLevel = (v495_displayMode === 'watch' || v495_displayMode === 'deep')
+        ? 'full'
+        : 'lite';
+      var v495_body;
+      if (!v495_isExpanded) {
+        v495_body = '<div class="woos-lazy-expanded-body" data-lazy-body="1"></div>';
+      } else if (v495_detailLevel === 'full') {
+        v495_body = v40_buildExpandedBody(track, samples, metrics, entryInfo, levels, opts);
+      } else {
+        v495_body = v40_buildStandardLiteBody(track, metrics, entryInfo, levels, opts);
+      }
+
       return {
         summary: v40_buildCompactSummary(track, metrics, dotColor, opts),
-        body: v40_buildExpandedBody(track, samples, metrics, entryInfo, levels, opts),  // [State Lock] opts 전달
+        body: v495_body,
         dotColor: dotColor,
         metrics: metrics,
       };
@@ -17093,13 +17266,16 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       if (!group || !group.items || group.items.length === 0) return '';
       var vm = opts.vm || null;  // [State Lock] vm 매개변수 (단일화)
       var rep = group.representative;
+      // [v4.9.5] single + group 공통 cardKey 계산 → openedKeys로 isExpanded 결정 (기존 w1_cardKey 형식 그대로 재사용, 새 key 생성 X)
+      var v495_cardKey = (vm && vm.canonicalBaseKey)
+        ? ('active:' + vm.canonicalBaseKey)
+        : ('active:' + String(group.key || rep.base || (rep.meta && rep.meta.base) || '').toUpperCase());
+      var v495_isExpanded = (Array.isArray(opts.openedKeys) && opts.openedKeys.indexOf(v495_cardKey) >= 0);
       if (group.items.length === 1) {
-        // 단독: 일반 details 카드
-        var inner = v40_buildTrackInner(rep, { vm: vm });  // [State Lock] vm 전달
         // [State Lock] data-card-key — vm.canonicalBaseKey 우선 (raw fallback)
-        var w1_cardKey = (vm && vm.canonicalBaseKey)
-          ? ('active:' + vm.canonicalBaseKey)
-          : ('active:' + String(group.key || rep.base || (rep.meta && rep.meta.base) || '').toUpperCase());
+        var w1_cardKey = v495_cardKey;
+        // 단독: 일반 details 카드
+        var inner = v40_buildTrackInner(rep, { vm: vm, isExpanded: v495_isExpanded });  // [v4.9.5] isExpanded 전달
         var attrs = 'data-snapshot-id="' + v40_escapeHtml(rep.snapshotId || rep.id || '') + '" data-card-key="' + v40_escapeHtml(w1_cardKey) + '" data-tier="' + v40_escapeHtml(rep.tier || (rep.meta && rep.meta.tier) || 'B') + '" data-group-key="' + v40_escapeHtml(group.key) + '"';
         // [Phase 4.6.3] sessionStorage 펼침 상태 복원
         // [옵션 C Step 2] open 시스템 단일화 — Phase 4.6.3 isCardOpen 기반 박음 제거
@@ -17129,7 +17305,7 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       }
       // 그룹 카드 (size >= 2)
       // [Phase 4.2 작업 E] 그룹 dot 동기화: 대표가 아닌 그룹 전체 우선순위로
-      var repInner = v40_buildTrackInner(rep, { groupCount: group.items.length, isMultiGroup: group.isMulti, overrideDotColor: group.groupDotColor, vm: vm });  // [State Lock] vm 전달
+      var repInner = v40_buildTrackInner(rep, { groupCount: group.items.length, isMultiGroup: group.isMulti, overrideDotColor: group.groupDotColor, vm: vm, isExpanded: v495_isExpanded });  // [v4.9.5] isExpanded 전달
       var others = group.items.filter(function(it){ return it !== rep; });
       var minisHtml = others.map(function(it, mIdx){
         var oSamples = v40_normalizeSamples(it);
@@ -17579,6 +17755,21 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
         
         var nowIsWatch = window.WOOS_ANALYZER.toggleWatchlist(canonicalBase);
         v47_applyWatchVisual(canonicalBase, nowIsWatch);
+        // [v4.9.5] 열린 표준 카드 Lite → Full 승격 rerender
+        //   현재 페이지의 별 버튼에서 closest('details[data-snapshot-id]')로 찾음 (새 selector 조합 X).
+        //   open + .woos-lite-body 있는 경우만 rerender 트리거.
+        try {
+          var v495_btns = document.querySelectorAll('.woos-watch-btn[data-base="' + canonicalBase + '"]');
+          v495_btns.forEach(function(b){
+            var v495_card = b && b.closest ? b.closest('details[data-snapshot-id]') : null;
+            if (v495_card && v495_card.open && v495_card.querySelector('.woos-lite-body')) {
+              var v495_sid = v495_card.getAttribute('data-snapshot-id');
+              if (v495_sid && typeof v464_rerenderSingleCard === 'function') {
+                setTimeout(function(){ v464_rerenderSingleCard(v495_sid); }, 50);
+              }
+            }
+          });
+        } catch(_e495) {}
         v47_syncWatchApi(canonicalBase, nowIsWatch);
         v47_rerenderActive();
       } catch(e) {
