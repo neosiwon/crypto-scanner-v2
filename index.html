@@ -152,7 +152,7 @@
 <script>
 /* [v4.7.42] 캐시 강제 리셋 — SW 완전 제거 후 리로드 */
 (function(){
-  var VER = 'v4.9.6-scoring-gradeflow-newcard-fix';  // [v4.9.6+] Lite 폐기 + 스캐너 채점/등급 흐름 cache + 신규 카드 % 표시 정상화 (prefetched 조건 OR)
+  var VER = 'v4.9.6-step3-step4';  // [v4.9.6+] STEP 3 (등급 흐름 _allItems 합성) + STEP 4 (헤더 % lastPrice fallback)
   try {
     var LKEY = 'woos_hard_reset_ver';
     if (localStorage.getItem(LKEY) === VER) return;
@@ -3685,6 +3685,7 @@ details.analyzer-progress-card details.progress-deeper > div {
 .woos-pct-up   { color: #00e676; }
 .woos-pct-down { color: #ff4560; }
 .woos-pct.woos-empty { color: #6b7280; font-weight: 400; font-style: italic; }
+.woos-pct.woos-pct-current { color: #c4d0e6; font-weight: 700; }
 
 /* 펼친 본문 — 기존 progress-rich-body 안에 들어가는 새 영역 */
 .progress-rich-body.woos-body { padding: 14px 16px 16px; }
@@ -7140,7 +7141,7 @@ async function opsDashboard() {
 // 탭 시 상세 팝업
 // ═══════════════════════════════════════════════════════════════
 
-var HTML_VERSION = 'v4.9.6-scoring-gradeflow-newcard-fix';  // [v4.9.6+] Lite 폐기 + cache + 신규 카드 % 정상화
+var HTML_VERSION = 'v4.9.6-step3-step4';  // [v4.9.6+] STEP 3 (등급 흐름 _allItems 합성) + STEP 4 (헤더 % lastPrice fallback)
 var _cachedBuildInfo = null;
 
 // [State Lock 2 Action fix-2c] 패치 확인용 — 페이지 로드 시 버전명 출력 (DevTools 콘솔)
@@ -12727,6 +12728,28 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       allGroups = W.groupTracks(allTracks);
       allGroups = v4743_normalizeGroupFlags(allGroups, watchMap);
 
+      // [v4.9.6+ STEP 3] _allItems base 매칭으로 group.gradeHistory 합성
+      //   사용자 정책: SUI 41번 알람 = 41개 등급 흐름 표시
+      //   _activeItemsCache는 active만 (1점) → _allItems 100개 알람 활용
+      //   raw item 변형 X (group 객체에만 박제), w495_buildGradeFlowText 추가 source 활용
+      allGroups.forEach(function(g){
+        if (!g || (Array.isArray(g.gradeHistory) && g.gradeHistory.length > 0)) return;
+        var base = g.key || (g.representative && g.representative.base) || '';
+        if (!base) return;
+        var matched = (Array.isArray(_allItems) ? _allItems : []).filter(function(it){
+          return it && it.base === base;
+        });
+        if (matched.length === 0) return;
+        g.gradeHistory = matched.map(function(it){
+          return {
+            gradeCode: it.gradeCode || '?',
+            t: it.timestamp ? new Date(it.timestamp).getTime() : 0,
+            exchange: it.exchange || '',
+            snapshotId: it.snapshotId || ''
+          };
+        }).filter(function(p){return p.t > 0;});
+      });
+
       // [v4.9.5+ 그래프 제거] _gradeChartHtml 캐싱 제거 (SVG 매 렌더 생성 X)
       //   사용자 결정: 분석 중 카드 그래프 모두 제거 → 등급 흐름 텍스트로 대체
       //   w495_buildGradeFlowText는 cheap이라 카드 빌드 시점에 직접 호출 (캐싱 불필요)
@@ -13463,6 +13486,24 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
             mfePoint: null, maePoint: null, firstMajorEvent: null,
             isPrefetched: true, isAltCalculated: true,
             prefetchedSampleT: prefetched.sampleT || null,
+          };
+        }
+        // [v4.9.6+ STEP 4] 4순위 fallback — entryPrice 없어도 lastPrice 있으면 현재가 단독 표시
+        //   사용자 정책: "entryPrice 없고 lastPrice 있으면 현재가 표시"
+        //   ONDO 같은 신규 카드: Worker active 응답에 currentPct/entryPrice 없음, lastPrice만 있음
+        //   → "수집 중" 대신 "현재가 472원" 표시
+        if (prefetched && prefetched.lastPrice && prefetched.lastPrice > 0) {
+          return {
+            hasData: true, sampleCount: 0,
+            currentPct: null,  // 등락률 X
+            lastPriceOnly: true,  // 헤더 표시 분기 플래그
+            lastPrice: prefetched.lastPrice,
+            mfe: null, mae: null,
+            plus3Hit: false, plus5Hit: false,
+            tp1Hit: false, tp2Hit: false, stopHit: false,
+            currentPoint: { ts: prefetched.sampleT || Date.now(), price: prefetched.lastPrice, pct: null },
+            mfePoint: null, maePoint: null, firstMajorEvent: null,
+            isPrefetched: true, prefetchedSampleT: prefetched.sampleT || null
           };
         }
         return { hasData: false, sampleCount: 0, currentPct: null, mfe: null, mae: null,
@@ -15009,19 +15050,29 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       }
       
       var rawCollected = [];
-      
+
+      // [v4.9.6+ STEP 3] 0순위: group.gradeHistory (BRIDGE에서 _allItems base 매칭으로 합성)
+      //   사용자 정책: SUI 41번 알람 = 41개 등급 흐름 표시
+      //   _renderActiveTrackingList에서 group.gradeHistory 미리 박제됨
+      if (Array.isArray(group.gradeHistory)) {
+        group.gradeHistory.forEach(function(pt){
+          var n = w495_normalizeGFP(pt, rep.exchange);
+          if (n) rawCollected.push(n);
+        });
+      }
+
       // 1. representative.gradeHistory
       if (Array.isArray(rep.gradeHistory)) {
-        rep.gradeHistory.forEach(function(pt){ 
-          var n = w495_normalizeGFP(pt, rep.exchange); 
-          if (n) rawCollected.push(n); 
+        rep.gradeHistory.forEach(function(pt){
+          var n = w495_normalizeGFP(pt, rep.exchange);
+          if (n) rawCollected.push(n);
         });
       }
       // 2. representative.meta.gradeHistory
       if (Array.isArray(meta.gradeHistory)) {
-        meta.gradeHistory.forEach(function(pt){ 
-          var n = w495_normalizeGFP(pt, rep.exchange); 
-          if (n) rawCollected.push(n); 
+        meta.gradeHistory.forEach(function(pt){
+          var n = w495_normalizeGFP(pt, rep.exchange);
+          if (n) rawCollected.push(n);
         });
       }
       // 3. group.items[].gradeHistory + items[].meta.gradeHistory + item 자체
@@ -17662,6 +17713,11 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       if (metrics && metrics.hasData && metrics.currentPct != null) {
         var sign = metrics.currentPct >= 0 ? '+' : '';
         pctLabel = '<span class="woos-pct woos-pct-' + (metrics.currentPct >= 0 ? 'up' : 'down') + '">' + sign + metrics.currentPct.toFixed(2) + '%</span>';
+      } else if (metrics && metrics.lastPriceOnly && metrics.lastPrice) {
+        // [v4.9.6+ STEP 4] entryPrice 없어도 lastPrice 있으면 현재가 단독 표시
+        //   사용자 정책: 4순위 fallback — "entryPrice 없고 lastPrice 있으면 현재가 표시"
+        var lpFmt = (metrics.lastPrice >= 1) ? Number(metrics.lastPrice).toLocaleString() : Number(metrics.lastPrice).toFixed(6);
+        pctLabel = '<span class="woos-pct woos-pct-current">' + lpFmt + '원</span>';
       } else {
         // [v4.9.6] "수집 중" placeholder — 헤더 우측 영역 일관성 유지
         pctLabel = '<span class="woos-pct woos-empty">수집 중</span>';
@@ -17948,7 +18004,9 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
           var actKey = w1_cardKey || ('active:' + (group.key || '').toUpperCase());
           // 등급 흐름 cacheKey — 그룹 items 변동에 민감
           var itemsSig = (group.items || []).map(function(it){ return (it && (it.snapshotId || it.id || it.gradeCode)) || ''; }).join('-');
-          var gfCacheKey = [actKey, 'gradeflow', (group.items || []).length, itemsSig.length].join('|');
+          // [v4.9.6+ STEP 3] group.gradeHistory 길이 추가 — _allItems base 매칭 변동 감지
+          var ghLen = Array.isArray(group.gradeHistory) ? group.gradeHistory.length : 0;
+          var gfCacheKey = [actKey, 'gradeflow', (group.items || []).length, itemsSig.length, ghLen].join('|');
           var entry = window.WOOS_BODY_CACHE.get(gfCacheKey);
           if (entry && entry.html) {
             entry.lastUsedAt = Date.now();
@@ -18060,7 +18118,9 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
         if (typeof window.WOOS_BODY_CACHE === 'undefined') return w495_buildGradeFlowText(group);
         var actKey = w1_cardKey_grp || ('active:' + (group.key || '').toUpperCase());
         var itemsSig = (group.items || []).map(function(it){ return (it && (it.snapshotId || it.id || it.gradeCode)) || ''; }).join('-');
-        var gfCacheKey = [actKey, 'gradeflow', (group.items || []).length, itemsSig.length].join('|');
+        // [v4.9.6+ STEP 3] group.gradeHistory 길이 추가 — _allItems base 매칭 변동 감지
+        var ghLen = Array.isArray(group.gradeHistory) ? group.gradeHistory.length : 0;
+        var gfCacheKey = [actKey, 'gradeflow', (group.items || []).length, itemsSig.length, ghLen].join('|');
         var entry = window.WOOS_BODY_CACHE.get(gfCacheKey);
         if (entry && entry.html) {
           entry.lastUsedAt = Date.now();
