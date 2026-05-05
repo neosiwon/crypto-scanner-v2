@@ -152,7 +152,7 @@
 <script>
 /* [v4.7.42] 캐시 강제 리셋 — SW 완전 제거 후 리로드 */
 (function(){
-  var VER = 'v4.9.7-fix5';  // fix5 — cache miss 즉시 Lite 표시 + 백그라운드 Full 교체 (loading body 제거, 분 단위 대기 0)
+  var VER = 'v4.9.7-fix6';  // fix6 — 카드 펼침 시 body 빌드 트리거 (Phase 1 롤백으로 끊긴 흐름 복원)
   try {
     var LKEY = 'woos_hard_reset_ver';
     if (localStorage.getItem(LKEY) === VER) return;
@@ -7041,12 +7041,12 @@ async function opsDashboard() {
 // 탭 시 상세 팝업
 // ═══════════════════════════════════════════════════════════════
 
-var HTML_VERSION = 'v4.9.7-fix5';  // fix5 — cache miss 즉시 Lite 표시 (loading body 제거)
+var HTML_VERSION = 'v4.9.7-fix6';  // fix6 — 카드 펼침 시 body 빌드 트리거 복원
 var _cachedBuildInfo = null;
 
 // [State Lock 2 Action fix-2c] 패치 확인용 — 페이지 로드 시 버전명 출력 (DevTools 콘솔)
 try {
-  console.log('[WOOS] ' + HTML_VERSION + ' loaded — instant Lite + background Full');
+  console.log('[WOOS] ' + HTML_VERSION + ' loaded — body build on expand restored');
   window.WOOS_VERSION = HTML_VERSION;
 } catch(e) {}
 
@@ -18488,6 +18488,21 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
    * [Phase 4.6.3] 글로벌 카드 토글 핸들러 (sessionStorage 동기화)
    * details ontoggle 시 호출. 자동 펼침 버그 수정.
    * ═══════════════════════════════════════════════════════════════ */
+  // [v4.9.7-fix6] 카드 펼침 시 body 빌드 트리거 — debounce
+  var _v497_rebuildDebounceTimer = null;
+  function _v497_triggerBodyBuild() {
+    if (_v497_rebuildDebounceTimer) clearTimeout(_v497_rebuildDebounceTimer);
+    _v497_rebuildDebounceTimer = setTimeout(function(){
+      _v497_rebuildDebounceTimer = null;
+      try {
+        if (typeof _rerenderActiveTrackingFromCache === 'function') {
+          _rerenderActiveTrackingFromCache();
+        }
+      } catch(e) {
+        try { console.warn('[v497-fix6] rerender failed', e && e.message); } catch(_){}
+      }
+    }, 50);  // 50ms debounce — 사용자 빠른 클릭 / capture/restore race 차단
+  }
   if (typeof window !== 'undefined') {
     window.v462HandleCardToggle = function(event, detailsEl, cardId) {
       try {
@@ -18495,9 +18510,19 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
         if (!window.WOOS_ANALYZER || typeof window.WOOS_ANALYZER.setCardOpen !== 'function') return;
         var isOpen = detailsEl.open === true;
         window.WOOS_ANALYZER.setCardOpen(cardId, isOpen);
-        // [Phase 4.6.4] 펼친 시점에 lazy load — cache miss 시 즉시 fetch + 부분 재렌더
-        if (isOpen && window.WOOS_ANALYZER.handleCardExpand) {
-          window.WOOS_ANALYZER.handleCardExpand(cardId);
+        // [v4.9.7-fix6] 카드 펼침 시 lazy placeholder 발견되면 부분 재렌더 트리거
+        //   - Phase 1 롤백으로 v464_rerenderSingleCard 호출 끊김 → body가 lazy placeholder 그대로 박힘
+        //   - 해결: ontoggle open + lazy placeholder 발견 → _rerenderActiveTrackingFromCache (debounce 50ms)
+        //   - 효과: vm 빌더 정상 호출 → v40_buildTrackInner → Lite/Full body 빌드
+        if (isOpen) {
+          var lazy = detailsEl.querySelector('.woos-lazy-expanded-body');
+          if (lazy) {
+            _v497_triggerBodyBuild();
+          }
+          // Phase 4.6.4 fetch 트리거 (snapshot 데이터)
+          if (window.WOOS_ANALYZER.handleCardExpand) {
+            window.WOOS_ANALYZER.handleCardExpand(cardId);
+          }
         }
       } catch(e) {
         console.error('[v462HandleCardToggle]', e);
