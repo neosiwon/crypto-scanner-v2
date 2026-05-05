@@ -152,7 +152,7 @@
 <script>
 /* [v4.7.42] 캐시 강제 리셋 — SW 완전 제거 후 리로드 */
 (function(){
-  var VER = 'v4.9.7-fix11';  // fix11 — rerenderSingleCard openedKeys 전달 + displayMode raw fallback (vm 없어도 watch/deep 정확 분류)
+  var VER = 'v4.9.7-fix12';  // fix12 — handleCardExpand에 즉시 rerender + fetch 후 rerender (Worker 응답 느려도 즉시 Full Body 표시)
   try {
     var LKEY = 'woos_hard_reset_ver';
     if (localStorage.getItem(LKEY) === VER) return;
@@ -7041,12 +7041,12 @@ async function opsDashboard() {
 // 탭 시 상세 팝업
 // ═══════════════════════════════════════════════════════════════
 
-var HTML_VERSION = 'v4.9.7-fix11';  // fix11 — rerenderSingleCard openedKeys + displayMode raw fallback
+var HTML_VERSION = 'v4.9.7-fix12';  // fix12 — 즉시 rerender + fetch 후 rerender
 var _cachedBuildInfo = null;
 
 // [State Lock 2 Action fix-2c] 패치 확인용 — 페이지 로드 시 버전명 출력 (DevTools 콘솔)
 try {
-  console.log('[WOOS] ' + HTML_VERSION + ' loaded — openedKeys + displayMode raw fallback');
+  console.log('[WOOS] ' + HTML_VERSION + ' loaded — instant + post-fetch rerender');
   window.WOOS_VERSION = HTML_VERSION;
 } catch(e) {}
 
@@ -16359,19 +16359,22 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
      *   cache hit이면 이미 최신, 그 외면 fetch만 (data 채움) — UI 갱신은 queue가.
      */
     function v464_handleCardExpand(snapshotId) {
-      // [v4.9.7-fix10] v4.9.4 정상 흐름 복원 — fetch 후 단일 카드 rerender (samples 적용)
-      //   v4.9.7 Phase 1 롤백에서 rerenderSingleCard 호출을 잘못 제거했음 → 카드가 samples 없는 채로 박힘
-      //   복원: fetchSnapshot 응답 받으면 v464_rerenderSingleCard로 카드 outerHTML 교체 → SVG/samples 정상
+      // [v4.9.7-fix12] 즉시 1회 rerender + fetch 후 1회 더 rerender
+      //   기존 fix10/11: fetch 응답 받아야 rerender → Worker 응답 느리면 영영 lazy 박힘
+      //   수정: 즉시 1회 rerender (현재 데이터로 Full Body 빌드, samples 없으면 woos-empty)
+      //         fetch 응답 후 또 1회 rerender (samples 적용 → SVG 정상)
       if (!snapshotId) return;
-      var cached = v464_cacheGet(snapshotId);
-      if (cached && cached.meta && cached.meta.alertSnapshot) {
-        // cache hit이지만 _trackingMap엔 samples 없을 수 있음 → 강제 rerender 한 번
-        if (typeof v464_rerenderSingleCard === 'function') v464_rerenderSingleCard(snapshotId);
-        return;
+      // 1. 즉시 rerender — Full Body 빌드 (samples 없으면 빈 영역)
+      if (typeof v464_rerenderSingleCard === 'function') {
+        try { v464_rerenderSingleCard(snapshotId); } catch(e){}
       }
+      // 2. cache hit + alertSnapshot 있으면 fetch skip (이미 최신)
+      var cached = v464_cacheGet(snapshotId);
+      if (cached && cached.meta && cached.meta.alertSnapshot) return;
+      // 3. fetch 후 또 rerender (samples 적용)
       v464_fetchSnapshot(snapshotId).then(function(data){
         if (data && typeof v464_rerenderSingleCard === 'function') {
-          v464_rerenderSingleCard(snapshotId);
+          try { v464_rerenderSingleCard(snapshotId); } catch(e){}
         }
       });
     }
