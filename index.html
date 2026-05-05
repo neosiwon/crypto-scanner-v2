@@ -152,7 +152,7 @@
 <script>
 /* [v4.7.42] 캐시 강제 리셋 — SW 완전 제거 후 리로드 */
 (function(){
-  var VER = 'v4.9.4-fetch-fix-4';  // [v4.9.4+] gradeHistory 박제 + v464_rerenderSingleCard에 _gradeChartHtml 박제 (풀바디 시 등급 점 사라짐 fix)
+  var VER = 'v4.9.4-fetch-fix-4-splash-1';  // [v4.9.4+] gradeHistory 박제 + v464_rerenderSingleCard에 _gradeChartHtml 박제 (풀바디 시 등급 점 사라짐 fix)
   try {
     var LKEY = 'woos_hard_reset_ver';
     if (localStorage.getItem(LKEY) === VER) return;
@@ -5950,9 +5950,153 @@ details.analyzer-progress-card > summary.progress-compact-summary {
   font-family: var(--mono);
 }
 
+
+/* ══════════════════════════════════════════
+   [MODULE: woos_pwa_splash_intro] — PWA 첫 실행 인트로
+   - 검은 배경
+   - W 로고 영상 3초 재생
+   - woos crypto 워드마크를 영상 바로 아래 fade-in/out
+   - 앱/Worker/Analyzer 렌더 파이프라인 영향 없음
+══════════════════════════════════════════ */
+.woos-pwa-splash {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483647;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #000;
+  overflow: hidden;
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transition: opacity 420ms ease, visibility 420ms ease;
+}
+.woos-pwa-splash.is-hide {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+.woos-pwa-splash-inner {
+  width: min(84vw, 430px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  transform: translateY(-2vh);
+}
+.woos-pwa-splash-video {
+  width: min(54vw, 230px);
+  max-width: 230px;
+  height: auto;
+  display: block;
+  object-fit: contain;
+  opacity: 0;
+  transform: scale(.965);
+  animation: woosSplashLogoFade 3000ms ease forwards;
+}
+.woos-pwa-splash-wordmark {
+  width: min(82vw, 380px);
+  max-width: 380px;
+  height: auto;
+  display: block;
+  object-fit: contain;
+  margin-top: 18px;
+  opacity: 0;
+  transform: translateY(8px);
+  animation: woosSplashWordmarkFade 3000ms ease forwards;
+  filter: drop-shadow(0 0 10px rgba(255,255,255,.18));
+}
+@keyframes woosSplashLogoFade {
+  0%   { opacity: 0; transform: scale(.955); }
+  14%  { opacity: 1; transform: scale(1); }
+  76%  { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(1.018); }
+}
+@keyframes woosSplashWordmarkFade {
+  0%   { opacity: 0; transform: translateY(8px); }
+  24%  { opacity: 0; transform: translateY(8px); }
+  42%  { opacity: 1; transform: translateY(0); }
+  78%  { opacity: 1; transform: translateY(0); }
+  100% { opacity: 0; transform: translateY(-4px); }
+}
+@media (max-width: 480px) {
+  .woos-pwa-splash-inner { width: 88vw; transform: translateY(-1vh); }
+  .woos-pwa-splash-video { width: min(58vw, 210px); }
+  .woos-pwa-splash-wordmark { width: min(86vw, 360px); margin-top: 14px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .woos-pwa-splash-video,
+  .woos-pwa-splash-wordmark {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+}
+/* [END MODULE: woos_pwa_splash_intro] */
+
 </style>
 </head>
 <body>
+
+<!-- [MODULE: woos_pwa_splash_intro] PWA 첫 실행 로딩 화면 -->
+<div id="woosPwaSplash" class="woos-pwa-splash" aria-label="WOOS CRYPTO loading" role="status">
+  <div class="woos-pwa-splash-inner">
+    <video
+      id="woosPwaSplashVideo"
+      class="woos-pwa-splash-video"
+      src="assets/woos-intro-3s.mp4"
+      muted
+      playsinline
+      preload="auto"
+    ></video>
+    <img
+      class="woos-pwa-splash-wordmark"
+      src="assets/woos-wordmark-white.png"
+      alt="woos crypto"
+      loading="eager"
+      decoding="async"
+    >
+  </div>
+</div>
+<script>
+/* [MODULE: woos_pwa_splash_intro] 3초 후 메인 화면으로 전환 */
+(function initWoosPwaSplash(){
+  var splash = document.getElementById('woosPwaSplash');
+  var video = document.getElementById('woosPwaSplashVideo');
+  if (!splash) return;
+
+  var SPLASH_DURATION_MS = 3000;
+  var REMOVE_DELAY_MS = 520;
+  var done = false;
+
+  function hideSplash(){
+    if (done) return;
+    done = true;
+    splash.classList.add('is-hide');
+    setTimeout(function(){
+      try { splash.remove(); } catch(e) {}
+    }, REMOVE_DELAY_MS);
+  }
+
+  try {
+    if (video) {
+      video.currentTime = 0;
+      video.playbackRate = 1;
+      var p = video.play();
+      if (p && typeof p.catch === 'function') p.catch(function(){});
+    }
+  } catch(e) {}
+
+  setTimeout(hideSplash, SPLASH_DURATION_MS);
+
+  // 영상이 먼저 끝나도 3초 연출은 유지. 로딩 실패 시에도 3초 후 제거됨.
+  window.addEventListener('pagehide', hideSplash, { once: true });
+})();
+/* [END MODULE: woos_pwa_splash_intro] */
+</script>
+<!-- [END MODULE: woos_pwa_splash_intro] -->
+
 <div id="app">
 
   <!-- ─── 헤더 / 모바일 히어로 로고 ─── -->
@@ -6987,7 +7131,7 @@ async function opsDashboard() {
 // 탭 시 상세 팝업
 // ═══════════════════════════════════════════════════════════════
 
-var HTML_VERSION = 'v4.9.4-fetch-fix-4';  // [v4.9.4+] _gradeChartHtml 박제 추가 (rerenderSingleCard 흐름)
+var HTML_VERSION = 'v4.9.4-fetch-fix-4-splash-1';  // [v4.9.4+] _gradeChartHtml 박제 추가 (rerenderSingleCard 흐름)
 var _cachedBuildInfo = null;
 
 // [State Lock 2 Action fix-2c] 패치 확인용 — 페이지 로드 시 버전명 출력 (DevTools 콘솔)
