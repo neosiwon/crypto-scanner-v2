@@ -152,7 +152,7 @@
 <script>
 /* [v4.7.42] 캐시 강제 리셋 — SW 완전 제거 후 리로드 */
 (function(){
-  var VER = 'v4.9.5-grade-flow-text-r2';  // [그래프 제거 R2] 도달 타임라인 모달 작동 + ⓘ 위치 + duplicate-watchlist 라벨 + 이전 알람 % 강조
+  var VER = 'v4.9.6-standard-lite-heavy-cache';  // [v4.9.6] 표준 Lite + 관심/정밀 Full Body Cache + Priority Queue + 카드헤더 % fallback
   try {
     var LKEY = 'woos_hard_reset_ver';
     if (localStorage.getItem(LKEY) === VER) return;
@@ -3849,6 +3849,108 @@ details.progress-rich-card.woos-group[open] { border-color: rgba(124, 58, 237, 0
  * [v4.9.5+ 그래프 제거] 등급 흐름 텍스트 표시 (SVG 그래프 대체)
  * 거래소 한 줄 통합 표기: A(BIN) → S(BIT) → S(UPB) → A(BIN)
  * ═══════════════════════════════════════════════════════════ */
+/* ═══════════════════════════════════════════════════════════
+ * [v4.9.6] Standard Lite Body + Loading + Error + Stale Badge
+ * ═══════════════════════════════════════════════════════════ */
+.woos-lite-body {
+  padding: 12px 14px;
+}
+.lite-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 10px;
+  font-size: 0.78rem;
+}
+.lite-mode-label {
+  color: rgba(190, 220, 255, .8);
+  font-weight: 500;
+}
+.lite-stats-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.lite-stat {
+  background: rgba(255, 255, 255, .03);
+  border: 1px solid rgba(255, 255, 255, .06);
+  border-radius: 8px;
+  padding: 6px 10px;
+}
+.lite-stat-label {
+  display: block;
+  font-size: 0.7rem;
+  color: rgba(190, 220, 255, .55);
+  margin-bottom: 2px;
+}
+.lite-stat-value {
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: rgba(235, 244, 255, .92);
+}
+.lite-stat-value.profit { color: #00e676; }
+.lite-stat-value.loss { color: #ff8c42; }
+.lite-prices {
+  background: rgba(255, 255, 255, .02);
+  border: 1px solid rgba(255, 255, 255, .05);
+  border-radius: 8px;
+  padding: 8px 12px;
+  margin-bottom: 8px;
+}
+.lite-price-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.78rem;
+  padding: 3px 0;
+  color: rgba(190, 220, 255, .85);
+}
+.lite-price-row span { color: rgba(190, 220, 255, .55); }
+.lite-price-row b { font-weight: 600; color: rgba(235, 244, 255, .92); }
+.lite-price-row b.profit { color: #00e676; }
+.lite-price-row b.loss { color: #ff8c42; }
+.lite-hint {
+  font-size: 0.7rem;
+  color: rgba(190, 220, 255, .45);
+  text-align: center;
+  margin-top: 8px;
+  padding: 4px;
+}
+
+/* Loading body */
+.woos-heavy-body-loading {
+  padding: 20px 14px;
+  text-align: center;
+  color: rgba(190, 220, 255, .72);
+  font-size: .8rem;
+  border: 1px solid rgba(0, 229, 255, .14);
+  border-radius: 12px;
+  background: rgba(7, 16, 32, .45);
+  margin: 8px 0;
+}
+
+/* Error body */
+.woos-heavy-body-error {
+  padding: 14px;
+  text-align: center;
+  color: rgba(255, 140, 66, .85);
+  font-size: .78rem;
+  border: 1px solid rgba(255, 140, 66, .25);
+  border-radius: 12px;
+  background: rgba(40, 14, 7, .35);
+  margin: 8px 0;
+}
+
+/* Stale badge — 갱신 중 표시 */
+.woos-stale-badge {
+  text-align: center;
+  font-size: 11px;
+  color: #ff9800;
+  padding: 4px 8px;
+  background: rgba(255, 152, 0, .08);
+  border-bottom: 1px solid rgba(255, 152, 0, .25);
+}
+
 .woos-grade-flow {
   background: rgba(255, 255, 255, .03);
   border: 1px solid rgba(0, 229, 255, .12);
@@ -7106,7 +7208,7 @@ async function opsDashboard() {
 // 탭 시 상세 팝업
 // ═══════════════════════════════════════════════════════════════
 
-var HTML_VERSION = 'v4.9.5-grade-flow-text-r2';  // [그래프 제거 R2] 모달/⓲/라벨/% 강조
+var HTML_VERSION = 'v4.9.6-standard-lite-heavy-cache';  // [v4.9.6] 표준 Lite + 관심/정밀 Full Body Cache + Priority Queue + 카드헤더 % fallback
 var _cachedBuildInfo = null;
 
 // [State Lock 2 Action fix-2c] 패치 확인용 — 페이지 로드 시 버전명 출력 (DevTools 콘솔)
@@ -12830,6 +12932,38 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
     if (typeof w1_restoreOpenCards === 'function' && __w1_opened !== null) {
       w1_restoreOpenCards(__w1_opened);
     }
+    
+    // [v4.9.6] active cardKey set 수집 + GC + queue 시작
+    //   - GC: 화면에 없는 cache 정리 (running 보호)
+    //   - queue: 헤더 paint 보장 후 100ms setTimeout으로 시작
+    try {
+      var activeCardKeySet = new Set();
+      if (Array.isArray(visibleGroups)) {
+        visibleGroups.forEach(function(g) {
+          if (!g) return;
+          var k = (g.key) || (g.representative && g.representative.base) || '';
+          if (k) {
+            var canonicalK = (typeof w1_getCanonicalBaseKey === 'function')
+              ? w1_getCanonicalBaseKey(k)
+              : String(k).toUpperCase();
+            activeCardKeySet.add('active:' + canonicalK);
+          }
+        });
+      }
+      if (typeof w496_gcBodyCache === 'function') {
+        w496_gcBodyCache(activeCardKeySet);
+      }
+      // queue worker 시작 — concurrency 만큼 시작
+      if (typeof w496_processBodyQueue === 'function') {
+        setTimeout(function() {
+          for (var i = 0; i < W496_BODY_CONCURRENCY; i++) {
+            w496_processBodyQueue();
+          }
+        }, 100);
+      }
+    } catch(e) {
+      try { console.warn('[v4.9.6 queue start]', e); } catch(_) {}
+    }
 
     // [v4.7.29] 분석 완료 탭 카운트 선반영
     try {
@@ -13379,6 +13513,24 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
             mfePoint: null, maePoint: null, firstMajorEvent: null,
             isPrefetched: true,  // HTML 측에서 "prefetched" 표시 플래그
             prefetchedSampleT: prefetched.sampleT || null,  // "5분 전 데이터" 라벨용
+          };
+        }
+        // [v4.9.6 — 옵션 C 1번] lastPrice fallback (사용자 보고 "v4.9.4부터 카드헤더 % 안 보임")
+        //   Worker /tracking/active 응답에 currentPct가 없을 때
+        //   prefetched.lastPrice + entryPrice로 직접 계산 → 카드 헤더 % 표시
+        //   진단: ZEC만 표시 / HEMI/MERL/PARTI/ZBT/BB/BABY/ONDO 표시 X = Worker 응답 일부 카드만 currentPct 포함
+        if (entryPrice && entryPrice > 0 && prefetched && prefetched.lastPrice && prefetched.lastPrice > 0) {
+          var altPct = ((prefetched.lastPrice - entryPrice) / entryPrice) * 100;
+          return {
+            hasData: true, sampleCount: 0,
+            currentPct: altPct,
+            mfe: altPct, mae: altPct,
+            plus3Hit: altPct >= 3, plus5Hit: altPct >= 5,
+            tp1Hit: false, tp2Hit: false, stopHit: false,
+            currentPoint: { ts: prefetched.sampleT || Date.now(), price: prefetched.lastPrice, pct: altPct },
+            mfePoint: null, maePoint: null, firstMajorEvent: null,
+            isPrefetched: true, isAltCalculated: true,
+            prefetchedSampleT: prefetched.sampleT || null,
           };
         }
         return { hasData: false, sampleCount: 0, currentPct: null, mfe: null, mae: null,
@@ -16500,13 +16652,59 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
     /* 카드 펼침 시 lazy load — cache miss 시 즉시 fetch + 재렌더 */
     function v464_handleCardExpand(snapshotId) {
       if (!snapshotId) return;
+      
+      // [v4.9.6] 카드 displayMode 검사 + queue priority boost
+      try {
+        var card = document.querySelector('details[data-snapshot-id="' + snapshotId + '"]');
+        if (card) {
+          // displayMode 검사 — 표준이면 heavy 작업 X
+          var isStandard = card.classList.contains('mode-standard') 
+                        || card.classList.contains('woos-card-mode-standard')
+                        || (!card.classList.contains('mode-watch') 
+                          && !card.classList.contains('woos-card-mode-watch')
+                          && !card.classList.contains('mode-deep')
+                          && !card.classList.contains('woos-card-mode-deep'));
+          
+          if (!isStandard) {
+            // 관심/정밀 — body slot에서 jobKey 확인 + priority 100 boost
+            var bodySlot = card.querySelector('[data-job-key]');
+            if (bodySlot) {
+              var jobKey = bodySlot.getAttribute('data-job-key');
+              if (jobKey && window.WOOS_BODY_QUEUED && window.WOOS_BODY_QUEUED.has(jobKey)) {
+                var queued = window.WOOS_BODY_QUEUED.get(jobKey);
+                queued.priority = 100;
+                if (window.WOOS_BODY_QUEUE) {
+                  window.WOOS_BODY_QUEUE.sort(function(a, b) { return b.priority - a.priority; });
+                }
+                // worker 시작 (이미 running이면 skip)
+                if (typeof w496_processBodyQueue === 'function') {
+                  setTimeout(w496_processBodyQueue, 0);
+                }
+              }
+            }
+          }
+        }
+      } catch(e) {}
+      
       var cached = v464_cacheGet(snapshotId);
-      // cache hit + alertSnapshot 있으면 — 이미 최신
+      // cache hit + alertSnapshot 있으면 — 이미 최신 (heavy 작업 X)
       if (cached && cached.meta && cached.meta.alertSnapshot) return;
-      // 그 외에는 즉시 fetch + 재렌더
+      
+      // [v4.9.6] fetch만 (rerenderSingleCard 호출 X — body 갱신은 queue worker가 처리)
+      //   기존: v464_rerenderSingleCard(snapshotId) → 카드 outerHTML 교체 (Pure Lazy 실패 흐름)
+      //   변경: fetch 결과 samples만 cache 동기화 → queue가 자연스럽게 새 cacheKey로 갱신
       v464_fetchSnapshot(snapshotId).then(function(data){
-        if (data) v464_rerenderSingleCard(snapshotId);
-      });
+        if (data && data.samples) {
+          try {
+            if (window.WOOS_SAMPLE_CACHE) {
+              window.WOOS_SAMPLE_CACHE.set(snapshotId, data.samples);
+            }
+            if (window._trackingMap && window._trackingMap[snapshotId]) {
+              window._trackingMap[snapshotId].samples = data.samples;
+            }
+          } catch(e) {}
+        }
+      }).catch(function() {});
     }
     
     /* "데이터 수집 중" → 4가지 상태 텍스트 */
@@ -16716,6 +16914,456 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
     }
     
     /* 펼친 카드의 본문 (summary 제외) — 기존 details/summary 구조에 끼워 넣기용 */
+    /* ═══════════════════════════════════════════════════════════
+     * [v4.9.6] Body Cache + Queue 인프라
+     * 정책 (사용자 명시 승인):
+     *   - 표준 = Lite Body 즉시 (cache X)
+     *   - 관심/정밀 = Full Body Cache + Queue
+     *   - jobKey = activeCardKey + snapshotId (displayMode 제외)
+     *   - cacheKey = jobKey + samples.length + gradeFp + mfeBucket + maeBucket + totalSignalBucket
+     *   - cache hit → 즉시 / stale hit → 갱신 중 badge + 이전 / miss → loading
+     *   - 우선순위: 관심 10, 정밀 8, 사용자 open 100
+     *   - concurrency: 모바일 1, PC 2
+     *   - DOM 업데이트: jobKey + displayMode 검증 후 body wrapper만 교체
+     * ═══════════════════════════════════════════════════════════ */
+    window.WOOS_BODY_CACHE = window.WOOS_BODY_CACHE || new Map();
+    window.WOOS_BODY_LATEST_BY_JOB = window.WOOS_BODY_LATEST_BY_JOB || new Map();
+    window.WOOS_BODY_QUEUE = window.WOOS_BODY_QUEUE || [];
+    window.WOOS_BODY_QUEUED = window.WOOS_BODY_QUEUED || new Map();
+    window.WOOS_BODY_RUNNING = window.WOOS_BODY_RUNNING || new Map();
+    window.WOOS_SAMPLE_CACHE = window.WOOS_SAMPLE_CACHE || new Map();
+    
+    var W496_BODY_CACHE_MAX = 50;
+    var W496_BODY_CACHE_TTL = 5 * 60 * 1000;  // 5분
+    var W496_BODY_CONCURRENCY = (typeof window !== 'undefined' && window.innerWidth <= 768) ? 1 : 2;
+    
+    // jobKey — displayMode 제외 (사용자 명세 정정)
+    function w496_buildJobKey(activeCardKey, snapshotId) {
+      return [activeCardKey || '', snapshotId || ''].join('|');
+    }
+    
+    // MFE/MAE 안전 추출 (object 처리)
+    function w496_safeMfeMae(val) {
+      if (typeof val === 'number') return val;
+      if (val && typeof val === 'object') {
+        if (typeof val.peak === 'number') return val.peak;
+        if (typeof val.value === 'number') return val.value;
+        if (typeof val.pct === 'number') return val.pct;
+        if (typeof val.max === 'number') return val.max;
+        if (typeof val.min === 'number') return val.min;
+      }
+      return 0;
+    }
+    
+    // gradeFingerprint — track.gradeHistory + track.meta.gradeHistory만 사용
+    // (사용자 명세: 1~2개 source만, 알 수 없으면 '0' 고정)
+    function w496_gradeFingerprint(group, track) {
+      try {
+        var hist = [];
+        if (track && Array.isArray(track.gradeHistory)) hist = hist.concat(track.gradeHistory);
+        if (track && track.meta && Array.isArray(track.meta.gradeHistory)) hist = hist.concat(track.meta.gradeHistory);
+        if (!hist.length) return '0';
+        hist.sort(function(a, b) {
+          var ta = +(a && (a.t || a.time || a.timestamp || a.ts) || 0);
+          var tb = +(b && (b.t || b.time || b.timestamp || b.ts) || 0);
+          return tb - ta;
+        });
+        var latest = hist[0] || {};
+        var lid = latest.eventId || latest.id || latest.snapshotId || '';
+        var lt = latest.t || latest.time || latest.timestamp || latest.ts || 0;
+        return [hist.length, lid, lt].join(':');
+      } catch(e) { return '0'; }
+    }
+    
+    // cacheKey 생성
+    function w496_buildCacheKey(jobKey, samples, gradeFp, mfe, mae, totalSignal) {
+      var sLen = (samples && samples.length) || 0;
+      var mfeBucket = Math.floor(w496_safeMfeMae(mfe) * 10) / 10;
+      var maeBucket = Math.floor(w496_safeMfeMae(mae) * 10) / 10;
+      var totalSignalBucket = Math.floor((totalSignal || 0) / 5);
+      return [jobKey, sLen, gradeFp, mfeBucket, maeBucket, totalSignalBucket].join('|');
+    }
+    
+    // 우선순위 결정 (vm 기준)
+    function w496_getBodyPriority(vm) {
+      if (vm && vm.watchState && vm.watchState.isWatch) return 10;
+      if (vm && vm.modeState && vm.modeState.displayMode === 'deep') return 8;
+      return 0;
+    }
+    
+    // queue 등록 대상 여부 (표준은 false)
+    function w496_shouldEnqueue(vm) {
+      if (!vm || !vm.modeState) return false;
+      var dm = vm.modeState.displayMode;
+      return (dm === 'watch' || dm === 'deep');
+    }
+    
+    // samples 확보 (3 source 우선순위)
+    function w496_resolveSamples(snapshotId, track) {
+      if (!snapshotId) return [];
+      if (window._trackingMap && window._trackingMap[snapshotId] && Array.isArray(window._trackingMap[snapshotId].samples)) {
+        return window._trackingMap[snapshotId].samples;
+      }
+      if (window.WOOS_SAMPLE_CACHE.has(snapshotId)) {
+        return window.WOOS_SAMPLE_CACHE.get(snapshotId);
+      }
+      if (track && Array.isArray(track.samples)) return track.samples;
+      return [];
+    }
+    
+    // 메인 body 결정 함수 (cache hit / stale / loading)
+    function w496_getCachedStaleLoadingOrQueueBody(group, track, samples, metrics, entryInfo, levels, opts) {
+      opts = opts || {};
+      var vm = opts.vm || null;
+      
+      // 표준은 Lite로 즉시 처리 (cache 외부)
+      if (!w496_shouldEnqueue(vm)) {
+        return v40_buildStandardLiteBody(track, metrics, entryInfo, levels, opts);
+      }
+      
+      var activeCardKey = opts.activeCardKey || (vm && vm.canonicalBaseKey ? 'active:' + vm.canonicalBaseKey : '');
+      var snapshotId = (track && (track.snapshotId || track.id)) || '';
+      if (!activeCardKey || !snapshotId) {
+        return v40_buildStandardLiteBody(track, metrics, entryInfo, levels, opts);  // fallback
+      }
+      
+      var jobKey = w496_buildJobKey(activeCardKey, snapshotId);
+      var gradeFp = w496_gradeFingerprint(group, track);
+      var totalSignal = ((track && track.sCount24) || 0) + ((track && track.aCount24) || 0);
+      var cacheKey = w496_buildCacheKey(jobKey, samples, gradeFp, track && track.mfe, track && track.mae, totalSignal);
+      
+      // 1. exact cache hit
+      var entry = window.WOOS_BODY_CACHE.get(cacheKey);
+      if (entry && entry.html) {
+        entry.lastUsedAt = Date.now();
+        return _w496_wrapFreshBody(entry.html, jobKey, cacheKey);
+      }
+      
+      // 2. exact miss + latest jobKey cache 있음 → stale + revalidate
+      var latestKey = window.WOOS_BODY_LATEST_BY_JOB.get(jobKey);
+      if (latestKey && latestKey !== cacheKey) {
+        var staleEntry = window.WOOS_BODY_CACHE.get(latestKey);
+        if (staleEntry && staleEntry.html) {
+          w496_enqueueFullBodyJob({
+            cardKey: activeCardKey, snapshotId: snapshotId, jobKey: jobKey, cacheKey: cacheKey,
+            priority: w496_getBodyPriority(vm), vm: vm, group: group, track: track, opts: opts,
+            displayMode: (vm && vm.modeState && vm.modeState.displayMode) || ''
+          });
+          return _w496_wrapStaleBody(staleEntry.html, jobKey, cacheKey);
+        }
+      }
+      
+      // 3. 완전 miss → loading + queue
+      w496_enqueueFullBodyJob({
+        cardKey: activeCardKey, snapshotId: snapshotId, jobKey: jobKey, cacheKey: cacheKey,
+        priority: w496_getBodyPriority(vm), vm: vm, group: group, track: track, opts: opts,
+        displayMode: (vm && vm.modeState && vm.modeState.displayMode) || ''
+      });
+      return '<div class="progress-rich-body woos-body woos-body-loading" data-job-key="' + jobKey + '" data-body-cache-key="' + cacheKey + '">'
+           +   '<div class="woos-heavy-body-loading">상세 정보 준비 중...</div>'
+           + '</div>';
+    }
+    
+    // fresh body — data-job-key 주입
+    function _w496_wrapFreshBody(html, jobKey, cacheKey) {
+      // v40_buildExpandedBody 결과는 '<div class="progress-rich-body woos-body...' 형식으로 시작
+      return html.replace(
+        /<div class="progress-rich-body woos-body([^"]*)"/,
+        '<div class="progress-rich-body woos-body$1" data-job-key="' + jobKey + '" data-body-cache-key="' + cacheKey + '"'
+      );
+    }
+    
+    // stale body — badge + 이전 body
+    function _w496_wrapStaleBody(html, jobKey, cacheKey) {
+      var staleBadge = '<div class="woos-stale-badge">최신 데이터 갱신 중...</div>';
+      // 기존 body wrapper에 stale 표시 + badge 삽입
+      var injectedHtml = html.replace(
+        /<div class="progress-rich-body woos-body([^"]*)"([^>]*)>/,
+        '<div class="progress-rich-body woos-body$1 woos-body-stale"$2 data-job-key="' + jobKey + '" data-body-cache-key="' + cacheKey + '">' + staleBadge
+      );
+      return injectedHtml;
+    }
+    
+    // queue 등록 (dedupe + priority)
+    function w496_enqueueFullBodyJob(job) {
+      if (!job || !job.jobKey) return;
+      // running 중이면 skip
+      if (window.WOOS_BODY_RUNNING.has(job.jobKey)) return;
+      // queued 중이면 priority만 갱신
+      if (window.WOOS_BODY_QUEUED.has(job.jobKey)) {
+        var existing = window.WOOS_BODY_QUEUED.get(job.jobKey);
+        if (job.priority > existing.priority) {
+          existing.priority = job.priority;
+        }
+        return;
+      }
+      window.WOOS_BODY_QUEUED.set(job.jobKey, job);
+      window.WOOS_BODY_QUEUE.push(job);
+      // priority 정렬 (높은 순)
+      window.WOOS_BODY_QUEUE.sort(function(a, b) { return b.priority - a.priority; });
+    }
+    
+    // queue worker
+    function w496_processBodyQueue() {
+      if (window.WOOS_BODY_RUNNING.size >= W496_BODY_CONCURRENCY) return;
+      var job;
+      while (window.WOOS_BODY_QUEUE.length) {
+        job = window.WOOS_BODY_QUEUE.shift();
+        if (job && window.WOOS_BODY_QUEUED.has(job.jobKey)) break;
+        job = null;
+      }
+      if (!job) return;
+      
+      window.WOOS_BODY_QUEUED.delete(job.jobKey);
+      window.WOOS_BODY_RUNNING.set(job.jobKey, job);
+      
+      w496_runBodyJob(job).then(function() {
+        window.WOOS_BODY_RUNNING.delete(job.jobKey);
+        setTimeout(w496_processBodyQueue, 0);
+      }).catch(function() {
+        window.WOOS_BODY_RUNNING.delete(job.jobKey);
+        setTimeout(w496_processBodyQueue, 0);
+      });
+    }
+    
+    // 실제 body 생성 (samples 확보 → buildExpandedBody → cache 저장 → DOM 업데이트)
+    function w496_runBodyJob(job) {
+      return new Promise(function(resolve) {
+        try {
+          var samples = w496_resolveSamples(job.snapshotId, job.track);
+          if (!samples || !samples.length) {
+            // samples 없음 → fetchTrackingData 시도
+            if (typeof fetchTrackingData === 'function') {
+              fetchTrackingData(job.snapshotId, true).then(function(data) {
+                var fetched = (data && data.samples) || [];
+                if (fetched.length) {
+                  // sample cache 동기화 (samples만 박제 — isWatchlist/trackingMode 등 X)
+                  window.WOOS_SAMPLE_CACHE.set(job.snapshotId, fetched);
+                  if (window._trackingMap && window._trackingMap[job.snapshotId]) {
+                    window._trackingMap[job.snapshotId].samples = fetched;
+                  }
+                }
+                w496_finalizeBodyJob(job, fetched);
+                resolve();
+              }).catch(function() {
+                w496_renderErrorBody(job);
+                resolve();
+              });
+            } else {
+              w496_finalizeBodyJob(job, []);
+              resolve();
+            }
+          } else {
+            w496_finalizeBodyJob(job, samples);
+            resolve();
+          }
+        } catch(e) {
+          try { console.warn('[w496_runBodyJob]', e); } catch(_) {}
+          resolve();
+        }
+      });
+    }
+    
+    // body 생성 + cache 저장 + DOM 업데이트
+    function w496_finalizeBodyJob(job, samples) {
+      try {
+        var entryInfo = (job.opts && job.opts.entryInfo) || v40_resolveEntryPrice(job.track, samples);
+        var levels = (job.opts && job.opts.levels) || v40_resolveLevels(job.track, entryInfo.value);
+        var prefetched = (job.track && job.track.prefetchedCurrentPct != null) ? {
+          currentPct: job.track.prefetchedCurrentPct,
+          mfe: job.track.prefetchedMfe,
+          mae: job.track.prefetchedMae,
+          lastPrice: job.track.prefetchedLastPrice,
+          sampleT: job.track.prefetchedSampleT,
+        } : null;
+        var metrics = v40_computeLiveMetrics(samples, entryInfo.value, levels, prefetched);
+        
+        var html = v40_buildExpandedBody(job.track, samples, metrics, entryInfo, levels, job.opts || {});
+        
+        // cache 저장
+        var gradeFp = w496_gradeFingerprint(job.group, job.track);
+        var totalSignal = ((job.track && job.track.sCount24) || 0) + ((job.track && job.track.aCount24) || 0);
+        var cacheKey = w496_buildCacheKey(job.jobKey, samples, gradeFp, job.track && job.track.mfe, job.track && job.track.mae, totalSignal);
+        
+        window.WOOS_BODY_CACHE.set(cacheKey, {
+          html: html,
+          jobKey: job.jobKey,
+          createdAt: Date.now(),
+          lastUsedAt: Date.now()
+        });
+        window.WOOS_BODY_LATEST_BY_JOB.set(job.jobKey, cacheKey);
+        
+        // DOM 업데이트 (jobKey + displayMode 검증)
+        w496_updateDomBody(job.jobKey, html, job.displayMode);
+      } catch(e) {
+        try { console.warn('[w496_finalizeBodyJob]', e); } catch(_) {}
+        w496_renderErrorBody(job);
+      }
+    }
+    
+    // DOM 업데이트 — body wrapper만 교체
+    function w496_updateDomBody(jobKey, html, expectedDisplayMode) {
+      try {
+        var bodySlot = document.querySelector('[data-job-key="' + jobKey + '"]');
+        if (!bodySlot) return;  // DOM 없음 — cache만 저장 OK
+        
+        // displayMode guard — 카드 클래스 검사
+        if (expectedDisplayMode) {
+          var card = bodySlot.closest('details');
+          if (card) {
+            var currentMode = card.classList.contains('mode-watch') || card.classList.contains('woos-card-mode-watch') ? 'watch'
+                            : card.classList.contains('mode-deep') || card.classList.contains('woos-card-mode-deep') ? 'deep'
+                            : 'standard';
+            // displayMode 변경됨 → 업데이트 skip (cache는 저장됨)
+            if (currentMode !== expectedDisplayMode) return;
+          }
+        }
+        
+        // jobKey 일치 검증
+        if (bodySlot.getAttribute('data-job-key') !== jobKey) return;
+        
+        // body wrapper만 교체 (data-job-key 주입한 fresh wrapping)
+        var wrapped = html.replace(
+          /<div class="progress-rich-body woos-body([^"]*)"/,
+          '<div class="progress-rich-body woos-body$1" data-job-key="' + jobKey + '"'
+        );
+        bodySlot.outerHTML = wrapped;
+      } catch(e) {
+        try { console.warn('[w496_updateDomBody]', e); } catch(_) {}
+      }
+    }
+    
+    // error body
+    function w496_renderErrorBody(job) {
+      try {
+        var slot = document.querySelector('[data-job-key="' + job.jobKey + '"]');
+        if (slot) {
+          slot.outerHTML = '<div class="progress-rich-body woos-body woos-body-error" data-job-key="' + job.jobKey + '">'
+                         +   '<div class="woos-heavy-body-error">상세 정보 로드 실패</div>'
+                         + '</div>';
+        }
+      } catch(e) {}
+    }
+    
+    // GC — active cardKey set + running 보호
+    function w496_gcBodyCache(activeCardKeySet) {
+      try {
+        activeCardKeySet = activeCardKeySet || new Set();
+        var now = Date.now();
+        var entries = Array.from(window.WOOS_BODY_CACHE.entries());
+        entries.forEach(function(pair) {
+          var key = pair[0];
+          var entry = pair[1];
+          if (!entry) {
+            window.WOOS_BODY_CACHE.delete(key);
+            return;
+          }
+          if (window.WOOS_BODY_RUNNING.has(entry.jobKey)) return;  // running 보호
+          var jobKey = entry.jobKey || '';
+          var cardKey = jobKey.split('|')[0];
+          if (cardKey && activeCardKeySet.size > 0 && !activeCardKeySet.has(cardKey)) {
+            window.WOOS_BODY_CACHE.delete(key);
+            return;
+          }
+          if (entry.lastUsedAt && (now - entry.lastUsedAt) > W496_BODY_CACHE_TTL) {
+            window.WOOS_BODY_CACHE.delete(key);
+          }
+        });
+        // max entries
+        if (window.WOOS_BODY_CACHE.size > W496_BODY_CACHE_MAX) {
+          var sorted = Array.from(window.WOOS_BODY_CACHE.entries())
+            .sort(function(a, b) { return (a[1].lastUsedAt || 0) - (b[1].lastUsedAt || 0); });
+          var excess = window.WOOS_BODY_CACHE.size - W496_BODY_CACHE_MAX;
+          for (var i = 0; i < excess; i++) {
+            var entry = sorted[i][1];
+            if (window.WOOS_BODY_RUNNING.has(entry.jobKey)) continue;  // running 보호
+            window.WOOS_BODY_CACHE.delete(sorted[i][0]);
+          }
+        }
+      } catch(e) {}
+    }
+    
+    /* ═══════════════════════════════════════════════════════════
+     * [v4.9.6] v40_buildStandardLiteBody — 표준 카드 Lite Detail
+     * 정책: 표준 카드 펼침 시 즉시 표시 (cache/queue 없음)
+     *   - samples 미사용 (samples.length / samples.map / samples.reduce X)
+     *   - v40_buildExpandedBody / v40_generateTrackingSVGChart 호출 X
+     *   - fetchTrackingData 호출 X
+     *   - vm / metrics / item 단일값만
+     * 표시: 누적 신호, 수익률, 진행률, 잔여시간, 현재가, 알람가, MFE/MAE 단일값
+     * ═══════════════════════════════════════════════════════════ */
+    function v40_buildStandardLiteBody(track, metrics, entryInfo, levels, opts) {
+      opts = opts || {};
+      var vm = opts.vm || null;
+      var item = track || {};
+      var meta = item.meta || {};
+      
+      function safe(v, f) { return (v == null || v === '') ? (f || '-') : v; }
+      function pct(v) { return (typeof v === 'number') ? (v.toFixed(2) + '%') : '-'; }
+      function num(v) {
+        if (typeof v !== 'number') return '-';
+        return v.toLocaleString('en-US', { maximumFractionDigits: 8 });
+      }
+      function safeMfeMae(val) {
+        if (typeof val === 'number') return val;
+        if (val && typeof val === 'object') {
+          if (typeof val.peak === 'number') return val.peak;
+          if (typeof val.value === 'number') return val.value;
+          if (typeof val.pct === 'number') return val.pct;
+          if (typeof val.max === 'number') return val.max;
+        }
+        return null;
+      }
+      
+      var changePct = (vm && vm.performance && typeof vm.performance.changePct === 'number')
+        ? vm.performance.changePct
+        : (metrics && metrics.hasData && metrics.currentPct != null ? metrics.currentPct : null);
+      var progress = (vm && typeof vm.progress === 'number') ? vm.progress : 0;
+      var remainingLabel = (vm && vm.remainingLabel) || '-';
+      var modeLabel = (vm && vm.modeState && vm.modeState.modeLabel) || '표준';
+      var endsAtVal = (vm && vm.trackingWindow && vm.trackingWindow.endsAt) || 0;
+      var endsAtStr = endsAtVal ? new Date(endsAtVal).toLocaleString('ko-KR') : '-';
+      
+      var lastPrice = item.lastPrice || (item.prefetchedLastPrice != null ? item.prefetchedLastPrice : null);
+      var entryPrice = (entryInfo && entryInfo.value) || meta.openPrice || meta.entryPrice;
+      var mfe = safeMfeMae(item.mfe);
+      var mae = safeMfeMae(item.mae);
+      
+      var sCount = (item.sCount24 != null) ? item.sCount24 : (meta.sCount24 || 0);
+      var aCount = (item.aCount24 != null) ? item.aCount24 : (meta.aCount24 || 0);
+      var totalSignal = sCount + aCount;
+      
+      var newChip = (vm && vm.labelState && vm.labelState.isNew)
+        ? '<span class="hdr-label-new">신규</span>' : '';
+      var nearChip = (vm && vm.labelState && vm.labelState.isNearEnd)
+        ? '<span class="hdr-label-near-end">마감임박</span>' : '';
+      
+      return '<div class="progress-rich-body woos-body woos-lite-body">'
+           +   '<div class="lite-header">'
+           +     '<span class="lite-mode-label">' + safe(modeLabel) + '</span>'
+           +     newChip + nearChip
+           +   '</div>'
+           +   '<div class="lite-stats-grid">'
+           +     '<div class="lite-stat"><span class="lite-stat-label">현재 수익률</span>'
+           +       '<b class="lite-stat-value ' + (changePct != null && changePct >= 0 ? 'profit' : 'loss') + '">' + pct(changePct) + '</b></div>'
+           +     '<div class="lite-stat"><span class="lite-stat-label">진행률</span>'
+           +       '<b class="lite-stat-value">' + Math.round(progress) + '%</b></div>'
+           +     '<div class="lite-stat"><span class="lite-stat-label">잔여시간</span>'
+           +       '<b class="lite-stat-value">' + safe(remainingLabel) + '</b></div>'
+           +     '<div class="lite-stat"><span class="lite-stat-label">누적 신호</span>'
+           +       '<b class="lite-stat-value">x' + totalSignal + '</b></div>'
+           +   '</div>'
+           +   '<div class="lite-prices">'
+           +     '<div class="lite-price-row"><span>현재가</span><b>' + num(lastPrice) + '</b></div>'
+           +     '<div class="lite-price-row"><span>알람가</span><b>' + num(entryPrice) + '</b></div>'
+           +     '<div class="lite-price-row"><span>MFE</span><b class="profit">' + (mfe !== null ? '+' + mfe.toFixed(2) + '%' : '-') + '</b></div>'
+           +     '<div class="lite-price-row"><span>MAE</span><b class="loss">' + (mae !== null ? mae.toFixed(2) + '%' : '-') + '</b></div>'
+           +     '<div class="lite-price-row"><span>종료 예정</span><b>' + endsAtStr + '</b></div>'
+           +   '</div>'
+           +   '<div class="lite-hint">관심 등록 또는 정밀 진입 시 상세 그래프가 표시됩니다.</div>'
+           + '</div>';
+    }
+    
     function v40_buildExpandedBody(track, samples, metrics, entryInfo, levels, opts) {
       opts = opts || {};
       var vm = opts.vm || null;  // [State Lock] vm 매개변수
@@ -17097,10 +17745,14 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       // if (exchange) { ... }  // 비활성화
       
       // [Phase 4.7 공사 1 — Q1] 등락 % 표시
+      // [v4.9.6 — 옵션 C 2번] hasData=false여도 placeholder 표시 (헤더 영역 일관성)
       var pctLabel = '';
       if (metrics && metrics.hasData && metrics.currentPct != null) {
         var sign = metrics.currentPct >= 0 ? '+' : '';
         pctLabel = '<span class="woos-pct woos-pct-' + (metrics.currentPct >= 0 ? 'up' : 'down') + '">' + sign + metrics.currentPct.toFixed(2) + '%</span>';
+      } else {
+        // [v4.9.6] "수집 중" placeholder — 헤더 우측 영역 일관성 유지
+        pctLabel = '<span class="woos-pct woos-empty">수집 중</span>';
       }
       
       // [Phase 4.7 공사 4 — 2-3] 가격 변화량 (lastPrice - entryPrice)
@@ -17258,9 +17910,30 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       var metrics = v40_computeLiveMetrics(samples, entryInfo.value, levels, prefetched);
       // [Phase 4.2 작업 E] overrideDotColor 가 있으면 (그룹 dot 동기화 시 대표 카드용) 사용
       var dotColor = opts.overrideDotColor || v40_decideDotColor(track, metrics, levels);
+      
+      // [v4.9.6] Lite/Cache 분기 (사용자 명시 승인)
+      //   표준(standard) = Lite Body 즉시 (cache X)
+      //   관심/정밀(watch/deep) = Full Body Cache + Queue
+      //   기타(expired) = Lite fallback (안전)
+      var vm = opts.vm || null;
+      var displayMode = (vm && vm.modeState && vm.modeState.displayMode) || 'standard';
+      var group = opts.group || null;
+      
+      var body;
+      if (displayMode === 'standard') {
+        // 표준 = Lite 즉시 (samples 미사용 / 그래프 X / 평가 X)
+        body = v40_buildStandardLiteBody(track, metrics, entryInfo, levels, opts);
+      } else if (displayMode === 'watch' || displayMode === 'deep') {
+        // 관심/정밀 = Cache + Queue (cache hit/stale/miss 정책)
+        body = w496_getCachedStaleLoadingOrQueueBody(group, track, samples, metrics, entryInfo, levels, opts);
+      } else {
+        // expired / 그 외 = Lite fallback (안전)
+        body = v40_buildStandardLiteBody(track, metrics, entryInfo, levels, opts);
+      }
+      
       return {
         summary: v40_buildCompactSummary(track, metrics, dotColor, opts),
-        body: v40_buildExpandedBody(track, samples, metrics, entryInfo, levels, opts),  // [State Lock] opts 전달
+        body: body,
         dotColor: dotColor,
         metrics: metrics,
       };
@@ -17347,11 +18020,12 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       var rep = group.representative;
       if (group.items.length === 1) {
         // 단독: 일반 details 카드
-        var inner = v40_buildTrackInner(rep, { vm: vm });  // [State Lock] vm 전달
         // [State Lock] data-card-key — vm.canonicalBaseKey 우선 (raw fallback)
         var w1_cardKey = (vm && vm.canonicalBaseKey)
           ? ('active:' + vm.canonicalBaseKey)
           : ('active:' + String(group.key || rep.base || (rep.meta && rep.meta.base) || '').toUpperCase());
+        // [v4.9.6] group + activeCardKey 전달 (Body Cache + Queue용)
+        var inner = v40_buildTrackInner(rep, { vm: vm, group: group, activeCardKey: w1_cardKey });  // [State Lock] vm 전달
         var attrs = 'data-snapshot-id="' + v40_escapeHtml(rep.snapshotId || rep.id || '') + '" data-card-key="' + v40_escapeHtml(w1_cardKey) + '" data-tier="' + v40_escapeHtml(rep.tier || (rep.meta && rep.meta.tier) || 'B') + '" data-group-key="' + v40_escapeHtml(group.key) + '"';
         // [Phase 4.6.3] sessionStorage 펼침 상태 복원
         // [옵션 C Step 2] open 시스템 단일화 — Phase 4.6.3 isCardOpen 기반 박음 제거
@@ -17384,7 +18058,11 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       }
       // 그룹 카드 (size >= 2)
       // [Phase 4.2 작업 E] 그룹 dot 동기화: 대표가 아닌 그룹 전체 우선순위로
-      var repInner = v40_buildTrackInner(rep, { groupCount: group.items.length, isMultiGroup: group.isMulti, overrideDotColor: group.groupDotColor, vm: vm });  // [State Lock] vm 전달
+      // [v4.9.6] w1_cardKey 미리 계산 — buildTrackInner에 activeCardKey 전달
+      var w1_cardKey_grp = (vm && vm.canonicalBaseKey)
+        ? ('active:' + vm.canonicalBaseKey)
+        : ('active:' + String(group.key || rep.base || (rep.meta && rep.meta.base) || '').toUpperCase());
+      var repInner = v40_buildTrackInner(rep, { groupCount: group.items.length, isMultiGroup: group.isMulti, overrideDotColor: group.groupDotColor, vm: vm, group: group, activeCardKey: w1_cardKey_grp });  // [State Lock] vm 전달
       var others = group.items.filter(function(it){ return it !== rep; });
       var minisHtml = others.map(function(it, mIdx){
         var oSamples = v40_normalizeSamples(it);
@@ -17430,9 +18108,8 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       //   - single 카드와 동일 형식 사용 → single ↔ group 전환 시 key 안정 유지
       //   - String(...).toUpperCase()로 정규화 일관성 보장
       // [State Lock] data-card-key — vm.canonicalBaseKey 우선
-      var w1_cardKey = (vm && vm.canonicalBaseKey)
-        ? ('active:' + vm.canonicalBaseKey)
-        : ('active:' + String(group.key || rep.base || (rep.meta && rep.meta.base) || '').toUpperCase());
+      // [v4.9.6] 위에서 미리 계산한 w1_cardKey_grp 재사용 (중복 계산 X)
+      var w1_cardKey = w1_cardKey_grp;
       var groupAttrs = 'data-snapshot-id="' + v40_escapeHtml(rep.snapshotId || rep.id || '') + '" data-card-key="' + v40_escapeHtml(w1_cardKey) + '" data-tier="' + v40_escapeHtml(rep.tier || (rep.meta && rep.meta.tier) || 'B') + '" data-group-key="' + v40_escapeHtml(group.key) + '" data-group-size="' + group.items.length + '"';
       // [Phase 4.5] 같은 코인 오버레이 SVG (size >= 2 시만)
       var overlayHtml = '';
