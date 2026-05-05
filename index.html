@@ -152,7 +152,7 @@
 <script>
 /* [v4.7.42] 캐시 강제 리셋 — SW 완전 제거 후 리로드 */
 (function(){
-  var VER = 'v4.9.7-fix8';  // fix8 — DOM swap target에 lazy placeholder 포함 (단일 카드 닫혀있던 경우 swap 성공)
+  var VER = 'v4.9.7-fix10';  // fix10 — v4.9.4 정상 흐름 복원 (handleCardExpand에 rerenderSingleCard 호출 복원)
   try {
     var LKEY = 'woos_hard_reset_ver';
     if (localStorage.getItem(LKEY) === VER) return;
@@ -7041,12 +7041,12 @@ async function opsDashboard() {
 // 탭 시 상세 팝업
 // ═══════════════════════════════════════════════════════════════
 
-var HTML_VERSION = 'v4.9.7-fix8';  // fix8 — DOM swap lazy target 포함
+var HTML_VERSION = 'v4.9.7-fix10';  // fix10 — v4.9.4 정상 흐름 복원
 var _cachedBuildInfo = null;
 
 // [State Lock 2 Action fix-2c] 패치 확인용 — 페이지 로드 시 버전명 출력 (DevTools 콘솔)
 try {
-  console.log('[WOOS] ' + HTML_VERSION + ' loaded — lazy swap target supported');
+  console.log('[WOOS] ' + HTML_VERSION + ' loaded — v4.9.4 흐름 복원');
   window.WOOS_VERSION = HTML_VERSION;
 } catch(e) {}
 
@@ -16353,10 +16353,21 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
      *   cache hit이면 이미 최신, 그 외면 fetch만 (data 채움) — UI 갱신은 queue가.
      */
     function v464_handleCardExpand(snapshotId) {
+      // [v4.9.7-fix10] v4.9.4 정상 흐름 복원 — fetch 후 단일 카드 rerender (samples 적용)
+      //   v4.9.7 Phase 1 롤백에서 rerenderSingleCard 호출을 잘못 제거했음 → 카드가 samples 없는 채로 박힘
+      //   복원: fetchSnapshot 응답 받으면 v464_rerenderSingleCard로 카드 outerHTML 교체 → SVG/samples 정상
       if (!snapshotId) return;
       var cached = v464_cacheGet(snapshotId);
-      if (cached && cached.meta && cached.meta.alertSnapshot) return;  // 이미 최신
-      v464_fetchSnapshot(snapshotId);  // fetch만, rerender 호출 X
+      if (cached && cached.meta && cached.meta.alertSnapshot) {
+        // cache hit이지만 _trackingMap엔 samples 없을 수 있음 → 강제 rerender 한 번
+        if (typeof v464_rerenderSingleCard === 'function') v464_rerenderSingleCard(snapshotId);
+        return;
+      }
+      v464_fetchSnapshot(snapshotId).then(function(data){
+        if (data && typeof v464_rerenderSingleCard === 'function') {
+          v464_rerenderSingleCard(snapshotId);
+        }
+      });
     }
     
     /* "데이터 수집 중" → 4가지 상태 텍스트 */
@@ -16585,7 +16596,7 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
      */
     var V497_CACHE_TTL_MS = 60 * 1000;  // 60초
     var V497_QUEUE_INTERVAL_MS = 400;
-    var V497_BUILD_TIMEOUT_MS = 5000;  // [fix4] 5초 타임아웃 (Worker 응답 지연 여유, 분 단위 대기는 여전히 차단)
+    var V497_BUILD_TIMEOUT_MS = 2000;  // [fix9] 2초 타임아웃 — Full Body 등장 빠르게 (Worker 응답 < 2s, 그 이상이면 빈 samples로 즉시 빌드)
     var v497_cache = (typeof Map === 'function') ? new Map() : null;
     var v497_queue = [];
     var v497_running = (typeof Set === 'function') ? new Set() : null;
@@ -16709,12 +16720,15 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
         return;
       }
 
-      // [fix2] samples 우선순위 — _trackingMap 캐시 → fetchTrackingData (inFlight/30s cache 재사용) → track 박제
+      // [fix9] samples 우선순위 — _trackingMap에 td 있으면 (samples 무관) 즉시 사용
+      //   Worker가 samples 안 줘도 _trackingMap에 td 캐시되어 있음 → 매번 fetch 5s 대기 안 해도 됨
+      //   → 이미 받은 td로 즉시 v40_buildExpandedBody → 빠른 Full Body 표시
       var existingTd = (window._trackingMap && window._trackingMap[job.snapshotId]) || null;
       var hasCachedSamples = existingTd && Array.isArray(existingTd.samples) && existingTd.samples.length > 0;
       var fetcher = window.fetchTrackingData;
       var fetchPromise;
-      if (hasCachedSamples) {
+      if (existingTd) {
+        // _trackingMap에 td 있으면 (samples 없어도) 즉시 사용 — fetch skip
         fetchPromise = Promise.resolve(existingTd);
       } else if (typeof fetcher === 'function') {
         try { window.WOOS_BODY_DEBUG.fetchStart++; } catch(_){}
@@ -17553,13 +17567,11 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
           try { window.WOOS_BODY_DEBUG.cacheHit++; } catch(_){}
           if (v497_jobKey) v497_enqueue({ jobKey: v497_jobKey, snapshotId: v497_snapId, vm: opts.vm, priority: 100, displayMode: v495_displayMode });
         } else {
-          // [fix5] miss → Lite Body 즉시 표시 (loading 안 보여줌) + 백그라운드 Full Body queue
-          //   - 사용자 체감: 카드 펼치자마자 가격/MFE/MAE/현재가 즉시 표시
-          //   - Worker 응답 빠르면 1~2s 후 자동 Full로 교체 (DOM swap)
-          //   - Worker 응답 느려도 (5s timeout) Lite 그대로 유지
-          v495_body = v40_buildStandardLiteBody(track, metrics, entryInfo, levels, opts);
+          // [v4.9.7-fix10] cache miss → v4.9.4 흐름으로 즉시 v40_buildExpandedBody 호출 (samples 있으면 정상 SVG)
+          //   v464_handleCardExpand가 fetch 후 rerenderSingleCard로 카드 outerHTML 다시 빌드 → samples 적용된 새 카드
+          //   v497 queue는 무용지물 (handleCardExpand rerender가 메인 흐름)
+          v495_body = v40_buildExpandedBody(track, samples, metrics, entryInfo, levels, opts);
           try { window.WOOS_BODY_DEBUG.cacheMiss++; } catch(_){}
-          if (v497_jobKey) v497_enqueue({ jobKey: v497_jobKey, snapshotId: v497_snapId, vm: opts.vm, priority: 100, displayMode: v495_displayMode });
         }
       } else {
         v495_body = v40_buildStandardLiteBody(track, metrics, entryInfo, levels, opts);
@@ -18525,11 +18537,8 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
         //   - 해결: ontoggle open + lazy placeholder 발견 → _rerenderActiveTrackingFromCache (debounce 50ms)
         //   - 효과: vm 빌더 정상 호출 → v40_buildTrackInner → Lite/Full body 빌드
         if (isOpen) {
-          var lazy = detailsEl.querySelector('.woos-lazy-expanded-body');
-          if (lazy) {
-            _v497_triggerBodyBuild();
-          }
-          // Phase 4.6.4 fetch 트리거 (snapshot 데이터)
+          // [v4.9.7-fix10] v4.9.4 흐름 — handleCardExpand가 fetch + rerenderSingleCard 처리 (samples 적용)
+          //   fix6의 _v497_triggerBodyBuild는 제거 (handleCardExpand rerender가 메인)
           if (window.WOOS_ANALYZER.handleCardExpand) {
             window.WOOS_ANALYZER.handleCardExpand(cardId);
           }
