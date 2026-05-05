@@ -152,7 +152,7 @@
 <script>
 /* [v4.7.42] 캐시 강제 리셋 — SW 완전 제거 후 리로드 */
 (function(){
-  var VER = 'v4.9.7-fix4';  // fix4 — timeout 5s + Lite fallback (NaN/timeout 시 사용자에게 즉시 뭔가 표시)
+  var VER = 'v4.9.7-fix5';  // fix5 — cache miss 즉시 Lite 표시 + 백그라운드 Full 교체 (loading body 제거, 분 단위 대기 0)
   try {
     var LKEY = 'woos_hard_reset_ver';
     if (localStorage.getItem(LKEY) === VER) return;
@@ -7041,12 +7041,12 @@ async function opsDashboard() {
 // 탭 시 상세 팝업
 // ═══════════════════════════════════════════════════════════════
 
-var HTML_VERSION = 'v4.9.7-fix4';  // fix4 — timeout 5s + Lite fallback (즉시 표시)
+var HTML_VERSION = 'v4.9.7-fix5';  // fix5 — cache miss 즉시 Lite 표시 (loading body 제거)
 var _cachedBuildInfo = null;
 
 // [State Lock 2 Action fix-2c] 패치 확인용 — 페이지 로드 시 버전명 출력 (DevTools 콘솔)
 try {
-  console.log('[WOOS] ' + HTML_VERSION + ' loaded — timeout 5s + Lite fallback');
+  console.log('[WOOS] ' + HTML_VERSION + ' loaded — instant Lite + background Full');
   window.WOOS_VERSION = HTML_VERSION;
 } catch(e) {}
 
@@ -17543,8 +17543,11 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
           try { window.WOOS_BODY_DEBUG.cacheHit++; } catch(_){}
           if (v497_jobKey) v497_enqueue({ jobKey: v497_jobKey, snapshotId: v497_snapId, vm: opts.vm, priority: 100, displayMode: v495_displayMode });
         } else {
-          // miss → loading body + queue enqueue (priority 100 = 사용자가 연 카드)
-          v495_body = v497_loadingBody('정밀/관심 상세 데이터');
+          // [fix5] miss → Lite Body 즉시 표시 (loading 안 보여줌) + 백그라운드 Full Body queue
+          //   - 사용자 체감: 카드 펼치자마자 가격/MFE/MAE/현재가 즉시 표시
+          //   - Worker 응답 빠르면 1~2s 후 자동 Full로 교체 (DOM swap)
+          //   - Worker 응답 느려도 (5s timeout) Lite 그대로 유지
+          v495_body = v40_buildStandardLiteBody(track, metrics, entryInfo, levels, opts);
           try { window.WOOS_BODY_DEBUG.cacheMiss++; } catch(_){}
           if (v497_jobKey) v497_enqueue({ jobKey: v497_jobKey, snapshotId: v497_snapId, vm: opts.vm, priority: 100, displayMode: v495_displayMode });
         }
