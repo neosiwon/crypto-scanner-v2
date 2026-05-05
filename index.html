@@ -152,7 +152,7 @@
 <script>
 /* [v4.7.42] 캐시 강제 리셋 — SW 완전 제거 후 리로드 */
 (function(){
-  var VER = 'v4.9.4-fetch-fix-4-splash-v9-synced-fade';  // [v4.9.4+] gradeHistory 박제 + v464_rerenderSingleCard에 _gradeChartHtml 박제 (풀바디 시 등급 점 사라짐 fix)
+  var VER = 'v4.9.4-fetch-fix-4-splash-v10-wordmark-always';  // [v4.9.4+] gradeHistory 박제 + v464_rerenderSingleCard에 _gradeChartHtml 박제 (풀바디 시 등급 점 사라짐 fix)
   try {
     var LKEY = 'woos_hard_reset_ver';
     if (localStorage.getItem(LKEY) === VER) return;
@@ -6006,10 +6006,12 @@ details.analyzer-progress-card > summary.progress-compact-summary {
   height: auto;
   display: block;
   object-fit: contain;
-  opacity: 0;
+  opacity: 1 !important;
+  visibility: visible !important;
   filter: none !important;
   animation: none !important;
-  transition: opacity 120ms ease;
+  position: relative;
+  z-index: 2;
 }
 
 .woos-pwa-splash-wordmark-wrap {
@@ -6101,6 +6103,26 @@ details.analyzer-progress-card > summary.progress-compact-summary {
   }
 }
 </style>
+
+/* v10 safety: 텍스트 사진은 JS 로드상태와 무관하게 항상 보이게 고정 */
+.woos-pwa-splash-wordmark-wrap,
+.woos-pwa-splash-wordmark-wrap.is-img-loaded {
+  opacity: 0;
+  animation: woosSplashWordmarkFade 3000ms ease forwards;
+}
+
+.woos-pwa-splash-wordmark-wrap .woos-pwa-splash-wordmark,
+.woos-pwa-splash-wordmark-wrap.is-img-loaded .woos-pwa-splash-wordmark {
+  display: block !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
+.woos-pwa-splash-wordmark-wrap .woos-pwa-splash-wordmark-fallback,
+.woos-pwa-splash-wordmark-wrap.is-img-loaded .woos-pwa-splash-wordmark-fallback {
+  display: none !important;
+}
+
 <!-- [WOOS PWA SPLASH CSS END] -->
 
 </head>
@@ -6186,21 +6208,6 @@ details.analyzer-progress-card > summary.progress-compact-summary {
       }
     } catch(e) {}
   }
-
-
-  var wordmark = document.querySelector('.woos-pwa-splash-wordmark');
-  var wordmarkWrap = document.querySelector('.woos-pwa-splash-wordmark-wrap');
-
-  function markWordmarkLoaded(){
-    if (wordmarkWrap) wordmarkWrap.classList.add('is-img-loaded');
-  }
-
-  if (wordmark && wordmarkWrap) {
-    if (wordmark.complete && wordmark.naturalWidth > 0) {
-      markWordmarkLoaded();
-    } else {
-      wordmark.addEventListener('load', markWordmarkLoaded, { once: true });
-    }
   }
 
   playVideoFromSafePoint();
