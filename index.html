@@ -152,7 +152,7 @@
 <script>
 /* [v4.7.42] 캐시 강제 리셋 — SW 완전 제거 후 리로드 */
 (function(){
-  var VER = 'v4.9.4-fetch-fix-4-splash-1';  // [v4.9.4+] gradeHistory 박제 + v464_rerenderSingleCard에 _gradeChartHtml 박제 (풀바디 시 등급 점 사라짐 fix)
+  var VER = 'v4.9.4-fetch-fix-4-splash-2';  // [v4.9.4+] gradeHistory 박제 + v464_rerenderSingleCard에 _gradeChartHtml 박제 (풀바디 시 등급 점 사라짐 fix)
   try {
     var LKEY = 'woos_hard_reset_ver';
     if (localStorage.getItem(LKEY) === VER) return;
@@ -5986,8 +5986,8 @@ details.analyzer-progress-card > summary.progress-compact-summary {
   transform: translateY(-2vh);
 }
 .woos-pwa-splash-video {
-  width: min(54vw, 230px);
-  max-width: 230px;
+  width: min(68vw, 300px);
+  max-width: 300px;
   height: auto;
   display: block;
   object-fit: contain;
@@ -5996,16 +5996,16 @@ details.analyzer-progress-card > summary.progress-compact-summary {
   animation: woosSplashLogoFade 3000ms ease forwards;
 }
 .woos-pwa-splash-wordmark {
-  width: min(82vw, 380px);
-  max-width: 380px;
+  width: min(42vw, 190px);
+  max-width: 190px;
   height: auto;
   display: block;
   object-fit: contain;
-  margin-top: 18px;
+  margin-top: 6px;
   opacity: 0;
-  transform: translateY(8px);
+  transform: translateY(5px);
   animation: woosSplashWordmarkFade 3000ms ease forwards;
-  filter: drop-shadow(0 0 10px rgba(255,255,255,.18));
+  filter: none;
 }
 @keyframes woosSplashLogoFade {
   0%   { opacity: 0; transform: scale(.955); }
@@ -6014,16 +6014,16 @@ details.analyzer-progress-card > summary.progress-compact-summary {
   100% { opacity: 0; transform: scale(1.018); }
 }
 @keyframes woosSplashWordmarkFade {
-  0%   { opacity: 0; transform: translateY(8px); }
-  24%  { opacity: 0; transform: translateY(8px); }
-  42%  { opacity: 1; transform: translateY(0); }
+  0%   { opacity: 0; transform: translateY(5px); }
+  24%  { opacity: 0; transform: translateY(5px); }
+  40%  { opacity: 1; transform: translateY(0); }
   78%  { opacity: 1; transform: translateY(0); }
-  100% { opacity: 0; transform: translateY(-4px); }
+  100% { opacity: 0; transform: translateY(-3px); }
 }
 @media (max-width: 480px) {
   .woos-pwa-splash-inner { width: 88vw; transform: translateY(-1vh); }
-  .woos-pwa-splash-video { width: min(58vw, 210px); }
-  .woos-pwa-splash-wordmark { width: min(86vw, 360px); margin-top: 14px; }
+  .woos-pwa-splash-video { width: min(70vw, 280px); }
+  .woos-pwa-splash-wordmark { width: min(42vw, 180px); margin-top: 5px; filter: none; }
 }
 @media (prefers-reduced-motion: reduce) {
   .woos-pwa-splash-video,
@@ -7131,7 +7131,7 @@ async function opsDashboard() {
 // 탭 시 상세 팝업
 // ═══════════════════════════════════════════════════════════════
 
-var HTML_VERSION = 'v4.9.4-fetch-fix-4-splash-1';  // [v4.9.4+] _gradeChartHtml 박제 추가 (rerenderSingleCard 흐름)
+var HTML_VERSION = 'v4.9.4-fetch-fix-4-splash-2';  // [v4.9.4+] _gradeChartHtml 박제 추가 (rerenderSingleCard 흐름)
 var _cachedBuildInfo = null;
 
 // [State Lock 2 Action fix-2c] 패치 확인용 — 페이지 로드 시 버전명 출력 (DevTools 콘솔)
