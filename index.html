@@ -152,7 +152,7 @@
 <script>
 /* [v4.7.42] 캐시 강제 리셋 — SW 완전 제거 후 리로드 */
 (function(){
-  var VER = 'v4.9.7-fix1';  // Body Cache + Queue Lock fix1 — fetchTrackingData window 노출 + group rep swap + 진단 로그
+  var VER = 'v4.9.7-fix2';  // 긴급 회귀 차단 — auto prewarm 차단 + 표준 enqueue 차단 + 3초 타임아웃 + 단일 실행 + DEBUG 카운터
   try {
     var LKEY = 'woos_hard_reset_ver';
     if (localStorage.getItem(LKEY) === VER) return;
@@ -5624,11 +5624,14 @@ details.v477-track-card:not([open]) {
 .lite-price-row b.loss { color: #ff8c42; }
 .lite-hint { font-size: 0.7rem; color: rgba(190,220,255,.45); text-align: center; margin-top: 8px; padding: 4px; }
 
-/* [v4.9.7] Body Cache + Queue — loading / stale badge */
+/* [v4.9.7] Body Cache + Queue — loading / stale badge / error */
 .woos-fullbody-loading { padding: 24px 16px; min-height: 80px; display: flex; align-items: center; justify-content: center; }
 .woos-fullbody-loading .lite-hint { font-size: 0.78rem; color: rgba(190,220,255,.7); margin-top: 0; }
 .woos-stale-badge { font-size: 0.7rem; color: rgba(255,200,100,.85); background: rgba(255,180,80,.08); border: 1px solid rgba(255,180,80,.18); border-radius: 6px; padding: 3px 8px; margin: 6px 8px 0; display: inline-block; }
 .woos-body-stale { opacity: 0.92; }
+.woos-body-error { padding: 20px 16px; min-height: 64px; display: flex; align-items: center; justify-content: center; background: rgba(255,80,80,.05); border-radius: 8px; }
+.woos-body-error .lite-hint { color: rgba(255,150,150,.85); margin-top: 0; }
+.woos-body-error .woos-err-reason { color: rgba(255,150,150,.55); font-size: 0.66rem; margin-left: 4px; }
 
 /* 펼침 내부 주요 박스류를 읽기 쉬운 유리 카드로 통일 */
 details.v477-track-card[open] .progress-rich-body .metric-card,
@@ -7038,12 +7041,12 @@ async function opsDashboard() {
 // 탭 시 상세 팝업
 // ═══════════════════════════════════════════════════════════════
 
-var HTML_VERSION = 'v4.9.7-fix1';  // Body Cache + Queue Lock fix1 — fetchTrackingData 노출 + group rep swap
+var HTML_VERSION = 'v4.9.7-fix2';  // 긴급 회귀 차단 — auto prewarm 차단 + 표준 차단 + 3초 timeout + 단일 실행 + DEBUG
 var _cachedBuildInfo = null;
 
 // [State Lock 2 Action fix-2c] 패치 확인용 — 페이지 로드 시 버전명 출력 (DevTools 콘솔)
 try {
-  console.log('[WOOS] ' + HTML_VERSION + ' loaded — Body Cache + Queue Lock (fix1)');
+  console.log('[WOOS] ' + HTML_VERSION + ' loaded — 긴급 회귀 차단 (auto prewarm OFF, 3s timeout, single concurrent)');
   window.WOOS_VERSION = HTML_VERSION;
 } catch(e) {}
 
@@ -16582,10 +16585,23 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
      */
     var V497_CACHE_TTL_MS = 60 * 1000;  // 60초
     var V497_QUEUE_INTERVAL_MS = 400;
+    var V497_BUILD_TIMEOUT_MS = 3000;  // [fix2] 3초 타임아웃 (분 단위 대기 절대 금지)
     var v497_cache = (typeof Map === 'function') ? new Map() : null;
     var v497_queue = [];
     var v497_running = (typeof Set === 'function') ? new Set() : null;
     var v497_workerStarted = false;
+
+    // [fix2] 전역 가드 — 자동 prewarm 끄기, on-demand only, 동시 실행 1개
+    try {
+      if (typeof window.WOOS_BODY_QUEUE_AUTO_ENABLED === 'undefined') window.WOOS_BODY_QUEUE_AUTO_ENABLED = false;
+      if (typeof window.WOOS_BODY_ONDEMAND_ONLY === 'undefined') window.WOOS_BODY_ONDEMAND_ONLY = true;
+      window.WOOS_BODY_RUNNING_ONE = window.WOOS_BODY_RUNNING_ONE || null;
+      window.WOOS_BODY_DEBUG = window.WOOS_BODY_DEBUG || {
+        enqueue: 0, start: 0, done: 0, error: 0,
+        cacheHit: 0, cacheMiss: 0, standardBlocked: 0,
+        fetchStart: 0, fetchDone: 0, timeout: 0, dedupe: 0
+      };
+    } catch(_){}
 
     function v497_buildJobKey(cardKey, snapshotId) {
       return String(cardKey || '') + '|' + String(snapshotId || '');
@@ -16603,14 +16619,30 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
     }
     function v497_enqueue(job) {
       if (!job || !job.jobKey) return;
+      // [fix2] 표준 explicit guard — displayMode === 'standard' 카드는 절대 enqueue 금지
+      if (job.displayMode === 'standard') {
+        try { window.WOOS_BODY_DEBUG.standardBlocked++; } catch(_){}
+        try { console.warn('[v497] standard enqueue BLOCKED', job.jobKey); } catch(_){}
+        return;
+      }
+      // [fix2] on-demand only — 사용자 직접 open 카드만 (priority 100)
+      if (window.WOOS_BODY_ONDEMAND_ONLY && (job.priority || 0) < 100) {
+        try { console.log('[v497] non-ondemand enqueue blocked', job.jobKey, 'priority', job.priority); } catch(_){}
+        return;
+      }
       // dedupe — 같은 jobKey 이미 queue 또는 running이면 priority 갱신만
-      if (v497_running && v497_running.has(job.jobKey)) return;
+      if (v497_running && v497_running.has(job.jobKey)) {
+        try { window.WOOS_BODY_DEBUG.dedupe++; } catch(_){}
+        return;
+      }
       var existing = v497_queue.filter(function(j){ return j.jobKey === job.jobKey; })[0];
       if (existing) {
         if ((job.priority || 0) > (existing.priority || 0)) existing.priority = job.priority;
+        try { window.WOOS_BODY_DEBUG.dedupe++; } catch(_){}
         return;
       }
       v497_queue.push(job);
+      try { window.WOOS_BODY_DEBUG.enqueue++; } catch(_){}
     }
     function v497_loadingBody(label) {
       label = label || '데이터 준비 중';
@@ -16621,14 +16653,48 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
     function v497_staleBadge() {
       return '<div class="woos-stale-badge">🔄 최신 데이터 갱신 중...</div>';
     }
+    function v497_errorBody(reason) {
+      return '<div class="progress-rich-body woos-body woos-body-error" data-body-error="1">'
+           + '<div class="lite-hint">⚠ 상세 정보 생성 지연 — 다시 열어주세요. <span class="woos-err-reason">(' + v40_escapeHtml(reason || 'timeout') + ')</span></div>'
+           + '</div>';
+    }
+    function v497_withTimeout(promise, ms) {
+      return new Promise(function(resolve, reject){
+        var done = false;
+        var t = setTimeout(function(){
+          if (done) return;
+          done = true;
+          reject(new Error('v497 timeout ' + ms + 'ms'));
+        }, ms);
+        promise.then(function(v){
+          if (done) return;
+          done = true;
+          clearTimeout(t);
+          resolve(v);
+        }, function(e){
+          if (done) return;
+          done = true;
+          clearTimeout(t);
+          reject(e);
+        });
+      });
+    }
     function v497_processQueue() {
       if (!v497_queue.length) return;
+      // [fix2] 동시 실행 1개 강제 — 이미 running이 있으면 새 작업 시작 X
+      if (v497_running && v497_running.size >= 1) return;
       // priority desc 정렬
       v497_queue.sort(function(a, b){ return (b.priority || 0) - (a.priority || 0); });
       var job = v497_queue.shift();
       if (!job || !job.jobKey || !job.snapshotId) return;
       if (v497_running && v497_running.has(job.jobKey)) return;
       if (v497_running) v497_running.add(job.jobKey);
+      try { window.WOOS_BODY_RUNNING_ONE = job.jobKey; window.WOOS_BODY_DEBUG.start++; } catch(_){}
+
+      var clearRunning = function(){
+        if (v497_running) v497_running['delete'](job.jobKey);
+        try { if (window.WOOS_BODY_RUNNING_ONE === job.jobKey) window.WOOS_BODY_RUNNING_ONE = null; } catch(_){}
+      };
 
       var cache = window._activeItemsCache || [];
       var track = null;
@@ -16638,15 +16704,12 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
         if ((it.snapshotId || it.id) === job.snapshotId) { track = it; break; }
       }
       if (!track) {
-        try { console.warn('[v497] track not found for', job.snapshotId); } catch(_){}
-        if (v497_running) v497_running['delete'](job.jobKey);
+        try { window.WOOS_BODY_DEBUG.error++; console.warn('[v497] track not found for', job.snapshotId); } catch(_){}
+        clearRunning();
         return;
       }
 
-      // [v4.9.7-fix1] samples 우선순위:
-      //   1. window._trackingMap[sid].samples (이미 받은 캐시)
-      //   2. window.fetchTrackingData(sid, true) (BRIDGE IIFE 노출 함수)
-      //   3. v40_normalizeSamples(track) (track 박제 데이터)
+      // [fix2] samples 우선순위 — _trackingMap 캐시 → fetchTrackingData (inFlight/30s cache 재사용) → track 박제
       var existingTd = (window._trackingMap && window._trackingMap[job.snapshotId]) || null;
       var hasCachedSamples = existingTd && Array.isArray(existingTd.samples) && existingTd.samples.length > 0;
       var fetcher = window.fetchTrackingData;
@@ -16654,14 +16717,17 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       if (hasCachedSamples) {
         fetchPromise = Promise.resolve(existingTd);
       } else if (typeof fetcher === 'function') {
+        try { window.WOOS_BODY_DEBUG.fetchStart++; } catch(_){}
         fetchPromise = fetcher(job.snapshotId, true);
       } else {
         try { console.warn('[v497] fetchTrackingData unavailable'); } catch(_){}
         fetchPromise = Promise.resolve(null);
       }
 
-      fetchPromise.then(function(td){
+      // [fix2] 3초 타임아웃 — 분 단위 대기 차단
+      v497_withTimeout(fetchPromise, V497_BUILD_TIMEOUT_MS).then(function(td){
         try {
+          try { if (!hasCachedSamples) window.WOOS_BODY_DEBUG.fetchDone++; } catch(_){}
           if (td) {
             try { window._trackingMap[job.snapshotId] = td; } catch(_e){}
           }
@@ -16675,10 +16741,9 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
           var metrics = v40_computeLiveMetrics(samples, entryInfo.value, levels, prefetched);
           var html = v40_buildExpandedBody(track, samples, metrics, entryInfo, levels, { vm: job.vm });
           v497_cacheSet(job.jobKey, html, '0');
+          try { window.WOOS_BODY_DEBUG.done++; } catch(_){}
 
-          // [v4.9.7-fix1] DOM 업데이트 — single + group 모두 처리
-          //   single: card > .progress-rich-body 통째 교체
-          //   group:  card .woos-group-rep 의 children 만 교체 (overlay/minis/header 보존)
+          // [fix2] DOM 업데이트 — body wrapper 또는 group rep만 교체 (card/details/container 전체 교체 절대 금지)
           try {
             var card = document.querySelector('details[data-snapshot-id="' + job.snapshotId + '"][data-job-key="' + job.jobKey + '"]');
             if (!card) {
@@ -16687,7 +16752,7 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
               var cls = card.className;
               var isWatchOrDeep = (cls.indexOf('is-watch') >= 0) || (cls.indexOf('is-deep') >= 0);
               if (!isWatchOrDeep) {
-                try { console.log('[v497] mode mismatch (not watch/deep) — skip swap', cls); } catch(_){}
+                try { console.log('[v497] mode mismatch — skip swap', cls); } catch(_){}
               } else {
                 var groupSize = parseInt(card.getAttribute('data-group-size') || '0', 10);
                 var isGroup = groupSize >= 2;
@@ -16697,22 +16762,16 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
                 if (!newBody) {
                   try { console.warn('[v497] empty html — skip swap'); } catch(_){}
                 } else if (isGroup) {
-                  // group: 대표 영역 교체 — woos-group-rep 의 children 만
+                  // group: 대표 영역만 — woos-group-rep 의 innerHTML 교체 (overlay/minis 보존)
                   var repWrap = card.querySelector('.progress-rich-body.woos-group-rep, .progress-rich-body .woos-group-rep, .woos-group-rep');
                   if (repWrap) {
                     repWrap.innerHTML = newBody.innerHTML;
-                    try { console.log('[v497] group rep swapped', job.jobKey); } catch(_){}
-                  } else {
-                    try { console.warn('[v497] group rep not found'); } catch(_){}
                   }
                 } else {
-                  // single: body wrapper 통째 교체
+                  // single: body wrapper만 교체 (card outerHTML / container.innerHTML 절대 X)
                   var bodyWrap = card.querySelector('.progress-rich-body');
                   if (bodyWrap && bodyWrap.parentNode) {
                     bodyWrap.parentNode.replaceChild(newBody, bodyWrap);
-                    try { console.log('[v497] single body swapped', job.jobKey); } catch(_){}
-                  } else {
-                    try { console.warn('[v497] single bodyWrap not found'); } catch(_){}
                   }
                 }
               }
@@ -16721,22 +16780,50 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
             try { console.warn('[v497] DOM swap error', eDom && eDom.message); } catch(_){}
           }
         } catch(eBuild) {
-          try { console.warn('[v497] build failed', eBuild && eBuild.message, eBuild && eBuild.stack); } catch(_){}
+          try { window.WOOS_BODY_DEBUG.error++; console.warn('[v497] build failed', eBuild && eBuild.message); } catch(_){}
+          // [fix2] 빌드 실패 시 error body 표시
+          try {
+            var errCard = document.querySelector('details[data-snapshot-id="' + job.snapshotId + '"][data-job-key="' + job.jobKey + '"]');
+            if (errCard) {
+              var errWrap = errCard.querySelector('.progress-rich-body');
+              if (errWrap && errWrap.parentNode) {
+                var errTmp = document.createElement('div');
+                errTmp.innerHTML = v497_errorBody('build failed');
+                if (errTmp.firstElementChild) errWrap.parentNode.replaceChild(errTmp.firstElementChild, errWrap);
+              }
+            }
+          } catch(_){}
         } finally {
-          if (v497_running) v497_running['delete'](job.jobKey);
+          clearRunning();
         }
-      })['catch'](function(eFetch){
-        try { console.warn('[v497] fetch error', eFetch && eFetch.message); } catch(_){}
-        if (v497_running) v497_running['delete'](job.jobKey);
+      })['catch'](function(eTimeoutOrFetch){
+        try {
+          window.WOOS_BODY_DEBUG.error++;
+          if (eTimeoutOrFetch && /timeout/.test(eTimeoutOrFetch.message)) window.WOOS_BODY_DEBUG.timeout++;
+          console.warn('[v497] timeout/fetch error', eTimeoutOrFetch && eTimeoutOrFetch.message);
+        } catch(_){}
+        // [fix2] 타임아웃 시 error body 표시
+        try {
+          var toCard = document.querySelector('details[data-snapshot-id="' + job.snapshotId + '"][data-job-key="' + job.jobKey + '"]');
+          if (toCard) {
+            var toWrap = toCard.querySelector('.progress-rich-body');
+            if (toWrap && toWrap.parentNode) {
+              var toTmp = document.createElement('div');
+              toTmp.innerHTML = v497_errorBody('3s timeout');
+              if (toTmp.firstElementChild) toWrap.parentNode.replaceChild(toTmp.firstElementChild, toWrap);
+            }
+          }
+        } catch(_){}
+        clearRunning();
       });
     }
     function v497_startWorker() {
       if (v497_workerStarted) return;
       v497_workerStarted = true;
       setInterval(v497_processQueue, V497_QUEUE_INTERVAL_MS);
-      try { console.log('[v497] worker started — interval', V497_QUEUE_INTERVAL_MS, 'ms'); } catch(_){}
+      try { console.log('[v497] worker started — interval', V497_QUEUE_INTERVAL_MS, 'ms, timeout', V497_BUILD_TIMEOUT_MS, 'ms'); } catch(_){}
     }
-    // [v4.9.7-fix1] 진단용 window 노출
+    // [fix2] 진단용 window 노출
     try {
       window.v497_cache = v497_cache;
       window.v497_queue = v497_queue;
@@ -16744,6 +16831,10 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       window.v497_processQueue = v497_processQueue;
       window.v497_buildJobKey = v497_buildJobKey;
       window.v497_cacheGet = v497_cacheGet;
+      window.WOOS_BODY_QUEUE = v497_queue;
+      window.WOOS_BODY_QUEUED = v497_running;  // (호환 별칭 — 사용자 디버그 명령어용)
+      window.WOOS_BODY_RUNNING = v497_running;
+      window.WOOS_BODY_CACHE = v497_cache;
     } catch(_){}
 
     /* 펼친 카드의 본문 (summary 제외) — 기존 details/summary 구조에 끼워 넣기용 */
@@ -17387,21 +17478,24 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       if (!v495_isExpanded) {
         v495_body = '<div class="woos-lazy-expanded-body" data-lazy-body="1"></div>';
       } else if (v495_detailLevel === 'full') {
-        // [v4.9.7] Body Cache + Queue — cache 우선, miss는 loading + queue
+        // [v4.9.7-fix2] Body Cache + Queue — cache 우선, miss는 loading + on-demand queue (priority 100)
         try { v497_startWorker(); } catch(_e7){}
         var v497_jobKey = opts.jobKey || '';
         var v497_snapId = track.snapshotId || track.id || '';
         var v497_cached = v497_jobKey ? v497_cacheGet(v497_jobKey) : null;
         if (v497_cached && v497_cached.fresh) {
           v495_body = v497_cached.html;  // fresh hit → 즉시 표시
+          try { window.WOOS_BODY_DEBUG.cacheHit++; } catch(_){}
         } else if (v497_cached && !v497_cached.fresh) {
-          // stale hit → 이전 body 표시 + 'stale' badge + 백그라운드 갱신 queue
+          // stale hit → 이전 body + 'stale' badge + 백그라운드 갱신 queue
           v495_body = v497_cached.html.replace('<div class="progress-rich-body', v497_staleBadge() + '<div class="progress-rich-body');
-          if (v497_jobKey) v497_enqueue({ jobKey: v497_jobKey, snapshotId: v497_snapId, vm: opts.vm, priority: 100 });
+          try { window.WOOS_BODY_DEBUG.cacheHit++; } catch(_){}
+          if (v497_jobKey) v497_enqueue({ jobKey: v497_jobKey, snapshotId: v497_snapId, vm: opts.vm, priority: 100, displayMode: v495_displayMode });
         } else {
           // miss → loading body + queue enqueue (priority 100 = 사용자가 연 카드)
           v495_body = v497_loadingBody('정밀/관심 상세 데이터');
-          if (v497_jobKey) v497_enqueue({ jobKey: v497_jobKey, snapshotId: v497_snapId, vm: opts.vm, priority: 100 });
+          try { window.WOOS_BODY_DEBUG.cacheMiss++; } catch(_){}
+          if (v497_jobKey) v497_enqueue({ jobKey: v497_jobKey, snapshotId: v497_snapId, vm: opts.vm, priority: 100, displayMode: v495_displayMode });
         }
       } else {
         v495_body = v40_buildStandardLiteBody(track, metrics, entryInfo, levels, opts);
