@@ -152,7 +152,7 @@
 <script>
 /* [v4.7.42] 캐시 강제 리셋 — SW 완전 제거 후 리로드 */
 (function(){
-  var VER = 'v4.9.4-fetch-fix-2';  // [v4.9.4+] fetch 병목 제거 + _updateExpandedCard 차단 (v3 카드 교체 → 등급 그래프 손실/깜빡임/카드 닫기 깨짐 회귀 fix)
+  var VER = 'v4.9.4-fetch-fix-3';  // [v4.9.4+] gradeHistory 박제 추가 (등급 점 그래프 1~2점 → 정확 표시)
   try {
     var LKEY = 'woos_hard_reset_ver';
     if (localStorage.getItem(LKEY) === VER) return;
@@ -6987,7 +6987,7 @@ async function opsDashboard() {
 // 탭 시 상세 팝업
 // ═══════════════════════════════════════════════════════════════
 
-var HTML_VERSION = 'v4.9.4-fetch-fix-2';  // [v4.9.4+] fetch 병목 + _updateExpandedCard 차단 (등급 그래프/카드 닫기/깜빡임 fix)
+var HTML_VERSION = 'v4.9.4-fetch-fix-3';  // [v4.9.4+] gradeHistory 박제 추가 (등급 점 그래프 정확 표시)
 var _cachedBuildInfo = null;
 
 // [State Lock 2 Action fix-2c] 패치 확인용 — 페이지 로드 시 버전명 출력 (DevTools 콘솔)
@@ -11255,6 +11255,10 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
           isWatchlist: item.isWatchlist || false,
           isAutoPrecise: item.isAutoPrecise || false,
           tierARejected: item.tierARejected || false,
+          // [v4.9.4-fetch-fix-3] gradeHistory 박제 — Worker /tracking/active 응답에 포함됨 (45/55 active items)
+          //   v47_buildGradeChangeChart의 group.items[].gradeHistory source → 등급 점 그래프 정확 표시
+          //   누락 시 group.items 1점만 합성 → 등급 변화 1~2점 (사용자 보고 회귀)
+          gradeHistory: Array.isArray(item.gradeHistory) ? item.gradeHistory : null,
           sCount24: item.sCount24 || 0,
           aCount24: item.aCount24 || 0,
           alertCount: item.alertCount || item.alarmCount24 || item.sCount24 || item.aCount24 || 1,
@@ -18172,6 +18176,8 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
               isWatchlist: item.isWatchlist || false,
               isAutoPrecise: item.isAutoPrecise || false,
               tierARejected: item.tierARejected || false,
+              // [v4.9.4-fetch-fix-3] gradeHistory 박제 (autoRefreshTracking) — 60s 갱신마다 정확 반영
+              gradeHistory: Array.isArray(item.gradeHistory) ? item.gradeHistory : null,
               sCount24: item.sCount24 || 0,
               aCount24: item.aCount24 || 0,
             };
