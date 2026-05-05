@@ -152,7 +152,7 @@
 <script>
 /* [v4.7.42] 캐시 강제 리셋 — SW 완전 제거 후 리로드 */
 (function(){
-  var VER = 'v4.9.7-fix3';  // fix3 — NaN 입력 가드 + mode mismatch 진단 강화 (vm flipping 노출)
+  var VER = 'v4.9.7-fix4';  // fix4 — timeout 5s + Lite fallback (NaN/timeout 시 사용자에게 즉시 뭔가 표시)
   try {
     var LKEY = 'woos_hard_reset_ver';
     if (localStorage.getItem(LKEY) === VER) return;
@@ -7041,12 +7041,12 @@ async function opsDashboard() {
 // 탭 시 상세 팝업
 // ═══════════════════════════════════════════════════════════════
 
-var HTML_VERSION = 'v4.9.7-fix3';  // fix3 — NaN 입력 가드 + mode mismatch 진단 강화
+var HTML_VERSION = 'v4.9.7-fix4';  // fix4 — timeout 5s + Lite fallback (즉시 표시)
 var _cachedBuildInfo = null;
 
 // [State Lock 2 Action fix-2c] 패치 확인용 — 페이지 로드 시 버전명 출력 (DevTools 콘솔)
 try {
-  console.log('[WOOS] ' + HTML_VERSION + ' loaded — NaN guard + mode mismatch 진단');
+  console.log('[WOOS] ' + HTML_VERSION + ' loaded — timeout 5s + Lite fallback');
   window.WOOS_VERSION = HTML_VERSION;
 } catch(e) {}
 
@@ -16585,7 +16585,7 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
      */
     var V497_CACHE_TTL_MS = 60 * 1000;  // 60초
     var V497_QUEUE_INTERVAL_MS = 400;
-    var V497_BUILD_TIMEOUT_MS = 3000;  // [fix2] 3초 타임아웃 (분 단위 대기 절대 금지)
+    var V497_BUILD_TIMEOUT_MS = 5000;  // [fix4] 5초 타임아웃 (Worker 응답 지연 여유, 분 단위 대기는 여전히 차단)
     var v497_cache = (typeof Map === 'function') ? new Map() : null;
     var v497_queue = [];
     var v497_running = (typeof Set === 'function') ? new Set() : null;
@@ -16733,27 +16733,36 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
           }
           var samples = (td && td.samples) || v40_normalizeSamples(track);
           var entryInfo = v40_resolveEntryPrice(track, samples);
-          // [fix3] NaN/empty 입력 가드 — SVG NaN 폭탄 방지
+          // [fix4] NaN/empty 입력 가드 — Lite Body fallback (사용자에게 뭔가는 보여줌)
           //   samples 빈 배열 / entryInfo.value 비유한 → buildExpandedBody가 SVG NaN 생성
-          //   v40_generateTrackingSVGChart이 throw 안 하고 NaN 좌표 그대로 출력
-          //   이런 데이터로 cache 채우면 다음 cache hit도 NaN 표시
+          //   → Lite Body로 fallback (헤더/가격/MFE/MAE/현재가 표시, SVG/세력판단/도달타임라인 없음)
+          //   cache 안 함 → 다음 render cycle (samples 받은 후) 자연 재시도
           if (!Array.isArray(samples) || samples.length === 0 || !isFinite(entryInfo.value)) {
-            try { console.warn('[v497] insufficient input — skip build', { jobKey: job.jobKey, samples: samples && samples.length, entryValue: entryInfo && entryInfo.value }); } catch(_){}
-            var insufficientHtml = v497_errorBody('샘플 데이터 부족 — 1~2분 후 자동 재시도');
-            // cache는 짧게 (TTL 만료 직전에 둬서 다음 render에서 재시도되도록)
-            v497_cacheSet(job.jobKey, insufficientHtml, '0');
-            try { window.WOOS_BODY_DEBUG.error++; } catch(_){}
+            try { console.warn('[v497] insufficient input → Lite fallback', { jobKey: job.jobKey, samples: samples && samples.length, entryValue: entryInfo && entryInfo.value }); } catch(_){}
             try {
-              var insCard = document.querySelector('details[data-snapshot-id="' + job.snapshotId + '"][data-job-key="' + job.jobKey + '"]');
-              if (insCard) {
-                var insBodyWrap = insCard.querySelector('.progress-rich-body');
-                if (insBodyWrap && insBodyWrap.parentNode) {
-                  var insTmp = document.createElement('div');
-                  insTmp.innerHTML = insufficientHtml;
-                  if (insTmp.firstElementChild) insBodyWrap.parentNode.replaceChild(insTmp.firstElementChild, insBodyWrap);
+              var fbLevels = v40_resolveLevels(track, entryInfo.value);
+              var fbPrefetched = (track.prefetchedCurrentPct != null) ? {
+                currentPct: track.prefetchedCurrentPct, mfe: track.prefetchedMfe, mae: track.prefetchedMae,
+                lastPrice: track.prefetchedLastPrice, sampleT: track.prefetchedSampleT
+              } : null;
+              var fbMetrics = v40_computeLiveMetrics(samples || [], entryInfo.value, fbLevels, fbPrefetched);
+              var liteHtml = v40_buildStandardLiteBody(track, fbMetrics, entryInfo, fbLevels, { vm: job.vm });
+              // cache 안 함 (다음 cycle에서 samples 들어오면 재시도)
+              try { window.WOOS_BODY_DEBUG.error++; } catch(_){}
+              try {
+                var insCard = document.querySelector('details[data-snapshot-id="' + job.snapshotId + '"][data-job-key="' + job.jobKey + '"]');
+                if (insCard) {
+                  var insBodyWrap = insCard.querySelector('.progress-rich-body');
+                  if (insBodyWrap && insBodyWrap.parentNode) {
+                    var insTmp = document.createElement('div');
+                    insTmp.innerHTML = liteHtml;
+                    if (insTmp.firstElementChild) insBodyWrap.parentNode.replaceChild(insTmp.firstElementChild, insBodyWrap);
+                  }
                 }
-              }
-            } catch(_){}
+              } catch(_){}
+            } catch(eFb) {
+              try { console.warn('[v497] lite fallback failed', eFb && eFb.message); } catch(_){}
+            }
             clearRunning();
             return;
           }
@@ -16830,20 +16839,32 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
         try {
           window.WOOS_BODY_DEBUG.error++;
           if (eTimeoutOrFetch && /timeout/.test(eTimeoutOrFetch.message)) window.WOOS_BODY_DEBUG.timeout++;
-          console.warn('[v497] timeout/fetch error', eTimeoutOrFetch && eTimeoutOrFetch.message);
+          console.warn('[v497] timeout/fetch error → Lite fallback', eTimeoutOrFetch && eTimeoutOrFetch.message);
         } catch(_){}
-        // [fix2] 타임아웃 시 error body 표시
+        // [fix4] 타임아웃 시 Lite Body fallback (사용자에게 즉시 뭔가 보여줌)
+        //   cache 안 함 → 다음 cycle 재시도 (Worker 응답 빨라지면 Full Body 자동 표시)
         try {
+          var toSamples = v40_normalizeSamples(track) || [];
+          var toEntryInfo = v40_resolveEntryPrice(track, toSamples);
+          var toLevels = v40_resolveLevels(track, toEntryInfo.value);
+          var toPrefetched = (track.prefetchedCurrentPct != null) ? {
+            currentPct: track.prefetchedCurrentPct, mfe: track.prefetchedMfe, mae: track.prefetchedMae,
+            lastPrice: track.prefetchedLastPrice, sampleT: track.prefetchedSampleT
+          } : null;
+          var toMetrics = v40_computeLiveMetrics(toSamples, toEntryInfo.value, toLevels, toPrefetched);
+          var toLiteHtml = v40_buildStandardLiteBody(track, toMetrics, toEntryInfo, toLevels, { vm: job.vm });
           var toCard = document.querySelector('details[data-snapshot-id="' + job.snapshotId + '"][data-job-key="' + job.jobKey + '"]');
           if (toCard) {
             var toWrap = toCard.querySelector('.progress-rich-body');
             if (toWrap && toWrap.parentNode) {
               var toTmp = document.createElement('div');
-              toTmp.innerHTML = v497_errorBody('3s timeout');
+              toTmp.innerHTML = toLiteHtml;
               if (toTmp.firstElementChild) toWrap.parentNode.replaceChild(toTmp.firstElementChild, toWrap);
             }
           }
-        } catch(_){}
+        } catch(eToFb) {
+          try { console.warn('[v497] timeout lite fallback failed', eToFb && eToFb.message); } catch(_){}
+        }
         clearRunning();
       });
     }
