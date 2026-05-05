@@ -152,7 +152,7 @@
 <script>
 /* [v4.7.42] 캐시 강제 리셋 — SW 완전 제거 후 리로드 */
 (function(){
-  var VER = 'v4.9.4-fetch-fix-4-splash-v13-user-image-wordmark';  // [v4.9.4+] gradeHistory 박제 + v464_rerenderSingleCard에 _gradeChartHtml 박제 (풀바디 시 등급 점 사라짐 fix)
+  var VER = 'v4.9.4+completed-modal-fix';  // [v4.9.4+] 분석 완료 자동 이관 (w1_filterVMs 'all' expired 제외) + 도달 타임라인 모달 작동 + ⓘ 위치
   try {
     var LKEY = 'woos_hard_reset_ver';
     if (localStorage.getItem(LKEY) === VER) return;
@@ -4422,6 +4422,37 @@ details.progress-rich-card.woos-group[open] { border-color: rgba(124, 58, 237, 0
   font-weight: 600;
 }
 .woos-tl-items { display: flex; justify-content: space-between; align-items: flex-start; position: relative; z-index: 1; }
+/* [v4.9.4+ ⓘ 위치] 도달 타임라인 ⓘ — 우측 끝 위 (사용자 결정)
+ *   - 기존 .info-icon CSS는 그대로 유지 (모달 본체 색상 영향 X)
+ *   - .woos-timeline-info 클래스만 추가 — position: absolute로 우측 끝 위
+ *   - button 형식 + aria-label (접근성)
+ *   - 모달 자체 디자인/색상은 기존 유지 */
+.woos-timeline-info {
+  position: absolute;
+  top: 4px;
+  right: 8px;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  background: rgba(0, 229, 255, .12);
+  color: #00d4ff;
+  border-radius: 50%;
+  font-size: 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+  transition: background .15s, transform .15s;
+}
+.woos-timeline-info:hover {
+  background: rgba(0, 229, 255, .25);
+  transform: scale(1.08);
+}
+.woos-timeline-info:active {
+  transform: scale(0.95);
+}
 .woos-tl-item { display: flex; flex-direction: column; align-items: center; flex: 1; min-width: 0; }
 .woos-tl-dot { width: 12px; height: 12px; border-radius: 50%; background: rgba(255,255,255,0.15); margin-bottom: 6px; transition: all 0.3s; }
 .woos-tl-dot-reached { background: #00d4ff; box-shadow: 0 0 6px #00d4ff; }
@@ -7177,7 +7208,7 @@ async function opsDashboard() {
 // 탭 시 상세 팝업
 // ═══════════════════════════════════════════════════════════════
 
-var HTML_VERSION = 'v4.9.4-fetch-fix-4';  // [v4.9.4+] _gradeChartHtml 박제 추가 (rerenderSingleCard 흐름)
+var HTML_VERSION = 'v4.9.4+completed-modal-fix';  // [v4.9.4+] 분석 완료 자동 이관 + 도달 타임라인 모달 작동 + ⓘ 위치
 var _cachedBuildInfo = null;
 
 // [State Lock 2 Action fix-2c] 패치 확인용 — 페이지 로드 시 버전명 출력 (DevTools 콘솔)
@@ -12182,7 +12213,17 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
    */
   function w1_filterVMs(vms, activeFilter) {
     vms = Array.isArray(vms) ? vms : [];
-    if (!activeFilter || activeFilter === 'all') return vms.slice();
+    // [v4.9.4+ 분석 완료 자동 이관] 'all' 필터에서 expired 자동 제외
+    //   - 분석 중 탭에는 진행 중 카드만 표시
+    //   - 만료된 카드는 'expired' 필터(분석 완료 탭)에서만 표시
+    //   - v462_buildHistoryCard 인프라 그대로 활용 (별도 수정 X)
+    if (!activeFilter || activeFilter === 'all') {
+      return vms.filter(function(vm) {
+        if (!vm) return false;
+        var dm = (vm.modeState && vm.modeState.displayMode) || 'standard';
+        return dm !== 'expired';  // 만료 제외
+      });
+    }
     return vms.filter(function(vm) {
       if (!vm) return false;
       var dm = (vm.modeState && vm.modeState.displayMode) || 'standard';
@@ -13966,8 +14007,14 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       return '<div class="woos-timeline">'
            + '<div class="woos-timeline-header">'
            +   '<span class="woos-timeline-title">도달 타임라인</span>'
-           + '<span class="info-icon" onclick="window.v47ShowInfoModal && window.v47ShowInfoModal(\'reach-timeline\')" title="도달 타임라인 — 알람 후 +3/+5/TP1/MFE/MAE 까지 시간">ⓘ</span>'
            + '</div>'
+           // [v4.9.4+ 모달 작동 + 위치 변경] 사용자 결정:
+           //   1. 'reach-timeline' → 'timeline' (V47_INFO_MODAL_DEFS 등록된 정확한 키)
+           //      → 이전: 등록 안 된 키로 호출 → 모달 작동 X
+           //   2. ⓘ 위치를 도달 타임라인 우측 끝 위로 변경 (position: absolute)
+           //   3. button 형식 + aria-label (접근성)
+           //   4. 모달 디자인/색상은 기존 유지 (V47_INFO_MODAL_DEFS 본체 수정 X)
+           + '<button type="button" class="info-icon woos-timeline-info" onclick="window.v47ShowInfoModal && window.v47ShowInfoModal(\'timeline\')" aria-label="도달 타임라인 설명" title="도달 타임라인 — 알람 후 +3/+5/TP1/MFE/MAE 까지 시간">ⓘ</button>'
            + '<div class="woos-tl-line"></div><div class="woos-tl-items">' + dotsHtml + '</div></div>';
     }
     
