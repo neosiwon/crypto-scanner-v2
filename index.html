@@ -152,7 +152,7 @@
 <script>
 /* [v4.7.42] 캐시 강제 리셋 — SW 완전 제거 후 리로드 */
 (function(){
-  var VER = 'v4.9.6-standard-lite-heavy-cache';  // [v4.9.6] 표준 Lite + 관심/정밀 Full Body Cache + Priority Queue + 카드헤더 % fallback
+  var VER = 'v4.9.6-scoring-gradeflow-newcard-fix';  // [v4.9.6+] Lite 폐기 + 스캐너 채점/등급 흐름 cache + 신규 카드 % 표시 정상화 (prefetched 조건 OR)
   try {
     var LKEY = 'woos_hard_reset_ver';
     if (localStorage.getItem(LKEY) === VER) return;
@@ -3849,74 +3849,6 @@ details.progress-rich-card.woos-group[open] { border-color: rgba(124, 58, 237, 0
  * [v4.9.5+ 그래프 제거] 등급 흐름 텍스트 표시 (SVG 그래프 대체)
  * 거래소 한 줄 통합 표기: A(BIN) → S(BIT) → S(UPB) → A(BIN)
  * ═══════════════════════════════════════════════════════════ */
-/* ═══════════════════════════════════════════════════════════
- * [v4.9.6] Standard Lite Body + Loading + Error + Stale Badge
- * ═══════════════════════════════════════════════════════════ */
-.woos-lite-body {
-  padding: 12px 14px;
-}
-.lite-header {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-bottom: 10px;
-  font-size: 0.78rem;
-}
-.lite-mode-label {
-  color: rgba(190, 220, 255, .8);
-  font-weight: 500;
-}
-.lite-stats-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-  margin-bottom: 10px;
-}
-.lite-stat {
-  background: rgba(255, 255, 255, .03);
-  border: 1px solid rgba(255, 255, 255, .06);
-  border-radius: 8px;
-  padding: 6px 10px;
-}
-.lite-stat-label {
-  display: block;
-  font-size: 0.7rem;
-  color: rgba(190, 220, 255, .55);
-  margin-bottom: 2px;
-}
-.lite-stat-value {
-  font-size: 0.92rem;
-  font-weight: 600;
-  color: rgba(235, 244, 255, .92);
-}
-.lite-stat-value.profit { color: #00e676; }
-.lite-stat-value.loss { color: #ff8c42; }
-.lite-prices {
-  background: rgba(255, 255, 255, .02);
-  border: 1px solid rgba(255, 255, 255, .05);
-  border-radius: 8px;
-  padding: 8px 12px;
-  margin-bottom: 8px;
-}
-.lite-price-row {
-  display: flex;
-  justify-content: space-between;
-  font-size: 0.78rem;
-  padding: 3px 0;
-  color: rgba(190, 220, 255, .85);
-}
-.lite-price-row span { color: rgba(190, 220, 255, .55); }
-.lite-price-row b { font-weight: 600; color: rgba(235, 244, 255, .92); }
-.lite-price-row b.profit { color: #00e676; }
-.lite-price-row b.loss { color: #ff8c42; }
-.lite-hint {
-  font-size: 0.7rem;
-  color: rgba(190, 220, 255, .45);
-  text-align: center;
-  margin-top: 8px;
-  padding: 4px;
-}
-
 /* Loading body */
 .woos-heavy-body-loading {
   padding: 20px 14px;
@@ -7208,7 +7140,7 @@ async function opsDashboard() {
 // 탭 시 상세 팝업
 // ═══════════════════════════════════════════════════════════════
 
-var HTML_VERSION = 'v4.9.6-standard-lite-heavy-cache';  // [v4.9.6] 표준 Lite + 관심/정밀 Full Body Cache + Priority Queue + 카드헤더 % fallback
+var HTML_VERSION = 'v4.9.6-scoring-gradeflow-newcard-fix';  // [v4.9.6+] Lite 폐기 + cache + 신규 카드 % 정상화
 var _cachedBuildInfo = null;
 
 // [State Lock 2 Action fix-2c] 패치 확인용 — 페이지 로드 시 버전명 출력 (DevTools 콘솔)
@@ -17016,15 +16948,14 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       opts = opts || {};
       var vm = opts.vm || null;
       
-      // 표준은 Lite로 즉시 처리 (cache 외부)
-      if (!w496_shouldEnqueue(vm)) {
-        return v40_buildStandardLiteBody(track, metrics, entryInfo, levels, opts);
-      }
+      // [v4.9.6+ Lite 폐기] 이 함수는 본문 전체 cache용 — 현재 사용 X (스캐너 채점만 cache)
+      //   사용자 결정: 모든 카드 Full 분석. v40_buildTrackInner는 동기 buildExpandedBody 직접 호출.
+      //   But 인프라는 살림 (스캐너 채점 cache가 동일 cache + queue 시스템 사용).
       
       var activeCardKey = opts.activeCardKey || (vm && vm.canonicalBaseKey ? 'active:' + vm.canonicalBaseKey : '');
       var snapshotId = (track && (track.snapshotId || track.id)) || '';
       if (!activeCardKey || !snapshotId) {
-        return v40_buildStandardLiteBody(track, metrics, entryInfo, levels, opts);  // fallback
+        return '';  // 안전 fallback
       }
       
       var jobKey = w496_buildJobKey(activeCardKey, snapshotId);
@@ -17169,7 +17100,7 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       try {
         var entryInfo = (job.opts && job.opts.entryInfo) || v40_resolveEntryPrice(job.track, samples);
         var levels = (job.opts && job.opts.levels) || v40_resolveLevels(job.track, entryInfo.value);
-        var prefetched = (job.track && job.track.prefetchedCurrentPct != null) ? {
+        var prefetched = (job.track && (job.track.prefetchedCurrentPct != null || job.track.prefetchedLastPrice != null)) ? {
           currentPct: job.track.prefetchedCurrentPct,
           mfe: job.track.prefetchedMfe,
           mae: job.track.prefetchedMae,
@@ -17283,86 +17214,6 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       } catch(e) {}
     }
     
-    /* ═══════════════════════════════════════════════════════════
-     * [v4.9.6] v40_buildStandardLiteBody — 표준 카드 Lite Detail
-     * 정책: 표준 카드 펼침 시 즉시 표시 (cache/queue 없음)
-     *   - samples 미사용 (samples.length / samples.map / samples.reduce X)
-     *   - v40_buildExpandedBody / v40_generateTrackingSVGChart 호출 X
-     *   - fetchTrackingData 호출 X
-     *   - vm / metrics / item 단일값만
-     * 표시: 누적 신호, 수익률, 진행률, 잔여시간, 현재가, 알람가, MFE/MAE 단일값
-     * ═══════════════════════════════════════════════════════════ */
-    function v40_buildStandardLiteBody(track, metrics, entryInfo, levels, opts) {
-      opts = opts || {};
-      var vm = opts.vm || null;
-      var item = track || {};
-      var meta = item.meta || {};
-      
-      function safe(v, f) { return (v == null || v === '') ? (f || '-') : v; }
-      function pct(v) { return (typeof v === 'number') ? (v.toFixed(2) + '%') : '-'; }
-      function num(v) {
-        if (typeof v !== 'number') return '-';
-        return v.toLocaleString('en-US', { maximumFractionDigits: 8 });
-      }
-      function safeMfeMae(val) {
-        if (typeof val === 'number') return val;
-        if (val && typeof val === 'object') {
-          if (typeof val.peak === 'number') return val.peak;
-          if (typeof val.value === 'number') return val.value;
-          if (typeof val.pct === 'number') return val.pct;
-          if (typeof val.max === 'number') return val.max;
-        }
-        return null;
-      }
-      
-      var changePct = (vm && vm.performance && typeof vm.performance.changePct === 'number')
-        ? vm.performance.changePct
-        : (metrics && metrics.hasData && metrics.currentPct != null ? metrics.currentPct : null);
-      var progress = (vm && typeof vm.progress === 'number') ? vm.progress : 0;
-      var remainingLabel = (vm && vm.remainingLabel) || '-';
-      var modeLabel = (vm && vm.modeState && vm.modeState.modeLabel) || '표준';
-      var endsAtVal = (vm && vm.trackingWindow && vm.trackingWindow.endsAt) || 0;
-      var endsAtStr = endsAtVal ? new Date(endsAtVal).toLocaleString('ko-KR') : '-';
-      
-      var lastPrice = item.lastPrice || (item.prefetchedLastPrice != null ? item.prefetchedLastPrice : null);
-      var entryPrice = (entryInfo && entryInfo.value) || meta.openPrice || meta.entryPrice;
-      var mfe = safeMfeMae(item.mfe);
-      var mae = safeMfeMae(item.mae);
-      
-      var sCount = (item.sCount24 != null) ? item.sCount24 : (meta.sCount24 || 0);
-      var aCount = (item.aCount24 != null) ? item.aCount24 : (meta.aCount24 || 0);
-      var totalSignal = sCount + aCount;
-      
-      var newChip = (vm && vm.labelState && vm.labelState.isNew)
-        ? '<span class="hdr-label-new">신규</span>' : '';
-      var nearChip = (vm && vm.labelState && vm.labelState.isNearEnd)
-        ? '<span class="hdr-label-near-end">마감임박</span>' : '';
-      
-      return '<div class="progress-rich-body woos-body woos-lite-body">'
-           +   '<div class="lite-header">'
-           +     '<span class="lite-mode-label">' + safe(modeLabel) + '</span>'
-           +     newChip + nearChip
-           +   '</div>'
-           +   '<div class="lite-stats-grid">'
-           +     '<div class="lite-stat"><span class="lite-stat-label">현재 수익률</span>'
-           +       '<b class="lite-stat-value ' + (changePct != null && changePct >= 0 ? 'profit' : 'loss') + '">' + pct(changePct) + '</b></div>'
-           +     '<div class="lite-stat"><span class="lite-stat-label">진행률</span>'
-           +       '<b class="lite-stat-value">' + Math.round(progress) + '%</b></div>'
-           +     '<div class="lite-stat"><span class="lite-stat-label">잔여시간</span>'
-           +       '<b class="lite-stat-value">' + safe(remainingLabel) + '</b></div>'
-           +     '<div class="lite-stat"><span class="lite-stat-label">누적 신호</span>'
-           +       '<b class="lite-stat-value">x' + totalSignal + '</b></div>'
-           +   '</div>'
-           +   '<div class="lite-prices">'
-           +     '<div class="lite-price-row"><span>현재가</span><b>' + num(lastPrice) + '</b></div>'
-           +     '<div class="lite-price-row"><span>알람가</span><b>' + num(entryPrice) + '</b></div>'
-           +     '<div class="lite-price-row"><span>MFE</span><b class="profit">' + (mfe !== null ? '+' + mfe.toFixed(2) + '%' : '-') + '</b></div>'
-           +     '<div class="lite-price-row"><span>MAE</span><b class="loss">' + (mae !== null ? mae.toFixed(2) + '%' : '-') + '</b></div>'
-           +     '<div class="lite-price-row"><span>종료 예정</span><b>' + endsAtStr + '</b></div>'
-           +   '</div>'
-           +   '<div class="lite-hint">관심 등록 또는 정밀 진입 시 상세 그래프가 표시됩니다.</div>'
-           + '</div>';
-    }
     
     function v40_buildExpandedBody(track, samples, metrics, entryInfo, levels, opts) {
       opts = opts || {};
@@ -17478,7 +17329,68 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       
       // [Phase 4.3] 진보된 metrics + 스캐너 채점표 + 타임라인
       var advanced = v43_computeAdvancedMetrics(track, samples, entryInfo.value, levels, metrics);
-      var scoringTableHtml = v43_buildScoringTable(metrics, advanced, levels);
+      
+      // [v4.9.6+ 스캐너 채점 cache] 사용자 결정: 가장 무거운 영역만 cache 적용
+      //   - 스캐너 채점 박스 전체 cache (cache hit 즉시 / miss placeholder + 백그라운드 갱신)
+      //   - 다른 영역은 동기 (그대로)
+      //   - cache key = activeCardKey + snapshotId + samples.length + signal bucket
+      var scoringTableHtml = (function() {
+        var snapshotId = (track && (track.snapshotId || track.id)) || '';
+        var activeCardKey = (opts && opts.activeCardKey) 
+                         || ((opts && opts.vm && opts.vm.canonicalBaseKey) ? 'active:' + opts.vm.canonicalBaseKey : '');
+        if (!snapshotId || !activeCardKey || typeof window.WOOS_BODY_CACHE === 'undefined') {
+          return v43_buildScoringTable(metrics, advanced, levels);  // fallback
+        }
+        var jobKey = (typeof w496_buildJobKey === 'function') ? w496_buildJobKey(activeCardKey, 'scoring:' + snapshotId) : (activeCardKey + '|scoring|' + snapshotId);
+        var sLen = (samples && samples.length) || 0;
+        var totalSignal = ((track && track.sCount24) || 0) + ((track && track.aCount24) || 0);
+        var totalSignalBucket = Math.floor(totalSignal / 5);
+        var mfeBucket = (typeof w496_safeMfeMae === 'function') ? Math.floor(w496_safeMfeMae(track && track.mfe) * 10) / 10 : 0;
+        var maeBucket = (typeof w496_safeMfeMae === 'function') ? Math.floor(w496_safeMfeMae(track && track.mae) * 10) / 10 : 0;
+        var cacheKey = [jobKey, sLen, totalSignalBucket, mfeBucket, maeBucket].join('|');
+        
+        // 1. exact cache hit
+        var entry = window.WOOS_BODY_CACHE.get(cacheKey);
+        if (entry && entry.html) {
+          entry.lastUsedAt = Date.now();
+          return entry.html;
+        }
+        
+        // 2. exact miss + latest cache 있음 → stale 즉시 + 백그라운드 갱신
+        var latestKey = window.WOOS_BODY_LATEST_BY_JOB && window.WOOS_BODY_LATEST_BY_JOB.get(jobKey);
+        if (latestKey && latestKey !== cacheKey) {
+          var staleEntry = window.WOOS_BODY_CACHE.get(latestKey);
+          if (staleEntry && staleEntry.html) {
+            // 백그라운드 갱신 (setTimeout — 카드 paint 안 막음)
+            setTimeout(function() {
+              try {
+                var freshHtml = v43_buildScoringTable(metrics, advanced, levels);
+                window.WOOS_BODY_CACHE.set(cacheKey, { html: freshHtml, jobKey: jobKey, createdAt: Date.now(), lastUsedAt: Date.now() });
+                if (window.WOOS_BODY_LATEST_BY_JOB) window.WOOS_BODY_LATEST_BY_JOB.set(jobKey, cacheKey);
+                // DOM 업데이트 — data-scoring-job-key 일치하는 슬롯 찾아서 교체
+                var slot = document.querySelector('[data-scoring-job-key="' + jobKey + '"]');
+                if (slot) slot.outerHTML = '<div class="woos-scoring-slot" data-scoring-job-key="' + jobKey + '">' + freshHtml + '</div>';
+              } catch(e) {}
+            }, 0);
+            return '<div class="woos-scoring-slot" data-scoring-job-key="' + jobKey + '">'
+                 +   '<div class="woos-stale-badge">최신 채점 갱신 중...</div>'
+                 +   staleEntry.html
+                 + '</div>';
+          }
+        }
+        
+        // 3. 완전 miss → 동기 생성 + cache 저장
+        // (스캐너 채점은 v43_computeAdvancedMetrics 결과 기반이라 동기 생성도 짧음.
+        //  실제 무거운 부분은 SVG 그래프인데 그건 이미 제거됨.
+        //  But cache 저장으로 다음 렌더부터는 hit)
+        var freshHtml = v43_buildScoringTable(metrics, advanced, levels);
+        try {
+          window.WOOS_BODY_CACHE.set(cacheKey, { html: freshHtml, jobKey: jobKey, createdAt: Date.now(), lastUsedAt: Date.now() });
+          if (window.WOOS_BODY_LATEST_BY_JOB) window.WOOS_BODY_LATEST_BY_JOB.set(jobKey, cacheKey);
+        } catch(e) {}
+        return '<div class="woos-scoring-slot" data-scoring-job-key="' + jobKey + '">' + freshHtml + '</div>';
+      })();
+      
       var timelineHtml = v43_buildTimeline(metrics, advanced, levels);
       
       // [Phase 4.4] 점수 시각화 + 동적 브리핑 + 코인 통계 배지
@@ -17900,7 +17812,13 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       var levels = v40_resolveLevels(track, entryInfo.value);
       // [Phase 4.7 공사 4 — A2-경량] prefetched 박제 데이터 전달
       // /tracking/active 응답 시 받은 lastPrice/currentPct/mfe/mae/sampleT 사용
-      var prefetched = (track.prefetchedCurrentPct != null) ? {
+      // [v4.9.6+ 신규 카드 % 버그 수정] prefetched 객체 생성 조건을 OR로
+      //   - 사용자 보고: "신규에 카드 등락 안 나오는거 이거 왜 수집중이지? 기존에 제대로 출력되던거였는데"
+      //   - 진단: prefetchedCurrentPct == null이면 prefetched 객체 자체가 null 
+      //     → 변경 9 lastPrice fallback (computeLiveMetrics 안)이 작동 X
+      //   - 수정: currentPct OR lastPrice 둘 중 하나라도 있으면 prefetched 객체 생성
+      //     → 신규 카드 (Worker가 currentPct 안 보내도 lastPrice는 있음) 작동 정상화
+      var prefetched = (track.prefetchedCurrentPct != null || track.prefetchedLastPrice != null) ? {
         currentPct: track.prefetchedCurrentPct,
         mfe: track.prefetchedMfe,
         mae: track.prefetchedMae,
@@ -17911,29 +17829,14 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       // [Phase 4.2 작업 E] overrideDotColor 가 있으면 (그룹 dot 동기화 시 대표 카드용) 사용
       var dotColor = opts.overrideDotColor || v40_decideDotColor(track, metrics, levels);
       
-      // [v4.9.6] Lite/Cache 분기 (사용자 명시 승인)
-      //   표준(standard) = Lite Body 즉시 (cache X)
-      //   관심/정밀(watch/deep) = Full Body Cache + Queue
-      //   기타(expired) = Lite fallback (안전)
-      var vm = opts.vm || null;
-      var displayMode = (vm && vm.modeState && vm.modeState.displayMode) || 'standard';
-      var group = opts.group || null;
-      
-      var body;
-      if (displayMode === 'standard') {
-        // 표준 = Lite 즉시 (samples 미사용 / 그래프 X / 평가 X)
-        body = v40_buildStandardLiteBody(track, metrics, entryInfo, levels, opts);
-      } else if (displayMode === 'watch' || displayMode === 'deep') {
-        // 관심/정밀 = Cache + Queue (cache hit/stale/miss 정책)
-        body = w496_getCachedStaleLoadingOrQueueBody(group, track, samples, metrics, entryInfo, levels, opts);
-      } else {
-        // expired / 그 외 = Lite fallback (안전)
-        body = v40_buildStandardLiteBody(track, metrics, entryInfo, levels, opts);
-      }
-      
+      // [v4.9.6+ Lite 폐기 / 모든 카드 = Full 분석] 사용자 명시 결정:
+      //   "라이트분석은 이제없어 모드 풀 분석임 이것때메 차트다지웠는데"
+      //   → Lite/Cache 분기 제거, 원래 동기 Full Body 호출로 복귀
+      //   → 스캐너 채점만 별도 cache (v43_buildScoringTable 영역 placeholder)
+      //   → 등급 흐름 텍스트(w495_buildGradeFlowText) 정상 출력 보장 (정규식 매칭 OK)
       return {
         summary: v40_buildCompactSummary(track, metrics, dotColor, opts),
-        body: body,
+        body: v40_buildExpandedBody(track, samples, metrics, entryInfo, levels, opts),  // [State Lock] opts 전달
         dotColor: dotColor,
         metrics: metrics,
       };
@@ -17976,7 +17879,7 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
           var e = v40_resolveEntryPrice(it, s);
           var lv = v40_resolveLevels(it, e.value);
           // [Phase 4.7 공사 4] prefetched 박제 데이터 통과
-          var pf = (it.prefetchedCurrentPct != null) ? {
+          var pf = (it.prefetchedCurrentPct != null || it.prefetchedLastPrice != null) ? {
             currentPct: it.prefetchedCurrentPct, mfe: it.prefetchedMfe, mae: it.prefetchedMae,
             lastPrice: it.prefetchedLastPrice, sampleT: it.prefetchedSampleT,
           } : null;
@@ -17991,7 +17894,7 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
           var e = v40_resolveEntryPrice(it, s);
           var lv = v40_resolveLevels(it, e.value);
           // [Phase 4.7 공사 4] prefetched 박제 데이터 통과
-          var pf = (it.prefetchedCurrentPct != null) ? {
+          var pf = (it.prefetchedCurrentPct != null || it.prefetchedLastPrice != null) ? {
             currentPct: it.prefetchedCurrentPct, mfe: it.prefetchedMfe, mae: it.prefetchedMae,
             lastPrice: it.prefetchedLastPrice, sampleT: it.prefetchedSampleT,
           } : null;
@@ -18036,10 +17939,31 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
         var v463_singleToggleAttr = ' ontoggle="window.v462HandleCardToggle(event, this, \'' + v40_escapeHtml(v463_singleId) + '\')"';
         // [v4.7.44] 캐시된 그래프 HTML 사용 (재계산 금지)
         // [v4.9.5+ 그래프 제거] Grade Chart SVG → 등급 흐름 텍스트로 교체 (사용자 결정)
-        var singleGradeChart = (typeof w495_buildGradeFlowText === 'function') 
-          ? w495_buildGradeFlowText(group) 
-          : '';
+        // [v4.9.6+ cache] 등급 흐름 텍스트 cache (cheap이지만 매 렌더 절약)
+        //   - cacheKey = activeCardKey + 'gradeflow' + items count + items snapshotId 합산
+        //   - cache hit 즉시 / miss 동기 생성 + 저장
+        var singleGradeChart = (function() {
+          if (typeof w495_buildGradeFlowText !== 'function') return '';
+          if (typeof window.WOOS_BODY_CACHE === 'undefined') return w495_buildGradeFlowText(group);
+          var actKey = w1_cardKey || ('active:' + (group.key || '').toUpperCase());
+          // 등급 흐름 cacheKey — 그룹 items 변동에 민감
+          var itemsSig = (group.items || []).map(function(it){ return (it && (it.snapshotId || it.id || it.gradeCode)) || ''; }).join('-');
+          var gfCacheKey = [actKey, 'gradeflow', (group.items || []).length, itemsSig.length].join('|');
+          var entry = window.WOOS_BODY_CACHE.get(gfCacheKey);
+          if (entry && entry.html) {
+            entry.lastUsedAt = Date.now();
+            return entry.html;
+          }
+          var html = w495_buildGradeFlowText(group);
+          try {
+            window.WOOS_BODY_CACHE.set(gfCacheKey, { html: html, jobKey: actKey + '|gradeflow', createdAt: Date.now(), lastUsedAt: Date.now() });
+          } catch(e) {}
+          return html;
+        })();
         // body 안에 등급 그래프 삽입 (woos-body 시작 직후)
+        // [v4.9.6+ 정규식 정확화] Lite 분기 폐기 후 원래 wrapper 복구되어 정규식 매칭 OK
+        //   사용자 보고: "지금 이거 출력안됨" — v4.9.6 Lite/Cache wrapper의 data-job-key 속성 때문
+        //   → Lite/Cache 분기 제거 후 wrapper 원래대로 → 정규식 정상 매칭
         var singleBody = inner.body.replace(
           /<div class="progress-rich-body woos-body([^"]*)">/,
           '<div class="progress-rich-body woos-body$1">' + singleGradeChart
@@ -18069,7 +17993,7 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
         var oEntry = v40_resolveEntryPrice(it, oSamples);
         var oLevels = v40_resolveLevels(it, oEntry.value);
         // [Phase 4.7 공사 4] prefetched 박제 데이터 통과 (미니 카드도 즉시 표시)
-        var oPf = (it.prefetchedCurrentPct != null) ? {
+        var oPf = (it.prefetchedCurrentPct != null || it.prefetchedLastPrice != null) ? {
           currentPct: it.prefetchedCurrentPct, mfe: it.prefetchedMfe, mae: it.prefetchedMae,
           lastPrice: it.prefetchedLastPrice, sampleT: it.prefetchedSampleT,
         } : null;
@@ -18130,9 +18054,24 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       
       // [v4.7.44] 캐시된 그래프 HTML 사용 (재계산 금지)
       // [v4.9.5+ 그래프 제거] Grade Chart SVG → 등급 흐름 텍스트로 교체 (사용자 결정)
-      var groupGradeChart = (typeof w495_buildGradeFlowText === 'function') 
-        ? w495_buildGradeFlowText(group) 
-        : '';
+      // [v4.9.6+ cache] 등급 흐름 텍스트 cache (group 카드)
+      var groupGradeChart = (function() {
+        if (typeof w495_buildGradeFlowText !== 'function') return '';
+        if (typeof window.WOOS_BODY_CACHE === 'undefined') return w495_buildGradeFlowText(group);
+        var actKey = w1_cardKey_grp || ('active:' + (group.key || '').toUpperCase());
+        var itemsSig = (group.items || []).map(function(it){ return (it && (it.snapshotId || it.id || it.gradeCode)) || ''; }).join('-');
+        var gfCacheKey = [actKey, 'gradeflow', (group.items || []).length, itemsSig.length].join('|');
+        var entry = window.WOOS_BODY_CACHE.get(gfCacheKey);
+        if (entry && entry.html) {
+          entry.lastUsedAt = Date.now();
+          return entry.html;
+        }
+        var html = w495_buildGradeFlowText(group);
+        try {
+          window.WOOS_BODY_CACHE.set(gfCacheKey, { html: html, jobKey: actKey + '|gradeflow', createdAt: Date.now(), lastUsedAt: Date.now() });
+        } catch(e) {}
+        return html;
+      })();
 
       // [State Lock] vm.modeState.cardModeClass 우선 (group.displayMode fallback)
       var v478_groupClasses = 'progress-rich-card woos-card woos-group v477-track-card v480-glass-card';
