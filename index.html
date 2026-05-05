@@ -152,7 +152,7 @@
 <script>
 /* [v4.7.42] 캐시 강제 리셋 — SW 완전 제거 후 리로드 */
 (function(){
-  var VER = 'v4.9.7-fix10';  // fix10 — v4.9.4 정상 흐름 복원 (handleCardExpand에 rerenderSingleCard 호출 복원)
+  var VER = 'v4.9.7-fix11';  // fix11 — rerenderSingleCard openedKeys 전달 + displayMode raw fallback (vm 없어도 watch/deep 정확 분류)
   try {
     var LKEY = 'woos_hard_reset_ver';
     if (localStorage.getItem(LKEY) === VER) return;
@@ -7041,12 +7041,12 @@ async function opsDashboard() {
 // 탭 시 상세 팝업
 // ═══════════════════════════════════════════════════════════════
 
-var HTML_VERSION = 'v4.9.7-fix10';  // fix10 — v4.9.4 정상 흐름 복원
+var HTML_VERSION = 'v4.9.7-fix11';  // fix11 — rerenderSingleCard openedKeys + displayMode raw fallback
 var _cachedBuildInfo = null;
 
 // [State Lock 2 Action fix-2c] 패치 확인용 — 페이지 로드 시 버전명 출력 (DevTools 콘솔)
 try {
-  console.log('[WOOS] ' + HTML_VERSION + ' loaded — v4.9.4 흐름 복원');
+  console.log('[WOOS] ' + HTML_VERSION + ' loaded — openedKeys + displayMode raw fallback');
   window.WOOS_VERSION = HTML_VERSION;
 } catch(e) {}
 
@@ -16322,7 +16322,13 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
         var td = window._trackingMap[snapshotId] || trackingData;
         var track = W.adaptItemToTrack(item, td);
         var groups = W.groupTracks([track]);
-        var newHTML = W.buildGroupCardHTML(groups[0], { isFirstRender: false });
+        // [v4.9.7-fix11] 카드 펼침 상태 + cardKey openedKeys로 전달 → isExpanded=true → Full Body 빌드
+        //   기존: openedKeys 없음 → lazy placeholder. vm 없음 → standard fallback (watch/deep도 Lite로 잘못 분류)
+        //   수정: 현재 펼친 카드의 cardKey를 openedKeys로 전달 → isExpanded=true 보장
+        //   vm은 노출 안 됨 → v40_buildTrackInner에서 track.isWatchlist/isAutoPrecise로 displayMode 추론 (fix11 추가 변경)
+        var v497fix11_cardKey = detailsEl.getAttribute('data-card-key') || '';
+        var v497fix11_openedKeys = wasOpen && v497fix11_cardKey ? [v497fix11_cardKey] : [];
+        var newHTML = W.buildGroupCardHTML(groups[0], { isFirstRender: false, openedKeys: v497fix11_openedKeys });
         
         // outerHTML 교체
         var temp = document.createElement('div');
@@ -17543,9 +17549,21 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       //   - 표준 펼침: v40_buildStandardLiteBody (samples 미접근)
       //   - 관심·정밀 펼침: 기존 v40_buildExpandedBody (Full Detail 그대로)
       var v495_isExpanded = !!opts.isExpanded;
-      var v495_displayMode = (opts && opts.vm && opts.vm.modeState)
-        ? opts.vm.modeState.displayMode
-        : 'standard';
+      // [v4.9.7-fix11] vm 없을 때 track.isWatchlist/isAutoPrecise/tier로 displayMode 추론
+      //   기존: vm 없으면 무조건 'standard' → watch/deep 카드도 Lite로 잘못 분류
+      //   수정: track 자체 raw flag로 추론 (v464_rerenderSingleCard 흐름에서 정확한 mode 보존)
+      var v495_displayMode;
+      if (opts && opts.vm && opts.vm.modeState) {
+        v495_displayMode = opts.vm.modeState.displayMode;
+      } else if (track && track.isWatchlist) {
+        v495_displayMode = 'watch';
+      } else if (track && track.isAutoPrecise) {
+        v495_displayMode = 'deep';
+      } else if (track && String(track.tier || '').toUpperCase() === 'A') {
+        v495_displayMode = 'deep';  // tier A = 정밀
+      } else {
+        v495_displayMode = 'standard';
+      }
       var v495_detailLevel = (v495_displayMode === 'watch' || v495_displayMode === 'deep')
         ? 'full'
         : 'lite';
