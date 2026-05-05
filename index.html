@@ -152,7 +152,7 @@
 <script>
 /* [v4.7.42] 캐시 강제 리셋 — SW 완전 제거 후 리로드 */
 (function(){
-  var VER = 'v4.9.4-fetch-fix-3';  // [v4.9.4+] gradeHistory 박제 추가 (등급 점 그래프 1~2점 → 정확 표시)
+  var VER = 'v4.9.4-fetch-fix-4';  // [v4.9.4+] gradeHistory 박제 + v464_rerenderSingleCard에 _gradeChartHtml 박제 (풀바디 시 등급 점 사라짐 fix)
   try {
     var LKEY = 'woos_hard_reset_ver';
     if (localStorage.getItem(LKEY) === VER) return;
@@ -6987,7 +6987,7 @@ async function opsDashboard() {
 // 탭 시 상세 팝업
 // ═══════════════════════════════════════════════════════════════
 
-var HTML_VERSION = 'v4.9.4-fetch-fix-3';  // [v4.9.4+] gradeHistory 박제 추가 (등급 점 그래프 정확 표시)
+var HTML_VERSION = 'v4.9.4-fetch-fix-4';  // [v4.9.4+] _gradeChartHtml 박제 추가 (rerenderSingleCard 흐름)
 var _cachedBuildInfo = null;
 
 // [State Lock 2 Action fix-2c] 패치 확인용 — 페이지 로드 시 버전명 출력 (DevTools 콘솔)
@@ -16277,6 +16277,15 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
         var td = window._trackingMap[snapshotId] || trackingData;
         var track = W.adaptItemToTrack(item, td);
         var groups = W.groupTracks([track]);
+        // [v4.9.4-fetch-fix-3] _gradeChartHtml 박제 — _renderActiveTrackingList의 캐싱 흐름과 동일
+        //   기존: rerenderSingleCard가 _gradeChartHtml 박제 안 함 → group._gradeChartHtml = undefined
+        //         → v40_buildGroupCardHTML에서 group._gradeChartHtml || '' → 빈 문자열
+        //         → grade-change-chart 영역 빠진 카드 outerHTML 교체 → 사용자 보고 "풀바디 시 등급 점 사라짐"
+        //   해결: 빌드 직전 _gradeChartHtml 박제 (BRIDGE _renderActiveTrackingList line 12612 동일 패턴)
+        if (groups[0] && typeof W.buildGradeChangeChart === 'function') {
+          try { groups[0]._gradeChartHtml = W.buildGradeChangeChart(groups[0]); }
+          catch(eGcc) { groups[0]._gradeChartHtml = ''; }
+        }
         var newHTML = W.buildGroupCardHTML(groups[0], { isFirstRender: false });
         
         // outerHTML 교체
