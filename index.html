@@ -152,7 +152,7 @@
 <script>
 /* [v4.7.42] 캐시 강제 리셋 — SW 완전 제거 후 리로드 */
 (function(){
-  var VER = 'v4.9.7-fix2';  // 긴급 회귀 차단 — auto prewarm 차단 + 표준 enqueue 차단 + 3초 타임아웃 + 단일 실행 + DEBUG 카운터
+  var VER = 'v4.9.7-fix3';  // fix3 — NaN 입력 가드 + mode mismatch 진단 강화 (vm flipping 노출)
   try {
     var LKEY = 'woos_hard_reset_ver';
     if (localStorage.getItem(LKEY) === VER) return;
@@ -7041,12 +7041,12 @@ async function opsDashboard() {
 // 탭 시 상세 팝업
 // ═══════════════════════════════════════════════════════════════
 
-var HTML_VERSION = 'v4.9.7-fix2';  // 긴급 회귀 차단 — auto prewarm 차단 + 표준 차단 + 3초 timeout + 단일 실행 + DEBUG
+var HTML_VERSION = 'v4.9.7-fix3';  // fix3 — NaN 입력 가드 + mode mismatch 진단 강화
 var _cachedBuildInfo = null;
 
 // [State Lock 2 Action fix-2c] 패치 확인용 — 페이지 로드 시 버전명 출력 (DevTools 콘솔)
 try {
-  console.log('[WOOS] ' + HTML_VERSION + ' loaded — 긴급 회귀 차단 (auto prewarm OFF, 3s timeout, single concurrent)');
+  console.log('[WOOS] ' + HTML_VERSION + ' loaded — NaN guard + mode mismatch 진단');
   window.WOOS_VERSION = HTML_VERSION;
 } catch(e) {}
 
@@ -16733,6 +16733,30 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
           }
           var samples = (td && td.samples) || v40_normalizeSamples(track);
           var entryInfo = v40_resolveEntryPrice(track, samples);
+          // [fix3] NaN/empty 입력 가드 — SVG NaN 폭탄 방지
+          //   samples 빈 배열 / entryInfo.value 비유한 → buildExpandedBody가 SVG NaN 생성
+          //   v40_generateTrackingSVGChart이 throw 안 하고 NaN 좌표 그대로 출력
+          //   이런 데이터로 cache 채우면 다음 cache hit도 NaN 표시
+          if (!Array.isArray(samples) || samples.length === 0 || !isFinite(entryInfo.value)) {
+            try { console.warn('[v497] insufficient input — skip build', { jobKey: job.jobKey, samples: samples && samples.length, entryValue: entryInfo && entryInfo.value }); } catch(_){}
+            var insufficientHtml = v497_errorBody('샘플 데이터 부족 — 1~2분 후 자동 재시도');
+            // cache는 짧게 (TTL 만료 직전에 둬서 다음 render에서 재시도되도록)
+            v497_cacheSet(job.jobKey, insufficientHtml, '0');
+            try { window.WOOS_BODY_DEBUG.error++; } catch(_){}
+            try {
+              var insCard = document.querySelector('details[data-snapshot-id="' + job.snapshotId + '"][data-job-key="' + job.jobKey + '"]');
+              if (insCard) {
+                var insBodyWrap = insCard.querySelector('.progress-rich-body');
+                if (insBodyWrap && insBodyWrap.parentNode) {
+                  var insTmp = document.createElement('div');
+                  insTmp.innerHTML = insufficientHtml;
+                  if (insTmp.firstElementChild) insBodyWrap.parentNode.replaceChild(insTmp.firstElementChild, insBodyWrap);
+                }
+              }
+            } catch(_){}
+            clearRunning();
+            return;
+          }
           var levels = v40_resolveLevels(track, entryInfo.value);
           var prefetched = (track.prefetchedCurrentPct != null) ? {
             currentPct: track.prefetchedCurrentPct, mfe: track.prefetchedMfe, mae: track.prefetchedMae,
@@ -16752,7 +16776,13 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
               var cls = card.className;
               var isWatchOrDeep = (cls.indexOf('is-watch') >= 0) || (cls.indexOf('is-deep') >= 0);
               if (!isWatchOrDeep) {
-                try { console.log('[v497] mode mismatch — skip swap', cls); } catch(_){}
+                // [fix3] mode mismatch 진단 — enqueue 시 displayMode vs 현재 DOM class 비교
+                //   원인 후보: vm.modeState.displayMode 가 watch/deep → standard 로 flipping
+                //   증상: queue 처리 완료 시점에 카드가 standard 상태 → swap 거부 (정상)
+                //   해결: vm 빌더 / WatchState / Core v2 안정화 필요 (다음 패치 영역)
+                try {
+                  console.log('[v497] mode mismatch — enqueued mode:', job.displayMode, '→ DOM now:', cls.indexOf('is-watch')>=0?'watch':cls.indexOf('is-deep')>=0?'deep':cls.indexOf('is-standard')>=0?'standard':'unknown', 'jobKey:', job.jobKey);
+                } catch(_){}
               } else {
                 var groupSize = parseInt(card.getAttribute('data-group-size') || '0', 10);
                 var isGroup = groupSize >= 2;
