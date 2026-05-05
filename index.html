@@ -152,7 +152,7 @@
 <script>
 /* [v4.7.42] 캐시 강제 리셋 — SW 완전 제거 후 리로드 */
 (function(){
-  var VER = 'v4.9.7-fix6';  // fix6 — 카드 펼침 시 body 빌드 트리거 (Phase 1 롤백으로 끊긴 흐름 복원)
+  var VER = 'v4.9.7-fix7';  // fix7 — NaN 가드 제거 + Full Body 강제 빌드 (samples 없어도, SVG NaN cosmetic)
   try {
     var LKEY = 'woos_hard_reset_ver';
     if (localStorage.getItem(LKEY) === VER) return;
@@ -7041,12 +7041,12 @@ async function opsDashboard() {
 // 탭 시 상세 팝업
 // ═══════════════════════════════════════════════════════════════
 
-var HTML_VERSION = 'v4.9.7-fix6';  // fix6 — 카드 펼침 시 body 빌드 트리거 복원
+var HTML_VERSION = 'v4.9.7-fix7';  // fix7 — Full Body 강제 빌드
 var _cachedBuildInfo = null;
 
 // [State Lock 2 Action fix-2c] 패치 확인용 — 페이지 로드 시 버전명 출력 (DevTools 콘솔)
 try {
-  console.log('[WOOS] ' + HTML_VERSION + ' loaded — body build on expand restored');
+  console.log('[WOOS] ' + HTML_VERSION + ' loaded — Full Body forced build');
   window.WOOS_VERSION = HTML_VERSION;
 } catch(e) {}
 
@@ -16733,39 +16733,16 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
           }
           var samples = (td && td.samples) || v40_normalizeSamples(track);
           var entryInfo = v40_resolveEntryPrice(track, samples);
-          // [fix4] NaN/empty 입력 가드 — Lite Body fallback (사용자에게 뭔가는 보여줌)
-          //   samples 빈 배열 / entryInfo.value 비유한 → buildExpandedBody가 SVG NaN 생성
-          //   → Lite Body로 fallback (헤더/가격/MFE/MAE/현재가 표시, SVG/세력판단/도달타임라인 없음)
-          //   cache 안 함 → 다음 render cycle (samples 받은 후) 자연 재시도
-          if (!Array.isArray(samples) || samples.length === 0 || !isFinite(entryInfo.value)) {
-            try { console.warn('[v497] insufficient input → Lite fallback', { jobKey: job.jobKey, samples: samples && samples.length, entryValue: entryInfo && entryInfo.value }); } catch(_){}
-            try {
-              var fbLevels = v40_resolveLevels(track, entryInfo.value);
-              var fbPrefetched = (track.prefetchedCurrentPct != null) ? {
-                currentPct: track.prefetchedCurrentPct, mfe: track.prefetchedMfe, mae: track.prefetchedMae,
-                lastPrice: track.prefetchedLastPrice, sampleT: track.prefetchedSampleT
-              } : null;
-              var fbMetrics = v40_computeLiveMetrics(samples || [], entryInfo.value, fbLevels, fbPrefetched);
-              var liteHtml = v40_buildStandardLiteBody(track, fbMetrics, entryInfo, fbLevels, { vm: job.vm });
-              // cache 안 함 (다음 cycle에서 samples 들어오면 재시도)
-              try { window.WOOS_BODY_DEBUG.error++; } catch(_){}
-              try {
-                var insCard = document.querySelector('details[data-snapshot-id="' + job.snapshotId + '"][data-job-key="' + job.jobKey + '"]');
-                if (insCard) {
-                  var insBodyWrap = insCard.querySelector('.progress-rich-body');
-                  if (insBodyWrap && insBodyWrap.parentNode) {
-                    var insTmp = document.createElement('div');
-                    insTmp.innerHTML = liteHtml;
-                    if (insTmp.firstElementChild) insBodyWrap.parentNode.replaceChild(insTmp.firstElementChild, insBodyWrap);
-                  }
-                }
-              } catch(_){}
-            } catch(eFb) {
-              try { console.warn('[v497] lite fallback failed', eFb && eFb.message); } catch(_){}
-            }
-            clearRunning();
-            return;
+          // [fix7] NaN 가드 제거 — Worker /tracking/data가 samples 안 줘도 Full Body 강제 빌드
+          //   원인: Worker 응답에 samples 필드 없음 (장기적으로 Worker 수정 필요)
+          //   대응: SVG는 NaN으로 콘솔 에러 (cosmetic), 다른 영역 (세력판단/도달타임라인/점수/6상태/브리핑) 정상 표시
+          //   trade-off: 콘솔 NaN 경고 vs Full Body 표시
+          if (!Array.isArray(samples) || samples.length === 0) {
+            // samples 없으면 빈 배열로 시도 (SVG는 빈 칸 또는 NaN, 다른 영역은 정상)
+            samples = [];
+            try { console.log('[v497] no samples — Full Body 빌드 시도 (SVG는 비어있을 수 있음)', job.jobKey); } catch(_){}
           }
+          // entryInfo.value가 NaN이어도 v40_buildExpandedBody에 그대로 전달 — buildExpandedBody가 처리
           var levels = v40_resolveLevels(track, entryInfo.value);
           var prefetched = (track.prefetchedCurrentPct != null) ? {
             currentPct: track.prefetchedCurrentPct, mfe: track.prefetchedMfe, mae: track.prefetchedMae,
@@ -16839,12 +16816,14 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
         try {
           window.WOOS_BODY_DEBUG.error++;
           if (eTimeoutOrFetch && /timeout/.test(eTimeoutOrFetch.message)) window.WOOS_BODY_DEBUG.timeout++;
-          console.warn('[v497] timeout/fetch error → Lite fallback', eTimeoutOrFetch && eTimeoutOrFetch.message);
+          console.warn('[v497] timeout/fetch error → Full Body 빌드 (캐시 데이터로)', eTimeoutOrFetch && eTimeoutOrFetch.message);
         } catch(_){}
-        // [fix4] 타임아웃 시 Lite Body fallback (사용자에게 즉시 뭔가 보여줌)
-        //   cache 안 함 → 다음 cycle 재시도 (Worker 응답 빨라지면 Full Body 자동 표시)
+        // [fix7] 타임아웃 시에도 Full Body 시도 — _trackingMap 캐시 데이터 또는 빈 samples로
         try {
-          var toSamples = v40_normalizeSamples(track) || [];
+          var existingTd2 = (window._trackingMap && window._trackingMap[job.snapshotId]) || null;
+          var toSamples = (existingTd2 && Array.isArray(existingTd2.samples) && existingTd2.samples.length > 0)
+            ? existingTd2.samples
+            : (v40_normalizeSamples(track) || []);
           var toEntryInfo = v40_resolveEntryPrice(track, toSamples);
           var toLevels = v40_resolveLevels(track, toEntryInfo.value);
           var toPrefetched = (track.prefetchedCurrentPct != null) ? {
@@ -16852,18 +16831,34 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
             lastPrice: track.prefetchedLastPrice, sampleT: track.prefetchedSampleT
           } : null;
           var toMetrics = v40_computeLiveMetrics(toSamples, toEntryInfo.value, toLevels, toPrefetched);
-          var toLiteHtml = v40_buildStandardLiteBody(track, toMetrics, toEntryInfo, toLevels, { vm: job.vm });
+          // [fix7] Full Body 시도 (samples 없어도)
+          var toFullHtml = v40_buildExpandedBody(track, toSamples, toMetrics, toEntryInfo, toLevels, { vm: job.vm });
+          v497_cacheSet(job.jobKey, toFullHtml, '0');  // cache 채움 → 다음 render cache hit
           var toCard = document.querySelector('details[data-snapshot-id="' + job.snapshotId + '"][data-job-key="' + job.jobKey + '"]');
           if (toCard) {
-            var toWrap = toCard.querySelector('.progress-rich-body');
-            if (toWrap && toWrap.parentNode) {
-              var toTmp = document.createElement('div');
-              toTmp.innerHTML = toLiteHtml;
-              if (toTmp.firstElementChild) toWrap.parentNode.replaceChild(toTmp.firstElementChild, toWrap);
+            var toCls = toCard.className;
+            var toIsWatchOrDeep = (toCls.indexOf('is-watch') >= 0) || (toCls.indexOf('is-deep') >= 0);
+            if (toIsWatchOrDeep) {
+              var toGroupSize = parseInt(toCard.getAttribute('data-group-size') || '0', 10);
+              var toIsGroup = toGroupSize >= 2;
+              var toWrap = toCard.querySelector('.progress-rich-body');
+              if (toWrap && toWrap.parentNode) {
+                var toTmp = document.createElement('div');
+                toTmp.innerHTML = toFullHtml;
+                var toNewBody = toTmp.firstElementChild;
+                if (toNewBody) {
+                  if (toIsGroup) {
+                    var toRepWrap = toCard.querySelector('.progress-rich-body.woos-group-rep, .progress-rich-body .woos-group-rep, .woos-group-rep');
+                    if (toRepWrap) toRepWrap.innerHTML = toNewBody.innerHTML;
+                  } else {
+                    toWrap.parentNode.replaceChild(toNewBody, toWrap);
+                  }
+                }
+              }
             }
           }
         } catch(eToFb) {
-          try { console.warn('[v497] timeout lite fallback failed', eToFb && eToFb.message); } catch(_){}
+          try { console.warn('[v497] timeout full fallback failed', eToFb && eToFb.message); } catch(_){}
         }
         clearRunning();
       });
