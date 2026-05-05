@@ -152,7 +152,7 @@
 <script>
 /* [v4.7.42] 캐시 강제 리셋 — SW 완전 제거 후 리로드 */
 (function(){
-  var VER = 'v4.9.4-fetch-fix-4-splash-v10-wordmark-always';  // [v4.9.4+] gradeHistory 박제 + v464_rerenderSingleCard에 _gradeChartHtml 박제 (풀바디 시 등급 점 사라짐 fix)
+  var VER = 'v4.9.4-fetch-fix-4-splash-v11-safe-intro';  // [v4.9.4+] gradeHistory 박제 + v464_rerenderSingleCard에 _gradeChartHtml 박제 (풀바디 시 등급 점 사라짐 fix)
   try {
     var LKEY = 'woos_hard_reset_ver';
     if (localStorage.getItem(LKEY) === VER) return;
@@ -5954,6 +5954,11 @@ details.analyzer-progress-card > summary.progress-compact-summary {
 
 <!-- [WOOS PWA SPLASH CSS START] -->
 <style>
+/* WOOS PWA Splash v11 safe intro
+   - JS가 실패해도 CSS animation으로 3.4초 후 자동으로 안 보이게 처리
+   - video currentTime skip 제거
+   - wordmark는 일반 텍스트 + 이미지 둘 다 준비. 이미지는 보이면 이미지, 안 보이면 텍스트가 보임.
+*/
 #woosPwaSplash {
   position: fixed;
   inset: 0;
@@ -5966,13 +5971,13 @@ details.analyzer-progress-card > summary.progress-compact-summary {
   opacity: 1;
   visibility: visible;
   pointer-events: auto;
-  transition: opacity 420ms ease, visibility 420ms ease;
+  animation: woosSplashOverlayAutoHide 3600ms ease forwards;
 }
 
 #woosPwaSplash.woos-splash-hide {
-  opacity: 0;
-  visibility: hidden;
-  pointer-events: none;
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
 }
 
 .woos-pwa-splash-stack {
@@ -6000,43 +6005,41 @@ details.analyzer-progress-card > summary.progress-compact-summary {
   animation: woosSplashLogoFade 3000ms ease forwards;
 }
 
-.woos-pwa-splash-wordmark {
+.woos-pwa-splash-wordmark-wrap {
+  width: min(64vw, 280px);
+  max-width: 280px;
+  min-height: 44px;
+  margin-top: 22px;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  animation: woosSplashWordmarkFade 3000ms ease forwards;
+}
+
+.woos-pwa-splash-wordmark-img {
   width: 100%;
-  max-width: 260px;
+  max-width: 280px;
   height: auto;
   display: block;
   object-fit: contain;
-  opacity: 1 !important;
-  visibility: visible !important;
+  opacity: 1;
+  visibility: visible;
   filter: none !important;
-  animation: none !important;
   position: relative;
   z-index: 2;
 }
 
-.woos-pwa-splash-wordmark-wrap {
-  width: min(58vw, 260px);
-  max-width: 260px;
-  min-height: 42px;
-  margin-top: 22px;
+.woos-pwa-splash-wordmark-text {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
   display: flex;
   align-items: center;
   justify-content: center;
-  position: relative;
-  opacity: 0;
-  transform: translateY(8px);
-  filter: none !important;
-  animation: woosSplashWordmarkFade 3000ms ease forwards;
-}
-
-.woos-pwa-splash-wordmark-wrap.is-img-loaded .woos-pwa-splash-wordmark {
-  opacity: 1;
-}
-
-.woos-pwa-splash-wordmark-wrap.is-img-loaded .woos-pwa-splash-wordmark-fallback {
-  display: block;
-  font-family: 'Noto Sans KR', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  font-size: clamp(26px, 7.4vw, 42px);
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: clamp(28px, 7.4vw, 42px);
   font-weight: 500;
   line-height: 1;
   letter-spacing: -0.04em;
@@ -6045,46 +6048,29 @@ details.analyzer-progress-card > summary.progress-compact-summary {
   white-space: nowrap;
 }
 
-.woos-pwa-splash-wordmark-fallback {
-  display: block;
-  font-family: 'Noto Sans KR', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  font-size: clamp(26px, 7.4vw, 42px);
-  font-weight: 500;
-  line-height: 1;
-  letter-spacing: -0.04em;
-  color: #fff;
-  text-shadow: none !important;
-  white-space: nowrap;
+/* 이미지가 정상 로딩되면 텍스트 fallback은 뒤에 숨어 보이지 않음 */
+.woos-pwa-splash-wordmark-img:not([src]),
+.woos-pwa-splash-wordmark-img[src=""] {
+  display: none;
 }
 
+@keyframes woosSplashOverlayAutoHide {
+  0%   { opacity: 1; visibility: visible; pointer-events: auto; }
+  82%  { opacity: 1; visibility: visible; pointer-events: auto; }
+  100% { opacity: 0; visibility: hidden; pointer-events: none; }
+}
 
 @keyframes woosSplashLogoFade {
   0%   { opacity: 0; transform: scale(.96); }
-  8%   { opacity: 0; transform: scale(.96); }
-  18%  { opacity: 1; transform: scale(1); }
-  78%  { opacity: 1; transform: scale(1); }
-  100% { opacity: 0; transform: scale(1.015); }
-}
-  8%   { opacity: 0; transform: scale(.96); }
-  18%  { opacity: 1; transform: scale(1); }
-  78%  { opacity: 1; transform: scale(1); }
-  100% { opacity: 0; transform: scale(1.015); }
-}
-  14%  { opacity: 1; transform: scale(1); }
+  12%  { opacity: 1; transform: scale(1); }
   78%  { opacity: 1; transform: scale(1); }
   100% { opacity: 0; transform: scale(1.015); }
 }
 
 @keyframes woosSplashWordmarkFade {
   0%   { opacity: 0; transform: translateY(8px); }
-  8%   { opacity: 0; transform: translateY(8px); }
-  18%  { opacity: 1; transform: translateY(0); }
+  12%  { opacity: 1; transform: translateY(0); }
   78%  { opacity: 1; transform: translateY(0); }
-  100% { opacity: 0; transform: translateY(0); }
-}
-  30%  { opacity: 0; transform: translateY(8px); }
-  44%  { opacity: 1; transform: translateY(0); }
-  80%  { opacity: 1; transform: translateY(0); }
   100% { opacity: 0; transform: translateY(0); }
 }
 
@@ -6097,32 +6083,12 @@ details.analyzer-progress-card > summary.progress-compact-summary {
     width: min(74vw, 300px);
   }
   .woos-pwa-splash-wordmark-wrap {
-    width: min(62vw, 250px);
-    max-width: 250px;
+    width: min(66vw, 270px);
+    max-width: 270px;
     margin-top: 20px;
   }
 }
 </style>
-
-/* v10 safety: 텍스트 사진은 JS 로드상태와 무관하게 항상 보이게 고정 */
-.woos-pwa-splash-wordmark-wrap,
-.woos-pwa-splash-wordmark-wrap.is-img-loaded {
-  opacity: 0;
-  animation: woosSplashWordmarkFade 3000ms ease forwards;
-}
-
-.woos-pwa-splash-wordmark-wrap .woos-pwa-splash-wordmark,
-.woos-pwa-splash-wordmark-wrap.is-img-loaded .woos-pwa-splash-wordmark {
-  display: block !important;
-  opacity: 1 !important;
-  visibility: visible !important;
-}
-
-.woos-pwa-splash-wordmark-wrap .woos-pwa-splash-wordmark-fallback,
-.woos-pwa-splash-wordmark-wrap.is-img-loaded .woos-pwa-splash-wordmark-fallback {
-  display: none !important;
-}
-
 <!-- [WOOS PWA SPLASH CSS END] -->
 
 </head>
@@ -6143,13 +6109,13 @@ details.analyzer-progress-card > summary.progress-compact-summary {
     </div>
 
     <div class="woos-pwa-splash-wordmark-wrap">
+      <div class="woos-pwa-splash-wordmark-text">woos crypto</div>
       <img
-        class="woos-pwa-splash-wordmark"
+        class="woos-pwa-splash-wordmark-img"
         src="./assets/woos-wordmark-white.png"
         alt="woos crypto"
         draggable="false"
       />
-      <div class="woos-pwa-splash-wordmark-fallback" aria-hidden="true">woos crypto</div>
     </div>
   </div>
 </div>
@@ -6163,55 +6129,41 @@ details.analyzer-progress-card > summary.progress-compact-summary {
   var video = document.getElementById('woosPwaSplashVideo');
   if (!splash) return;
 
-  var SPLASH_MS = 3000;
-  var VIDEO_SKIP_START_SEC = 0.95; // 초반 우측하단 고스트 제거용
-  var hidden = false;
+  var SPLASH_MS = 3200;
+  var removed = false;
 
   function hideSplash(){
-    if (hidden) return;
-    hidden = true;
+    if (removed) return;
+    removed = true;
     splash.classList.add('woos-splash-hide');
     setTimeout(function(){
+      try {
+        if (video) {
+          video.pause();
+          video.removeAttribute('src');
+          video.load();
+        }
+      } catch(e) {}
       if (splash && splash.parentNode) {
         splash.parentNode.removeChild(splash);
       }
-    }, 520);
+    }, 450);
   }
 
-  function playVideoFromSafePoint(){
-    if (!video) return;
-
-    try {
+  try {
+    if (video) {
       video.muted = true;
       video.playsInline = true;
-      video.preload = 'auto';
       video.playbackRate = 1;
-
-      function startPlayback(){
-        try {
-          if (isFinite(video.duration) && video.duration > VIDEO_SKIP_START_SEC) {
-            video.currentTime = VIDEO_SKIP_START_SEC;
-          }
-        } catch(e) {}
-
-        var p = video.play();
-        if (p && typeof p.catch === 'function') {
-          p.catch(function(){});
-        }
+      video.currentTime = 0;
+      var playPromise = video.play();
+      if (playPromise && typeof playPromise.catch === 'function') {
+        playPromise.catch(function(){});
       }
+    }
+  } catch(e) {}
 
-      if (video.readyState >= 1) {
-        startPlayback();
-      } else {
-        video.addEventListener('loadedmetadata', startPlayback, { once: true });
-        video.load();
-      }
-    } catch(e) {}
-  }
-  }
-
-  playVideoFromSafePoint();
-  setTimeout(hideSplash, SPLASH_MS);
+  window.setTimeout(hideSplash, SPLASH_MS);
 })();
 </script>
 <!-- [WOOS PWA SPLASH JS END] -->
