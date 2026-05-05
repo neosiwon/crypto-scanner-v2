@@ -152,7 +152,7 @@
 <script>
 /* [v4.7.42] 캐시 강제 리셋 — SW 완전 제거 후 리로드 */
 (function(){
-  var VER = 'v4.9.4-fetch-fix-4-splash-v12-clean-text-trimmed-video';  // [v4.9.4+] gradeHistory 박제 + v464_rerenderSingleCard에 _gradeChartHtml 박제 (풀바디 시 등급 점 사라짐 fix)
+  var VER = 'v4.9.4-fetch-fix-4-splash-v13-user-image-wordmark';  // [v4.9.4+] gradeHistory 박제 + v464_rerenderSingleCard에 _gradeChartHtml 박제 (풀바디 시 등급 점 사라짐 fix)
   try {
     var LKEY = 'woos_hard_reset_ver';
     if (localStorage.getItem(LKEY) === VER) return;
@@ -5954,11 +5954,9 @@ details.analyzer-progress-card > summary.progress-compact-summary {
 
 <!-- [WOOS PWA SPLASH CSS START] -->
 <style>
-/* WOOS PWA Splash v12
-   - 글씨 중복 원인인 작은 CSS fallback 텍스트 삭제
-   - woos-wordmark-white.png 이미지 1개만 표시
-   - 영상 초반 고스트는 파일 자체를 1.25초 잘라낸 mp4 사용
-   - JS 실패해도 CSS가 자동으로 숨김
+/* WOOS PWA Splash v13
+   사용자 제공 텍스트 이미지 기반 wordmark만 사용.
+   CSS 텍스트 fallback / 직접 타이핑 텍스트 / 중복 글씨 없음.
 */
 #woosPwaSplash {
   position: fixed;
@@ -6088,7 +6086,7 @@ details.analyzer-progress-card > summary.progress-compact-summary {
     <div class="woos-pwa-splash-wordmark-wrap">
       <img
         class="woos-pwa-splash-wordmark-img"
-        src="./assets/woos-wordmark-white.png"
+        src="./assets/woos-wordmark-user-image.png"
         alt="woos crypto"
         draggable="false"
       />
