@@ -152,7 +152,7 @@
 <script>
 /* [v4.7.42] 캐시 강제 리셋 — SW 완전 제거 후 리로드 */
 (function(){
-  var VER = 'v4.9.4-fetch-fix';  // [v4.9.4+] fetch 병목 제거 — timeout 90s, URL 기반 inflight 통합, CONCURRENCY 6→2
+  var VER = 'v4.9.4-fetch-fix-2';  // [v4.9.4+] fetch 병목 제거 + _updateExpandedCard 차단 (v3 카드 교체 → 등급 그래프 손실/깜빡임/카드 닫기 깨짐 회귀 fix)
   try {
     var LKEY = 'woos_hard_reset_ver';
     if (localStorage.getItem(LKEY) === VER) return;
@@ -6987,7 +6987,7 @@ async function opsDashboard() {
 // 탭 시 상세 팝업
 // ═══════════════════════════════════════════════════════════════
 
-var HTML_VERSION = 'v4.9.4-fetch-fix';  // [v4.9.4+] fetch 병목 제거 (timeout 90s + inflight 통합 + CONCURRENCY 2)
+var HTML_VERSION = 'v4.9.4-fetch-fix-2';  // [v4.9.4+] fetch 병목 + _updateExpandedCard 차단 (등급 그래프/카드 닫기/깜빡임 fix)
 var _cachedBuildInfo = null;
 
 // [State Lock 2 Action fix-2c] 패치 확인용 — 페이지 로드 시 버전명 출력 (DevTools 콘솔)
@@ -13164,8 +13164,10 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       fetchTrackingData(sid, true).then(function(td){
         if (td) {
           _trackingMap[sid] = td;
-          // 펼친 카드만 다시 렌더 (펼친 상태 유지)
-          _updateExpandedCard(sid);
+          // [v4.9.4-fetch-fix-2] _updateExpandedCard 차단
+          //   원인: renderAnalyzerCard (v3) 카드로 outerHTML 교체 → v40 등급 그래프 손실 + 깜빡임
+          //   해결: _trackingMap 저장만. 다음 _renderActiveTrackingList에서 v40_buildGroupCardHTML로 빌드
+          // _updateExpandedCard(sid);  // ← 차단
         }
       }).catch(function(){});
     });
@@ -18086,7 +18088,11 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       fetchTrackingData(sid, true).then(function(td){
         if (td) {
           _trackingMap[sid] = td;
-          _updateExpandedCard(sid);
+          // [v4.9.4-fetch-fix-2] _updateExpandedCard 호출 차단
+          //   원인: renderAnalyzerCard (v3 카드)로 outerHTML 교체 → v40 등급 그래프 손실 + ontoggle 깨짐 + 모바일 깜빡임
+          //   해결: _trackingMap 저장만. 풀바디는 60s autoRefreshTracking 시 _renderActiveTrackingList → v40_buildGroupCardHTML로 정상 빌드
+          //   효과: 등급 점 그래프 유지 + 카드 닫기 정상 + 깜빡임 0
+          // _updateExpandedCard(sid);  // ← 차단
         }
       }).catch(function(){
         // silent fail
