@@ -152,7 +152,7 @@
 <script>
 /* [v4.7.42] 캐시 강제 리셋 — SW 완전 제거 후 리로드 */
 (function(){
-  var VER = 'v4.9.4';  // 신호 근거 블록 중복 제거 (MFE 그래프 상단)
+  var VER = 'v4.9.4-prefetch-off';  // [v4.9.4+] prefetchAllActive 호출 비활성화 — Worker /tracking/{sid} 502 다발 차단 + 첫 진입 freeze 해소
   try {
     var LKEY = 'woos_hard_reset_ver';
     if (localStorage.getItem(LKEY) === VER) return;
@@ -6987,7 +6987,7 @@ async function opsDashboard() {
 // 탭 시 상세 팝업
 // ═══════════════════════════════════════════════════════════════
 
-var HTML_VERSION = 'v4.9.4';  // 신호 근거 블록 중복 제거
+var HTML_VERSION = 'v4.9.4-prefetch-off';  // prefetchAllActive 호출 비활성화 — Worker 502 다발 차단
 var _cachedBuildInfo = null;
 
 // [State Lock 2 Action fix-2c] 패치 확인용 — 페이지 로드 시 버전명 출력 (DevTools 콘솔)
@@ -11097,24 +11097,27 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
         // [Phase 4.6.4] HOTFIX — 모든 active 코인 snapshotCache 에 prefetch (병렬)
         // 사용자 운영 데이터: 51개 active 중 30개만 _trackingMap → 21개 빈 메타
         // 해결: snapshotCache + prefetch 모든 active + lazy load on expand
-        if (typeof window !== 'undefined' && window.WOOS_ANALYZER && window.WOOS_ANALYZER.prefetchAllActive) {
-          window.WOOS_ANALYZER.prefetchAllActive(activeData.active).then(function(){
-            // prefetch 완료 시 cache 갱신됨 → 다음 카드 펼침/렌더 시 즉시 표시
-            // 추가로 active 카드 영역 재렌더 (한 번)
-            try {
-              if (typeof _renderActiveTrackingList === 'function' && _activeItemsCache && _activeItemsCache.length > 0) {
-                var byTier = { S: 0, A: 0, B: 0, C: 0 };
-                for (var k = 0; k < _activeItemsCache.length; k++) {
-                  var ti = _activeItemsCache[k].tier || 'B';
-                  byTier[ti] = (byTier[ti] || 0) + 1;
-                }
-                _renderActiveTrackingList(_activeItemsCache.length, byTier);
-              }
-            } catch(e) {
-              console.error('[v464_prefetch_render]', e);
-            }
-          });
-        }
+        // [v4.9.4-prefetch-off] Worker /tracking/{sid}?includeSamples=1 502 다발 차단
+        //   증상: prefetchAllActive가 50+ 카드 동시 fetch → Worker overload → 502 Bad Gateway 다발 → CORS error
+        //   결과: 첫 진입 3~5분 freeze (사용자 보고)
+        //   해결: prefetchAllActive 비활성화. 카드 펼침 시 v464_handleCardExpand가 단일 fetch (정확성 보존)
+        //   Trade-off: MFE/MAE 시계열 그래프만 카드 펼침 시점에 1~5초 wait (등급 변화 그래프 즉시 정상)
+        // if (typeof window !== 'undefined' && window.WOOS_ANALYZER && window.WOOS_ANALYZER.prefetchAllActive) {
+        //   window.WOOS_ANALYZER.prefetchAllActive(activeData.active).then(function(){
+        //     try {
+        //       if (typeof _renderActiveTrackingList === 'function' && _activeItemsCache && _activeItemsCache.length > 0) {
+        //         var byTier = { S: 0, A: 0, B: 0, C: 0 };
+        //         for (var k = 0; k < _activeItemsCache.length; k++) {
+        //           var ti = _activeItemsCache[k].tier || 'B';
+        //           byTier[ti] = (byTier[ti] || 0) + 1;
+        //         }
+        //         _renderActiveTrackingList(_activeItemsCache.length, byTier);
+        //       }
+        //     } catch(e) {
+        //       console.error('[v464_prefetch_render]', e);
+        //     }
+        //   });
+        // }
       }
       
       // 각 스냅샷의 tracking 데이터 fetch (병렬, 일부만 — 성능 고려)
