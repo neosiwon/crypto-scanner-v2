@@ -152,7 +152,7 @@
 <script>
 /* [v4.7.42] 캐시 강제 리셋 — SW 완전 제거 후 리로드 */
 (function(){
-  var VER = 'v4.9.4-fetch-fix-4-splash-v11-safe-intro';  // [v4.9.4+] gradeHistory 박제 + v464_rerenderSingleCard에 _gradeChartHtml 박제 (풀바디 시 등급 점 사라짐 fix)
+  var VER = 'v4.9.4-fetch-fix-4-splash-v12-clean-text-trimmed-video';  // [v4.9.4+] gradeHistory 박제 + v464_rerenderSingleCard에 _gradeChartHtml 박제 (풀바디 시 등급 점 사라짐 fix)
   try {
     var LKEY = 'woos_hard_reset_ver';
     if (localStorage.getItem(LKEY) === VER) return;
@@ -5954,10 +5954,11 @@ details.analyzer-progress-card > summary.progress-compact-summary {
 
 <!-- [WOOS PWA SPLASH CSS START] -->
 <style>
-/* WOOS PWA Splash v11 safe intro
-   - JS가 실패해도 CSS animation으로 3.4초 후 자동으로 안 보이게 처리
-   - video currentTime skip 제거
-   - wordmark는 일반 텍스트 + 이미지 둘 다 준비. 이미지는 보이면 이미지, 안 보이면 텍스트가 보임.
+/* WOOS PWA Splash v12
+   - 글씨 중복 원인인 작은 CSS fallback 텍스트 삭제
+   - woos-wordmark-white.png 이미지 1개만 표시
+   - 영상 초반 고스트는 파일 자체를 1.25초 잘라낸 mp4 사용
+   - JS 실패해도 CSS가 자동으로 숨김
 */
 #woosPwaSplash {
   position: fixed;
@@ -6010,7 +6011,6 @@ details.analyzer-progress-card > summary.progress-compact-summary {
   max-width: 280px;
   min-height: 44px;
   margin-top: 22px;
-  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -6024,34 +6024,9 @@ details.analyzer-progress-card > summary.progress-compact-summary {
   height: auto;
   display: block;
   object-fit: contain;
-  opacity: 1;
-  visibility: visible;
+  opacity: 1 !important;
+  visibility: visible !important;
   filter: none !important;
-  position: relative;
-  z-index: 2;
-}
-
-.woos-pwa-splash-wordmark-text {
-  position: absolute;
-  inset: 0;
-  z-index: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  font-size: clamp(28px, 7.4vw, 42px);
-  font-weight: 500;
-  line-height: 1;
-  letter-spacing: -0.04em;
-  color: #fff;
-  text-shadow: none !important;
-  white-space: nowrap;
-}
-
-/* 이미지가 정상 로딩되면 텍스트 fallback은 뒤에 숨어 보이지 않음 */
-.woos-pwa-splash-wordmark-img:not([src]),
-.woos-pwa-splash-wordmark-img[src=""] {
-  display: none;
 }
 
 @keyframes woosSplashOverlayAutoHide {
@@ -6062,14 +6037,16 @@ details.analyzer-progress-card > summary.progress-compact-summary {
 
 @keyframes woosSplashLogoFade {
   0%   { opacity: 0; transform: scale(.96); }
-  12%  { opacity: 1; transform: scale(1); }
+  10%  { opacity: 0; transform: scale(.96); }
+  18%  { opacity: 1; transform: scale(1); }
   78%  { opacity: 1; transform: scale(1); }
   100% { opacity: 0; transform: scale(1.015); }
 }
 
 @keyframes woosSplashWordmarkFade {
   0%   { opacity: 0; transform: translateY(8px); }
-  12%  { opacity: 1; transform: translateY(0); }
+  10%  { opacity: 0; transform: translateY(8px); }
+  18%  { opacity: 1; transform: translateY(0); }
   78%  { opacity: 1; transform: translateY(0); }
   100% { opacity: 0; transform: translateY(0); }
 }
@@ -6109,7 +6086,6 @@ details.analyzer-progress-card > summary.progress-compact-summary {
     </div>
 
     <div class="woos-pwa-splash-wordmark-wrap">
-      <div class="woos-pwa-splash-wordmark-text">woos crypto</div>
       <img
         class="woos-pwa-splash-wordmark-img"
         src="./assets/woos-wordmark-white.png"
