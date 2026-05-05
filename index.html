@@ -152,7 +152,7 @@
 <script>
 /* [v4.7.42] 캐시 강제 리셋 — SW 완전 제거 후 리로드 */
 (function(){
-  var VER = 'v4.9.7-fix7';  // fix7 — NaN 가드 제거 + Full Body 강제 빌드 (samples 없어도, SVG NaN cosmetic)
+  var VER = 'v4.9.7-fix8';  // fix8 — DOM swap target에 lazy placeholder 포함 (단일 카드 닫혀있던 경우 swap 성공)
   try {
     var LKEY = 'woos_hard_reset_ver';
     if (localStorage.getItem(LKEY) === VER) return;
@@ -7041,12 +7041,12 @@ async function opsDashboard() {
 // 탭 시 상세 팝업
 // ═══════════════════════════════════════════════════════════════
 
-var HTML_VERSION = 'v4.9.7-fix7';  // fix7 — Full Body 강제 빌드
+var HTML_VERSION = 'v4.9.7-fix8';  // fix8 — DOM swap lazy target 포함
 var _cachedBuildInfo = null;
 
 // [State Lock 2 Action fix-2c] 패치 확인용 — 페이지 로드 시 버전명 출력 (DevTools 콘솔)
 try {
-  console.log('[WOOS] ' + HTML_VERSION + ' loaded — Full Body forced build');
+  console.log('[WOOS] ' + HTML_VERSION + ' loaded — lazy swap target supported');
   window.WOOS_VERSION = HTML_VERSION;
 } catch(e) {}
 
@@ -16753,7 +16753,9 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
           v497_cacheSet(job.jobKey, html, '0');
           try { window.WOOS_BODY_DEBUG.done++; } catch(_){}
 
-          // [fix2] DOM 업데이트 — body wrapper 또는 group rep만 교체 (card/details/container 전체 교체 절대 금지)
+          // [fix8] DOM 업데이트 — body wrapper / lazy placeholder / group rep 모두 swap target 인정
+          //   single 카드는 isExpanded=false였으면 .progress-rich-body 없고 .woos-lazy-expanded-body만 있음
+          //   둘 중 발견되는 것을 새 Full Body로 교체
           try {
             var card = document.querySelector('details[data-snapshot-id="' + job.snapshotId + '"][data-job-key="' + job.jobKey + '"]');
             if (!card) {
@@ -16762,12 +16764,8 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
               var cls = card.className;
               var isWatchOrDeep = (cls.indexOf('is-watch') >= 0) || (cls.indexOf('is-deep') >= 0);
               if (!isWatchOrDeep) {
-                // [fix3] mode mismatch 진단 — enqueue 시 displayMode vs 현재 DOM class 비교
-                //   원인 후보: vm.modeState.displayMode 가 watch/deep → standard 로 flipping
-                //   증상: queue 처리 완료 시점에 카드가 standard 상태 → swap 거부 (정상)
-                //   해결: vm 빌더 / WatchState / Core v2 안정화 필요 (다음 패치 영역)
                 try {
-                  console.log('[v497] mode mismatch — enqueued mode:', job.displayMode, '→ DOM now:', cls.indexOf('is-watch')>=0?'watch':cls.indexOf('is-deep')>=0?'deep':cls.indexOf('is-standard')>=0?'standard':'unknown', 'jobKey:', job.jobKey);
+                  console.log('[v497] mode mismatch — enqueued:', job.displayMode, '→ DOM now:', cls.indexOf('is-watch')>=0?'watch':cls.indexOf('is-deep')>=0?'deep':cls.indexOf('is-standard')>=0?'standard':'unknown');
                 } catch(_){}
               } else {
                 var groupSize = parseInt(card.getAttribute('data-group-size') || '0', 10);
@@ -16782,12 +16780,27 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
                   var repWrap = card.querySelector('.progress-rich-body.woos-group-rep, .progress-rich-body .woos-group-rep, .woos-group-rep');
                   if (repWrap) {
                     repWrap.innerHTML = newBody.innerHTML;
+                    try { console.log('[v497] group rep swapped', job.jobKey); } catch(_){}
+                  } else {
+                    // group 카드인데 woos-group-rep 못 찾으면 lazy placeholder인 상태일 수 있음
+                    var groupLazy = card.querySelector('.woos-lazy-expanded-body');
+                    if (groupLazy && groupLazy.parentNode) {
+                      groupLazy.parentNode.replaceChild(newBody, groupLazy);
+                      try { console.log('[v497] group lazy → full swapped', job.jobKey); } catch(_){}
+                    }
                   }
                 } else {
-                  // single: body wrapper만 교체 (card outerHTML / container.innerHTML 절대 X)
+                  // single: body wrapper 또는 lazy placeholder 둘 다 target
                   var bodyWrap = card.querySelector('.progress-rich-body');
+                  var lazyWrap = card.querySelector('.woos-lazy-expanded-body');
                   if (bodyWrap && bodyWrap.parentNode) {
                     bodyWrap.parentNode.replaceChild(newBody, bodyWrap);
+                    try { console.log('[v497] single body swapped', job.jobKey); } catch(_){}
+                  } else if (lazyWrap && lazyWrap.parentNode) {
+                    lazyWrap.parentNode.replaceChild(newBody, lazyWrap);
+                    try { console.log('[v497] single lazy → full swapped', job.jobKey); } catch(_){}
+                  } else {
+                    try { console.warn('[v497] no swap target found', job.jobKey); } catch(_){}
                   }
                 }
               }
@@ -16841,18 +16854,20 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
             if (toIsWatchOrDeep) {
               var toGroupSize = parseInt(toCard.getAttribute('data-group-size') || '0', 10);
               var toIsGroup = toGroupSize >= 2;
-              var toWrap = toCard.querySelector('.progress-rich-body');
-              if (toWrap && toWrap.parentNode) {
-                var toTmp = document.createElement('div');
-                toTmp.innerHTML = toFullHtml;
-                var toNewBody = toTmp.firstElementChild;
-                if (toNewBody) {
-                  if (toIsGroup) {
-                    var toRepWrap = toCard.querySelector('.progress-rich-body.woos-group-rep, .progress-rich-body .woos-group-rep, .woos-group-rep');
-                    if (toRepWrap) toRepWrap.innerHTML = toNewBody.innerHTML;
-                  } else {
-                    toWrap.parentNode.replaceChild(toNewBody, toWrap);
-                  }
+              var toTmp = document.createElement('div');
+              toTmp.innerHTML = toFullHtml;
+              var toNewBody = toTmp.firstElementChild;
+              if (toNewBody) {
+                var toBodyWrap = toCard.querySelector('.progress-rich-body');
+                var toLazyWrap = toCard.querySelector('.woos-lazy-expanded-body');
+                if (toIsGroup) {
+                  var toRepWrap = toCard.querySelector('.progress-rich-body.woos-group-rep, .progress-rich-body .woos-group-rep, .woos-group-rep');
+                  if (toRepWrap) toRepWrap.innerHTML = toNewBody.innerHTML;
+                  else if (toLazyWrap && toLazyWrap.parentNode) toLazyWrap.parentNode.replaceChild(toNewBody, toLazyWrap);
+                } else if (toBodyWrap && toBodyWrap.parentNode) {
+                  toBodyWrap.parentNode.replaceChild(toNewBody, toBodyWrap);
+                } else if (toLazyWrap && toLazyWrap.parentNode) {
+                  toLazyWrap.parentNode.replaceChild(toNewBody, toLazyWrap);
                 }
               }
             }
