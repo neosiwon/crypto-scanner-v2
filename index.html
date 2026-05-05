@@ -152,7 +152,7 @@
 <script>
 /* [v4.7.42] 캐시 강제 리셋 — SW 완전 제거 후 리로드 */
 (function(){
-  var VER = 'v4.9.4-fetch-fix-4-splash-2';  // [v4.9.4+] gradeHistory 박제 + v464_rerenderSingleCard에 _gradeChartHtml 박제 (풀바디 시 등급 점 사라짐 fix)
+  var VER = 'v4.9.4-fetch-fix-4-splash-3-layout';  // [v4.9.4+] gradeHistory 박제 + v464_rerenderSingleCard에 _gradeChartHtml 박제 (풀바디 시 등급 점 사라짐 fix)
   try {
     var LKEY = 'woos_hard_reset_ver';
     if (localStorage.getItem(LKEY) === VER) return;
@@ -5978,34 +5978,37 @@ details.analyzer-progress-card > summary.progress-compact-summary {
   pointer-events: none;
 }
 .woos-pwa-splash-inner {
-  width: min(84vw, 430px);
+  width: min(88vw, 430px);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  transform: translateY(-2vh);
+  transform: translateY(-1vh);
+  gap: 18px;
 }
 .woos-pwa-splash-video {
-  width: min(68vw, 300px);
-  max-width: 300px;
+  width: min(66vw, 290px);
+  max-width: 290px;
   height: auto;
   display: block;
   object-fit: contain;
   opacity: 0;
   transform: scale(.965);
   animation: woosSplashLogoFade 3000ms ease forwards;
+  flex-shrink: 0;
 }
 .woos-pwa-splash-wordmark {
-  width: min(42vw, 190px);
-  max-width: 190px;
+  width: min(58vw, 260px);
+  max-width: 260px;
   height: auto;
   display: block;
   object-fit: contain;
-  margin-top: 6px;
+  margin-top: 0;
   opacity: 0;
-  transform: translateY(5px);
+  transform: translateY(0);
   animation: woosSplashWordmarkFade 3000ms ease forwards;
   filter: none;
+  flex-shrink: 0;
 }
 @keyframes woosSplashLogoFade {
   0%   { opacity: 0; transform: scale(.955); }
@@ -6014,16 +6017,16 @@ details.analyzer-progress-card > summary.progress-compact-summary {
   100% { opacity: 0; transform: scale(1.018); }
 }
 @keyframes woosSplashWordmarkFade {
-  0%   { opacity: 0; transform: translateY(5px); }
-  24%  { opacity: 0; transform: translateY(5px); }
+  0%   { opacity: 0; transform: translateY(6px); }
+  24%  { opacity: 0; transform: translateY(6px); }
   40%  { opacity: 1; transform: translateY(0); }
-  78%  { opacity: 1; transform: translateY(0); }
-  100% { opacity: 0; transform: translateY(-3px); }
+  82%  { opacity: 1; transform: translateY(0); }
+  100% { opacity: 0; transform: translateY(0); }
 }
 @media (max-width: 480px) {
-  .woos-pwa-splash-inner { width: 88vw; transform: translateY(-1vh); }
-  .woos-pwa-splash-video { width: min(70vw, 280px); }
-  .woos-pwa-splash-wordmark { width: min(42vw, 180px); margin-top: 5px; filter: none; }
+  .woos-pwa-splash-inner { width: 88vw; transform: translateY(-1vh); gap: 16px; }
+  .woos-pwa-splash-video { width: min(66vw, 270px); }
+  .woos-pwa-splash-wordmark { width: min(58vw, 240px); margin-top: 0; filter: none; }
 }
 @media (prefers-reduced-motion: reduce) {
   .woos-pwa-splash-video,
@@ -7131,7 +7134,7 @@ async function opsDashboard() {
 // 탭 시 상세 팝업
 // ═══════════════════════════════════════════════════════════════
 
-var HTML_VERSION = 'v4.9.4-fetch-fix-4-splash-2';  // [v4.9.4+] _gradeChartHtml 박제 추가 (rerenderSingleCard 흐름)
+var HTML_VERSION = 'v4.9.4-fetch-fix-4-splash-3-layout';  // [v4.9.4+] _gradeChartHtml 박제 추가 (rerenderSingleCard 흐름)
 var _cachedBuildInfo = null;
 
 // [State Lock 2 Action fix-2c] 패치 확인용 — 페이지 로드 시 버전명 출력 (DevTools 콘솔)
