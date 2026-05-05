@@ -152,7 +152,7 @@
 <script>
 /* [v4.7.42] 캐시 강제 리셋 — SW 완전 제거 후 리로드 */
 (function(){
-  var VER = 'v4.9.5-grade-flow-text';  // [그래프 제거] 분석 중 카드 SVG 제거 + 등급 흐름 텍스트 표시 (분석 완료 사후평가에 그래프 적용 예정)
+  var VER = 'v4.9.5-grade-flow-text-r2';  // [그래프 제거 R2] 도달 타임라인 모달 작동 + ⓘ 위치 + duplicate-watchlist 라벨 + 이전 알람 % 강조
   try {
     var LKEY = 'woos_hard_reset_ver';
     if (localStorage.getItem(LKEY) === VER) return;
@@ -3730,6 +3730,22 @@ details.progress-rich-card.woos-group[open] { border-color: rgba(124, 58, 237, 0
 .woos-group-rep-label { font-size: 0.7rem; color: #6b7280; margin: 12px 0 6px; padding-bottom: 4px; border-bottom: 1px dashed rgba(255,255,255,0.08); }
 .woos-group-others { display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px; }
 .woos-mini-card { display: flex; align-items: center; gap: 8px; padding: 8px 10px; background: rgba(255,255,255,0.02); border-radius: 6px; font-size: 0.75rem; }
+/* [v4.9.5+ 강조] 이전 알람 미니 카드의 수익률 % — 크게 + 글로우 강조 (사용자 결정) */
+.woos-mini-card .woos-pct {
+  font-size: 1.05rem !important;
+  font-weight: 800 !important;
+  font-family: var(--mono, 'SF Mono', Menlo, monospace);
+  margin-right: 0;
+  letter-spacing: -0.02em;
+}
+.woos-mini-card .woos-pct-up {
+  color: #22f69b !important;
+  text-shadow: 0 0 10px rgba(34, 246, 155, .35);
+}
+.woos-mini-card .woos-pct-down {
+  color: #ff5c72 !important;
+  text-shadow: 0 0 10px rgba(255, 92, 114, .35);
+}
 .woos-mini-card .coin-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
 .woos-mini-grade { padding: 1px 6px; border-radius: 3px; background: rgba(0, 212, 255, 0.1); color: #7dd3fc; font-size: 0.65rem; font-weight: 600; }
 .woos-mini-time { color: #9ca3af; flex: 1; }
@@ -4495,6 +4511,34 @@ details.progress-rich-card.woos-group[open] { border-color: rgba(124, 58, 237, 0
   font-size: 12px;
   color: #94a3b8;
   font-weight: 600;
+}
+/* [v4.9.5+ 모달 수정] 도달 타임라인 ⓘ — 우측 끝 위 위치 (사용자 결정) */
+.woos-timeline { position: relative; }
+.woos-timeline-info {
+  position: absolute;
+  top: 4px;
+  right: 8px;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  background: rgba(0, 229, 255, .12);
+  color: #00d4ff;
+  border-radius: 50%;
+  font-size: 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+  transition: background .15s, transform .15s;
+}
+.woos-timeline-info:hover {
+  background: rgba(0, 229, 255, .25);
+  transform: scale(1.08);
+}
+.woos-timeline-info:active {
+  transform: scale(0.95);
 }
 .woos-tl-items { display: flex; justify-content: space-between; align-items: flex-start; position: relative; z-index: 1; }
 .woos-tl-item { display: flex; flex-direction: column; align-items: center; flex: 1; min-width: 0; }
@@ -7062,7 +7106,7 @@ async function opsDashboard() {
 // 탭 시 상세 팝업
 // ═══════════════════════════════════════════════════════════════
 
-var HTML_VERSION = 'v4.9.5-grade-flow-text';  // [그래프 제거] 분석 중 카드 SVG 제거 + 등급 흐름 텍스트
+var HTML_VERSION = 'v4.9.5-grade-flow-text-r2';  // [그래프 제거 R2] 모달/⓲/라벨/% 강조
 var _cachedBuildInfo = null;
 
 // [State Lock 2 Action fix-2c] 패치 확인용 — 페이지 로드 시 버전명 출력 (DevTools 콘솔)
@@ -13807,8 +13851,8 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       return '<div class="woos-timeline">'
            + '<div class="woos-timeline-header">'
            +   '<span class="woos-timeline-title">도달 타임라인</span>'
-           + '<span class="info-icon" onclick="window.v47ShowInfoModal && window.v47ShowInfoModal(\'reach-timeline\')" title="도달 타임라인 — 알람 후 +3/+5/TP1/MFE/MAE 까지 시간">ⓘ</span>'
            + '</div>'
+           + '<button type="button" class="info-icon woos-timeline-info" onclick="window.v47ShowInfoModal && window.v47ShowInfoModal(\'timeline\')" aria-label="도달 타임라인 설명" title="도달 타임라인 — 알람 후 +3/+5/TP1/MFE/MAE 까지 시간">ⓘ</button>'
            + '<div class="woos-tl-line"></div><div class="woos-tl-items">' + dotsHtml + '</div></div>';
     }
     
@@ -15852,6 +15896,7 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       var labelMap = {
         'entryReady': '진입 가능 신호',
         'watchlist': '⭐ 관심 등록',
+        'duplicate-watchlist': '⭐ 관심 등록',  // [v4.9.5+ 정정] Worker 'duplicate-watchlist' → 한국어 표시
       };
       var label = labelMap[reason] || reason;
       if (reason && reason.indexOf('grade-') === 0) {
