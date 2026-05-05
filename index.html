@@ -152,7 +152,7 @@
 <script>
 /* [v4.7.42] 캐시 강제 리셋 — SW 완전 제거 후 리로드 */
 (function(){
-  var VER = 'v4.9.7-fix12';  // fix12 — handleCardExpand에 즉시 rerender + fetch 후 rerender (Worker 응답 느려도 즉시 Full Body 표시)
+  var VER = 'v4.9.7-fix13';  // fix13 — prefetch lite (samples X) + 카드 펼침 시만 includeSamples=1 (Worker 부담 완화)
   try {
     var LKEY = 'woos_hard_reset_ver';
     if (localStorage.getItem(LKEY) === VER) return;
@@ -7041,12 +7041,12 @@ async function opsDashboard() {
 // 탭 시 상세 팝업
 // ═══════════════════════════════════════════════════════════════
 
-var HTML_VERSION = 'v4.9.7-fix12';  // fix12 — 즉시 rerender + fetch 후 rerender
+var HTML_VERSION = 'v4.9.7-fix13';  // fix13 — prefetch lite + 펼친 카드만 samples (Worker 부담 완화)
 var _cachedBuildInfo = null;
 
 // [State Lock 2 Action fix-2c] 패치 확인용 — 페이지 로드 시 버전명 출력 (DevTools 콘솔)
 try {
-  console.log('[WOOS] ' + HTML_VERSION + ' loaded — instant + post-fetch rerender');
+  console.log('[WOOS] ' + HTML_VERSION + ' loaded — Worker 부담 완화');
   window.WOOS_VERSION = HTML_VERSION;
 } catch(e) {}
 
@@ -16207,21 +16207,32 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
     function v464_fetchSnapshot(snapshotId, opts) {
       opts = opts || {};
       if (typeof window === 'undefined' || !snapshotId) return Promise.resolve(null);
-      
+
+      // [v4.9.7-fix13] inflight key — samples 포함 여부에 따라 분리 (lite와 full 동시 inflight 가능)
+      var withSamples = !!opts.includeSamples;
+      var inflightKey = snapshotId + (withSamples ? '|full' : '|lite');
+
       // cache hit?
       if (!opts.force) {
         var cached = v464_cacheGet(snapshotId);
-        if (cached) return Promise.resolve(cached);
+        if (cached) {
+          // full 요청인데 cache가 lite (samples 없음)이면 새로 fetch
+          if (withSamples && !(cached.samples || (cached.tier1 && cached.tier1.samples) || (cached.tier2 && cached.tier2.samples))) {
+            // samples 없는 cache는 무시하고 새로 fetch
+          } else {
+            return Promise.resolve(cached);
+          }
+        }
       }
-      
+
       // in-flight 동일 id Promise 있으면 재사용
-      if (window.__snapshotInflight && window.__snapshotInflight[snapshotId]) {
-        return window.__snapshotInflight[snapshotId];
+      if (window.__snapshotInflight && window.__snapshotInflight[inflightKey]) {
+        return window.__snapshotInflight[inflightKey];
       }
-      
+
       var workerBase = window.WORKER_BASE_URL || '';
-      // /tracking/{id}?includeSamples=1 으로 호출 (samples 포함 풀 데이터)
-      var url = workerBase + '/tracking/' + encodeURIComponent(snapshotId) + '?includeSamples=1';
+      // [v4.9.7-fix13] includeSamples 옵션 — 카드 펼침 시만 true (Worker 부담 완화)
+      var url = workerBase + '/tracking/' + encodeURIComponent(snapshotId) + (withSamples ? '?includeSamples=1' : '');
       
       var promise = fetch(url)
         .then(function(res){
@@ -16230,17 +16241,17 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
         })
         .then(function(data){
           if (data) v464_cacheSet(snapshotId, data);
-          if (window.__snapshotInflight) delete window.__snapshotInflight[snapshotId];
+          if (window.__snapshotInflight) delete window.__snapshotInflight[inflightKey];
           return data;
         })
         .catch(function(err){
-          if (window.__snapshotInflight) delete window.__snapshotInflight[snapshotId];
+          if (window.__snapshotInflight) delete window.__snapshotInflight[inflightKey];
           console.error('[v464_fetchSnapshot]', snapshotId, err);
           return null;
         });
-      
+
       if (!window.__snapshotInflight) window.__snapshotInflight = {};
-      window.__snapshotInflight[snapshotId] = promise;
+      window.__snapshotInflight[inflightKey] = promise;
       
       return promise;
     }
@@ -16371,9 +16382,18 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       // 2. cache hit + alertSnapshot 있으면 fetch skip (이미 최신)
       var cached = v464_cacheGet(snapshotId);
       if (cached && cached.meta && cached.meta.alertSnapshot) return;
-      // 3. fetch 후 또 rerender (samples 적용)
-      v464_fetchSnapshot(snapshotId).then(function(data){
+      // 3. fetch 후 또 rerender (samples 적용) — [fix13] includeSamples=true 명시 (펼친 카드만 samples 받음)
+      v464_fetchSnapshot(snapshotId, { includeSamples: true }).then(function(data){
         if (data && typeof v464_rerenderSingleCard === 'function') {
+          // [fix13] _trackingMap에 samples 머지 (rerenderSingleCard가 자동 머지하지만 명시)
+          try {
+            if (window._trackingMap) {
+              var existingTd = window._trackingMap[snapshotId] || {};
+              window._trackingMap[snapshotId] = Object.assign({}, existingTd, data, {
+                meta: Object.assign({}, existingTd.meta || {}, data.meta || {})
+              });
+            }
+          } catch(_e) {}
           try { v464_rerenderSingleCard(snapshotId); } catch(e){}
         }
       });
