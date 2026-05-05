@@ -152,7 +152,7 @@
 <script>
 /* [v4.7.42] 캐시 강제 리셋 — SW 완전 제거 후 리로드 */
 (function(){
-  var VER = 'v4.9.4-prefetch-off';  // [v4.9.4+] prefetchAllActive 호출 비활성화 — Worker /tracking/{sid} 502 다발 차단 + 첫 진입 freeze 해소
+  var VER = 'v4.9.4-fetch-fix';  // [v4.9.4+] fetch 병목 제거 — timeout 90s, URL 기반 inflight 통합, CONCURRENCY 6→2
   try {
     var LKEY = 'woos_hard_reset_ver';
     if (localStorage.getItem(LKEY) === VER) return;
@@ -6987,7 +6987,7 @@ async function opsDashboard() {
 // 탭 시 상세 팝업
 // ═══════════════════════════════════════════════════════════════
 
-var HTML_VERSION = 'v4.9.4-prefetch-off';  // prefetchAllActive 호출 비활성화 — Worker 502 다발 차단
+var HTML_VERSION = 'v4.9.4-fetch-fix';  // [v4.9.4+] fetch 병목 제거 (timeout 90s + inflight 통합 + CONCURRENCY 2)
 var _cachedBuildInfo = null;
 
 // [State Lock 2 Action fix-2c] 패치 확인용 — 페이지 로드 시 버전명 출력 (DevTools 콘솔)
@@ -11023,9 +11023,45 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
   //   동일 snapshotId+모드 요청이 동시에 진행 중이면 기존 Promise 재사용.
   //   30초 안 동일 키 요청은 캐시된 데이터 반환.
   //   60초 자동 갱신 + 광클 시 ERR_INSUFFICIENT_RESOURCES 폭주 차단.
-  var _fetchTrackingInFlight = {};   // {key: Promise}
+  // [v4.9.4-fetch-fix] 공통 inflight + timeout 통합
+  //   문제: fetchTrackingData(_fetchTrackingInFlight)와 v464_fetchSnapshot(__snapshotInflight)이
+  //         분리되어 같은 URL 두 번 fetch (Worker 부담 2배)
+  //   해결: URL 기반 공통 inflight Map (_woosFetchInflight) → 두 함수가 같은 Map 사용 → 중복 차단
+  //   timeout: 12초 → 90초 (사용자 환경 응답 56~88초 측정 — 한 번에 응답 받음)
+  var TRACKING_FETCH_TIMEOUT_MS = 90000;
+  var _woosFetchInflight = {};       // URL 기반 공통 inflight Map (v464 + fetchTrackingData)
+  var _fetchTrackingInFlight = {};   // {key: Promise} legacy 호환
   var _fetchTrackingCache = {};      // {key: {data, ts}}
   var FETCH_TRACKING_TTL_MS = 30 * 1000;
+
+  // [v4.9.4-fetch-fix] 공통 fetch — URL 기반 dedupe + 90초 timeout + 로그
+  //   호출자가 결과 cache 처리 담당 (fetchTrackingData / v464_fetchSnapshot 별도)
+  function _woosSharedFetch(url) {
+    if (_woosFetchInflight[url]) {
+      try { console.log('[WOOS fetch] HIT inflight', url.slice(-50)); } catch(_){}
+      return _woosFetchInflight[url];
+    }
+    try { console.log('[WOOS fetch] NEW request', url.slice(-50)); } catch(_){}
+    var p = woosFetchWithTimeout(url, {}, TRACKING_FETCH_TIMEOUT_MS)
+      .then(function(r){
+        if (r && r.__woosTimeout) {
+          try { console.warn('[WOOS fetch] TIMEOUT ' + TRACKING_FETCH_TIMEOUT_MS, url.slice(-50)); } catch(_){}
+          return null;
+        }
+        return (r && r.ok) ? r.json() : null;
+      })
+      .catch(function(){ return null; })
+      .then(function(data){
+        try { console.log('[WOOS fetch] DONE', url.slice(-50), data ? 'ok' : 'null'); } catch(_){}
+        delete _woosFetchInflight[url];
+        return data;
+      });
+    _woosFetchInflight[url] = p;
+    return p;
+  }
+  // [v4.9.4-fetch-fix] window 노출 — WOOS_ANALYZER IIFE의 v464_fetchSnapshot이 사용 (sibling IIFE 통신)
+  try { window._woosSharedFetch = _woosSharedFetch; } catch(_){}
+
   function fetchTrackingData(snapshotId, includeSamples) {
     var key = String(snapshotId || '') + (includeSamples ? '|full' : '|lite');
     // 1. 캐시 hit
@@ -11033,16 +11069,14 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
     if (cached && (Date.now() - cached.ts) < FETCH_TRACKING_TTL_MS) {
       return Promise.resolve(cached.data);
     }
-    // 2. inFlight 재사용
+    // 2. legacy inFlight 재사용 (호환)
     if (_fetchTrackingInFlight[key]) {
       return _fetchTrackingInFlight[key];
     }
-    // 3. 새 fetch
+    // 3. 새 fetch — _woosSharedFetch 통해 URL 기반 dedupe
     var url = WORKER_URL + '/tracking/' + encodeURIComponent(snapshotId);
     if (includeSamples) url += '?includeSamples=1';
-    var p = woosFetchWithTimeout(url, {}, 12000)
-      .then(function(r){ return (r && !r.__woosTimeout && r.ok) ? r.json() : null; })
-      .catch(function(){ return null; })
+    var p = _woosSharedFetch(url)
       .then(function(data){
         if (data) _fetchTrackingCache[key] = { data: data, ts: Date.now() };
         delete _fetchTrackingInFlight[key];
@@ -11097,27 +11131,24 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
         // [Phase 4.6.4] HOTFIX — 모든 active 코인 snapshotCache 에 prefetch (병렬)
         // 사용자 운영 데이터: 51개 active 중 30개만 _trackingMap → 21개 빈 메타
         // 해결: snapshotCache + prefetch 모든 active + lazy load on expand
-        // [v4.9.4-prefetch-off] Worker /tracking/{sid}?includeSamples=1 502 다발 차단
-        //   증상: prefetchAllActive가 50+ 카드 동시 fetch → Worker overload → 502 Bad Gateway 다발 → CORS error
-        //   결과: 첫 진입 3~5분 freeze (사용자 보고)
-        //   해결: prefetchAllActive 비활성화. 카드 펼침 시 v464_handleCardExpand가 단일 fetch (정확성 보존)
-        //   Trade-off: MFE/MAE 시계열 그래프만 카드 펼침 시점에 1~5초 wait (등급 변화 그래프 즉시 정상)
-        // if (typeof window !== 'undefined' && window.WOOS_ANALYZER && window.WOOS_ANALYZER.prefetchAllActive) {
-        //   window.WOOS_ANALYZER.prefetchAllActive(activeData.active).then(function(){
-        //     try {
-        //       if (typeof _renderActiveTrackingList === 'function' && _activeItemsCache && _activeItemsCache.length > 0) {
-        //         var byTier = { S: 0, A: 0, B: 0, C: 0 };
-        //         for (var k = 0; k < _activeItemsCache.length; k++) {
-        //           var ti = _activeItemsCache[k].tier || 'B';
-        //           byTier[ti] = (byTier[ti] || 0) + 1;
-        //         }
-        //         _renderActiveTrackingList(_activeItemsCache.length, byTier);
-        //       }
-        //     } catch(e) {
-        //       console.error('[v464_prefetch_render]', e);
-        //     }
-        //   });
-        // }
+        if (typeof window !== 'undefined' && window.WOOS_ANALYZER && window.WOOS_ANALYZER.prefetchAllActive) {
+          window.WOOS_ANALYZER.prefetchAllActive(activeData.active).then(function(){
+            // prefetch 완료 시 cache 갱신됨 → 다음 카드 펼침/렌더 시 즉시 표시
+            // 추가로 active 카드 영역 재렌더 (한 번)
+            try {
+              if (typeof _renderActiveTrackingList === 'function' && _activeItemsCache && _activeItemsCache.length > 0) {
+                var byTier = { S: 0, A: 0, B: 0, C: 0 };
+                for (var k = 0; k < _activeItemsCache.length; k++) {
+                  var ti = _activeItemsCache[k].tier || 'B';
+                  byTier[ti] = (byTier[ti] || 0) + 1;
+                }
+                _renderActiveTrackingList(_activeItemsCache.length, byTier);
+              }
+            } catch(e) {
+              console.error('[v464_prefetch_render]', e);
+            }
+          });
+        }
       }
       
       // 각 스냅샷의 tracking 데이터 fetch (병렬, 일부만 — 성능 고려)
@@ -16112,30 +16143,49 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
         if (cached) return Promise.resolve(cached);
       }
       
-      // in-flight 동일 id Promise 있으면 재사용
+      // in-flight 동일 id Promise 있으면 재사용 (legacy)
       if (window.__snapshotInflight && window.__snapshotInflight[snapshotId]) {
         return window.__snapshotInflight[snapshotId];
       }
-      
+
       var workerBase = window.WORKER_BASE_URL || '';
       // /tracking/{id}?includeSamples=1 으로 호출 (samples 포함 풀 데이터)
       var url = workerBase + '/tracking/' + encodeURIComponent(snapshotId) + '?includeSamples=1';
-      
-      var promise = fetch(url)
-        .then(function(res){
-          if (!res.ok) throw new Error('HTTP ' + res.status);
-          return res.json();
-        })
-        .then(function(data){
-          if (data) v464_cacheSet(snapshotId, data);
-          if (window.__snapshotInflight) delete window.__snapshotInflight[snapshotId];
-          return data;
-        })
-        .catch(function(err){
-          if (window.__snapshotInflight) delete window.__snapshotInflight[snapshotId];
-          console.error('[v464_fetchSnapshot]', snapshotId, err);
-          return null;
-        });
+
+      // [v4.9.4-fetch-fix] _woosSharedFetch 통해 URL 기반 inflight 통합 (sibling IIFE — window 통해 호출)
+      //   효과: fetchTrackingData(sid, true)와 같은 URL → 같은 Promise 재사용 → 중복 fetch 차단
+      //   timeout 90초 자동 적용
+      var promise;
+      if (typeof window._woosSharedFetch === 'function') {
+        promise = window._woosSharedFetch(url)
+          .then(function(data){
+            if (data) v464_cacheSet(snapshotId, data);
+            if (window.__snapshotInflight) delete window.__snapshotInflight[snapshotId];
+            return data;
+          })
+          .catch(function(err){
+            if (window.__snapshotInflight) delete window.__snapshotInflight[snapshotId];
+            console.error('[v464_fetchSnapshot]', snapshotId, err);
+            return null;
+          });
+      } else {
+        // fallback (구 흐름) — _woosSharedFetch 정의 전 호출 시
+        promise = fetch(url)
+          .then(function(res){
+            if (!res.ok) throw new Error('HTTP ' + res.status);
+            return res.json();
+          })
+          .then(function(data){
+            if (data) v464_cacheSet(snapshotId, data);
+            if (window.__snapshotInflight) delete window.__snapshotInflight[snapshotId];
+            return data;
+          })
+          .catch(function(err){
+            if (window.__snapshotInflight) delete window.__snapshotInflight[snapshotId];
+            console.error('[v464_fetchSnapshot]', snapshotId, err);
+            return null;
+          });
+      }
       
       if (!window.__snapshotInflight) window.__snapshotInflight = {};
       window.__snapshotInflight[snapshotId] = promise;
@@ -16148,7 +16198,8 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       if (!Array.isArray(activeList) || activeList.length === 0) return Promise.resolve([]);
       
       // [옵션 C Step 1] 동시 fetch 6개 제한 (모바일 ERR_INSUFFICIENT_RESOURCES 차단)
-      var CONCURRENCY = 6;
+      // [v4.9.4-fetch-fix] 6 → 2 (Worker 부담 1/3 감소, 사용자 환경 502/timeout 다발 차단)
+      var CONCURRENCY = 2;
       var queue = activeList.filter(function(item){
         var sid = item && (item.id || item.snapshotId);
         return sid && !v464_cacheGet(sid);
