@@ -152,7 +152,7 @@
 <script>
 /* [v4.7.42] 캐시 강제 리셋 — SW 완전 제거 후 리로드 */
 (function(){
-  var VER = 'v4.9.7-fix13';  // fix13 — prefetch lite (samples X) + 카드 펼침 시만 includeSamples=1 (Worker 부담 완화)
+  var VER = 'v4.9.5-grade-flow-text';  // [그래프 제거] 분석 중 카드 SVG 제거 + 등급 흐름 텍스트 표시 (분석 완료 사후평가에 그래프 적용 예정)
   try {
     var LKEY = 'woos_hard_reset_ver';
     if (localStorage.getItem(LKEY) === VER) return;
@@ -3829,6 +3829,81 @@ details.progress-rich-card.woos-group[open] { border-color: rgba(124, 58, 237, 0
   border-radius: 50%;
   border: 1px solid rgba(0,0,0,0.4);
 }
+/* ═══════════════════════════════════════════════════════════
+ * [v4.9.5+ 그래프 제거] 등급 흐름 텍스트 표시 (SVG 그래프 대체)
+ * 거래소 한 줄 통합 표기: A(BIN) → S(BIT) → S(UPB) → A(BIN)
+ * ═══════════════════════════════════════════════════════════ */
+.woos-grade-flow {
+  background: rgba(255, 255, 255, .03);
+  border: 1px solid rgba(0, 229, 255, .12);
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin: 8px 0;
+}
+.gflow-title {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: rgba(0, 229, 255, .85);
+  margin-bottom: 8px;
+}
+.gflow-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.82rem;
+  margin-bottom: 8px;
+  line-height: 1.7;
+}
+.gflow-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  white-space: nowrap;
+}
+.gflow-arrow {
+  color: rgba(190, 220, 255, .35);
+  margin: 0 3px;
+  font-size: 0.72rem;
+}
+.gflow-grade {
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 0.78rem;
+}
+.gflow-ex {
+  font-weight: 700;
+  font-size: 0.7rem;
+  margin-left: 1px;
+}
+.gflow-grade-splus {
+  background: rgba(255, 64, 129, .18);
+  color: #ff4081;
+}
+.gflow-grade-s {
+  background: rgba(255, 152, 0, .18);
+  color: #ff9800;
+}
+.gflow-grade-a {
+  background: rgba(0, 229, 255, .15);
+  color: #00e5ff;
+}
+.gflow-grade-b {
+  background: rgba(105, 240, 174, .15);
+  color: #69f0ae;
+}
+.gflow-grade-other {
+  background: rgba(190, 220, 255, .08);
+  color: rgba(235, 244, 255, .75);
+}
+.gflow-summary {
+  font-size: 0.74rem;
+  color: rgba(190, 220, 255, .7);
+  border-top: 1px solid rgba(255, 255, 255, .05);
+  padding-top: 6px;
+}
+
 .gcc-svg {
   width: 100%; height: auto; display: block;
   max-height: 130px;
@@ -5579,60 +5654,6 @@ details.v477-track-card[open] > .progress-rich-body {
   color: rgba(235,244,255,.92) !important;
 }
 
-/* [v4.9.5 Speed Architecture Lock] CSS contain — 닫힌 카드 paint/reflow 격리 (디자인 변화 0%) */
-details.v477-track-card:not([open]) {
-  contain: layout paint;
-}
-
-/* [v4.9.5] 모바일 backdrop-filter 약화 (768px 이하 — PC 디자인은 그대로) */
-@media (max-width: 768px) {
-  .v480-glass-card,
-  details.v477-track-card {
-    backdrop-filter: blur(8px) saturate(140%) !important;
-    -webkit-backdrop-filter: blur(8px) saturate(140%) !important;
-  }
-  details.v477-track-card[open] .progress-rich-body .metric-card,
-  details.v477-track-card[open] .progress-rich-body .analysis-card,
-  details.v477-track-card[open] .progress-rich-body .briefing-box,
-  details.v477-track-card[open] .progress-rich-body .structure-box,
-  details.v477-track-card[open] .progress-rich-body .detail-card,
-  details.v477-track-card[open] .progress-rich-body .analysis-panel,
-  details.v477-track-card[open] .progress-rich-body .risk-panel,
-  details.v477-track-card[open] .progress-rich-body .score-group,
-  details.v477-track-card[open] .progress-rich-body .score-head-card {
-    backdrop-filter: blur(6px) saturate(130%) !important;
-    -webkit-backdrop-filter: blur(6px) saturate(130%) !important;
-  }
-}
-
-/* [v4.9.5] Standard Lite Body — 표준 카드 펼침 시 단일값 기반 기본정보 (무거운 blur/filter 없음) */
-.woos-lazy-expanded-body { display: none; }
-.woos-lite-body { padding: 12px 14px; }
-.lite-header { display: flex; align-items: center; gap: 6px; margin-bottom: 10px; font-size: 0.78rem; }
-.lite-mode-label { color: rgba(190,220,255,.8); font-weight: 500; }
-.lite-stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px; }
-.lite-stat { background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.06); border-radius: 8px; padding: 6px 10px; }
-.lite-stat-label { display: block; font-size: 0.7rem; color: rgba(190,220,255,.55); margin-bottom: 2px; }
-.lite-stat-value { font-size: 0.92rem; font-weight: 600; color: rgba(235,244,255,.92); }
-.lite-stat-value.profit { color: #00e676; }
-.lite-stat-value.loss { color: #ff8c42; }
-.lite-prices { background: rgba(255,255,255,.02); border: 1px solid rgba(255,255,255,.05); border-radius: 8px; padding: 8px 12px; margin-bottom: 8px; }
-.lite-price-row { display: flex; justify-content: space-between; font-size: 0.78rem; padding: 3px 0; color: rgba(190,220,255,.85); }
-.lite-price-row span { color: rgba(190,220,255,.55); }
-.lite-price-row b { font-weight: 600; color: rgba(235,244,255,.92); }
-.lite-price-row b.profit { color: #00e676; }
-.lite-price-row b.loss { color: #ff8c42; }
-.lite-hint { font-size: 0.7rem; color: rgba(190,220,255,.45); text-align: center; margin-top: 8px; padding: 4px; }
-
-/* [v4.9.7] Body Cache + Queue — loading / stale badge / error */
-.woos-fullbody-loading { padding: 24px 16px; min-height: 80px; display: flex; align-items: center; justify-content: center; }
-.woos-fullbody-loading .lite-hint { font-size: 0.78rem; color: rgba(190,220,255,.7); margin-top: 0; }
-.woos-stale-badge { font-size: 0.7rem; color: rgba(255,200,100,.85); background: rgba(255,180,80,.08); border: 1px solid rgba(255,180,80,.18); border-radius: 6px; padding: 3px 8px; margin: 6px 8px 0; display: inline-block; }
-.woos-body-stale { opacity: 0.92; }
-.woos-body-error { padding: 20px 16px; min-height: 64px; display: flex; align-items: center; justify-content: center; background: rgba(255,80,80,.05); border-radius: 8px; }
-.woos-body-error .lite-hint { color: rgba(255,150,150,.85); margin-top: 0; }
-.woos-body-error .woos-err-reason { color: rgba(255,150,150,.55); font-size: 0.66rem; margin-left: 4px; }
-
 /* 펼침 내부 주요 박스류를 읽기 쉬운 유리 카드로 통일 */
 details.v477-track-card[open] .progress-rich-body .metric-card,
 details.v477-track-card[open] .progress-rich-body .analysis-card,
@@ -7041,12 +7062,12 @@ async function opsDashboard() {
 // 탭 시 상세 팝업
 // ═══════════════════════════════════════════════════════════════
 
-var HTML_VERSION = 'v4.9.7-fix13';  // fix13 — prefetch lite + 펼친 카드만 samples (Worker 부담 완화)
+var HTML_VERSION = 'v4.9.5-grade-flow-text';  // [그래프 제거] 분석 중 카드 SVG 제거 + 등급 흐름 텍스트
 var _cachedBuildInfo = null;
 
 // [State Lock 2 Action fix-2c] 패치 확인용 — 페이지 로드 시 버전명 출력 (DevTools 콘솔)
 try {
-  console.log('[WOOS] ' + HTML_VERSION + ' loaded — Worker 부담 완화');
+  console.log('[WOOS] ' + HTML_VERSION + ' loaded — Signal Reason 중복 제거');
   window.WOOS_VERSION = HTML_VERSION;
 } catch(e) {}
 
@@ -12628,23 +12649,11 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       allGroups = W.groupTracks(allTracks);
       allGroups = v4743_normalizeGroupFlags(allGroups, watchMap);
 
-      // [v4.7.45] 그래프 HTML 캐싱 — allGroups 생성 직후 1회만, 실패해도 렌더 계속
-      // [v4.9.1-w1r1c-fetch-open-fix-2] W.buildGradeChangeChart export 사용 (IIFE 스코프)
-      //   v47_buildGradeChangeChart는 11833/12449 nested IIFE 안에 정의되어 있어
-      //   외부 IIFE에서 직접 호출 시 ReferenceError 발생.
-      //   WOOS_ANALYZER export로 접근.
-      allGroups.forEach(function(g) {
-        try {
-          if (W && typeof W.buildGradeChangeChart === 'function') {
-            g._gradeChartHtml = W.buildGradeChangeChart(g);
-          } else {
-            g._gradeChartHtml = '';
-          }
-        } catch(e) {
-          console.error('[GRADE_CHART_CACHE_FAIL]', g.base, e && e.message ? e.message : e);
-          g._gradeChartHtml = '';
-        }
-      });
+      // [v4.9.5+ 그래프 제거] _gradeChartHtml 캐싱 제거 (SVG 매 렌더 생성 X)
+      //   사용자 결정: 분석 중 카드 그래프 모두 제거 → 등급 흐름 텍스트로 대체
+      //   w495_buildGradeFlowText는 cheap이라 카드 빌드 시점에 직접 호출 (캐싱 불필요)
+      //   v47_buildGradeChangeChart 함수 본체는 보존 (분석 완료 사후평가 적용 예정)
+      // 이전: allGroups.forEach((g) => { g._gradeChartHtml = W.buildGradeChangeChart(g); });
     }
 
     // ════════════════════════════════════════════════════════════════════
@@ -12708,8 +12717,6 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       window._activeItemsCache = _activeItemsCache;
       window._renderActiveTrackingList = _renderActiveTrackingList;
       window._trackingMap = _trackingMap;
-      // [v4.9.7-fix1] WOOS_ANALYZER IIFE의 v497_processQueue 가 fetch 가능하도록 노출
-      window.fetchTrackingData = fetchTrackingData;
     } catch(e) {}
 
     // 탭 헤더 — 활성(N)은 allGroups.length 고정
@@ -12741,9 +12748,6 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
 
     // [v4.7.43] cardsHtml — visibleGroups 렌더
     // [State Lock] vm 전달 — 카드 빌드 함수가 vm 기준으로만 표시 결정
-    // [v4.9.5 Speed Architecture Lock] cardsHtml 생성 직전 capture — isExpanded 결정용
-    //   capture 키 형식 = 'active:' + canonical (w1_getCardKey와 일치)
-    var __w1_opened = (typeof w1_captureOpenCards === 'function') ? w1_captureOpenCards() : null;
     var cardsHtml = '';
     try {
       if (visibleGroups.length === 0) {
@@ -12753,8 +12757,7 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
           try {
             var k = group.key || (group.representative && group.representative.base) || '';
             var vm = vmByGroupKey[k] || null;
-            // [v4.9.5] openedKeys 전달 — 새 cardKey 계산 금지. buildGroupCardHTML가 기존 w1_cardKey 형식으로 isExpanded 판단
-            return W.buildGroupCardHTML(group, { isFirstRender: true, vm: vm, openedKeys: __w1_opened });
+            return W.buildGroupCardHTML(group, { isFirstRender: true, vm: vm });
           }
           catch(e2) { return '<div class="analyzer-empty">카드 렌더 실패: ' + (group && group.base || '') + '</div>'; }
         }).join('');
@@ -12774,9 +12777,9 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
                             + '</div>';
     var headerHtml = tabsHtml + statsHtml;
     
-    // [v4.9.5] 기존 capture 호출 제거 — cardsHtml 생성 직전으로 이동됨 (위 참조)
-    //   __w1_opened 변수는 동일 함수 스코프에서 재사용 (restore 호출 위해 그대로 살아있음)
-
+    // [Week 1 — Round 1] 11355 직전 — 현재 펼친 카드 키 캡처 (메모리, sessionStorage X)
+    var __w1_opened = (typeof w1_captureOpenCards === 'function') ? w1_captureOpenCards() : null;
+    
     container.innerHTML = headerHtml + activeContainerHtml + historyContainerHtml;
     
     // [Week 1 — Round 1] 11355 직후 — 정확 상태 복원 (빈 배열도 호출, stale open 무효화)
@@ -14658,44 +14661,7 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       opts = opts || {};
       var base = v49_normalizeBase(group && group.base || group && group.key || '');
       var signals = v49_collectSignalsFromGroup(group || {});
-      var v496_now = opts.now || Date.now();
-      var state = v49_evaluateCoreState({ base: base, signals: signals, watchMap: opts.watchMap || {}, now: v496_now, rawWindowState: { note: 'legacy raw 보존 전용 — 판단 미사용' } });
-
-      // [v4.9.6 Core v2 Fallback Hotfix] active payload sCount24/aCount24 fallback
-      //   gradeHistory가 active payload에 없는 케이스 (Worker 미보강) 보완.
-      //   조건: state.analysisMode='standard' + qualification 미충족
-      //   fallback 평가:
-      //     - group.items의 sCount24 합 >= 4 → S_4_PLUS_FALLBACK
-      //     - group.items의 aCount24 합 >= 5 → A_5_PLUS_FALLBACK
-      //   S+ 조건은 fallback 안 함 (sCount만으론 ready 구분 불가능 → Core v2 정신 보호)
-      //   raw 박제 X — state 객체만 변경 (setBaseState 미호출, items 미수정)
-      if (state && state.analysisMode === 'standard' && state.qualification && !state.qualification.qualified) {
-        var v496_sSum = 0, v496_aSum = 0;
-        var v496_items = (group && Array.isArray(group.items)) ? group.items : [];
-        for (var v496_i = 0; v496_i < v496_items.length; v496_i++) {
-          var v496_it = v496_items[v496_i];
-          if (!v496_it) continue;
-          v496_sSum += Number(v496_it.sCount24) || 0;
-          v496_aSum += Number(v496_it.aCount24) || 0;
-        }
-        var v496_fbReason = null;
-        if (v496_sSum >= 4) v496_fbReason = 'S_4_PLUS_FALLBACK';
-        else if (v496_aSum >= 5) v496_fbReason = 'A_5_PLUS_FALLBACK';
-        if (v496_fbReason) {
-          var v496_endsAt = v496_now + 7 * 24 * 3600 * 1000;
-          state.analysisMode = 'deep';
-          state.reason = v496_fbReason;
-          state.autoDeepSlot = {
-            startedAt: v496_now,
-            endsAt: v496_endsAt,
-            reason: v496_fbReason,
-            isNew: true,
-            isFallback: true
-          };
-          state.trackingWindow = { type: '7d-fallback', windowDays: 7, startedAt: v496_now, endsAt: v496_endsAt };
-        }
-      }
-      return state;
+      return v49_evaluateCoreState({ base: base, signals: signals, watchMap: opts.watchMap || {}, now: opts.now || Date.now(), rawWindowState: { note: 'legacy raw 보존 전용 — 판단 미사용' } });
     }
 
     function v49_evaluateItemCoreV2(item, opts) {
@@ -14885,6 +14851,145 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       svg.push('</g>');
       svg.push('</svg>');
       return svg.join('');
+    }
+    
+    
+    /* ═══════════════════════════════════════════════════════════
+     * [v4.9.5+ 그래프 제거] w495_buildGradeFlowText
+     * 분석 중 카드용 등급 흐름 텍스트 표시 (SVG 그래프 대체)
+     * 
+     * 사용자 정책:
+     *   - 시간순 배열 그대로
+     *   - 중복 제거 X (같은 등급 반복 유지)
+     *   - 거래소 한 줄 통합 표기: A(BIN) → S(BIT) → S(UPB) → A(BIN)
+     *   - 분석 완료 탭의 사후평가 그래프는 영향 X (별도 함수)
+     * 
+     * source: v47_buildGradeChangeChart와 동일 (rep + meta + items[] + items[].meta)
+     * ═══════════════════════════════════════════════════════════ */
+    function w495_buildGradeFlowText(group) {
+      if (!group) return '';
+      var rep = group.representative || {};
+      var meta = rep.meta || {};
+      
+      function w495_normalizeGFP(pt, fallbackExchange) {
+        if (!pt) return null;
+        var gradeCode = pt.gradeCode || pt.grade || '?';
+        var t = pt.time || pt.t || pt.at || pt.startedAt || 0;
+        var ex = pt.exchange || fallbackExchange || '';
+        var sid = pt.snapshotId || pt.id || '';
+        return { gradeCode: gradeCode, t: t, exchange: ex, snapshotId: sid };
+      }
+      
+      var rawCollected = [];
+      
+      // 1. representative.gradeHistory
+      if (Array.isArray(rep.gradeHistory)) {
+        rep.gradeHistory.forEach(function(pt){ 
+          var n = w495_normalizeGFP(pt, rep.exchange); 
+          if (n) rawCollected.push(n); 
+        });
+      }
+      // 2. representative.meta.gradeHistory
+      if (Array.isArray(meta.gradeHistory)) {
+        meta.gradeHistory.forEach(function(pt){ 
+          var n = w495_normalizeGFP(pt, rep.exchange); 
+          if (n) rawCollected.push(n); 
+        });
+      }
+      // 3. group.items[].gradeHistory + items[].meta.gradeHistory + item 자체
+      if (Array.isArray(group.items)) {
+        group.items.forEach(function(it){
+          if (!it) return;
+          var im = it.meta || {};
+          if (Array.isArray(it.gradeHistory)) {
+            it.gradeHistory.forEach(function(pt){ 
+              var n = w495_normalizeGFP(pt, it.exchange || im.exchange); 
+              if (n) rawCollected.push(n); 
+            });
+          }
+          if (Array.isArray(im.gradeHistory)) {
+            im.gradeHistory.forEach(function(pt){ 
+              var n = w495_normalizeGFP(pt, it.exchange || im.exchange); 
+              if (n) rawCollected.push(n); 
+            });
+          }
+          var itemTs = it.startedAt || im.windowStart || it.tierAssignedAt || 0;
+          var itemGrade = (typeof v41_getAlertSnapshot === 'function' && v41_getAlertSnapshot(it) && v41_getAlertSnapshot(it).gradeCode) 
+                       || it.gradeCode || im.gradeCode;
+          if (itemTs && itemGrade) {
+            rawCollected.push({
+              gradeCode: itemGrade,
+              t: itemTs,
+              exchange: it.exchange || im.exchange || '',
+              snapshotId: it.id || it.snapshotId || ''
+            });
+          }
+        });
+      }
+      
+      // dedupe: 입력 source 중복만 제거 (snapshotId+t+exchange+grade)
+      // 같은 등급 반복은 유지 (사용자 정책)
+      var dedup = {};
+      var historyPoints = [];
+      rawCollected.forEach(function(p){
+        if (!p || !p.t) return;
+        var key = (p.snapshotId || '') + '|' + p.t + '|' + (p.exchange || '') + '|' + (p.gradeCode || '');
+        if (dedup[key]) return;
+        dedup[key] = true;
+        historyPoints.push(p);
+      });
+      
+      if (!historyPoints.length) return '';
+      
+      // 시간순 정렬 (오래된 → 최신)
+      historyPoints.sort(function(a, b) { return a.t - b.t; });
+      
+      // 통계
+      var allGrades = historyPoints.map(function(p) { return p.gradeCode; });
+      var totalChanges = allGrades.length;
+      var currentGrade = allGrades[allGrades.length - 1] || '-';
+      
+      // 최고 등급 (S+ > S > A > B > C > D)
+      var GRADE_RANK = { 'S+': 6, 'S': 5, 'A': 4, 'B': 3, 'C': 2, 'D': 1 };
+      var highestGrade = '-';
+      var highestRank = 0;
+      allGrades.forEach(function(g) {
+        var r = GRADE_RANK[g] || 0;
+        if (r > highestRank) { highestRank = r; highestGrade = g; }
+      });
+      
+      function w495_gradeClass(g) {
+        if (g === 'S+') return 'gflow-grade-splus';
+        if (g === 'S') return 'gflow-grade-s';
+        if (g === 'A') return 'gflow-grade-a';
+        if (g === 'B') return 'gflow-grade-b';
+        return 'gflow-grade-other';
+      }
+      
+      // 거래소 라벨 + 색상 (v47_buildGradeChangeChart와 동일)
+      var EXCHANGE_LABEL = { 'BIN': 'BIN', 'BIT': 'BIT', 'UPB': 'UPB', 'BINANCE': 'BIN', 'BITGET': 'BIT', 'UPBIT': 'UPB' };
+      var EXCHANGE_COLOR = { 'BIN': '#f3ba2f', 'BIT': '#f76b1c', 'UPB': '#1e64ff' };
+      
+      // 거래소 한 줄 통합: A(BIN) → S(BIT) → S(UPB) → A(BIN)
+      var flowItems = historyPoints.map(function(p) {
+        var exLabel = EXCHANGE_LABEL[p.exchange] || EXCHANGE_LABEL[String(p.exchange || '').toUpperCase()] || p.exchange || '';
+        var exColor = EXCHANGE_COLOR[exLabel] || '#888';
+        return '<span class="gflow-item">'
+             +   '<span class="gflow-grade ' + w495_gradeClass(p.gradeCode) + '">' + v40_escapeHtml(p.gradeCode) + '</span>'
+             +   '<span class="gflow-ex" style="color:' + exColor + '">(' + v40_escapeHtml(exLabel) + ')</span>'
+             + '</span>';
+      });
+      var flowHtml = flowItems.join('<span class="gflow-arrow">→</span>');
+      
+      return '<div class="woos-grade-flow">'
+           +   '<div class="gflow-title">📊 등급 흐름</div>'
+           +   '<div class="gflow-line">' + flowHtml + '</div>'
+           +   '<div class="gflow-summary">'
+           +     '최고 <span class="gflow-grade ' + w495_gradeClass(highestGrade) + '">' + v40_escapeHtml(highestGrade) + '</span> · '
+           +     '현재 <span class="gflow-grade ' + w495_gradeClass(currentGrade) + '">' + v40_escapeHtml(currentGrade) + '</span> · '
+           +     '변화 ' + totalChanges + '회'
+           +   '</div>'
+           + '</div>';
     }
     
     /* ═══════════════════════════════════════════════════════════
@@ -16207,32 +16312,21 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
     function v464_fetchSnapshot(snapshotId, opts) {
       opts = opts || {};
       if (typeof window === 'undefined' || !snapshotId) return Promise.resolve(null);
-
-      // [v4.9.7-fix13] inflight key — samples 포함 여부에 따라 분리 (lite와 full 동시 inflight 가능)
-      var withSamples = !!opts.includeSamples;
-      var inflightKey = snapshotId + (withSamples ? '|full' : '|lite');
-
+      
       // cache hit?
       if (!opts.force) {
         var cached = v464_cacheGet(snapshotId);
-        if (cached) {
-          // full 요청인데 cache가 lite (samples 없음)이면 새로 fetch
-          if (withSamples && !(cached.samples || (cached.tier1 && cached.tier1.samples) || (cached.tier2 && cached.tier2.samples))) {
-            // samples 없는 cache는 무시하고 새로 fetch
-          } else {
-            return Promise.resolve(cached);
-          }
-        }
+        if (cached) return Promise.resolve(cached);
       }
-
+      
       // in-flight 동일 id Promise 있으면 재사용
-      if (window.__snapshotInflight && window.__snapshotInflight[inflightKey]) {
-        return window.__snapshotInflight[inflightKey];
+      if (window.__snapshotInflight && window.__snapshotInflight[snapshotId]) {
+        return window.__snapshotInflight[snapshotId];
       }
-
+      
       var workerBase = window.WORKER_BASE_URL || '';
-      // [v4.9.7-fix13] includeSamples 옵션 — 카드 펼침 시만 true (Worker 부담 완화)
-      var url = workerBase + '/tracking/' + encodeURIComponent(snapshotId) + (withSamples ? '?includeSamples=1' : '');
+      // /tracking/{id}?includeSamples=1 으로 호출 (samples 포함 풀 데이터)
+      var url = workerBase + '/tracking/' + encodeURIComponent(snapshotId) + '?includeSamples=1';
       
       var promise = fetch(url)
         .then(function(res){
@@ -16241,17 +16335,17 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
         })
         .then(function(data){
           if (data) v464_cacheSet(snapshotId, data);
-          if (window.__snapshotInflight) delete window.__snapshotInflight[inflightKey];
+          if (window.__snapshotInflight) delete window.__snapshotInflight[snapshotId];
           return data;
         })
         .catch(function(err){
-          if (window.__snapshotInflight) delete window.__snapshotInflight[inflightKey];
+          if (window.__snapshotInflight) delete window.__snapshotInflight[snapshotId];
           console.error('[v464_fetchSnapshot]', snapshotId, err);
           return null;
         });
-
+      
       if (!window.__snapshotInflight) window.__snapshotInflight = {};
-      window.__snapshotInflight[inflightKey] = promise;
+      window.__snapshotInflight[snapshotId] = promise;
       
       return promise;
     }
@@ -16333,13 +16427,7 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
         var td = window._trackingMap[snapshotId] || trackingData;
         var track = W.adaptItemToTrack(item, td);
         var groups = W.groupTracks([track]);
-        // [v4.9.7-fix11] 카드 펼침 상태 + cardKey openedKeys로 전달 → isExpanded=true → Full Body 빌드
-        //   기존: openedKeys 없음 → lazy placeholder. vm 없음 → standard fallback (watch/deep도 Lite로 잘못 분류)
-        //   수정: 현재 펼친 카드의 cardKey를 openedKeys로 전달 → isExpanded=true 보장
-        //   vm은 노출 안 됨 → v40_buildTrackInner에서 track.isWatchlist/isAutoPrecise로 displayMode 추론 (fix11 추가 변경)
-        var v497fix11_cardKey = detailsEl.getAttribute('data-card-key') || '';
-        var v497fix11_openedKeys = wasOpen && v497fix11_cardKey ? [v497fix11_cardKey] : [];
-        var newHTML = W.buildGroupCardHTML(groups[0], { isFirstRender: false, openedKeys: v497fix11_openedKeys });
+        var newHTML = W.buildGroupCardHTML(groups[0], { isFirstRender: false });
         
         // outerHTML 교체
         var temp = document.createElement('div');
@@ -16364,38 +16452,15 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       }
     }
     
-    /* 카드 펼침 시 lazy load — cache miss 시 fetch만 (재렌더 X)
-     * [v4.9.7] Pure Lazy 실패 흐름 제거 — open 시 v464_rerenderSingleCard 호출 금지.
-     *   body 채움은 v497 Queue가 비동기로 처리.
-     *   cache hit이면 이미 최신, 그 외면 fetch만 (data 채움) — UI 갱신은 queue가.
-     */
+    /* 카드 펼침 시 lazy load — cache miss 시 즉시 fetch + 재렌더 */
     function v464_handleCardExpand(snapshotId) {
-      // [v4.9.7-fix12] 즉시 1회 rerender + fetch 후 1회 더 rerender
-      //   기존 fix10/11: fetch 응답 받아야 rerender → Worker 응답 느리면 영영 lazy 박힘
-      //   수정: 즉시 1회 rerender (현재 데이터로 Full Body 빌드, samples 없으면 woos-empty)
-      //         fetch 응답 후 또 1회 rerender (samples 적용 → SVG 정상)
       if (!snapshotId) return;
-      // 1. 즉시 rerender — Full Body 빌드 (samples 없으면 빈 영역)
-      if (typeof v464_rerenderSingleCard === 'function') {
-        try { v464_rerenderSingleCard(snapshotId); } catch(e){}
-      }
-      // 2. cache hit + alertSnapshot 있으면 fetch skip (이미 최신)
       var cached = v464_cacheGet(snapshotId);
+      // cache hit + alertSnapshot 있으면 — 이미 최신
       if (cached && cached.meta && cached.meta.alertSnapshot) return;
-      // 3. fetch 후 또 rerender (samples 적용) — [fix13] includeSamples=true 명시 (펼친 카드만 samples 받음)
-      v464_fetchSnapshot(snapshotId, { includeSamples: true }).then(function(data){
-        if (data && typeof v464_rerenderSingleCard === 'function') {
-          // [fix13] _trackingMap에 samples 머지 (rerenderSingleCard가 자동 머지하지만 명시)
-          try {
-            if (window._trackingMap) {
-              var existingTd = window._trackingMap[snapshotId] || {};
-              window._trackingMap[snapshotId] = Object.assign({}, existingTd, data, {
-                meta: Object.assign({}, existingTd.meta || {}, data.meta || {})
-              });
-            }
-          } catch(_e) {}
-          try { v464_rerenderSingleCard(snapshotId); } catch(e){}
-        }
+      // 그 외에는 즉시 fetch + 재렌더
+      v464_fetchSnapshot(snapshotId).then(function(data){
+        if (data) v464_rerenderSingleCard(snapshotId);
       });
     }
     
@@ -16604,343 +16669,7 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       var totalMin = Math.floor(ms / 60000), h = Math.floor(totalMin / 60), m = totalMin - h * 60;
       return h > 0 ? (h + 'h ' + m + 'm') : (m + 'm');
     }
-
-    /* [v4.9.7 Body Cache + Queue Lock]
-     *   목적: 카드 open 순간 무거운 v40_buildExpandedBody 호출 X.
-     *   대상: 관심 watch / 정밀 deep만 (표준은 Lite Body, queue 비대상)
-     *   active 카드 한정 (completed/history 제외)
-     *
-     *   흐름:
-     *     v40_buildTrackInner full 케이스
-     *       ↓
-     *     v497_cacheGet(jobKey)
-     *       ↓ hit?
-     *     hit + fresh → cache.html 즉시 반환
-     *     hit + stale → cache.html + 'stale' badge, queue enqueue (배경 갱신)
-     *     miss → loading body + queue enqueue
-     *
-     *   jobKey = cardKey + '|' + snapshotId (displayMode 제외)
-     *   gradeFingerprint = '0' (안전 기본 — Worker payload 보강 후 실제 source로 교체)
-     *   running dedupe 필수, preempt X
-     */
-    var V497_CACHE_TTL_MS = 60 * 1000;  // 60초
-    var V497_QUEUE_INTERVAL_MS = 400;
-    var V497_BUILD_TIMEOUT_MS = 2000;  // [fix9] 2초 타임아웃 — Full Body 등장 빠르게 (Worker 응답 < 2s, 그 이상이면 빈 samples로 즉시 빌드)
-    var v497_cache = (typeof Map === 'function') ? new Map() : null;
-    var v497_queue = [];
-    var v497_running = (typeof Set === 'function') ? new Set() : null;
-    var v497_workerStarted = false;
-
-    // [fix2] 전역 가드 — 자동 prewarm 끄기, on-demand only, 동시 실행 1개
-    try {
-      if (typeof window.WOOS_BODY_QUEUE_AUTO_ENABLED === 'undefined') window.WOOS_BODY_QUEUE_AUTO_ENABLED = false;
-      if (typeof window.WOOS_BODY_ONDEMAND_ONLY === 'undefined') window.WOOS_BODY_ONDEMAND_ONLY = true;
-      window.WOOS_BODY_RUNNING_ONE = window.WOOS_BODY_RUNNING_ONE || null;
-      window.WOOS_BODY_DEBUG = window.WOOS_BODY_DEBUG || {
-        enqueue: 0, start: 0, done: 0, error: 0,
-        cacheHit: 0, cacheMiss: 0, standardBlocked: 0,
-        fetchStart: 0, fetchDone: 0, timeout: 0, dedupe: 0
-      };
-    } catch(_){}
-
-    function v497_buildJobKey(cardKey, snapshotId) {
-      return String(cardKey || '') + '|' + String(snapshotId || '');
-    }
-    function v497_cacheGet(jobKey) {
-      if (!v497_cache) return null;
-      var entry = v497_cache.get(jobKey);
-      if (!entry) return null;
-      var fresh = (Date.now() - entry.ts) < V497_CACHE_TTL_MS;
-      return { html: entry.html, ts: entry.ts, gradeFingerprint: entry.gradeFingerprint, fresh: fresh };
-    }
-    function v497_cacheSet(jobKey, html, gradeFingerprint) {
-      if (!v497_cache) return;
-      v497_cache.set(jobKey, { html: html, ts: Date.now(), gradeFingerprint: gradeFingerprint || '0' });
-    }
-    function v497_enqueue(job) {
-      if (!job || !job.jobKey) return;
-      // [fix2] 표준 explicit guard — displayMode === 'standard' 카드는 절대 enqueue 금지
-      if (job.displayMode === 'standard') {
-        try { window.WOOS_BODY_DEBUG.standardBlocked++; } catch(_){}
-        try { console.warn('[v497] standard enqueue BLOCKED', job.jobKey); } catch(_){}
-        return;
-      }
-      // [fix2] on-demand only — 사용자 직접 open 카드만 (priority 100)
-      if (window.WOOS_BODY_ONDEMAND_ONLY && (job.priority || 0) < 100) {
-        try { console.log('[v497] non-ondemand enqueue blocked', job.jobKey, 'priority', job.priority); } catch(_){}
-        return;
-      }
-      // dedupe — 같은 jobKey 이미 queue 또는 running이면 priority 갱신만
-      if (v497_running && v497_running.has(job.jobKey)) {
-        try { window.WOOS_BODY_DEBUG.dedupe++; } catch(_){}
-        return;
-      }
-      var existing = v497_queue.filter(function(j){ return j.jobKey === job.jobKey; })[0];
-      if (existing) {
-        if ((job.priority || 0) > (existing.priority || 0)) existing.priority = job.priority;
-        try { window.WOOS_BODY_DEBUG.dedupe++; } catch(_){}
-        return;
-      }
-      v497_queue.push(job);
-      try { window.WOOS_BODY_DEBUG.enqueue++; } catch(_){}
-    }
-    function v497_loadingBody(label) {
-      label = label || '데이터 준비 중';
-      return '<div class="progress-rich-body woos-body woos-fullbody-loading" data-fullbody-loading="1">'
-           + '<div class="lite-hint">⏳ ' + v40_escapeHtml(label) + '... 잠시 후 자동으로 표시됩니다.</div>'
-           + '</div>';
-    }
-    function v497_staleBadge() {
-      return '<div class="woos-stale-badge">🔄 최신 데이터 갱신 중...</div>';
-    }
-    function v497_errorBody(reason) {
-      return '<div class="progress-rich-body woos-body woos-body-error" data-body-error="1">'
-           + '<div class="lite-hint">⚠ 상세 정보 생성 지연 — 다시 열어주세요. <span class="woos-err-reason">(' + v40_escapeHtml(reason || 'timeout') + ')</span></div>'
-           + '</div>';
-    }
-    function v497_withTimeout(promise, ms) {
-      return new Promise(function(resolve, reject){
-        var done = false;
-        var t = setTimeout(function(){
-          if (done) return;
-          done = true;
-          reject(new Error('v497 timeout ' + ms + 'ms'));
-        }, ms);
-        promise.then(function(v){
-          if (done) return;
-          done = true;
-          clearTimeout(t);
-          resolve(v);
-        }, function(e){
-          if (done) return;
-          done = true;
-          clearTimeout(t);
-          reject(e);
-        });
-      });
-    }
-    function v497_processQueue() {
-      if (!v497_queue.length) return;
-      // [fix2] 동시 실행 1개 강제 — 이미 running이 있으면 새 작업 시작 X
-      if (v497_running && v497_running.size >= 1) return;
-      // priority desc 정렬
-      v497_queue.sort(function(a, b){ return (b.priority || 0) - (a.priority || 0); });
-      var job = v497_queue.shift();
-      if (!job || !job.jobKey || !job.snapshotId) return;
-      if (v497_running && v497_running.has(job.jobKey)) return;
-      if (v497_running) v497_running.add(job.jobKey);
-      try { window.WOOS_BODY_RUNNING_ONE = job.jobKey; window.WOOS_BODY_DEBUG.start++; } catch(_){}
-
-      var clearRunning = function(){
-        if (v497_running) v497_running['delete'](job.jobKey);
-        try { if (window.WOOS_BODY_RUNNING_ONE === job.jobKey) window.WOOS_BODY_RUNNING_ONE = null; } catch(_){}
-      };
-
-      var cache = window._activeItemsCache || [];
-      var track = null;
-      for (var i = 0; i < cache.length; i++) {
-        var it = cache[i];
-        if (!it) continue;
-        if ((it.snapshotId || it.id) === job.snapshotId) { track = it; break; }
-      }
-      if (!track) {
-        try { window.WOOS_BODY_DEBUG.error++; console.warn('[v497] track not found for', job.snapshotId); } catch(_){}
-        clearRunning();
-        return;
-      }
-
-      // [fix9] samples 우선순위 — _trackingMap에 td 있으면 (samples 무관) 즉시 사용
-      //   Worker가 samples 안 줘도 _trackingMap에 td 캐시되어 있음 → 매번 fetch 5s 대기 안 해도 됨
-      //   → 이미 받은 td로 즉시 v40_buildExpandedBody → 빠른 Full Body 표시
-      var existingTd = (window._trackingMap && window._trackingMap[job.snapshotId]) || null;
-      var hasCachedSamples = existingTd && Array.isArray(existingTd.samples) && existingTd.samples.length > 0;
-      var fetcher = window.fetchTrackingData;
-      var fetchPromise;
-      if (existingTd) {
-        // _trackingMap에 td 있으면 (samples 없어도) 즉시 사용 — fetch skip
-        fetchPromise = Promise.resolve(existingTd);
-      } else if (typeof fetcher === 'function') {
-        try { window.WOOS_BODY_DEBUG.fetchStart++; } catch(_){}
-        fetchPromise = fetcher(job.snapshotId, true);
-      } else {
-        try { console.warn('[v497] fetchTrackingData unavailable'); } catch(_){}
-        fetchPromise = Promise.resolve(null);
-      }
-
-      // [fix2] 3초 타임아웃 — 분 단위 대기 차단
-      v497_withTimeout(fetchPromise, V497_BUILD_TIMEOUT_MS).then(function(td){
-        try {
-          try { if (!hasCachedSamples) window.WOOS_BODY_DEBUG.fetchDone++; } catch(_){}
-          if (td) {
-            try { window._trackingMap[job.snapshotId] = td; } catch(_e){}
-          }
-          var samples = (td && td.samples) || v40_normalizeSamples(track);
-          var entryInfo = v40_resolveEntryPrice(track, samples);
-          // [fix7] NaN 가드 제거 — Worker /tracking/data가 samples 안 줘도 Full Body 강제 빌드
-          //   원인: Worker 응답에 samples 필드 없음 (장기적으로 Worker 수정 필요)
-          //   대응: SVG는 NaN으로 콘솔 에러 (cosmetic), 다른 영역 (세력판단/도달타임라인/점수/6상태/브리핑) 정상 표시
-          //   trade-off: 콘솔 NaN 경고 vs Full Body 표시
-          if (!Array.isArray(samples) || samples.length === 0) {
-            // samples 없으면 빈 배열로 시도 (SVG는 빈 칸 또는 NaN, 다른 영역은 정상)
-            samples = [];
-            try { console.log('[v497] no samples — Full Body 빌드 시도 (SVG는 비어있을 수 있음)', job.jobKey); } catch(_){}
-          }
-          // entryInfo.value가 NaN이어도 v40_buildExpandedBody에 그대로 전달 — buildExpandedBody가 처리
-          var levels = v40_resolveLevels(track, entryInfo.value);
-          var prefetched = (track.prefetchedCurrentPct != null) ? {
-            currentPct: track.prefetchedCurrentPct, mfe: track.prefetchedMfe, mae: track.prefetchedMae,
-            lastPrice: track.prefetchedLastPrice, sampleT: track.prefetchedSampleT
-          } : null;
-          var metrics = v40_computeLiveMetrics(samples, entryInfo.value, levels, prefetched);
-          var html = v40_buildExpandedBody(track, samples, metrics, entryInfo, levels, { vm: job.vm });
-          v497_cacheSet(job.jobKey, html, '0');
-          try { window.WOOS_BODY_DEBUG.done++; } catch(_){}
-
-          // [fix8] DOM 업데이트 — body wrapper / lazy placeholder / group rep 모두 swap target 인정
-          //   single 카드는 isExpanded=false였으면 .progress-rich-body 없고 .woos-lazy-expanded-body만 있음
-          //   둘 중 발견되는 것을 새 Full Body로 교체
-          try {
-            var card = document.querySelector('details[data-snapshot-id="' + job.snapshotId + '"][data-job-key="' + job.jobKey + '"]');
-            if (!card) {
-              try { console.log('[v497] card not in DOM (yet)', job.jobKey); } catch(_){}
-            } else {
-              var cls = card.className;
-              var isWatchOrDeep = (cls.indexOf('is-watch') >= 0) || (cls.indexOf('is-deep') >= 0);
-              if (!isWatchOrDeep) {
-                try {
-                  console.log('[v497] mode mismatch — enqueued:', job.displayMode, '→ DOM now:', cls.indexOf('is-watch')>=0?'watch':cls.indexOf('is-deep')>=0?'deep':cls.indexOf('is-standard')>=0?'standard':'unknown');
-                } catch(_){}
-              } else {
-                var groupSize = parseInt(card.getAttribute('data-group-size') || '0', 10);
-                var isGroup = groupSize >= 2;
-                var temp = document.createElement('div');
-                temp.innerHTML = html;
-                var newBody = temp.firstElementChild;
-                if (!newBody) {
-                  try { console.warn('[v497] empty html — skip swap'); } catch(_){}
-                } else if (isGroup) {
-                  // group: 대표 영역만 — woos-group-rep 의 innerHTML 교체 (overlay/minis 보존)
-                  var repWrap = card.querySelector('.progress-rich-body.woos-group-rep, .progress-rich-body .woos-group-rep, .woos-group-rep');
-                  if (repWrap) {
-                    repWrap.innerHTML = newBody.innerHTML;
-                    try { console.log('[v497] group rep swapped', job.jobKey); } catch(_){}
-                  } else {
-                    // group 카드인데 woos-group-rep 못 찾으면 lazy placeholder인 상태일 수 있음
-                    var groupLazy = card.querySelector('.woos-lazy-expanded-body');
-                    if (groupLazy && groupLazy.parentNode) {
-                      groupLazy.parentNode.replaceChild(newBody, groupLazy);
-                      try { console.log('[v497] group lazy → full swapped', job.jobKey); } catch(_){}
-                    }
-                  }
-                } else {
-                  // single: body wrapper 또는 lazy placeholder 둘 다 target
-                  var bodyWrap = card.querySelector('.progress-rich-body');
-                  var lazyWrap = card.querySelector('.woos-lazy-expanded-body');
-                  if (bodyWrap && bodyWrap.parentNode) {
-                    bodyWrap.parentNode.replaceChild(newBody, bodyWrap);
-                    try { console.log('[v497] single body swapped', job.jobKey); } catch(_){}
-                  } else if (lazyWrap && lazyWrap.parentNode) {
-                    lazyWrap.parentNode.replaceChild(newBody, lazyWrap);
-                    try { console.log('[v497] single lazy → full swapped', job.jobKey); } catch(_){}
-                  } else {
-                    try { console.warn('[v497] no swap target found', job.jobKey); } catch(_){}
-                  }
-                }
-              }
-            }
-          } catch(eDom){
-            try { console.warn('[v497] DOM swap error', eDom && eDom.message); } catch(_){}
-          }
-        } catch(eBuild) {
-          try { window.WOOS_BODY_DEBUG.error++; console.warn('[v497] build failed', eBuild && eBuild.message); } catch(_){}
-          // [fix2] 빌드 실패 시 error body 표시
-          try {
-            var errCard = document.querySelector('details[data-snapshot-id="' + job.snapshotId + '"][data-job-key="' + job.jobKey + '"]');
-            if (errCard) {
-              var errWrap = errCard.querySelector('.progress-rich-body');
-              if (errWrap && errWrap.parentNode) {
-                var errTmp = document.createElement('div');
-                errTmp.innerHTML = v497_errorBody('build failed');
-                if (errTmp.firstElementChild) errWrap.parentNode.replaceChild(errTmp.firstElementChild, errWrap);
-              }
-            }
-          } catch(_){}
-        } finally {
-          clearRunning();
-        }
-      })['catch'](function(eTimeoutOrFetch){
-        try {
-          window.WOOS_BODY_DEBUG.error++;
-          if (eTimeoutOrFetch && /timeout/.test(eTimeoutOrFetch.message)) window.WOOS_BODY_DEBUG.timeout++;
-          console.warn('[v497] timeout/fetch error → Full Body 빌드 (캐시 데이터로)', eTimeoutOrFetch && eTimeoutOrFetch.message);
-        } catch(_){}
-        // [fix7] 타임아웃 시에도 Full Body 시도 — _trackingMap 캐시 데이터 또는 빈 samples로
-        try {
-          var existingTd2 = (window._trackingMap && window._trackingMap[job.snapshotId]) || null;
-          var toSamples = (existingTd2 && Array.isArray(existingTd2.samples) && existingTd2.samples.length > 0)
-            ? existingTd2.samples
-            : (v40_normalizeSamples(track) || []);
-          var toEntryInfo = v40_resolveEntryPrice(track, toSamples);
-          var toLevels = v40_resolveLevels(track, toEntryInfo.value);
-          var toPrefetched = (track.prefetchedCurrentPct != null) ? {
-            currentPct: track.prefetchedCurrentPct, mfe: track.prefetchedMfe, mae: track.prefetchedMae,
-            lastPrice: track.prefetchedLastPrice, sampleT: track.prefetchedSampleT
-          } : null;
-          var toMetrics = v40_computeLiveMetrics(toSamples, toEntryInfo.value, toLevels, toPrefetched);
-          // [fix7] Full Body 시도 (samples 없어도)
-          var toFullHtml = v40_buildExpandedBody(track, toSamples, toMetrics, toEntryInfo, toLevels, { vm: job.vm });
-          v497_cacheSet(job.jobKey, toFullHtml, '0');  // cache 채움 → 다음 render cache hit
-          var toCard = document.querySelector('details[data-snapshot-id="' + job.snapshotId + '"][data-job-key="' + job.jobKey + '"]');
-          if (toCard) {
-            var toCls = toCard.className;
-            var toIsWatchOrDeep = (toCls.indexOf('is-watch') >= 0) || (toCls.indexOf('is-deep') >= 0);
-            if (toIsWatchOrDeep) {
-              var toGroupSize = parseInt(toCard.getAttribute('data-group-size') || '0', 10);
-              var toIsGroup = toGroupSize >= 2;
-              var toTmp = document.createElement('div');
-              toTmp.innerHTML = toFullHtml;
-              var toNewBody = toTmp.firstElementChild;
-              if (toNewBody) {
-                var toBodyWrap = toCard.querySelector('.progress-rich-body');
-                var toLazyWrap = toCard.querySelector('.woos-lazy-expanded-body');
-                if (toIsGroup) {
-                  var toRepWrap = toCard.querySelector('.progress-rich-body.woos-group-rep, .progress-rich-body .woos-group-rep, .woos-group-rep');
-                  if (toRepWrap) toRepWrap.innerHTML = toNewBody.innerHTML;
-                  else if (toLazyWrap && toLazyWrap.parentNode) toLazyWrap.parentNode.replaceChild(toNewBody, toLazyWrap);
-                } else if (toBodyWrap && toBodyWrap.parentNode) {
-                  toBodyWrap.parentNode.replaceChild(toNewBody, toBodyWrap);
-                } else if (toLazyWrap && toLazyWrap.parentNode) {
-                  toLazyWrap.parentNode.replaceChild(toNewBody, toLazyWrap);
-                }
-              }
-            }
-          }
-        } catch(eToFb) {
-          try { console.warn('[v497] timeout full fallback failed', eToFb && eToFb.message); } catch(_){}
-        }
-        clearRunning();
-      });
-    }
-    function v497_startWorker() {
-      if (v497_workerStarted) return;
-      v497_workerStarted = true;
-      setInterval(v497_processQueue, V497_QUEUE_INTERVAL_MS);
-      try { console.log('[v497] worker started — interval', V497_QUEUE_INTERVAL_MS, 'ms, timeout', V497_BUILD_TIMEOUT_MS, 'ms'); } catch(_){}
-    }
-    // [fix2] 진단용 window 노출
-    try {
-      window.v497_cache = v497_cache;
-      window.v497_queue = v497_queue;
-      window.v497_running = v497_running;
-      window.v497_processQueue = v497_processQueue;
-      window.v497_buildJobKey = v497_buildJobKey;
-      window.v497_cacheGet = v497_cacheGet;
-      window.WOOS_BODY_QUEUE = v497_queue;
-      window.WOOS_BODY_QUEUED = v497_running;  // (호환 별칭 — 사용자 디버그 명령어용)
-      window.WOOS_BODY_RUNNING = v497_running;
-      window.WOOS_BODY_CACHE = v497_cache;
-    } catch(_){}
-
+    
     /* 펼친 카드의 본문 (summary 제외) — 기존 details/summary 구조에 끼워 넣기용 */
     function v40_buildExpandedBody(track, samples, metrics, entryInfo, levels, opts) {
       opts = opts || {};
@@ -17048,7 +16777,11 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
           + '</div>';
       }
       
-      var svgChart = v40_generateTrackingSVGChart(track, samples, metrics, entryInfo, levels, { isFirstRender: false });
+      // [v4.9.5+ 그래프 제거] MFE/MAE SVG 그래프 호출 제거 (속도 향상)
+      //   사용자 결정: 분석 중 카드에서 그래프 모두 제거 → 분석 완료 사후평가에 그대로 적용 예정
+      //   v40_generateTrackingSVGChart 본체는 보존 (분석 완료 탭 등 다른 영역 호출 가능)
+      // var svgChart = v40_generateTrackingSVGChart(track, samples, metrics, entryInfo, levels, { isFirstRender: false });
+      var svgChart = '';
       
       // [Phase 4.3] 진보된 metrics + 스캐너 채점표 + 타임라인
       var advanced = v43_computeAdvancedMetrics(track, samples, entryInfo.value, levels, metrics);
@@ -17114,7 +16847,8 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
          * 사용자 결정: 영역 2 (스캐너 채점표 — scoringTableHtml) 만 유지
          * 이전: metricsHtml + curBig (간단 ver) → 삭제 */
         curBig +
-        '<div class="woos-graph-wrap">' + svgChart + '</div>' +
+        /* [v4.9.5+ 그래프 제거] MFE/MAE 그래프 영역 제거 (분석 완료 탭에 사후평가로 적용 예정)
+         * 이전: '<div class="woos-graph-wrap">' + svgChart + '</div>' */
         /* [Phase 4.7 공사 4 — 3-2] 컴팩트 타임라인 삭제 (도달 타임라인으로 통합)
          * 이전: v47_compactTimeline (1줄 +3⃝ +5⃝ TP1⃝ │ MFE │ MAE ⓘ) → 삭제 */
         timelineHtml +                              /* [Phase 4.3] 도달 타임라인 (5개 도트, ⓘ 추가됨) */
@@ -17461,93 +17195,6 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
         + '</summary>';
     }
     
-    /* [v4.9.5 Speed Architecture Lock] Standard Lite Detail
-     * 표준 카드 펼침 시 무거운 Full Detail 대신 단일값 기반 기본정보만 표시.
-     * 절대 금지:
-     *   - v40_buildExpandedBody 본체 사용 X
-     *   - v40_generateTrackingSVGChart 호출 X
-     *   - samples.length / .map / .reduce 접근 X
-     *   - fetchTrackingData 호출 X
-     *   - 전략 A/B / MFE marker / 점수 시각화 X
-     * 허용 source: vm / track 단일값 / metrics / entryInfo / levels
-     * fallback: 값 없음 → '-'
-     */
-    function v40_buildStandardLiteBody(track, metrics, entryInfo, levels, opts) {
-      opts = opts || {};
-      var vm = opts.vm || null;
-      var item = track || {};
-      var meta = item.meta || {};
-
-      function safe(val, fb) { return (val == null || val === '') ? (fb || '-') : val; }
-      function pct(val) { return (typeof val === 'number') ? (val.toFixed(2) + '%') : '-'; }
-      function num(val) {
-        if (typeof val !== 'number') return '-';
-        return val.toLocaleString('en-US', { maximumFractionDigits: 8 });
-      }
-
-      var changePct = (vm && vm.performance && typeof vm.performance.changePct === 'number')
-        ? vm.performance.changePct
-        : ((metrics && typeof metrics.currentPct === 'number') ? metrics.currentPct : null);
-      var progress = (vm && typeof vm.progress === 'number') ? vm.progress : 0;
-      var remainingHTML = (vm && vm.remainingLabel) || '-';
-      var modeLabel = (vm && vm.modeState && vm.modeState.modeLabel) || '표준';
-      var endsAtVal = (vm && vm.trackingWindow && vm.trackingWindow.endsAt) || 0;
-      var endsAtStr = endsAtVal ? new Date(endsAtVal).toLocaleString('ko-KR') : '-';
-
-      var lastPrice = (typeof item.lastPrice === 'number') ? item.lastPrice : null;
-      var entryPrice = (entryInfo && typeof entryInfo.value === 'number') ? entryInfo.value
-                     : (typeof meta.openPrice === 'number') ? meta.openPrice
-                     : (typeof meta.entryPrice === 'number') ? meta.entryPrice
-                     : null;
-
-      // mfe/mae는 객체 또는 number 둘 다 처리 (active payload는 객체일 수 있고 metrics는 number)
-      function extractPctVal(v) {
-        if (typeof v === 'number') return v;
-        if (v && typeof v === 'object') {
-          if (typeof v.pct === 'number') return v.pct;
-          if (typeof v.value === 'number') return v.value;
-          if (typeof v.peak === 'number') return v.peak;
-        }
-        return null;
-      }
-      var mfeVal = extractPctVal(item.mfe);
-      if (mfeVal === null && metrics && typeof metrics.mfe === 'number') mfeVal = metrics.mfe;
-      var maeVal = extractPctVal(item.mae);
-      if (maeVal === null && metrics && typeof metrics.mae === 'number') maeVal = metrics.mae;
-
-      var sCount = (item.sCount24 != null) ? item.sCount24 : (meta.sCount24 || 0);
-      var aCount = (item.aCount24 != null) ? item.aCount24 : (meta.aCount24 || 0);
-      var totalSignal = sCount + aCount;
-
-      var newLabelChip = (vm && vm.labelState && vm.labelState.isNew)
-        ? '<span class="hdr-label-new">신규</span>' : '';
-      var nearEndLabelChip = (vm && vm.labelState && vm.labelState.isNearEnd)
-        ? '<span class="hdr-label-near-end">마감임박</span>' : '';
-
-      var changeCls = (typeof changePct === 'number' && changePct >= 0) ? 'profit' : 'loss';
-
-      return '<div class="progress-rich-body woos-body woos-lite-body">'
-           +   '<div class="lite-header">'
-           +     '<span class="lite-mode-label">' + safe(modeLabel) + '</span>'
-           +     newLabelChip + nearEndLabelChip
-           +   '</div>'
-           +   '<div class="lite-stats-grid">'
-           +     '<div class="lite-stat"><span class="lite-stat-label">현재 수익률</span><b class="lite-stat-value ' + changeCls + '">' + pct(changePct) + '</b></div>'
-           +     '<div class="lite-stat"><span class="lite-stat-label">진행률</span><b class="lite-stat-value">' + Math.round(progress) + '%</b></div>'
-           +     '<div class="lite-stat"><span class="lite-stat-label">잔여시간</span><b class="lite-stat-value">' + remainingHTML + '</b></div>'
-           +     '<div class="lite-stat"><span class="lite-stat-label">누적 신호</span><b class="lite-stat-value">x' + totalSignal + '</b></div>'
-           +   '</div>'
-           +   '<div class="lite-prices">'
-           +     '<div class="lite-price-row"><span>현재가</span><b>' + num(lastPrice) + '</b></div>'
-           +     '<div class="lite-price-row"><span>알람가</span><b>' + num(entryPrice) + '</b></div>'
-           +     '<div class="lite-price-row"><span>MFE</span><b class="profit">' + (mfeVal !== null ? '+' + mfeVal.toFixed(2) + '%' : '-') + '</b></div>'
-           +     '<div class="lite-price-row"><span>MAE</span><b class="loss">' + (maeVal !== null ? maeVal.toFixed(2) + '%' : '-') + '</b></div>'
-           +     '<div class="lite-price-row"><span>종료 예정</span><b>' + endsAtStr + '</b></div>'
-           +   '</div>'
-           +   '<div class="lite-hint">관심 등록 또는 정밀 추적 진입 시 상세 그래프가 표시됩니다.</div>'
-           + '</div>';
-    }
-
     /* 단일 추적의 세트 (summary + body) — details 안에 들어갈 내용 */
     function v40_buildTrackInner(track, opts) {
       opts = opts || {};
@@ -17566,61 +17213,9 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       var metrics = v40_computeLiveMetrics(samples, entryInfo.value, levels, prefetched);
       // [Phase 4.2 작업 E] overrideDotColor 가 있으면 (그룹 dot 동기화 시 대표 카드용) 사용
       var dotColor = opts.overrideDotColor || v40_decideDotColor(track, metrics, levels);
-
-      // [v4.9.5 Speed Architecture Lock] DetailLevel 분기 — 닫힌 카드 lazy / 표준 펼침 lite / 관심·정밀 펼침 full
-      //   - 닫힌 카드: lazy placeholder (buildExpandedBody / SVG 호출 0건)
-      //   - 표준 펼침: v40_buildStandardLiteBody (samples 미접근)
-      //   - 관심·정밀 펼침: 기존 v40_buildExpandedBody (Full Detail 그대로)
-      var v495_isExpanded = !!opts.isExpanded;
-      // [v4.9.7-fix11] vm 없을 때 track.isWatchlist/isAutoPrecise/tier로 displayMode 추론
-      //   기존: vm 없으면 무조건 'standard' → watch/deep 카드도 Lite로 잘못 분류
-      //   수정: track 자체 raw flag로 추론 (v464_rerenderSingleCard 흐름에서 정확한 mode 보존)
-      var v495_displayMode;
-      if (opts && opts.vm && opts.vm.modeState) {
-        v495_displayMode = opts.vm.modeState.displayMode;
-      } else if (track && track.isWatchlist) {
-        v495_displayMode = 'watch';
-      } else if (track && track.isAutoPrecise) {
-        v495_displayMode = 'deep';
-      } else if (track && String(track.tier || '').toUpperCase() === 'A') {
-        v495_displayMode = 'deep';  // tier A = 정밀
-      } else {
-        v495_displayMode = 'standard';
-      }
-      var v495_detailLevel = (v495_displayMode === 'watch' || v495_displayMode === 'deep')
-        ? 'full'
-        : 'lite';
-      var v495_body;
-      if (!v495_isExpanded) {
-        v495_body = '<div class="woos-lazy-expanded-body" data-lazy-body="1"></div>';
-      } else if (v495_detailLevel === 'full') {
-        // [v4.9.7-fix2] Body Cache + Queue — cache 우선, miss는 loading + on-demand queue (priority 100)
-        try { v497_startWorker(); } catch(_e7){}
-        var v497_jobKey = opts.jobKey || '';
-        var v497_snapId = track.snapshotId || track.id || '';
-        var v497_cached = v497_jobKey ? v497_cacheGet(v497_jobKey) : null;
-        if (v497_cached && v497_cached.fresh) {
-          v495_body = v497_cached.html;  // fresh hit → 즉시 표시
-          try { window.WOOS_BODY_DEBUG.cacheHit++; } catch(_){}
-        } else if (v497_cached && !v497_cached.fresh) {
-          // stale hit → 이전 body + 'stale' badge + 백그라운드 갱신 queue
-          v495_body = v497_cached.html.replace('<div class="progress-rich-body', v497_staleBadge() + '<div class="progress-rich-body');
-          try { window.WOOS_BODY_DEBUG.cacheHit++; } catch(_){}
-          if (v497_jobKey) v497_enqueue({ jobKey: v497_jobKey, snapshotId: v497_snapId, vm: opts.vm, priority: 100, displayMode: v495_displayMode });
-        } else {
-          // [v4.9.7-fix10] cache miss → v4.9.4 흐름으로 즉시 v40_buildExpandedBody 호출 (samples 있으면 정상 SVG)
-          //   v464_handleCardExpand가 fetch 후 rerenderSingleCard로 카드 outerHTML 다시 빌드 → samples 적용된 새 카드
-          //   v497 queue는 무용지물 (handleCardExpand rerender가 메인 흐름)
-          v495_body = v40_buildExpandedBody(track, samples, metrics, entryInfo, levels, opts);
-          try { window.WOOS_BODY_DEBUG.cacheMiss++; } catch(_){}
-        }
-      } else {
-        v495_body = v40_buildStandardLiteBody(track, metrics, entryInfo, levels, opts);
-      }
-
       return {
         summary: v40_buildCompactSummary(track, metrics, dotColor, opts),
-        body: v495_body,
+        body: v40_buildExpandedBody(track, samples, metrics, entryInfo, levels, opts),  // [State Lock] opts 전달
         dotColor: dotColor,
         metrics: metrics,
       };
@@ -17705,21 +17300,14 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       if (!group || !group.items || group.items.length === 0) return '';
       var vm = opts.vm || null;  // [State Lock] vm 매개변수 (단일화)
       var rep = group.representative;
-      // [v4.9.5] single + group 공통 cardKey 계산 → openedKeys로 isExpanded 결정 (기존 w1_cardKey 형식 그대로 재사용, 새 key 생성 X)
-      var v495_cardKey = (vm && vm.canonicalBaseKey)
-        ? ('active:' + vm.canonicalBaseKey)
-        : ('active:' + String(group.key || rep.base || (rep.meta && rep.meta.base) || '').toUpperCase());
-      var v495_isExpanded = (Array.isArray(opts.openedKeys) && opts.openedKeys.indexOf(v495_cardKey) >= 0);
-      // [v4.9.7] jobKey = cardKey + snapshotId (displayMode 제외) — Body Cache + Queue 식별자
-      var v497_jobKey = (typeof v497_buildJobKey === 'function')
-        ? v497_buildJobKey(v495_cardKey, rep.snapshotId || rep.id || '')
-        : (v495_cardKey + '|' + String(rep.snapshotId || rep.id || ''));
       if (group.items.length === 1) {
-        // [State Lock] data-card-key — vm.canonicalBaseKey 우선 (raw fallback)
-        var w1_cardKey = v495_cardKey;
         // 단독: 일반 details 카드
-        var inner = v40_buildTrackInner(rep, { vm: vm, isExpanded: v495_isExpanded, jobKey: v497_jobKey });  // [v4.9.7] jobKey 전달
-        var attrs = 'data-snapshot-id="' + v40_escapeHtml(rep.snapshotId || rep.id || '') + '" data-card-key="' + v40_escapeHtml(w1_cardKey) + '" data-job-key="' + v40_escapeHtml(v497_jobKey) + '" data-tier="' + v40_escapeHtml(rep.tier || (rep.meta && rep.meta.tier) || 'B') + '" data-group-key="' + v40_escapeHtml(group.key) + '"';
+        var inner = v40_buildTrackInner(rep, { vm: vm });  // [State Lock] vm 전달
+        // [State Lock] data-card-key — vm.canonicalBaseKey 우선 (raw fallback)
+        var w1_cardKey = (vm && vm.canonicalBaseKey)
+          ? ('active:' + vm.canonicalBaseKey)
+          : ('active:' + String(group.key || rep.base || (rep.meta && rep.meta.base) || '').toUpperCase());
+        var attrs = 'data-snapshot-id="' + v40_escapeHtml(rep.snapshotId || rep.id || '') + '" data-card-key="' + v40_escapeHtml(w1_cardKey) + '" data-tier="' + v40_escapeHtml(rep.tier || (rep.meta && rep.meta.tier) || 'B') + '" data-group-key="' + v40_escapeHtml(group.key) + '"';
         // [Phase 4.6.3] sessionStorage 펼침 상태 복원
         // [옵션 C Step 2] open 시스템 단일화 — Phase 4.6.3 isCardOpen 기반 박음 제거
         //   - capture/restore (Round 1)만 open 결정
@@ -17728,7 +17316,10 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
         var v463_singleOpenAttr = '';  // [옵션 C Step 2] 항상 '' (capture/restore가 결정)
         var v463_singleToggleAttr = ' ontoggle="window.v462HandleCardToggle(event, this, \'' + v40_escapeHtml(v463_singleId) + '\')"';
         // [v4.7.44] 캐시된 그래프 HTML 사용 (재계산 금지)
-        var singleGradeChart = group._gradeChartHtml || '';
+        // [v4.9.5+ 그래프 제거] Grade Chart SVG → 등급 흐름 텍스트로 교체 (사용자 결정)
+        var singleGradeChart = (typeof w495_buildGradeFlowText === 'function') 
+          ? w495_buildGradeFlowText(group) 
+          : '';
         // body 안에 등급 그래프 삽입 (woos-body 시작 직후)
         var singleBody = inner.body.replace(
           /<div class="progress-rich-body woos-body([^"]*)">/,
@@ -17748,7 +17339,7 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       }
       // 그룹 카드 (size >= 2)
       // [Phase 4.2 작업 E] 그룹 dot 동기화: 대표가 아닌 그룹 전체 우선순위로
-      var repInner = v40_buildTrackInner(rep, { groupCount: group.items.length, isMultiGroup: group.isMulti, overrideDotColor: group.groupDotColor, vm: vm, isExpanded: v495_isExpanded, jobKey: v497_jobKey });  // [v4.9.7] jobKey 전달
+      var repInner = v40_buildTrackInner(rep, { groupCount: group.items.length, isMultiGroup: group.isMulti, overrideDotColor: group.groupDotColor, vm: vm });  // [State Lock] vm 전달
       var others = group.items.filter(function(it){ return it !== rep; });
       var minisHtml = others.map(function(it, mIdx){
         var oSamples = v40_normalizeSamples(it);
@@ -17797,7 +17388,7 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       var w1_cardKey = (vm && vm.canonicalBaseKey)
         ? ('active:' + vm.canonicalBaseKey)
         : ('active:' + String(group.key || rep.base || (rep.meta && rep.meta.base) || '').toUpperCase());
-      var groupAttrs = 'data-snapshot-id="' + v40_escapeHtml(rep.snapshotId || rep.id || '') + '" data-card-key="' + v40_escapeHtml(w1_cardKey) + '" data-job-key="' + v40_escapeHtml(v497_jobKey) + '" data-tier="' + v40_escapeHtml(rep.tier || (rep.meta && rep.meta.tier) || 'B') + '" data-group-key="' + v40_escapeHtml(group.key) + '" data-group-size="' + group.items.length + '"';
+      var groupAttrs = 'data-snapshot-id="' + v40_escapeHtml(rep.snapshotId || rep.id || '') + '" data-card-key="' + v40_escapeHtml(w1_cardKey) + '" data-tier="' + v40_escapeHtml(rep.tier || (rep.meta && rep.meta.tier) || 'B') + '" data-group-key="' + v40_escapeHtml(group.key) + '" data-group-size="' + group.items.length + '"';
       // [Phase 4.5] 같은 코인 오버레이 SVG (size >= 2 시만)
       var overlayHtml = '';
       if (group.items.length >= 2) {
@@ -17816,7 +17407,10 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       var v463_toggleAttr = ' ontoggle="window.v462HandleCardToggle(event, this, \'' + v40_escapeHtml(v463_groupId) + '\')"';
       
       // [v4.7.44] 캐시된 그래프 HTML 사용 (재계산 금지)
-      var groupGradeChart = group._gradeChartHtml || '';
+      // [v4.9.5+ 그래프 제거] Grade Chart SVG → 등급 흐름 텍스트로 교체 (사용자 결정)
+      var groupGradeChart = (typeof w495_buildGradeFlowText === 'function') 
+        ? w495_buildGradeFlowText(group) 
+        : '';
 
       // [State Lock] vm.modeState.cardModeClass 우선 (group.displayMode fallback)
       var v478_groupClasses = 'progress-rich-card woos-card woos-group v477-track-card v480-glass-card';
@@ -18198,9 +17792,6 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
         
         var nowIsWatch = window.WOOS_ANALYZER.toggleWatchlist(canonicalBase);
         v47_applyWatchVisual(canonicalBase, nowIsWatch);
-        // [v4.9.7] Lite → Full 승격 즉시 rerender 제거. queue 등록은 vm rerender 후 자동 진행.
-        //   v47_rerenderActive 호출 → _renderActiveTrackingList → v40_buildTrackInner →
-        //   watch/deep displayMode 감지 시 cache miss → loading body + queue enqueue (priority 100)
         v47_syncWatchApi(canonicalBase, nowIsWatch);
         v47_rerenderActive();
       } catch(e) {
@@ -18551,21 +18142,6 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
    * [Phase 4.6.3] 글로벌 카드 토글 핸들러 (sessionStorage 동기화)
    * details ontoggle 시 호출. 자동 펼침 버그 수정.
    * ═══════════════════════════════════════════════════════════════ */
-  // [v4.9.7-fix6] 카드 펼침 시 body 빌드 트리거 — debounce
-  var _v497_rebuildDebounceTimer = null;
-  function _v497_triggerBodyBuild() {
-    if (_v497_rebuildDebounceTimer) clearTimeout(_v497_rebuildDebounceTimer);
-    _v497_rebuildDebounceTimer = setTimeout(function(){
-      _v497_rebuildDebounceTimer = null;
-      try {
-        if (typeof _rerenderActiveTrackingFromCache === 'function') {
-          _rerenderActiveTrackingFromCache();
-        }
-      } catch(e) {
-        try { console.warn('[v497-fix6] rerender failed', e && e.message); } catch(_){}
-      }
-    }, 50);  // 50ms debounce — 사용자 빠른 클릭 / capture/restore race 차단
-  }
   if (typeof window !== 'undefined') {
     window.v462HandleCardToggle = function(event, detailsEl, cardId) {
       try {
@@ -18573,16 +18149,9 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
         if (!window.WOOS_ANALYZER || typeof window.WOOS_ANALYZER.setCardOpen !== 'function') return;
         var isOpen = detailsEl.open === true;
         window.WOOS_ANALYZER.setCardOpen(cardId, isOpen);
-        // [v4.9.7-fix6] 카드 펼침 시 lazy placeholder 발견되면 부분 재렌더 트리거
-        //   - Phase 1 롤백으로 v464_rerenderSingleCard 호출 끊김 → body가 lazy placeholder 그대로 박힘
-        //   - 해결: ontoggle open + lazy placeholder 발견 → _rerenderActiveTrackingFromCache (debounce 50ms)
-        //   - 효과: vm 빌더 정상 호출 → v40_buildTrackInner → Lite/Full body 빌드
-        if (isOpen) {
-          // [v4.9.7-fix10] v4.9.4 흐름 — handleCardExpand가 fetch + rerenderSingleCard 처리 (samples 적용)
-          //   fix6의 _v497_triggerBodyBuild는 제거 (handleCardExpand rerender가 메인)
-          if (window.WOOS_ANALYZER.handleCardExpand) {
-            window.WOOS_ANALYZER.handleCardExpand(cardId);
-          }
+        // [Phase 4.6.4] 펼친 시점에 lazy load — cache miss 시 즉시 fetch + 부분 재렌더
+        if (isOpen && window.WOOS_ANALYZER.handleCardExpand) {
+          window.WOOS_ANALYZER.handleCardExpand(cardId);
         }
       } catch(e) {
         console.error('[v462HandleCardToggle]', e);
