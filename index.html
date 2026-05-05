@@ -152,7 +152,7 @@
 <script>
 /* [v4.7.42] 캐시 강제 리셋 — SW 완전 제거 후 리로드 */
 (function(){
-  var VER = 'v4.9.7';  // Body Cache + Queue Lock — full body cache + dedupe queue (active 한정), promotion rerender 제거
+  var VER = 'v4.9.7-fix1';  // Body Cache + Queue Lock fix1 — fetchTrackingData window 노출 + group rep swap + 진단 로그
   try {
     var LKEY = 'woos_hard_reset_ver';
     if (localStorage.getItem(LKEY) === VER) return;
@@ -7038,12 +7038,12 @@ async function opsDashboard() {
 // 탭 시 상세 팝업
 // ═══════════════════════════════════════════════════════════════
 
-var HTML_VERSION = 'v4.9.7';  // Body Cache + Queue Lock — full body cache + dedupe queue
+var HTML_VERSION = 'v4.9.7-fix1';  // Body Cache + Queue Lock fix1 — fetchTrackingData 노출 + group rep swap
 var _cachedBuildInfo = null;
 
 // [State Lock 2 Action fix-2c] 패치 확인용 — 페이지 로드 시 버전명 출력 (DevTools 콘솔)
 try {
-  console.log('[WOOS] ' + HTML_VERSION + ' loaded — Body Cache + Queue Lock');
+  console.log('[WOOS] ' + HTML_VERSION + ' loaded — Body Cache + Queue Lock (fix1)');
   window.WOOS_VERSION = HTML_VERSION;
 } catch(e) {}
 
@@ -12705,6 +12705,8 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       window._activeItemsCache = _activeItemsCache;
       window._renderActiveTrackingList = _renderActiveTrackingList;
       window._trackingMap = _trackingMap;
+      // [v4.9.7-fix1] WOOS_ANALYZER IIFE의 v497_processQueue 가 fetch 가능하도록 노출
+      window.fetchTrackingData = fetchTrackingData;
     } catch(e) {}
 
     // 탭 헤더 — 활성(N)은 allGroups.length 고정
@@ -16636,19 +16638,31 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
         if ((it.snapshotId || it.id) === job.snapshotId) { track = it; break; }
       }
       if (!track) {
+        try { console.warn('[v497] track not found for', job.snapshotId); } catch(_){}
         if (v497_running) v497_running['delete'](job.jobKey);
         return;
       }
 
-      // samples는 기존 fetchTrackingData 재사용 (새 fetch 시스템 X)
-      var fetchPromise = (typeof fetchTrackingData === 'function')
-        ? fetchTrackingData(job.snapshotId, true)
-        : Promise.resolve(null);
+      // [v4.9.7-fix1] samples 우선순위:
+      //   1. window._trackingMap[sid].samples (이미 받은 캐시)
+      //   2. window.fetchTrackingData(sid, true) (BRIDGE IIFE 노출 함수)
+      //   3. v40_normalizeSamples(track) (track 박제 데이터)
+      var existingTd = (window._trackingMap && window._trackingMap[job.snapshotId]) || null;
+      var hasCachedSamples = existingTd && Array.isArray(existingTd.samples) && existingTd.samples.length > 0;
+      var fetcher = window.fetchTrackingData;
+      var fetchPromise;
+      if (hasCachedSamples) {
+        fetchPromise = Promise.resolve(existingTd);
+      } else if (typeof fetcher === 'function') {
+        fetchPromise = fetcher(job.snapshotId, true);
+      } else {
+        try { console.warn('[v497] fetchTrackingData unavailable'); } catch(_){}
+        fetchPromise = Promise.resolve(null);
+      }
 
       fetchPromise.then(function(td){
         try {
           if (td) {
-            // tracking cache 동기화 (다음 렌더 cacheKey 일관성)
             try { window._trackingMap[job.snapshotId] = td; } catch(_e){}
           }
           var samples = (td && td.samples) || v40_normalizeSamples(track);
@@ -16662,44 +16676,75 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
           var html = v40_buildExpandedBody(track, samples, metrics, entryInfo, levels, { vm: job.vm });
           v497_cacheSet(job.jobKey, html, '0');
 
-          // DOM 업데이트 — querySelector + data-job-key 일치 + displayMode guard
-          //   single: body wrapper 통째 교체
-          //   group:  swap 생략 (overlay/minis 보존). cache는 채움 → 다음 render cycle에 자연 반영
+          // [v4.9.7-fix1] DOM 업데이트 — single + group 모두 처리
+          //   single: card > .progress-rich-body 통째 교체
+          //   group:  card .woos-group-rep 의 children 만 교체 (overlay/minis/header 보존)
           try {
             var card = document.querySelector('details[data-snapshot-id="' + job.snapshotId + '"][data-job-key="' + job.jobKey + '"]');
-            if (card) {
+            if (!card) {
+              try { console.log('[v497] card not in DOM (yet)', job.jobKey); } catch(_){}
+            } else {
               var cls = card.className;
               var isWatchOrDeep = (cls.indexOf('is-watch') >= 0) || (cls.indexOf('is-deep') >= 0);
-              var groupSize = parseInt(card.getAttribute('data-group-size') || '0', 10);
-              var isGroup = groupSize >= 2;
-              if (isWatchOrDeep && !isGroup) {
-                // single 카드 — body wrapper만 직접 교체
-                var bodyWrap = card.querySelector('.progress-rich-body');
-                if (bodyWrap) {
-                  var temp = document.createElement('div');
-                  temp.innerHTML = html;
-                  var newBody = temp.firstElementChild;
-                  if (newBody && bodyWrap.parentNode) {
+              if (!isWatchOrDeep) {
+                try { console.log('[v497] mode mismatch (not watch/deep) — skip swap', cls); } catch(_){}
+              } else {
+                var groupSize = parseInt(card.getAttribute('data-group-size') || '0', 10);
+                var isGroup = groupSize >= 2;
+                var temp = document.createElement('div');
+                temp.innerHTML = html;
+                var newBody = temp.firstElementChild;
+                if (!newBody) {
+                  try { console.warn('[v497] empty html — skip swap'); } catch(_){}
+                } else if (isGroup) {
+                  // group: 대표 영역 교체 — woos-group-rep 의 children 만
+                  var repWrap = card.querySelector('.progress-rich-body.woos-group-rep, .progress-rich-body .woos-group-rep, .woos-group-rep');
+                  if (repWrap) {
+                    repWrap.innerHTML = newBody.innerHTML;
+                    try { console.log('[v497] group rep swapped', job.jobKey); } catch(_){}
+                  } else {
+                    try { console.warn('[v497] group rep not found'); } catch(_){}
+                  }
+                } else {
+                  // single: body wrapper 통째 교체
+                  var bodyWrap = card.querySelector('.progress-rich-body');
+                  if (bodyWrap && bodyWrap.parentNode) {
                     bodyWrap.parentNode.replaceChild(newBody, bodyWrap);
+                    try { console.log('[v497] single body swapped', job.jobKey); } catch(_){}
+                  } else {
+                    try { console.warn('[v497] single bodyWrap not found'); } catch(_){}
                   }
                 }
               }
-              // group 카드는 swap 생략 — cache는 v497_cacheSet 으로 이미 채움.
-              // 다음 _renderActiveTrackingList 에서 buildGroupCardHTML 이 cache hit 으로 자동 반영.
             }
-          } catch(_eDom){}
+          } catch(eDom){
+            try { console.warn('[v497] DOM swap error', eDom && eDom.message); } catch(_){}
+          }
         } catch(eBuild) {
-          try { console.warn('[v497_processQueue] build failed', eBuild && eBuild.message); } catch(_){}
+          try { console.warn('[v497] build failed', eBuild && eBuild.message, eBuild && eBuild.stack); } catch(_){}
         } finally {
           if (v497_running) v497_running['delete'](job.jobKey);
         }
+      })['catch'](function(eFetch){
+        try { console.warn('[v497] fetch error', eFetch && eFetch.message); } catch(_){}
+        if (v497_running) v497_running['delete'](job.jobKey);
       });
     }
     function v497_startWorker() {
       if (v497_workerStarted) return;
       v497_workerStarted = true;
       setInterval(v497_processQueue, V497_QUEUE_INTERVAL_MS);
+      try { console.log('[v497] worker started — interval', V497_QUEUE_INTERVAL_MS, 'ms'); } catch(_){}
     }
+    // [v4.9.7-fix1] 진단용 window 노출
+    try {
+      window.v497_cache = v497_cache;
+      window.v497_queue = v497_queue;
+      window.v497_running = v497_running;
+      window.v497_processQueue = v497_processQueue;
+      window.v497_buildJobKey = v497_buildJobKey;
+      window.v497_cacheGet = v497_cacheGet;
+    } catch(_){}
 
     /* 펼친 카드의 본문 (summary 제외) — 기존 details/summary 구조에 끼워 넣기용 */
     function v40_buildExpandedBody(track, samples, metrics, entryInfo, levels, opts) {
