@@ -152,7 +152,7 @@
 <script>
 /* [v4.7.42] 캐시 강제 리셋 — SW 완전 제거 후 리로드 */
 (function(){
-  var VER = 'v4.9.4-fetch-fix-4-splash-v5-final';  // [v4.9.4+] gradeHistory 박제 + v464_rerenderSingleCard에 _gradeChartHtml 박제 (풀바디 시 등급 점 사라짐 fix)
+  var VER = 'v4.9.4-fetch-fix-4-splash-v6-no-ghost';  // [v4.9.4+] gradeHistory 박제 + v464_rerenderSingleCard에 _gradeChartHtml 박제 (풀바디 시 등급 점 사라짐 fix)
   try {
     var LKEY = 'woos_hard_reset_ver';
     if (localStorage.getItem(LKEY) === VER) return;
@@ -5954,7 +5954,6 @@ details.analyzer-progress-card > summary.progress-compact-summary {
 
 <!-- [WOOS PWA SPLASH CSS START] -->
 <style>
-/* v5 final layout: W logo video + separated wordmark, black PWA intro only */
 #woosPwaSplash {
   position: fixed;
   inset: 0;
@@ -5987,7 +5986,6 @@ details.analyzer-progress-card > summary.progress-compact-summary {
 
 .woos-pwa-splash-logo-wrap {
   width: min(72vw, 320px);
-  height: auto;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -6016,15 +6014,15 @@ details.analyzer-progress-card > summary.progress-compact-summary {
 
 @keyframes woosSplashLogoFade {
   0%   { opacity: 0; transform: scale(.96); }
-  16%  { opacity: 1; transform: scale(1); }
+  14%  { opacity: 1; transform: scale(1); }
   78%  { opacity: 1; transform: scale(1); }
   100% { opacity: 0; transform: scale(1.015); }
 }
 
 @keyframes woosSplashWordmarkFade {
   0%   { opacity: 0; transform: translateY(8px); }
-  28%  { opacity: 0; transform: translateY(8px); }
-  42%  { opacity: 1; transform: translateY(0); }
+  30%  { opacity: 0; transform: translateY(8px); }
+  44%  { opacity: 1; transform: translateY(0); }
   80%  { opacity: 1; transform: translateY(0); }
   100% { opacity: 0; transform: translateY(0); }
 }
