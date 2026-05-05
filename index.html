@@ -152,7 +152,7 @@
 <script>
 /* [v4.7.42] 캐시 강제 리셋 — SW 완전 제거 후 리로드 */
 (function(){
-  var VER = 'v4.9.4-fetch-fix-4-splash-v6-no-ghost';  // [v4.9.4+] gradeHistory 박제 + v464_rerenderSingleCard에 _gradeChartHtml 박제 (풀바디 시 등급 점 사라짐 fix)
+  var VER = 'v4.9.4-fetch-fix-4-splash-v7-skip-start';  // [v4.9.4+] gradeHistory 박제 + v464_rerenderSingleCard에 _gradeChartHtml 박제 (풀바디 시 등급 점 사라짐 fix)
   try {
     var LKEY = 'woos_hard_reset_ver';
     if (localStorage.getItem(LKEY) === VER) return;
@@ -6014,6 +6014,11 @@ details.analyzer-progress-card > summary.progress-compact-summary {
 
 @keyframes woosSplashLogoFade {
   0%   { opacity: 0; transform: scale(.96); }
+  8%   { opacity: 0; transform: scale(.96); }
+  18%  { opacity: 1; transform: scale(1); }
+  78%  { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(1.015); }
+}
   14%  { opacity: 1; transform: scale(1); }
   78%  { opacity: 1; transform: scale(1); }
   100% { opacity: 0; transform: scale(1.015); }
@@ -6079,6 +6084,7 @@ details.analyzer-progress-card > summary.progress-compact-summary {
   if (!splash) return;
 
   var SPLASH_MS = 3000;
+  var VIDEO_SKIP_START_SEC = 0.95; // 초반 우측하단 고스트 제거용
   var hidden = false;
 
   function hideSplash(){
@@ -6086,20 +6092,44 @@ details.analyzer-progress-card > summary.progress-compact-summary {
     hidden = true;
     splash.classList.add('woos-splash-hide');
     setTimeout(function(){
-      if (splash && splash.parentNode) splash.parentNode.removeChild(splash);
+      if (splash && splash.parentNode) {
+        splash.parentNode.removeChild(splash);
+      }
     }, 520);
   }
 
-  try {
-    if (video) {
+  function playVideoFromSafePoint(){
+    if (!video) return;
+
+    try {
       video.muted = true;
       video.playsInline = true;
+      video.preload = 'auto';
       video.playbackRate = 1;
-      var p = video.play();
-      if (p && typeof p.catch === 'function') p.catch(function(){});
-    }
-  } catch(e) {}
 
+      function startPlayback(){
+        try {
+          if (isFinite(video.duration) && video.duration > VIDEO_SKIP_START_SEC) {
+            video.currentTime = VIDEO_SKIP_START_SEC;
+          }
+        } catch(e) {}
+
+        var p = video.play();
+        if (p && typeof p.catch === 'function') {
+          p.catch(function(){});
+        }
+      }
+
+      if (video.readyState >= 1) {
+        startPlayback();
+      } else {
+        video.addEventListener('loadedmetadata', startPlayback, { once: true });
+        video.load();
+      }
+    } catch(e) {}
+  }
+
+  playVideoFromSafePoint();
   setTimeout(hideSplash, SPLASH_MS);
 })();
 </script>
