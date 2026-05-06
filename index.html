@@ -152,7 +152,7 @@
 <script>
 /* [v4.7.42] 캐시 강제 리셋 — SW 완전 제거 후 리로드 */
 (function(){
-  var VER = 'v4.9.4+layout-reorganize';  // [v4.9.4+] 분석 완료 자동 이관 + 도달 타임라인 모달 작동 + 카드 본문 옵션 C 9개 영역 재배치 + 결과 헤드라인/종합 브리핑 강조
+  var VER = 'v4.9.4+briefing-storytelling';  // [v4.9.4+] 옵션 C 보존 + v44_buildBriefingBlock 4단계 스토리텔링 (알람당시→현재추적→갭분석→현재대응) + 5케이스 분기
   try {
     var LKEY = 'woos_hard_reset_ver';
     if (localStorage.getItem(LKEY) === VER) return;
@@ -7266,7 +7266,7 @@ async function opsDashboard() {
 // 탭 시 상세 팝업
 // ═══════════════════════════════════════════════════════════════
 
-var HTML_VERSION = 'v4.9.4+layout-reorganize';  // [v4.9.4+] 분석 완료 자동 이관 + 모달 작동 + 카드 본문 옵션 C 재배치 + 강조
+var HTML_VERSION = 'v4.9.4+briefing-storytelling';  // [v4.9.4+] v44 4단계 스토리텔링
 var _cachedBuildInfo = null;
 
 // [State Lock 2 Action fix-2c] 패치 확인용 — 페이지 로드 시 버전명 출력 (DevTools 콘솔)
@@ -14229,63 +14229,172 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
     }
     
     /* [Phase 4.4 작업 2] 종합 브리핑 HTML */
+    /* [v4.9.4+ 종합 브리핑 스토리텔링 개선]
+     * 사용자 명시 결정: 알람 당시 판단과 현재 추적 결과를 분리해서 한 단락 자연어로
+     *   - 4단계 흐름: 알람당시 → 현재추적 → 갭분석 → 현재대응
+     *   - 5개 케이스 우선순위: 실패/위험 → 성공/강세 → 변동성/혼조 → 보합/횡보 → fallback
+     *   - 350~550자 권장, 최대 700자, 4~6문장
+     *   - 한 텍스트 박스 / 한 단락 자연어
+     *   - metricsHtml (수치 반복 영역) 제거
+     *   - strengths/weaknesses/conclusion 별도 영역 X 자연 통합
+     *   - actionDesc 별도 줄 "📋 [참고 지침]"
+     *   - "진입 유효" 단독 표기 금지 — 시점 명시
+     *   - 새 함수 X / 입력값 그대로 / Worker X
+     */
     function v44_buildBriefingBlock(track, alertSnapshot, baseMetrics, advanced, levels) {
-      var briefing = v44_generateDynamicBriefing(track, alertSnapshot, baseMetrics, advanced, levels);
-      
-      // [Phase 4.7 공사 1 — Q14] 종합 브리핑 강화
-      // 사용자 의도: 항목별 상세 + 향후 판단 + 권장 빼고
-      // 데이터: alertSnapshot.analysis (strengths/weaknesses/conclusion) + actionDesc
-      
-      // 항목별 상세 (alertSnapshot 의 풀 데이터 활용)
-      var detailHtml = '';
-      if (alertSnapshot) {
-        var analysis = alertSnapshot.analysis || {};
-        var strengths = Array.isArray(analysis.strengths) ? analysis.strengths : [];
-        var weaknesses = Array.isArray(analysis.weaknesses) ? analysis.weaknesses : [];
-        var conclusion = analysis.conclusion || '';
-        
-        var detailParts = [];
-        if (strengths.length > 0) {
-          detailParts.push('<div class="briefing-section"><b>강점</b>: ' + strengths.map(v40_escapeHtml).join(' · ') + '</div>');
-        }
-        if (weaknesses.length > 0) {
-          detailParts.push('<div class="briefing-section"><b>약점</b>: ' + weaknesses.map(v40_escapeHtml).join(' · ') + '</div>');
-        }
-        if (conclusion) {
-          detailParts.push('<div class="briefing-section"><b>결론</b>: ' + v40_escapeHtml(conclusion) + '</div>');
-        }
-        if (detailParts.length > 0) {
-          detailHtml = '<div class="briefing-detail">' + detailParts.join('') + '</div>';
-        }
-      }
-      
-      // 지표 (도달률 / 상승률 / 안정성)
-      var metricsHtml = '';
-      if (baseMetrics && baseMetrics.hasData) {
-        var reach = [];
-        if (baseMetrics.plus3Hit) reach.push('+3');
-        if (baseMetrics.plus5Hit) reach.push('+5');
-        if (baseMetrics.tp1Hit) reach.push('TP1');
-        if (baseMetrics.tp2Hit) reach.push('TP2');
-        var reachStr = reach.length > 0 ? reach.join(' / ') + ' 도달' : '미도달';
-        var mfeStr = (baseMetrics.mfe >= 0 ? '+' : '') + baseMetrics.mfe.toFixed(2) + '%';
-        var maeStr = baseMetrics.mae.toFixed(2) + '%';
-        metricsHtml = '<div class="briefing-metrics">'
-          + '<span class="bm-item"><b>도달률</b>: ' + v40_escapeHtml(reachStr) + '</span>'
-          + '<span class="bm-item"><b>상승률</b>: ' + v40_escapeHtml(mfeStr) + '</span>'
-          + '<span class="bm-item"><b>안정성</b>: ' + v40_escapeHtml(maeStr) + '</span>'
-          + '</div>';
-      }
-      
-      // [Phase 4.4 작업 2] actionDesc 박제 보강 (있으면) - 권장이 아닌 사실 기술로
+      // ── 입력 안전 추출 ──
+      var analysis = (alertSnapshot && alertSnapshot.analysis) || {};
+      var strengths = Array.isArray(analysis.strengths) ? analysis.strengths : [];
       var actionDesc = (alertSnapshot && alertSnapshot.actionDesc) || '';
-      var actionHtml = actionDesc ? '<div class="woos-briefing-action">📋 ' + v40_escapeHtml(actionDesc) + '</div>' : '';
       
+      var hasMetrics = !!(baseMetrics && baseMetrics.hasData);
+      var currentPct = hasMetrics ? baseMetrics.currentPct : null;
+      var mfe = hasMetrics ? (typeof baseMetrics.mfe === 'number' ? baseMetrics.mfe : null) : null;
+      var mae = hasMetrics ? (typeof baseMetrics.mae === 'number' ? baseMetrics.mae : null) : null;
+      
+      var pattern = (advanced && advanced.pattern && typeof advanced.pattern === 'object') ? advanced.pattern : null;
+      var patternKr = (pattern && pattern.kr) ? pattern.kr : '';
+      var ratio = (advanced && typeof advanced.profitLossRatio === 'number') ? advanced.profitLossRatio : null;
+      
+      // 코인 base
+      var meta = (track && track.meta) || {};
+      var baseSymbol = (track && track.base) || meta.base || '';
+      
+      // 추적 경과 시간 (기존 함수 재사용 — formatElapsed)
+      var elapsedText = '';
+      try {
+        var startedAt = (track && track.startedAt) || meta.windowStart || meta.tierAssignedAt || 0;
+        if (startedAt > 0) {
+          var elapsedMs = Date.now() - startedAt;
+          if (elapsedMs > 0 && typeof formatElapsed === 'function') {
+            elapsedText = formatElapsed(elapsedMs);
+          }
+        }
+      } catch(e) {}
+      
+      // ─────────────────────────────────────────────
+      // 문장 1 — 알람 당시 신호 해석
+      // ─────────────────────────────────────────────
+      var alarmText = '';
+      var subjectPrefix = baseSymbol ? (v40_escapeHtml(baseSymbol) + '은(는) ') : '이 코인은 ';
+      if (strengths.length > 0) {
+        var top5 = strengths.slice(0, 5).map(v40_escapeHtml).join(', ');
+        alarmText = subjectPrefix + '알람 당시 ' + top5 + ' 등이 확인되어 진입 후보로 분류될 근거가 있었습니다.';
+      } else {
+        alarmText = subjectPrefix + '알람 당시 스캐너 조건 일부가 충족되어 추적 대상으로 분류되었습니다.';
+      }
+      
+      // ─────────────────────────────────────────────
+      // 문장 2 — 현재 추적 결과 해석
+      // ─────────────────────────────────────────────
+      var resultText = '';
+      if (hasMetrics && currentPct != null) {
+        var elapsedPart = elapsedText ? ('추적 ' + elapsedText + ' 이후 ') : '';
+        var pctSign = currentPct >= 0 ? '+' : '';
+        var pctStr = currentPct.toFixed(2);
+        var dirText = '';
+        if (currentPct < -0.3) {
+          dirText = '진입가 대비 ' + pctSign + pctStr + '%까지 밀렸고';
+        } else if (currentPct > 0.3) {
+          dirText = '진입가 대비 ' + pctSign + pctStr + '%까지 상승했고';
+        } else {
+          dirText = '진입가 부근(' + pctSign + pctStr + '%)에 머물러 있고';
+        }
+        
+        // MFE / MAE 비교
+        var mfeMaeText = '';
+        if (mfe != null && mae != null) {
+          var mfeStr = (mfe >= 0 ? '+' : '') + mfe.toFixed(2);
+          var maeStr = mae.toFixed(2);
+          if (Math.abs(mae) > Math.abs(mfe) + 0.5) {
+            mfeMaeText = ', MFE는 ' + mfeStr + '%에 그친 반면 MAE는 ' + maeStr + '%까지 확대되어 상승 시도보다 하방 압력이 더 크게 나타난 상태입니다';
+          } else if (mfe > Math.abs(mae) + 0.5) {
+            mfeMaeText = ', MFE가 ' + mfeStr + '%까지 확대된 반면 MAE는 ' + maeStr + '% 수준에서 방어되어 상방 우위 흐름을 유지한 상태입니다';
+          } else if (mfe > 2 && mae < -2) {
+            mfeMaeText = ', MFE ' + mfeStr + '%와 MAE ' + maeStr + '%가 함께 크게 열리며 매수·매도 공방이 강하게 나타난 상태입니다';
+          } else {
+            mfeMaeText = ', MFE는 ' + mfeStr + '% / MAE는 ' + maeStr + '% 수준에서 방향성이 제한된 상태입니다';
+          }
+        }
+        resultText = '다만 ' + elapsedPart + dirText + mfeMaeText + '.';
+      } else {
+        resultText = '다만 현재 추적 결과는 아직 데이터가 누적되는 중입니다.';
+      }
+      
+      // ─────────────────────────────────────────────
+      // 문장 3 — 갭 분석 (pattern + 손익비 fallback 4가지)
+      // ─────────────────────────────────────────────
+      var gapText = '';
+      if (patternKr && ratio != null) {
+        // 둘 다 있음
+        var ratioText = ratio < 0.5 ? '손익비 ' + ratio.toFixed(2) + '로 악화'
+                      : ratio < 1 ? '손익비 ' + ratio.toFixed(2) + '로 약화'
+                      : '손익비 ' + ratio.toFixed(2);
+        gapText = '특히 ' + v40_escapeHtml(patternKr) + ' 흐름과 ' + ratioText + '가 함께 확인되어, 알람 당시의 구조적 강점이 현재 가격 결과로는 충분히 이어지지 못한 상태입니다.';
+      } else if (patternKr) {
+        // pattern만
+        gapText = '특히 ' + v40_escapeHtml(patternKr) + ' 흐름이 확인되어, 알람 당시의 구조적 강점과 현재 가격 흐름 사이에 차이가 발생한 상태입니다.';
+      } else if (ratio != null) {
+        // 손익비만
+        gapText = '특히 손익비 ' + ratio.toFixed(2) + ' 수준으로 악화되어, 알람 당시의 신호가 현재 결과로는 충분히 이어지지 못한 상태입니다.';
+      } else {
+        // 둘 다 없음
+        gapText = '알람 당시 판단과 현재 추적 결과 사이의 차이를 함께 확인해야 하는 구간입니다.';
+      }
+      
+      // ─────────────────────────────────────────────
+      // 문장 4 — 현재 기준 대응 판단 (5개 케이스 분기)
+      // 우선순위: 실패/위험 → 성공/강세 → 변동성/혼조 → 보합/횡보 → fallback
+      // ─────────────────────────────────────────────
+      var responseText = '';
+      if (hasMetrics && currentPct != null && mfe != null && mae != null) {
+        // 1. 실패/위험 (가장 먼저 — 안전)
+        if (currentPct < -1.5 && Math.abs(mae) > mfe) {
+          responseText = '따라서 현재 기준으로는 신규 진입 유효가 아니라, 알람 당시 신호는 유효했지만 추적 결과는 실패/위험 구간에 가까우며 회복 여부 관찰과 리스크 관리가 우선입니다.';
+        }
+        // 2. 성공/강세
+        else if (currentPct > 1.5 && mfe > Math.abs(mae)) {
+          responseText = '따라서 현재 기준으로는 알람 당시 신호가 가격 결과로 이어진 성공 흐름에 가까우며, 추세 유지 여부를 확인하면서 수익 보호와 추가 상승 여지를 함께 보는 구간입니다.';
+        }
+        // 3. 변동성/혼조 (보합보다 먼저 — MFE/MAE 둘 다 큰 케이스)
+        else if (mfe > 2 && mae < -2) {
+          responseText = '따라서 현재 기준으로는 방향을 단정하기보다 변동성 관리와 기준가 재확인이 우선이며, 무리한 추격보다 재돌파 또는 이탈 여부를 확인해야 합니다.';
+        }
+        // 4. 보합/횡보
+        else if (currentPct >= -1.5 && currentPct <= 1.5 && mfe < 2 && mae > -2) {
+          responseText = '따라서 현재 기준으로는 신규 진입보다 방향성 이탈 확인이 우선이며, 박스권을 벗어나는 추가 신호를 기다리는 관찰 구간입니다.';
+        }
+        // 5. fallback
+        else {
+          responseText = '따라서 현재 기준으로는 추가 신호와 가격 반응을 함께 확인하는 관찰 구간입니다.';
+        }
+      } else {
+        responseText = '따라서 현재 기준으로는 추가 데이터가 누적되는 동안 신호 유지 여부를 함께 확인하는 관찰 구간입니다.';
+      }
+      
+      // ─────────────────────────────────────────────
+      // 한 단락 자연 연결
+      // ─────────────────────────────────────────────
+      var paragraph = alarmText + ' ' + resultText + ' ' + gapText + ' ' + responseText;
+      
+      // 700자 방어 (이론상 거의 안 걸림)
+      if (paragraph.length > 700) {
+        paragraph = paragraph.substring(0, 697) + '...';
+      }
+      
+      // ─────────────────────────────────────────────
+      // actionDesc 별도 줄 "📋 [참고 지침]"
+      // ─────────────────────────────────────────────
+      var actionHtml = actionDesc 
+        ? '<div class="woos-briefing-action">📋 [참고 지침] ' + v40_escapeHtml(actionDesc) + '</div>' 
+        : '';
+      
+      // ─────────────────────────────────────────────
+      // 출력 — 한 박스 / 한 단락 자연어
+      // ─────────────────────────────────────────────
       return '<div class="woos-briefing">'
         + '<div class="woos-briefing-title">▶ 종합 브리핑</div>'
-        + '<div class="woos-briefing-body">' + v40_escapeHtml(briefing) + '</div>'
-        + metricsHtml
-        + detailHtml
+        + '<div class="woos-briefing-body">' + paragraph + '</div>'
         + actionHtml
         + '</div>';
     }
