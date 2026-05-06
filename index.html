@@ -152,7 +152,7 @@
 <script>
 /* [v4.7.42] 캐시 강제 리셋 — SW 완전 제거 후 리로드 */
 (function(){
-  var VER = 'v4.9.4+postmortem-report';  // [v4.9.4+] 분석 완료 사후평가 리포트 (24개 항목 7개 블록 A~G + v44 isCompleted + 정적 룰 메모 + 점수 칩)
+  var VER = 'v4.9.4+postmortem-data-fix';  // [v4.9.4+] 분석 완료 데이터 매핑 fix (completed endpoint + includeSamples=1 + normalizeSamples + computeLiveMetrics 재사용 + 패턴/gradeHistory fallback chain + 활성 endpoint 보강)
   try {
     var LKEY = 'woos_hard_reset_ver';
     if (localStorage.getItem(LKEY) === VER) return;
@@ -7415,7 +7415,7 @@ async function opsDashboard() {
 // 탭 시 상세 팝업
 // ═══════════════════════════════════════════════════════════════
 
-var HTML_VERSION = 'v4.9.4+postmortem-report';  // [v4.9.4+] 분석 완료 사후평가 리포트
+var HTML_VERSION = 'v4.9.4+postmortem-data-fix';  // [v4.9.4+] 분석 완료 데이터 매핑 fix
 var _cachedBuildInfo = null;
 
 // [State Lock 2 Action fix-2c] 패치 확인용 — 페이지 로드 시 버전명 출력 (DevTools 콘솔)
@@ -13424,24 +13424,46 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
    * 절대 보존:
    *   - 17개 동결 함수 / Worker / Core v2 / vm 흐름 / 활성 카드 / 그래프 본체
    * 가짜 데이터 X / 없는 source는 fallback 표시
+   *
+   * [v4.9.4+postmortem-data-fix] 사용자 보고: "내용 출력 안 되는게 많아"
+   *   원인: completed endpoint 응답 매핑 실패
+   *     1. URL에 ?includeSamples=1 누락 → samples 빈 배열
+   *     2. samples 추출 단일 키만 → samples_t1/samples_t2 구조 미인식
+   *     3. baseMetrics 직접 계산 → 도달 시간 정보 누락
+   *     4. 패턴 fallback chain 없음 → c.pattern 헤더 vs 본문 모순
+   *   해결 (사용자 명시 결정):
+   *     1. completed endpoint 유지 + ?includeSamples=1 (1순위)
+   *     2. samples = WOOS_ANALYZER.normalizeSamples 재사용
+   *     3. metrics = WOOS_ANALYZER.computeLiveMetrics 재사용
+   *     4. samples 0개 시 /tracking/{id}?includeSamples=1 fallback (보강용)
+   *     5. 패턴 fallback chain (advanced.pattern.kr → c.pattern → c.patternLabel)
+   *     6. gradeHistory fallback chain (c → data → c.meta → alertSnap)
+   *     절대 보존: outcome/result5/trackingScore/scoreLabel = completed 기준 유지
    */
   window._fetchHistoryDetail = function(snapshotId, bodyEl) {
     if (!snapshotId || !bodyEl) return;
     var workerBase = window.WORKER_BASE_URL || '';
-    fetch(workerBase + '/tracking/completed/' + encodeURIComponent(snapshotId))
+    
+    // [v4.9.4+ 데이터 매핑 fix] completed endpoint + includeSamples=1
+    var completedUrl = workerBase + '/tracking/completed/' + encodeURIComponent(snapshotId) + '?includeSamples=1';
+    var activeUrl = workerBase + '/tracking/' + encodeURIComponent(snapshotId) + '?includeSamples=1';
+    
+    // 1차 fetch: /tracking/completed/{id}?includeSamples=1
+    fetch(completedUrl)
       .then(function(res){ return res.json(); })
       .then(function(data){
         if (!data || !data.completed) {
           bodyEl.innerHTML = '<div class="woos-history-empty">상세 정보 없음</div>';
-          return;
+          return null;
         }
+        // ── completed 응답 추출 ──
         var c = data.completed;
         var meta = data.meta || c.meta || {};
         var alertSnap = meta.alertSnapshot || data.snapshot || c.alertSnapshot || {};
-        var samples = data.samples || c.samples || [];
-        var entryPrice = alertSnap.price || c.entryPrice || meta.entryPrice;
+        var entryPrice = alertSnap.price || c.entryPrice || meta.entryPrice || null;
         
-        // ─── track 객체 구성 (분석 완료 contextual track) ───
+        // ── track 객체 구성 (samples_t1/samples_t2 등 다양한 경로 박제) ──
+        // v40_normalizeSamples가 다양한 경로 검색 가능하도록 모든 source 박제
         var track = {
           snapshotId: snapshotId,
           base: c.base, exchange: c.exchange,
@@ -13450,62 +13472,114 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
           windowEnd: c.completedAt || meta.windowEnd,
           meta: meta,
           alertSnapshot: alertSnap,
-          gradeHistory: c.gradeHistory || meta.gradeHistory || [],
+          // gradeHistory fallback chain (사용자 결정 6)
+          gradeHistory: c.gradeHistory || data.gradeHistory || meta.gradeHistory || (alertSnap && alertSnap.gradeHistory) || [],
           alertCount: c.alarmCount24 || c.alertCount || 1,
+          // samples 다양한 경로 박제 (v40_normalizeSamples가 검색)
+          samples: data.samples || c.samples || meta.samples || [],
+          samples_t1: data.samples_t1 || c.samples_t1 || null,
+          samples_t2: data.samples_t2 || c.samples_t2 || null,
+          tier1: data.tier1 || c.tier1 || null,
+          tier2: data.tier2 || c.tier2 || null,
+          keys: data.keys || c.keys || null,
         };
         
-        // ─── baseMetrics 계산 ───
+        // ── samples 추출 — v40_normalizeSamples 재사용 ──
+        var samples = [];
+        if (window.WOOS_ANALYZER && window.WOOS_ANALYZER.normalizeSamples) {
+          try { samples = window.WOOS_ANALYZER.normalizeSamples(track) || []; } catch(e) {
+            console.warn('[postmortem normalizeSamples]', e);
+            samples = data.samples || c.samples || [];
+          }
+        } else {
+          samples = data.samples || c.samples || [];
+        }
+        
+        // ── samples 0개 시 활성 endpoint fallback (보강용만, completed 판정값 유지) ──
+        if (samples.length === 0) {
+          return fetch(activeUrl)
+            .then(function(r2){ return r2.ok ? r2.json() : null; })
+            .then(function(activeData){
+              if (activeData) {
+                // 활성 응답에서 samples / levels / 가격 path만 보강 (판정값은 completed 유지)
+                track.samples = activeData.samples || track.samples;
+                track.samples_t1 = activeData.samples_t1 || track.samples_t1;
+                track.samples_t2 = activeData.samples_t2 || track.samples_t2;
+                track.tier1 = activeData.tier1 || track.tier1;
+                track.tier2 = activeData.tier2 || track.tier2;
+                track.keys = activeData.keys || track.keys;
+                if (window.WOOS_ANALYZER && window.WOOS_ANALYZER.normalizeSamples) {
+                  try { samples = window.WOOS_ANALYZER.normalizeSamples(track) || []; } catch(e) {}
+                }
+              }
+              return { data: data, c: c, meta: meta, alertSnap: alertSnap, entryPrice: entryPrice, track: track, samples: samples };
+            })
+            .catch(function(){ return { data: data, c: c, meta: meta, alertSnap: alertSnap, entryPrice: entryPrice, track: track, samples: samples }; });
+        }
+        return { data: data, c: c, meta: meta, alertSnap: alertSnap, entryPrice: entryPrice, track: track, samples: samples };
+      })
+      .then(function(ctx){
+        if (!ctx) return;  // 상세 정보 없음 케이스 (이미 표시됨)
+        var data = ctx.data, c = ctx.c, meta = ctx.meta, alertSnap = ctx.alertSnap;
+        var entryPrice = ctx.entryPrice, track = ctx.track, samples = ctx.samples;
+        
+        // ── entryInfo / levels / metrics 계산 ──
         var baseMetrics = null;
         var advanced = null;
         var levels = null;
         var entryInfo = { value: entryPrice };
         
-        if (entryPrice && samples.length > 0) {
-          var mfe = 0, mae = 0;
-          for (var si = 0; si < samples.length; si++) {
-            var pct = ((samples[si].price - entryPrice) / entryPrice) * 100;
-            if (pct > mfe) mfe = pct;
-            if (pct < mae) mae = pct;
+        // entryInfo — v40_resolveEntryPrice 재사용
+        if (window.WOOS_ANALYZER && window.WOOS_ANALYZER.resolveEntryPrice) {
+          try { entryInfo = window.WOOS_ANALYZER.resolveEntryPrice(track, samples) || entryInfo; } catch(e) {}
+        }
+        if (!entryInfo.value && entryPrice) entryInfo = { value: entryPrice, source: 'fallback', isPseudo: false };
+        
+        // levels — v40_resolveLevels (alertSnap fallback 적용됨)
+        if (window.WOOS_ANALYZER && window.WOOS_ANALYZER.resolveLevels) {
+          try { levels = window.WOOS_ANALYZER.resolveLevels(track, entryInfo.value) || {}; } catch(e) { levels = {}; }
+        }
+        if (!levels) levels = {};
+        
+        // baseMetrics — v40_computeLiveMetrics 재사용 (활성 카드와 동일 흐름)
+        if (samples.length > 0 && entryInfo.value && window.WOOS_ANALYZER && window.WOOS_ANALYZER.computeLiveMetrics) {
+          try { 
+            baseMetrics = window.WOOS_ANALYZER.computeLiveMetrics(samples, entryInfo.value, levels, null);
+          } catch(e) { 
+            console.warn('[postmortem computeLiveMetrics]', e);
+            baseMetrics = null;
           }
-          var lastPct = ((samples[samples.length-1].price - entryPrice) / entryPrice) * 100;
-          
-          // levels 활용 (v40_resolveLevels — alertSnap fallback 적용됨)
-          if (window.WOOS_ANALYZER && window.WOOS_ANALYZER.resolveLevels) {
-            try { levels = window.WOOS_ANALYZER.resolveLevels(track, entryPrice); } catch(e) { levels = {}; }
-          } else {
-            levels = {
-              tp1: alertSnap.tp1 || alertSnap.tp1Price || null,
-              tp2: alertSnap.tp2 || alertSnap.tp2Price || null,
-              boxLow: alertSnap.boxLow || alertSnap.stopLoss || null,
-              boxHigh: alertSnap.boxHigh || null,
-              atr: alertSnap.atr || null,
-              atrPct: null,
+        }
+        
+        // baseMetrics fallback (computeLiveMetrics 실패 또는 samples 0개)
+        if (!baseMetrics || !baseMetrics.hasData) {
+          // c (completed) 박제값 활용
+          var fallbackMfe = (c.maxRise != null) ? c.maxRise : (c.mfe != null) ? c.mfe : 0;
+          var fallbackMae = (c.maxDrop != null) ? c.maxDrop : (c.mae != null) ? c.mae : 0;
+          var fallbackCurrent = (c.closeReturn != null) ? c.closeReturn : 0;
+          if (fallbackMfe !== 0 || fallbackMae !== 0) {
+            baseMetrics = {
+              hasData: true,
+              mfe: fallbackMfe,
+              mae: fallbackMae,
+              currentPct: fallbackCurrent,
+              plus3Hit: fallbackMfe >= 3,
+              plus5Hit: fallbackMfe >= 5,
+              tp1Hit: !!c.tp1Hit,
+              tp2Hit: !!c.tp2Hit,
+              stopHit: !!c.stopHit,
             };
-            if (levels.atr && entryPrice) levels.atrPct = (levels.atr / entryPrice) * 100;
           }
-          
-          var plus3Hit = mfe >= 3;
-          var plus5Hit = mfe >= 5;
-          var tp1Hit = (levels.tp1 != null) ? samples.some(function(s){ return s.price >= levels.tp1; }) : false;
-          var tp2Hit = (levels.tp2 != null) ? samples.some(function(s){ return s.price >= levels.tp2; }) : false;
-          var stopHit = (levels.boxLow != null) ? samples.some(function(s){ return s.price <= levels.boxLow; }) : false;
-          
-          baseMetrics = {
-            hasData: true,
-            mfe: mfe, mae: mae,
-            currentPct: lastPct,
-            plus3Hit: plus3Hit, plus5Hit: plus5Hit,
-            tp1Hit: tp1Hit, tp2Hit: tp2Hit, stopHit: stopHit,
-          };
-          
-          // advanced — v43_computeAdvancedMetrics 활용
+        }
+        
+        // advanced — v43_computeAdvancedMetrics 활용
+        if (baseMetrics && baseMetrics.hasData) {
           if (window.WOOS_ANALYZER && window.WOOS_ANALYZER.computeAdvancedMetrics) {
-            try { advanced = window.WOOS_ANALYZER.computeAdvancedMetrics(track, samples, entryPrice, levels, baseMetrics); } catch(e) { advanced = null; }
+            try { advanced = window.WOOS_ANALYZER.computeAdvancedMetrics(track, samples, entryInfo.value, levels, baseMetrics); } catch(e) { advanced = null; }
           }
           if (!advanced) {
-            // fallback 손익비만 계산
-            var ratio = mae < 0 ? mfe / Math.abs(mae) : null;
-            advanced = { profitLossRatio: ratio, pattern: null, closeReturn: lastPct };
+            var ratio = baseMetrics.mae < 0 ? baseMetrics.mfe / Math.abs(baseMetrics.mae) : null;
+            advanced = { profitLossRatio: ratio, pattern: null, closeReturn: baseMetrics.currentPct };
           }
         }
         
@@ -13521,13 +13595,23 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
         var outcomeMap = { success: '✅ 성공', partial: '🟡 부분', neutral: '⚪ 중립', fail: '🔴 실패', doji: '🔄 도지' };
         var outcomeLabel = outcomeMap[outcome] || '⚪ 중립';
         
-        // ─── 알람가 → 종료가 ───
-        var endPrice = (samples.length > 0) ? samples[samples.length-1].price : (c.endPrice || entryPrice);
-        var pctChange = (entryPrice && endPrice) ? ((endPrice - entryPrice) / entryPrice * 100) : 0;
+        // ─── 알람가 → 종료가 (fallback chain) ───
+        var entryPriceForFlow = entryInfo.value || entryPrice || c.entryPrice || (alertSnap && alertSnap.price);
+        var endPrice = (samples.length > 0) ? samples[samples.length-1].price 
+                     : (c.endPrice != null) ? c.endPrice
+                     : (c.lastPrice != null) ? c.lastPrice
+                     : (meta.lastPrice != null) ? meta.lastPrice
+                     : entryPriceForFlow;
+        // c.closeReturn 박제값이 있으면 우선
+        var pctChange = (c.closeReturn != null) ? c.closeReturn 
+                      : (entryPriceForFlow && endPrice) ? ((endPrice - entryPriceForFlow) / entryPriceForFlow * 100) 
+                      : 0;
         var pctSign = pctChange >= 0 ? '+' : '';
-        var priceFlowHtml = entryPrice
-          ? ('<div class="pm-price-flow"><span>알람 ' + entryPrice + '</span> → <span>종료 ' + endPrice + '</span> <b class="' + (pctChange >= 0 ? 'pm-up' : 'pm-down') + '">' + pctSign + pctChange.toFixed(2) + '%</b></div>')
-          : '<div class="pm-price-flow woos-empty">가격 데이터 없음</div>';
+        var priceFlowHtml = (entryPriceForFlow && endPrice && entryPriceForFlow !== endPrice)
+          ? ('<div class="pm-price-flow"><span>알람 ' + entryPriceForFlow + '</span> → <span>종료 ' + endPrice + '</span> <b class="' + (pctChange >= 0 ? 'pm-up' : 'pm-down') + '">' + pctSign + pctChange.toFixed(2) + '%</b></div>')
+          : (entryPriceForFlow 
+             ? ('<div class="pm-price-flow"><span>알람가 ' + entryPriceForFlow + '</span> <b class="' + (pctChange >= 0 ? 'pm-up' : 'pm-down') + '">' + pctSign + pctChange.toFixed(2) + '%</b></div>')
+             : '<div class="pm-price-flow woos-empty">가격 데이터 없음</div>');
         
         // ─── 직관 점수 (헤더와 동일 산식) ───
         var trackingScore2 = (c.trackingScore != null) ? c.trackingScore 
@@ -13669,8 +13753,40 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
         // 블록 E — 패턴 / 손익비 / 리스크 요약 (15~16)
         //   17~19 (속도/안정성/기회)는 결정 4 = A → 별도 영역 X (블록 D 채점표에 포함)
         // ═══════════════════════════════════════════
+        // [v4.9.4+ 패턴 fallback chain] advanced.pattern → c.pattern → c.patternLabel
+        // 사용자 보고: 헤더에 STEADY_UP 보이는데 본문에서 "패턴 데이터 부족" 모순
         var patternKr = (advanced && advanced.pattern && advanced.pattern.kr) ? advanced.pattern.kr : '';
         var patternEn = (advanced && advanced.pattern && advanced.pattern.en) ? advanced.pattern.en : '';
+        // fallback 1: advanced.pattern이 객체 X 문자열인 경우
+        if (!patternKr && advanced && typeof advanced.pattern === 'string') {
+          patternEn = advanced.pattern;
+          // 한글 라벨 매핑 (v47_formatPatternLabel과 동일)
+          var patternKrMap = {
+            'STEADY_UP': '양봉 연속', 'SLOW_BLEED': '음봉 연속',
+            'PUMP_DUMP': '윗꼬리', 'HAMMER': '아래꼬리',
+            'EXPLOSIVE': '폭발', 'FAKEOUT': '가짜 돌파',
+            'RANGE_BOUND': '박스권', 'MIXED': '혼조',
+          };
+          patternKr = patternKrMap[advanced.pattern] || advanced.pattern;
+        }
+        // fallback 2: c.pattern (Worker 박제)
+        if (!patternKr && c.pattern) {
+          patternEn = (typeof c.pattern === 'object' && c.pattern.en) ? c.pattern.en : c.pattern;
+          patternKr = (typeof c.pattern === 'object' && c.pattern.kr) ? c.pattern.kr : '';
+          if (!patternKr) {
+            var patternKrMap2 = {
+              'STEADY_UP': '양봉 연속', 'SLOW_BLEED': '음봉 연속',
+              'PUMP_DUMP': '윗꼬리', 'HAMMER': '아래꼬리',
+              'EXPLOSIVE': '폭발', 'FAKEOUT': '가짜 돌파',
+              'RANGE_BOUND': '박스권', 'MIXED': '혼조',
+            };
+            patternKr = patternKrMap2[patternEn] || patternEn;
+          }
+        }
+        // fallback 3: c.patternLabel (Worker 라벨 박제)
+        if (!patternKr && c.patternLabel) {
+          patternKr = c.patternLabel;
+        }
         var patternHtml = patternKr 
           ? '<div class="pm-pattern-line"><b>패턴:</b> ' + escapeHtml(patternKr) + (patternEn ? ' <small>(' + escapeHtml(patternEn) + ')</small>' : '') + '</div>'
           : '<div class="pm-pattern-line woos-empty">패턴 데이터 부족</div>';
