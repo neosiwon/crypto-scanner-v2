@@ -152,7 +152,7 @@
 <script>
 /* [v4.7.42] 캐시 강제 리셋 — SW 완전 제거 후 리로드 */
 (function(){
-  var VER = 'v4.9.4+kr-name-api-v2';  // [v4.9.4+] 한글 티커 표기 V2 — 빗썸/업비트 API 자동 매핑 + localStorage 7d TTL 캐시 + 안전망 매핑표 + 텔레그램 알람 한글 표기
+  var VER = 'v4.9.4+kr-name-api-v2-r2';  // [v4.9.4+] 한글 티커 V2 + 모바일 자동 감지 (?mobile=1 강제 + viewport 768px 자동) + 스캐너 결과 카드/알람 히스토리 표/스냅샷 메타에도 한글 티커 적용
   try {
     var LKEY = 'woos_hard_reset_ver';
     if (localStorage.getItem(LKEY) === VER) return;
@@ -204,9 +204,38 @@
 (function(){
   var params = new URLSearchParams(location.search || '');
   var isPreview = params.has('demo') || params.has('preview');
-  var isMobilePreview = isPreview && params.has('mobile');
+  
+  // [v4.9.4+ 모바일 자동 감지] 사용자 결정 1=D
+  // ?mobile=1 = 강제 모바일 / ?desktop=1 = 강제 PC
+  // 파라미터 없으면 viewport width 자동 감지 (768px 이하 = 모바일)
+  // 데모/프리뷰 모드에서만 작동 (일반 사용자에 영향 X)
+  var forceMobile = params.has('mobile');
+  var forceDesktop = params.has('desktop');
+  var autoMobile = false;
+  try {
+    if (typeof window !== 'undefined' && window.innerWidth) {
+      autoMobile = window.innerWidth <= 768;
+    }
+  } catch(e) {}
+  
+  var isMobilePreview = isPreview && (forceMobile || (!forceDesktop && autoMobile));
   if (isMobilePreview) {
     try { document.documentElement.classList.add('woos-mobile-preview'); } catch(e) {}
+    
+    // [v4.9.4+ 모바일 자동 감지] 회전 시 재적용 (orientation change)
+    try {
+      var rotateHandler = function() {
+        if (forceMobile || forceDesktop) return;  // 강제 모드 시 무시
+        var nowMobile = window.innerWidth <= 768;
+        if (nowMobile && !document.documentElement.classList.contains('woos-mobile-preview')) {
+          document.documentElement.classList.add('woos-mobile-preview');
+        } else if (!nowMobile && document.documentElement.classList.contains('woos-mobile-preview')) {
+          document.documentElement.classList.remove('woos-mobile-preview');
+        }
+      };
+      window.addEventListener('resize', rotateHandler);
+      window.addEventListener('orientationchange', rotateHandler);
+    } catch(e) {}
   }
   var ACCESS_KEY = 'woos_invite_access_ok';
   var ACCESS_UNTIL_KEY = 'woos_invite_access_until';
@@ -7959,7 +7988,7 @@ async function opsDashboard() {
 // 탭 시 상세 팝업
 // ═══════════════════════════════════════════════════════════════
 
-var HTML_VERSION = 'v4.9.4+kr-name-api-v2';  // [v4.9.4+] 한글 티커 표기 V2 — API 자동 매핑
+var HTML_VERSION = 'v4.9.4+kr-name-api-v2-r2';  // [v4.9.4+] 한글 티커 V2 + 모바일 자동 감지 + 스캐너 적용
 var _cachedBuildInfo = null;
 
 // [State Lock 2 Action fix-2c] 패치 확인용 — 페이지 로드 시 버전명 출력 (DevTools 콘솔)
@@ -9230,7 +9259,11 @@ async function renderSnapshotPanel(query, context) {
     var dateStr = ts ? new Date(ts).toLocaleString('ko-KR', {hour12:false}) : '-';
     return '<div class="snapshot-item" onclick="openSnapshotById(\''+escapeHtml(s.snapshotId)+'\')">'
       + '<div class="snapshot-id">'+srcBadge+' '+escapeHtml(s.snapshotId)+'</div>'
-      + '<div class="snapshot-meta">'+escapeHtml(s.base||'-')+' · '+escapeHtml(exch)+' · '+escapeHtml(dateStr)+alertType+'</div>'
+      + '<div class="snapshot-meta">'+escapeHtml(
+          (window.WOOS_ANALYZER && window.WOOS_ANALYZER.getCoinDisplayName)
+            ? (window.WOOS_ANALYZER.getCoinDisplayName(s) || s.base || '-')
+            : (s.base || '-')
+        )+' · '+escapeHtml(exch)+' · '+escapeHtml(dateStr)+alertType+'</div>'
       + '<div class="snapshot-mini">점수 '+escapeHtml(String(s.total||'-'))+' · '+escapeHtml(gradeRaw)+'</div>'
       + '</div>';
   }).join('');
@@ -9887,11 +9920,21 @@ function buildCoinCardHTML(coin, idx) {
   var entryBanner = rep.isEntryReady ? '<div class="entry-ready-banner">ENTRY READY</div>' : '';
   var prePumpBadge= rep.prePump ? '<span class="prepump-badge">🟣 PRE-PUMP</span>' : '';
 
+  // [v4.9.4+ V2] 스캐너 결과 카드도 한글 티커 표기 (사용자 보고: "스캐너엔 적용 안 됨")
+  // window.WOOS_ANALYZER.getCoinDisplayName 경유 (IIFE scope 격리)
+  // fallback: 캐시 미초기화 또는 노출 X 시 base 그대로
+  var coinDisplay = coin.base;
+  try {
+    if (window.WOOS_ANALYZER && window.WOOS_ANALYZER.getCoinDisplayName) {
+      coinDisplay = window.WOOS_ANALYZER.getCoinDisplayName(coin) || coin.base;
+    }
+  } catch(e) {}
+
   return '<div class="result-card '+gradeClass+'" id="card-'+idx+'">'
     +'<div class="card-header" onclick="toggleCoinDetail('+idx+')">'
     +'<div class="grade-badge '+gradeClass+'">'+gDisp+'</div>'
     +'<div class="card-main">'
-    +'<div class="card-symbol">'+coin.base
+    +'<div class="card-symbol">'+escapeHtml(coinDisplay)
     +'<div class="rep-exchange-banner"><span class="rep-exchange-label">대표:</span><span class="rep-exchange-name">'+rep.exchange+'</span></div>'
     +'<div class="ex-tags">'+existsBadges+'</div></div>'
     +entryBanner
@@ -11730,7 +11773,11 @@ window.addEventListener('load', async function(){
       
       tbody += '<tr data-snapshot-id="' + escapeHtml(it.snapshotId) + '">'
             + '<td>' + escapeHtml(formatShortTime(it.timestamp)) + '</td>'
-            + '<td><b>' + escapeHtml(it.base || '-') + '</b></td>'
+            + '<td><b>' + escapeHtml(
+                (window.WOOS_ANALYZER && window.WOOS_ANALYZER.getCoinDisplayName)
+                  ? (window.WOOS_ANALYZER.getCoinDisplayName(it) || it.base || '-')
+                  : (it.base || '-')
+              ) + '</b></td>'
             + '<td><span class="' + gradeCls + '">' + escapeHtml((it.gradeCode === 'SPLUS' ? 'S+' : (it.gradeCode || '-'))) + '</span></td>'
             + '<td>' + escapeHtml(it.exchange || '-') + '</td>'
             + mfeCell
