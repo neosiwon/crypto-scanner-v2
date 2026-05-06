@@ -152,7 +152,7 @@
 <script>
 /* [v4.7.42] 캐시 강제 리셋 — SW 완전 제거 후 리로드 */
 (function(){
-  var VER = 'v4.9.4+dailyhash-mobile-gate-center';  // [v4.9.4+] Worker dailyHash invite gate + centered mobile gate + postmortem data fix
+  var VER = 'v4.9.4+dailyhash-mobile-gate-nosplash';  // [v4.9.4+] Worker dailyHash invite gate + centered mobile gate + postmortem data fix
   try {
     var LKEY = 'woos_hard_reset_ver';
     if (localStorage.getItem(LKEY) === VER) return;
@@ -193,7 +193,7 @@
 </script>
 <script>
 /* ═══════════════════════════════════════════════════════════════
- * [v4.9.4+dailyhash-mobile-gate-center]
+ * [v4.9.4+dailyhash-mobile-gate-nosplash]
  * ?demo=1 / ?preview=1 Worker 검증형 dailyHash 초대코드 게이트
  * ?mobile=1 PC에서도 모바일 앱 프레임 폭으로 표시
  * - invite-config.json 외부 설정 파일 사용
@@ -555,7 +555,7 @@
 </script>
 <style>
 /* ═══════════════════════════════════════════════════════════════
-   [v4.9.4+dailyhash-mobile-gate-center] Preview Invite Gate
+   [v4.9.4+dailyhash-mobile-gate-nosplash] Preview Invite Gate
 ═══════════════════════════════════════════════════════════════ */
 html.woos-invite-locked body > *:not(#woosInviteGateRoot):not(script):not(style){filter:blur(12px);pointer-events:none;user-select:none;}
 .woos-invite-gate-root{position:fixed;inset:0;z-index:2147483646;display:flex;align-items:center;justify-content:center;padding:18px;background:radial-gradient(circle at top,rgba(0,212,255,.16),rgba(5,9,15,.96) 42%,rgba(5,9,15,.99));font-family:'Noto Sans KR',system-ui,sans-serif;}
@@ -672,7 +672,7 @@ html.woos-mobile-preview .woos-invite-admin {
   }
 }
 
-/* ── [v4.9.4+dailyhash-mobile-gate-center] 최종 보정
+/* ── [v4.9.4+dailyhash-mobile-gate-nosplash] 최종 보정
    이전 gate-fit은 root 자체를 430px로 줄여 일부 모바일 브라우저에서
    left:50%만 적용되고 transform이 무시되어 입력창이 우측으로 밀릴 수 있었다.
    해결: 오버레이(root)는 항상 전체 viewport, 카드만 모바일 폭으로 중앙 고정. */
@@ -6839,6 +6839,17 @@ details.analyzer-progress-card > summary.progress-compact-summary {
     margin-top: 20px;
   }
 }
+
+
+/* [v4.9.4+dailyhash-mobile-gate-nosplash]
+   모바일 프리뷰(?demo=1&mobile=1)에서는 초대코드 게이트가 첫 화면이므로
+   PWA 스플래시 비디오를 숨겨 우측/하단 밀림 현상을 차단한다. */
+html.woos-mobile-preview #woosPwaSplash {
+  display: none !important;
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
 </style>
 <!-- [WOOS PWA SPLASH CSS END] -->
 
@@ -6878,6 +6889,22 @@ details.analyzer-progress-card > summary.progress-compact-summary {
   var splash = document.getElementById('woosPwaSplash');
   var video = document.getElementById('woosPwaSplashVideo');
   if (!splash) return;
+
+  // [v4.9.4+dailyhash-mobile-gate-nosplash]
+  // 모바일 프리뷰에서는 초대코드 게이트가 첫 화면이다.
+  // 스플래시 비디오가 일부 모바일 브라우저에서 우측/하단으로 밀려 보일 수 있어 즉시 제거한다.
+  try {
+    var __woosSplashParams = new URLSearchParams(location.search || '');
+    var __woosSplashPreview = __woosSplashParams.has('demo') || __woosSplashParams.has('preview');
+    var __woosSplashMobile = __woosSplashParams.has('mobile');
+    if (__woosSplashPreview && __woosSplashMobile) {
+      if (video) {
+        try { video.pause(); video.removeAttribute('src'); video.load(); } catch(e) {}
+      }
+      if (splash && splash.parentNode) splash.parentNode.removeChild(splash);
+      return;
+    }
+  } catch(e) {}
 
   var SPLASH_MS = 3200;
   var removed = false;
@@ -7953,7 +7980,7 @@ async function opsDashboard() {
 // 탭 시 상세 팝업
 // ═══════════════════════════════════════════════════════════════
 
-var HTML_VERSION = 'v4.9.4+dailyhash-mobile-gate-center';  // [v4.9.4+] dailyHash invite gate + centered mobile gate + postmortem data fix
+var HTML_VERSION = 'v4.9.4+dailyhash-mobile-gate-nosplash';  // [v4.9.4+] dailyHash invite gate + centered mobile gate + postmortem data fix
 var _cachedBuildInfo = null;
 
 // [State Lock 2 Action fix-2c] 패치 확인용 — 페이지 로드 시 버전명 출력 (DevTools 콘솔)
