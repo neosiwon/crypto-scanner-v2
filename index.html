@@ -152,7 +152,7 @@
 <script>
 /* [v4.7.42] 캐시 강제 리셋 — SW 완전 제거 후 리로드 */
 (function(){
-  var VER = 'v4.9.4+kr-name-api-v2-r2';  // [v4.9.4+] 한글 티커 V2 + 모바일 자동 감지 (?mobile=1 강제 + viewport 768px 자동) + 스캐너 결과 카드/알람 히스토리 표/스냅샷 메타에도 한글 티커 적용
+  var VER = 'v4.9.4+kr-name-api-v2-r3';  // [v4.9.4+] 한글 티커 V2 + 모바일 자동 감지 r3 (isPreview 제거 — 모든 사용자 자동 적용 + @media 안전망 + buildCoinCardHTML 인라인 fallback)
   try {
     var LKEY = 'woos_hard_reset_ver';
     if (localStorage.getItem(LKEY) === VER) return;
@@ -205,10 +205,11 @@
   var params = new URLSearchParams(location.search || '');
   var isPreview = params.has('demo') || params.has('preview');
   
-  // [v4.9.4+ 모바일 자동 감지] 사용자 결정 1=D
+  // [v4.9.4+ 모바일 자동 감지 r3] 사용자 결정 1=B, 2=B, 3=B
   // ?mobile=1 = 강제 모바일 / ?desktop=1 = 강제 PC
-  // 파라미터 없으면 viewport width 자동 감지 (768px 이하 = 모바일)
-  // 데모/프리뷰 모드에서만 작동 (일반 사용자에 영향 X)
+  // 파라미터 없으면 viewport ≤ 768px = 자동 모바일
+  // 사용자 결정 — isPreview 제거 (모든 사용자에게 적용)
+  // 이유: 일반 사용자도 모바일 디바이스에서 PWA 첫 화면 / invite-gate 정상 표시 필요
   var forceMobile = params.has('mobile');
   var forceDesktop = params.has('desktop');
   var autoMobile = false;
@@ -218,14 +219,14 @@
     }
   } catch(e) {}
   
-  var isMobilePreview = isPreview && (forceMobile || (!forceDesktop && autoMobile));
+  // [v4.9.4+ r3] isPreview 제거 — 모든 사용자에게 자동 적용
+  var isMobilePreview = forceMobile || (!forceDesktop && autoMobile);
   if (isMobilePreview) {
     try { document.documentElement.classList.add('woos-mobile-preview'); } catch(e) {}
     
-    // [v4.9.4+ 모바일 자동 감지] 회전 시 재적용 (orientation change)
     try {
       var rotateHandler = function() {
-        if (forceMobile || forceDesktop) return;  // 강제 모드 시 무시
+        if (forceMobile || forceDesktop) return;
         var nowMobile = window.innerWidth <= 768;
         if (nowMobile && !document.documentElement.classList.contains('woos-mobile-preview')) {
           document.documentElement.classList.add('woos-mobile-preview');
@@ -761,6 +762,91 @@ html.woos-mobile-preview #woosPwaSplash .woos-pwa-splash-wordmark-img {
   html.woos-mobile-preview .woos-invite-gate-root { padding: 14px !important; }
   html.woos-mobile-preview .woos-invite-card { width: min(390px, calc(100vw - 28px)) !important; }
   html.woos-mobile-preview #woosPwaSplash .woos-pwa-splash-stack { width: min(88vw, 390px) !important; }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   [v4.9.4+ 모바일 자동 감지 r3] @media 안전망
+   - JS 자동 감지가 실패해도 모바일 디바이스에서 invite-gate / PWA splash 강제 모바일 폭 적용
+   - woos-mobile-preview 클래스 의존 X — viewport만으로 작동
+   - 사용자 결정 1=B, 2=B, 3=B (모든 모바일 사용자에게 적용)
+═══════════════════════════════════════════════════════════════ */
+@media (max-width: 768px) {
+  /* 초대 코드 게이트 — 모바일 폭 강제 (woos-mobile-preview 클래스 X 상태에도 적용) */
+  .woos-invite-gate-root {
+    position: fixed !important;
+    inset: 0 !important;
+    width: 100vw !important;
+    max-width: none !important;
+    height: 100vh !important;
+    min-height: 100vh !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 16px !important;
+    overflow: hidden !important;
+  }
+  .woos-invite-card {
+    width: min(390px, calc(100vw - 32px)) !important;
+    max-width: 390px !important;
+    margin: 0 auto !important;
+    box-sizing: border-box !important;
+    padding: 22px 16px !important;
+  }
+  .woos-invite-title { font-size: 1.08rem !important; }
+  .woos-invite-msg { font-size: .72rem !important; min-height: 38px !important; }
+  .woos-invite-input,
+  .woos-invite-btn { height: 42px !important; font-size: .86rem !important; }
+  
+  /* PWA splash — 모바일 폭 강제 (영상 규격 보정) */
+  #woosPwaSplash {
+    position: fixed !important;
+    inset: 0 !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    background: #000 !important;
+    overflow: hidden !important;
+  }
+  #woosPwaSplash .woos-pwa-splash-stack {
+    width: min(86vw, 390px) !important;
+    max-width: 390px !important;
+    margin: 0 auto !important;
+    align-items: center !important;
+    justify-content: center !important;
+    box-sizing: border-box !important;
+  }
+  #woosPwaSplash .woos-pwa-splash-logo-wrap {
+    width: min(74vw, 320px) !important;
+    max-width: 320px !important;
+    overflow: hidden !important;
+  }
+  #woosPwaSplash .woos-pwa-splash-video {
+    width: 100% !important;
+    max-width: 100% !important;
+    height: auto !important;
+    object-fit: contain !important;
+    object-position: center center !important;
+  }
+  #woosPwaSplash .woos-pwa-splash-wordmark-wrap {
+    width: min(62vw, 250px) !important;
+    max-width: 250px !important;
+    margin-top: 14px !important;
+  }
+  #woosPwaSplash .woos-pwa-splash-wordmark-img {
+    width: 100% !important;
+    max-width: 250px !important;
+    height: auto !important;
+    object-fit: contain !important;
+    object-position: center center !important;
+  }
+}
+@supports (height: 100dvh) {
+  @media (max-width: 768px) {
+    .woos-invite-gate-root { height: 100dvh !important; min-height: 100dvh !important; }
+    #woosPwaSplash { height: 100dvh !important; min-height: 100dvh !important; }
+  }
 }
 </style>
 
@@ -7988,7 +8074,7 @@ async function opsDashboard() {
 // 탭 시 상세 팝업
 // ═══════════════════════════════════════════════════════════════
 
-var HTML_VERSION = 'v4.9.4+kr-name-api-v2-r2';  // [v4.9.4+] 한글 티커 V2 + 모바일 자동 감지 + 스캐너 적용
+var HTML_VERSION = 'v4.9.4+kr-name-api-v2-r3';  // [v4.9.4+] 모든 사용자 모바일 자동 감지 + @media 안전망
 var _cachedBuildInfo = null;
 
 // [State Lock 2 Action fix-2c] 패치 확인용 — 페이지 로드 시 버전명 출력 (DevTools 콘솔)
@@ -9920,13 +10006,34 @@ function buildCoinCardHTML(coin, idx) {
   var entryBanner = rep.isEntryReady ? '<div class="entry-ready-banner">ENTRY READY</div>' : '';
   var prePumpBadge= rep.prePump ? '<span class="prepump-badge">🟣 PRE-PUMP</span>' : '';
 
-  // [v4.9.4+ V2] 스캐너 결과 카드도 한글 티커 표기 (사용자 보고: "스캐너엔 적용 안 됨")
-  // window.WOOS_ANALYZER.getCoinDisplayName 경유 (IIFE scope 격리)
-  // fallback: 캐시 미초기화 또는 노출 X 시 base 그대로
+  // [v4.9.4+ V2 r3] 스캐너 결과 카드 한글 티커 표기
+  // 사용자 보고: "스캐너도 한글티커 안 됨"
+  // 원인 추정: WOOS_ANALYZER.getCoinDisplayName 노출 시점이 buildCoinCardHTML 호출보다 늦음
+  // 해결: 1차 WOOS_ANALYZER 시도 → 실패 시 인라인 안전망 매핑 적용
   var coinDisplay = coin.base;
   try {
-    if (window.WOOS_ANALYZER && window.WOOS_ANALYZER.getCoinDisplayName) {
+    if (window.WOOS_ANALYZER && typeof window.WOOS_ANALYZER.getCoinDisplayName === 'function') {
       coinDisplay = window.WOOS_ANALYZER.getCoinDisplayName(coin) || coin.base;
+    } else {
+      // 인라인 안전망 (WOOS_ANALYZER 미초기화 시점)
+      var _woosInlineKr = {
+        BTC:'비트코인', ETH:'이더리움', XRP:'리플', SOL:'솔라나', DOGE:'도지코인',
+        ADA:'에이다', BNB:'바이낸스코인', TRX:'트론', AVAX:'아발란체', DOT:'폴카닷',
+        LINK:'체인링크', LTC:'라이트코인', MATIC:'폴리곤', SUI:'수이', NEAR:'니어',
+        APT:'앱토스', WLD:'월드코인', PEPE:'페페', SHIB:'시바이누', ATOM:'코스모스',
+        BCH:'비트코인캐시', ARB:'아비트럼', OP:'옵티미즘', SEI:'세이', INJ:'인젝티브',
+        TIA:'셀레스티아', FET:'페치', CFG:'센트리퓨즈', LUNC:'테라클래식', WLFI:'월드리버티',
+        MOODENG:'무뎅', BONK:'봉크', WIF:'도그위프햇', UNI:'유니스왑', AAVE:'에이브',
+        XLM:'스텔라루멘', ETC:'이더리움클래식', FIL:'파일코인', ALGO:'알고랜드',
+        EOS:'이오스', NEO:'네오', VET:'비체인', CHZ:'칠리즈', SAND:'샌드박스',
+        MANA:'디센트럴랜드', AXS:'엑시인피니티', GALA:'갈라', FLOW:'플로우',
+        APE:'에이프코인', ZEC:'지캐시', XMR:'모네로', DASH:'대시', JUP:'주피터',
+        ONDO:'온도', ENA:'에테나', PYTH:'피스', JTO:'지토', RNDR:'렌더', TAO:'타오',
+        STRK:'스타크넷', BERA:'베라체인', S:'소닉', MOVE:'무브먼트', MEW:'뮤',
+        TRUMP:'트럼프', PENGU:'펭구', POPCAT:'팝캣', GOAT:'고트', VIRTUAL:'버추얼',
+      };
+      var _b = String(coin.base || '').toUpperCase().replace(/^KRW-|^BTC-|USDT$/g, '');
+      if (_woosInlineKr[_b]) coinDisplay = _woosInlineKr[_b] + ' (' + _b + ')';
     }
   } catch(e) {}
 
