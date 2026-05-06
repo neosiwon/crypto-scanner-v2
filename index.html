@@ -152,7 +152,7 @@
 <script>
 /* [v4.7.42] 캐시 강제 리셋 — SW 완전 제거 후 리로드 */
 (function(){
-  var VER = 'v4.9.4+kr-name-api-v2-r3';  // [v4.9.4+] 한글 티커 V2 + 모바일 자동 감지 r3 (isPreview 제거 — 모든 사용자 자동 적용 + @media 안전망 + buildCoinCardHTML 인라인 fallback)
+  var VER = 'v4.9.4+guide-modal';  // [v4.9.4+] 데모 모드 전용 도움말 모달 (?demo=1 / ?preview=1) — 버튼 + 첫 진입 자동 팝업 + 4개 섹션 + 등급 의미 + 핵심 지표
   try {
     var LKEY = 'woos_hard_reset_ver';
     if (localStorage.getItem(LKEY) === VER) return;
@@ -454,6 +454,131 @@
     } catch(e) {}
   }
 
+  /* [v4.9.4+ guide-modal] 데모 모드 전용 도움말 버튼 + 모달 + 첫 진입 자동 팝업
+   * 사용자 명시 결정 ALL=A:
+   *   1=A: ?demo=1 / ?preview=1 모드에서만 노출
+   *   2=A: 데모 첫 진입 자동 1회 (sessionStorage)
+   *   3=C: 우측 하단 floating (오늘 코드 버튼 옆)
+   *   4=D: 모달만 (README 다음 작업)
+   *   5=A: 다크 + cyan
+   *   6=A: "더 자세한 설명" 자동 숨김
+   * 일반 사용자 (?demo=1 없음) = 모든 도움말 UI 숨김
+   * → 작업 시 방해 X
+   */
+  var GUIDE_SHOWN_KEY = 'woos_guide_shown_v1';
+  
+  function buildGuideModalHtml() {
+    return ''
+      + '<div class="woos-guide-overlay" id="woosGuideOverlay">'
+      + '  <div class="woos-guide-modal">'
+      + '    <button type="button" class="woos-guide-close" id="woosGuideClose" aria-label="닫기">×</button>'
+      + '    <div class="woos-guide-header">🔍 WOOS 사용 가이드</div>'
+      + '    <div class="woos-guide-body">'
+      + '      <div class="woos-guide-section">'
+      + '        <div class="woos-guide-sec-title">📌 WOOS는?</div>'
+      + '        <div class="woos-guide-sec-body">업비트 · 빗썸 · 바이낸스에서 <b>세력 매집 + 급등 직전</b> 신호를 자동으로 찾아주는 스캐너입니다.</div>'
+      + '      </div>'
+      + '      <div class="woos-guide-section">'
+      + '        <div class="woos-guide-sec-title">1️⃣ 스캐너 탭</div>'
+      + '        <div class="woos-guide-sec-body">'
+      + '          • 등급별 코인 리스트 (S+ &gt; S &gt; A &gt; B)<br>'
+      + '          • 카드 클릭 → 상세 분석 펼침<br>'
+      + '          • <span class="woos-guide-highlight">PRE-PUMP / ENTRY READY</span> 라벨 = 진입 신호'
+      + '        </div>'
+      + '      </div>'
+      + '      <div class="woos-guide-section">'
+      + '        <div class="woos-guide-sec-title">2️⃣ 추적 분석 탭</div>'
+      + '        <div class="woos-guide-sec-body">'
+      + '          • <b>활성</b>: 알람 받은 코인 실시간 추적<br>'
+      + '          • <b>분석 완료</b>: 추적 끝난 코인 사후평가<br>'
+      + '          • 카드 펼치면 7개 블록 정밀 분석 (가격/패턴/전략/평가)'
+      + '        </div>'
+      + '      </div>'
+      + '      <div class="woos-guide-section woos-guide-metrics-box">'
+      + '        <div class="woos-guide-sec-title">3️⃣ 핵심 지표</div>'
+      + '        <div class="woos-guide-metrics-grid">'
+      + '          <div class="woos-guide-metric-item"><b>MFE</b> <small>최대 상승 폭 (수익 잠재력)</small></div>'
+      + '          <div class="woos-guide-metric-item"><b>MAE</b> <small>최대 하락 폭 (위험)</small></div>'
+      + '          <div class="woos-guide-metric-item"><b>손익비</b> <small>MFE / MAE (높을수록 좋음)</small></div>'
+      + '          <div class="woos-guide-metric-item"><b>점수</b> <small>0~100 종합 평가</small></div>'
+      + '        </div>'
+      + '      </div>'
+      + '      <div class="woos-guide-section">'
+      + '        <div class="woos-guide-sec-title">4️⃣ 등급 의미</div>'
+      + '        <div class="woos-guide-grade-list">'
+      + '          <div class="woos-guide-grade-row"><span class="woos-guide-grade-chip g-splus">🔥 S+</span> <span>최고 신뢰도 — 강력한 진입 신호</span></div>'
+      + '          <div class="woos-guide-grade-row"><span class="woos-guide-grade-chip g-s">🔥 S</span> <span>높음 — 안정적 진입 후보</span></div>'
+      + '          <div class="woos-guide-grade-row"><span class="woos-guide-grade-chip g-a">🟠 A</span> <span>보통 — 조건부 관찰</span></div>'
+      + '          <div class="woos-guide-grade-row"><span class="woos-guide-grade-chip g-b">⚪ B</span> <span>참고만 — 진입 비추천</span></div>'
+      + '        </div>'
+      + '      </div>'
+      + '      <div class="woos-guide-warn">⚠️ 본 도구는 기술적 지표 기반 참고 정보만 제공합니다. 모든 투자 책임은 본인에게 있습니다.</div>'
+      + '    </div>'
+      + '    <div class="woos-guide-footer">'
+      + '      <button type="button" class="woos-guide-btn-primary" id="woosGuideCloseBtn">알겠습니다</button>'
+      + '    </div>'
+      + '  </div>'
+      + '</div>';
+  }
+  
+  function showGuideModal() {
+    if (document.getElementById('woosGuideOverlay')) return;
+    var wrap = document.createElement('div');
+    wrap.innerHTML = buildGuideModalHtml();
+    document.body.appendChild(wrap.firstChild);
+    
+    var closeFns = function(){
+      var ov = document.getElementById('woosGuideOverlay');
+      if (ov && ov.parentNode) ov.parentNode.removeChild(ov);
+    };
+    var btn1 = document.getElementById('woosGuideClose');
+    var btn2 = document.getElementById('woosGuideCloseBtn');
+    if (btn1) btn1.addEventListener('click', closeFns);
+    if (btn2) btn2.addEventListener('click', closeFns);
+    var overlay = document.getElementById('woosGuideOverlay');
+    if (overlay) {
+      overlay.addEventListener('click', function(e){
+        if (e.target === overlay) closeFns();
+      });
+    }
+    // ESC 키 닫기
+    var escHandler = function(e){
+      if (e.key === 'Escape') {
+        closeFns();
+        document.removeEventListener('keydown', escHandler);
+      }
+    };
+    document.addEventListener('keydown', escHandler);
+  }
+  
+  function installGuideButton() {
+    if (!isPreview) return;  // 데모/프리뷰 모드에서만
+    try {
+      if (document.getElementById('woosGuideMainBtn')) return;
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.id = 'woosGuideMainBtn';
+      b.className = 'woos-guide-main-btn';
+      b.textContent = '❓ 도움말';
+      b.title = 'WOOS 사용 가이드';
+      b.addEventListener('click', showGuideModal);
+      document.body.appendChild(b);
+    } catch(e) {}
+  }
+  
+  function autoShowGuideOnFirstVisit() {
+    if (!isPreview) return;  // 데모 모드에서만
+    if (!hasValidAccess()) return;  // 초대코드 통과 후만
+    try {
+      if (sessionStorage.getItem(GUIDE_SHOWN_KEY) === '1') return;  // 이미 봤음
+      // 0.6초 지연 (페이지 로드 후 자연스럽게)
+      setTimeout(function(){
+        showGuideModal();
+        try { sessionStorage.setItem(GUIDE_SHOWN_KEY, '1'); } catch(e) {}
+      }, 600);
+    } catch(e) {}
+  }
+
   function renderBanner(){
     if (!isPreview || !hasValidAccess()) return;
     try {
@@ -578,6 +703,11 @@
     document.addEventListener('DOMContentLoaded', function(){ loadConfig().then(function(){ renderBanner(); }).catch(renderBanner); });
   }
   document.addEventListener('DOMContentLoaded', renderMainAdminButton);
+  // [v4.9.4+ guide-modal] 데모 모드 도움말 버튼 + 첫 진입 자동 팝업
+  document.addEventListener('DOMContentLoaded', function(){
+    installGuideButton();
+    autoShowGuideOnFirstVisit();
+  });
   renderGate();
 })();
 
@@ -846,6 +976,294 @@ html.woos-mobile-preview #woosPwaSplash .woos-pwa-splash-wordmark-img {
   @media (max-width: 768px) {
     .woos-invite-gate-root { height: 100dvh !important; min-height: 100dvh !important; }
     #woosPwaSplash { height: 100dvh !important; min-height: 100dvh !important; }
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   [v4.9.4+ guide-modal] 도움말 버튼 + 모달 (데모 모드 전용)
+   - ?demo=1 / ?preview=1 모드에서만 표시
+   - 우측 하단 floating (오늘 코드 버튼 옆)
+   - 다크 + cyan glow (기존 WOOS 디자인)
+═══════════════════════════════════════════════════════════════ */
+
+/* 도움말 floating 버튼 (오늘 코드 버튼 위에 표시) */
+.woos-guide-main-btn {
+  position: fixed;
+  right: 12px;
+  bottom: 56px;  /* 오늘 코드 버튼 (bottom:12px) 위에 */
+  z-index: 2147482999;
+  border: 1px solid rgba(0,212,255,.35);
+  background: rgba(6,13,22,.78);
+  color: #9eefff;
+  border-radius: 999px;
+  padding: 8px 11px;
+  font-family: 'JetBrains Mono','Noto Sans KR',monospace;
+  font-size: .68rem;
+  font-weight: 800;
+  letter-spacing: .2px;
+  box-shadow: 0 0 18px rgba(0,212,255,.14);
+  backdrop-filter: blur(10px);
+  cursor: pointer;
+}
+.woos-guide-main-btn:hover {
+  background: rgba(0,212,255,.12);
+  border-color: rgba(0,212,255,.62);
+  color: #fff;
+}
+
+/* 모달 오버레이 */
+.woos-guide-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483645;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(3,7,13,.88);
+  backdrop-filter: blur(8px);
+  font-family: 'Noto Sans KR', system-ui, sans-serif;
+  animation: woos-guide-fade-in .25s ease-out;
+}
+@keyframes woos-guide-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* 모달 컨테이너 */
+.woos-guide-modal {
+  position: relative;
+  width: min(480px, calc(100vw - 32px));
+  max-height: calc(100vh - 32px);
+  border: 1px solid rgba(0,212,255,.34);
+  background: linear-gradient(135deg, rgba(10,18,29,.96), rgba(8,13,19,.98));
+  box-shadow: 0 0 60px rgba(0,212,255,.18), inset 0 0 0 1px rgba(255,255,255,.03);
+  border-radius: 18px;
+  color: #e2eaf5;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: woos-guide-slide-up .3s ease-out;
+}
+@keyframes woos-guide-slide-up {
+  from { opacity: 0; transform: translateY(20px) scale(.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* 닫기 X 버튼 */
+.woos-guide-close {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  width: 30px;
+  height: 30px;
+  border: 1px solid rgba(255,255,255,.1);
+  background: rgba(255,255,255,.04);
+  color: #9eefff;
+  border-radius: 50%;
+  font-size: 1.2rem;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+}
+.woos-guide-close:hover {
+  background: rgba(0,212,255,.15);
+  border-color: rgba(0,212,255,.5);
+  color: #fff;
+}
+
+/* 헤더 */
+.woos-guide-header {
+  padding: 18px 20px 14px;
+  font-size: 1.1rem;
+  font-weight: 800;
+  letter-spacing: .3px;
+  color: #00d4ff;
+  text-shadow: 0 0 12px rgba(0,212,255,.35);
+  border-bottom: 1px solid rgba(0,212,255,.15);
+}
+
+/* 본문 (스크롤 가능) */
+.woos-guide-body {
+  padding: 16px 20px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+/* 섹션 */
+.woos-guide-section {
+  margin-bottom: 16px;
+}
+.woos-guide-section:last-child {
+  margin-bottom: 8px;
+}
+.woos-guide-sec-title {
+  font-size: .85rem;
+  font-weight: 700;
+  color: #9eefff;
+  margin-bottom: 6px;
+  letter-spacing: .2px;
+}
+.woos-guide-sec-body {
+  font-size: .78rem;
+  line-height: 1.65;
+  color: #cbd5e1;
+}
+.woos-guide-sec-body b {
+  color: #9eefff;
+  font-weight: 600;
+}
+.woos-guide-highlight {
+  display: inline-block;
+  padding: 1px 6px;
+  background: rgba(0,212,255,.12);
+  border: 1px solid rgba(0,212,255,.3);
+  border-radius: 4px;
+  color: #00d4ff;
+  font-weight: 600;
+  font-size: .72rem;
+}
+
+/* 핵심 지표 박스 */
+.woos-guide-metrics-box {
+  padding: 12px;
+  background: rgba(0,212,255,.04);
+  border: 1px solid rgba(0,212,255,.12);
+  border-radius: 10px;
+}
+.woos-guide-metrics-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 12px;
+  margin-top: 6px;
+}
+.woos-guide-metric-item {
+  font-size: .72rem;
+  line-height: 1.4;
+  padding: 4px 0;
+}
+.woos-guide-metric-item b {
+  color: #00d4ff;
+  font-weight: 700;
+  display: inline-block;
+  min-width: 42px;
+}
+.woos-guide-metric-item small {
+  color: #94a3b8;
+  font-size: .68rem;
+  display: block;
+  margin-top: 2px;
+}
+
+/* 등급 리스트 */
+.woos-guide-grade-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 4px;
+}
+.woos-guide-grade-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: .78rem;
+  color: #cbd5e1;
+}
+.woos-guide-grade-chip {
+  display: inline-block;
+  padding: 3px 9px;
+  border-radius: 8px;
+  font-size: .72rem;
+  font-weight: 700;
+  min-width: 50px;
+  text-align: center;
+  font-family: 'JetBrains Mono', monospace;
+}
+.woos-guide-grade-chip.g-splus {
+  background: rgba(255,87,87,.18);
+  color: #ff5757;
+  border: 1px solid rgba(255,87,87,.4);
+}
+.woos-guide-grade-chip.g-s {
+  background: rgba(255,140,0,.18);
+  color: #ff8c00;
+  border: 1px solid rgba(255,140,0,.4);
+}
+.woos-guide-grade-chip.g-a {
+  background: rgba(255,165,0,.15);
+  color: #ffa500;
+  border: 1px solid rgba(255,165,0,.35);
+}
+.woos-guide-grade-chip.g-b {
+  background: rgba(148,163,184,.15);
+  color: #94a3b8;
+  border: 1px solid rgba(148,163,184,.35);
+}
+
+/* 경고 */
+.woos-guide-warn {
+  margin-top: 14px;
+  padding: 10px 12px;
+  background: rgba(255,193,7,.06);
+  border: 1px solid rgba(255,193,7,.2);
+  border-radius: 8px;
+  font-size: .72rem;
+  color: #ffd60a;
+  line-height: 1.5;
+}
+
+/* 푸터 */
+.woos-guide-footer {
+  padding: 12px 20px 18px;
+  border-top: 1px solid rgba(0,212,255,.12);
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+.woos-guide-btn-primary {
+  padding: 10px 20px;
+  border: 1px solid rgba(0,212,255,.5);
+  background: linear-gradient(135deg, rgba(0,212,255,.18), rgba(0,230,118,.10));
+  color: #9eeeff;
+  font-family: 'JetBrains Mono','Noto Sans KR',monospace;
+  font-weight: 800;
+  letter-spacing: .5px;
+  font-size: .78rem;
+  border-radius: 9px;
+  cursor: pointer;
+}
+.woos-guide-btn-primary:hover {
+  background: linear-gradient(135deg, rgba(0,212,255,.3), rgba(0,230,118,.15));
+  color: #fff;
+  border-color: rgba(0,212,255,.7);
+}
+
+/* 모바일 대응 */
+@media (max-width: 520px) {
+  .woos-guide-main-btn {
+    right: 10px;
+    bottom: 52px;
+    font-size: .62rem;
+    padding: 7px 9px;
+  }
+  .woos-guide-modal {
+    width: calc(100vw - 24px);
+    max-height: calc(100vh - 24px);
+  }
+  .woos-guide-header { font-size: 1rem; padding: 16px 16px 12px; }
+  .woos-guide-body { padding: 14px 16px; }
+  .woos-guide-sec-title { font-size: .8rem; }
+  .woos-guide-sec-body { font-size: .74rem; }
+  .woos-guide-metrics-grid { grid-template-columns: 1fr; }
+  .woos-guide-grade-row { font-size: .74rem; }
+  .woos-guide-footer { padding: 10px 16px 14px; }
+}
+@supports (height: 100dvh) {
+  @media (max-width: 768px) {
+    .woos-guide-modal { max-height: calc(100dvh - 32px); }
   }
 }
 </style>
@@ -8074,7 +8492,7 @@ async function opsDashboard() {
 // 탭 시 상세 팝업
 // ═══════════════════════════════════════════════════════════════
 
-var HTML_VERSION = 'v4.9.4+kr-name-api-v2-r3';  // [v4.9.4+] 모든 사용자 모바일 자동 감지 + @media 안전망
+var HTML_VERSION = 'v4.9.4+guide-modal';  // [v4.9.4+] 데모 모드 도움말 모달
 var _cachedBuildInfo = null;
 
 // [State Lock 2 Action fix-2c] 패치 확인용 — 페이지 로드 시 버전명 출력 (DevTools 콘솔)
