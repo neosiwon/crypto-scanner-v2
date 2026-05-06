@@ -152,7 +152,7 @@
 <script>
 /* [v4.7.42] 캐시 강제 리셋 — SW 완전 제거 후 리로드 */
 (function(){
-  var VER = 'v4.9.4+completed-modal-fix';  // [v4.9.4+] 분석 완료 자동 이관 (w1_filterVMs 'all' expired 제외) + 도달 타임라인 모달 작동 + ⓘ 위치
+  var VER = 'v4.9.4+layout-reorganize';  // [v4.9.4+] 분석 완료 자동 이관 + 도달 타임라인 모달 작동 + 카드 본문 옵션 C 9개 영역 재배치 + 결과 헤드라인/종합 브리핑 강조
   try {
     var LKEY = 'woos_hard_reset_ver';
     if (localStorage.getItem(LKEY) === VER) return;
@@ -4359,6 +4359,64 @@ details.progress-rich-card.woos-group[open] { border-color: rgba(124, 58, 237, 0
 .woos-stats-watchlist { background: rgba(0, 212, 255, 0.15); color: #00d4ff; border: 1px solid rgba(0, 212, 255, 0.3); }
 
 /* 동적 브리핑 */
+/* [v4.9.4+ 레이아웃 재배치] 결과 헤드라인 + 종합 브리핑 강조 박스 (옵션 C)
+ *   - 새 기능 X / 기존 함수 출력 그대로 사용
+ *   - 카드 본문 영역 시각 강조만 추가 */
+
+/* 1. 결과 헤드라인 — liveTierHeader를 wrapping (현재: A · 추적: 정밀) */
+.woos-headline-emphasis {
+  margin: 0 0 14px 0;
+  padding: 12px 14px;
+  background: linear-gradient(135deg, rgba(0, 229, 255, .08), rgba(124, 58, 237, .06));
+  border-left: 4px solid #00d4ff;
+  border-radius: 10px;
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+.woos-headline-emphasis .woos-tier-header {
+  border-bottom: none;
+  padding: 0;
+  margin: 0;
+  font-size: 1.05rem;
+  color: rgba(235, 244, 255, .95);
+}
+.woos-headline-emphasis .woos-tier-header b {
+  font-size: 1.15rem;
+  color: #00d4ff;
+}
+
+/* 7. 종합 브리핑 강조 박스 — 큰 박스 + padding (최종 결론 영역) */
+.woos-briefing-box-emphasis {
+  margin: 18px 0;
+  padding: 4px;
+  background: linear-gradient(135deg, rgba(0, 229, 255, .04), rgba(124, 58, 237, .03));
+  border: 1px solid rgba(0, 229, 255, .18);
+  border-radius: 14px;
+  box-shadow: 0 0 16px rgba(0, 229, 255, .06);
+}
+.woos-briefing-box-emphasis .woos-briefing {
+  margin: 0;
+  padding: 14px 16px;
+  background: rgba(7, 16, 32, .35);
+  border-left: none;
+  border-radius: 10px;
+}
+.woos-briefing-box-emphasis .woos-briefing-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #00d4ff;
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(0, 229, 255, .15);
+}
+.woos-briefing-box-emphasis .woos-briefing-body {
+  font-size: 0.92rem;
+  line-height: 1.65;
+  color: rgba(235, 244, 255, .92);
+  margin-bottom: 10px;
+}
+
 .woos-briefing { margin: 12px 0; padding: 12px 14px; background: linear-gradient(135deg, rgba(0,212,255,0.06), rgba(124,58,237,0.04)); border-left: 3px solid #00d4ff; border-radius: 8px; }
 .woos-briefing-title { font-size: 0.78rem; color: #7dd3fc; font-weight: 700; margin-bottom: 6px; }
 .woos-briefing-body { font-size: 0.85rem; color: #e5e7eb; line-height: 1.55; word-break: keep-all; }
@@ -7208,7 +7266,7 @@ async function opsDashboard() {
 // 탭 시 상세 팝업
 // ═══════════════════════════════════════════════════════════════
 
-var HTML_VERSION = 'v4.9.4+completed-modal-fix';  // [v4.9.4+] 분석 완료 자동 이관 + 도달 타임라인 모달 작동 + ⓘ 위치
+var HTML_VERSION = 'v4.9.4+layout-reorganize';  // [v4.9.4+] 분석 완료 자동 이관 + 모달 작동 + 카드 본문 옵션 C 재배치 + 강조
 var _cachedBuildInfo = null;
 
 // [State Lock 2 Action fix-2c] 패치 확인용 — 페이지 로드 시 버전명 출력 (DevTools 콘솔)
@@ -16925,28 +16983,59 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
         ? '<div class="woos-v462-badges">' + modeReasonHtml + sCountBadgeHtml + d120BadgeHtml + '</div>'
         : '';
       
-      // [Phase 4.4 + 4.6.2] 본문 순서 — 헤더 + 배지 → 6상태 → 브리핑 → 진행률 → 신호 근거 → 현재가 → SVG → 타임라인 → 채점표 → 점수 시각화 → 세력 판단 → 전략 A/B
-      // [Phase 4.7 공사 4 — 3-2] 컴팩트 타임라인 변수 선언 삭제 — 도달 타임라인으로 통합
+      // [v4.9.4+ 레이아웃 재배치] 사용자 결정 옵션 C — 9개 영역 순서
+      //   1. liveTierHeader (결과 헤드라인 — CSS 강조)
+      //   2. curBig (현재 수익률 + 가격 라인)
+      //   3. progress (진행률 바)
+      //   4. group._gradeChartHtml + statsBadgeHtml + v462_extraBadges (코인신호 흐름)
+      //      ※ group._gradeChartHtml은 single 카드의 경우 woos-body 시작 직후 정규식으로 삽입됨 (17410)
+      //      ※ 본 return은 group._gradeChartHtml 미포함 — 외부에서 정규식 매칭으로 박힘
+      //   5. svgChart + timelineHtml (가격 반응 — MFE/MAE 그래프 + 도달 타임라인)
+      //   6. scoringTableHtml + scoreVizHtml (스캐너 판단)
+      //   7. briefingHtml (종합 브리핑 — 큰 박스 강조, 모든 수치 재등장 OK)
+      //   8. stratA + stratB (전략 A/B)
+      //   9. v41_buildForceContextBlock + stateBlockHtml (세력·수급 + 상태 진단)
+      //
+      //   원칙:
+      //     ✅ 새 기능 X / 새 함수 X / 새 score timeline X
+      //     ✅ 모든 그래프 살림 (svgChart / timelineHtml / scoringTable / scoreViz / gradeChart)
+      //     ✅ 함수 호출 그대로
+      //     ✅ Worker / endpoint / 데이터 구조 X
+      //     ✅ 종합의견 = 최종 결론 → 수치 재등장 OK (사용자 결정)
       
-      return '<div class="progress-rich-body woos-body">' + pseudoMark + liveTierHeader +
+      return '<div class="progress-rich-body woos-body">' + pseudoMark +
+        // ── 1. 결과 헤드라인 ──
+        '<div class="woos-headline-emphasis">' + liveTierHeader + '</div>' +
+        
+        // ── 2. 핵심 수치 (현재 수익률 + 가격) ──
+        curBig +
+        
+        // ── 3. 진행률 ──
+        '<div class="woos-progress"><div class="woos-progress-bar"><div class="woos-progress-fill" style="width:' + progressPct.toFixed(0) + '%"></div></div><div class="woos-progress-pct">' + progressPct.toFixed(0) + '%</div></div>' +
+        
+        // ── 4. 코인신호 흐름 (등급 변화 그래프 + 배지) ──
+        // group._gradeChartHtml은 single 카드 외부에서 정규식 매칭으로 woos-body 직후 삽입
         statsBadgeHtml +                            /* [Phase 4.4] 통계 배지 (S급 N회 등) */
         v462_extraBadges +                          /* [Phase 4.6.2] 모드 reason + sCount24 + D-120 */
-        stateBlockHtml +                            /* [Phase 4.6.2] 6가지 상태 + 디테일 해석 */
-        briefingHtml +                              /* [Phase 4.4] 동적 브리핑 (최상단) */
-        '<div class="woos-progress"><div class="woos-progress-bar"><div class="woos-progress-fill" style="width:' + progressPct.toFixed(0) + '%"></div></div><div class="woos-progress-pct">' + progressPct.toFixed(0) + '%</div></div>' +
-        /* [v4.9.4] 신호 근거 블록 제거 — MFE 그래프 상단 중복 표시 해소 (v41_buildSignalReasonBlock 호출 삭제) */
-        /* [Phase 4.7 공사 4 — 3-1] 속도/안정성/기회 영역 1 (간단 ver) 삭제
-         * 사용자 결정: 영역 2 (스캐너 채점표 — scoringTableHtml) 만 유지
-         * 이전: metricsHtml + curBig (간단 ver) → 삭제 */
-        curBig +
+        
+        // ── 5. 가격 반응 (MFE/MAE 그래프 + 도달 타임라인) ──
         '<div class="woos-graph-wrap">' + svgChart + '</div>' +
-        /* [Phase 4.7 공사 4 — 3-2] 컴팩트 타임라인 삭제 (도달 타임라인으로 통합)
-         * 이전: v47_compactTimeline (1줄 +3⃝ +5⃝ TP1⃝ │ MFE │ MAE ⓘ) → 삭제 */
         timelineHtml +                              /* [Phase 4.3] 도달 타임라인 (5개 도트, ⓘ 추가됨) */
-        scoringTableHtml +                          /* [Phase 4.3] 스캐너 채점표 (영역 2 — 자세 ver) */
+        
+        // ── 6. 스캐너 판단 (채점표 + 점수 시각화) ──
+        scoringTableHtml +                          /* [Phase 4.3] 스캐너 채점표 */
         scoreVizHtml +                              /* [Phase 4.4] 스캐너 점수 시각화 */
-        v41_buildForceContextBlock(alertSnap, track) +    /* [Phase 4.1] 세력 판단 — Phase 4.6.4 track 추가 */
+        
+        // ── 7. 종합 브리핑 (CSS 강조 박스, 최종 결론) ──
+        '<div class="woos-briefing-box-emphasis">' + briefingHtml + '</div>' +
+        
+        // ── 8. 전략 A/B ──
         '<div class="woos-strategies">' + stratA + stratB + '</div>' +
+        
+        // ── 9. 세력·수급 + 상태 진단 ──
+        v41_buildForceContextBlock(alertSnap, track) +    /* [Phase 4.1] 세력 판단 */
+        stateBlockHtml +                            /* [Phase 4.6.2] 6가지 상태 + 디테일 해석 */
+        
         '</div>';
     }
     
