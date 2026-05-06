@@ -1,7 +1,7 @@
 {
   "enabled": true,
   "code": "woosdemo1",
-  "expiresAt": "2026-05-07T23:59:59+09:00",
+  "expiresAt": "2026-05-08T23:59:59+09:00",
   "sessionExpireHours": 24,
   "readOnly": true,
   "message": "WOOS 실시간 프리뷰 접근"
