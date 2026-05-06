@@ -152,7 +152,7 @@
 <script>
 /* [v4.7.42] 캐시 강제 리셋 — SW 완전 제거 후 리로드 */
 (function(){
-  var VER = 'v4.9.4+postmortem-data-fix';  // [v4.9.4+] 분석 완료 데이터 매핑 fix (completed endpoint + includeSamples=1 + normalizeSamples + computeLiveMetrics 재사용 + 패턴/gradeHistory fallback chain + 활성 endpoint 보강)
+  var VER = 'v4.9.4+invite-gate-config';  // [v4.9.4+] 초대코드 게이트 외부 invite-config.json 분리 + preview read-only gate
   try {
     var LKEY = 'woos_hard_reset_ver';
     if (localStorage.getItem(LKEY) === VER) return;
@@ -191,6 +191,256 @@
   });
 })();
 </script>
+
+<script>
+/* ═══════════════════════════════════════════════════════════════
+ * [v4.9.4+invite-gate-config]
+ * ?demo=1 / ?preview=1 초대코드 게이트
+ * - invite-config.json 외부 설정 파일 사용
+ * - sessionStorage 기반 휘발성 접근권한
+ * - 접근 전 앱 UI 숨김 + Worker/API fetch 차단
+ * - preview/demo 모드에서 write action 차단
+ * ═══════════════════════════════════════════════════════════════ */
+(function(){
+  var params = new URLSearchParams(location.search || '');
+  var isPreview = params.has('demo') || params.has('preview');
+  var ACCESS_KEY = 'woos_invite_access_ok';
+  var ACCESS_UNTIL_KEY = 'woos_invite_access_until';
+  var ACCESS_AT_KEY = 'woos_invite_access_at';
+  var CONFIG_URL = './invite-config.json?ts=';
+  var nativeFetch = window.fetch ? window.fetch.bind(window) : null;
+
+  function now(){ return Date.now(); }
+  function getUntil(){
+    try { return Number(sessionStorage.getItem(ACCESS_UNTIL_KEY) || 0); } catch(e) { return 0; }
+  }
+  function hasValidAccess(){
+    if (!isPreview) return true;
+    try {
+      var ok = sessionStorage.getItem(ACCESS_KEY) === '1';
+      var until = getUntil();
+      if (!ok || !until || now() > until) {
+        sessionStorage.removeItem(ACCESS_KEY);
+        sessionStorage.removeItem(ACCESS_UNTIL_KEY);
+        sessionStorage.removeItem(ACCESS_AT_KEY);
+        return false;
+      }
+      return true;
+    } catch(e) { return false; }
+  }
+  function revokeAccess(){
+    try {
+      sessionStorage.removeItem(ACCESS_KEY);
+      sessionStorage.removeItem(ACCESS_UNTIL_KEY);
+      sessionStorage.removeItem(ACCESS_AT_KEY);
+    } catch(e) {}
+  }
+  function grantAccess(config){
+    var hours = Number(config && config.sessionExpireHours);
+    if (!isFinite(hours) || hours <= 0) hours = 24;
+    var until = now() + hours * 60 * 60 * 1000;
+    if (config && config.expiresAt) {
+      var configUntil = Date.parse(config.expiresAt);
+      if (isFinite(configUntil) && configUntil > 0) until = Math.min(until, configUntil);
+    }
+    try {
+      sessionStorage.setItem(ACCESS_KEY, '1');
+      sessionStorage.setItem(ACCESS_AT_KEY, String(now()));
+      sessionStorage.setItem(ACCESS_UNTIL_KEY, String(until));
+    } catch(e) {}
+  }
+  function isExpiredConfig(config){
+    if (!config || !config.expiresAt) return false;
+    var t = Date.parse(config.expiresAt);
+    return isFinite(t) && t > 0 && now() > t;
+  }
+  function isWriteMethod(method){
+    method = String(method || 'GET').toUpperCase();
+    return method !== 'GET' && method !== 'HEAD' && method !== 'OPTIONS';
+  }
+  function getFetchUrl(input){
+    try {
+      if (typeof input === 'string') return input;
+      if (input && input.url) return input.url;
+      return String(input || '');
+    } catch(e) { return ''; }
+  }
+  function makeBlockedResponse(reason){
+    try {
+      return Promise.resolve(new Response(JSON.stringify({ ok:false, blocked:true, demoBlocked:true, reason: reason || 'invite-gate' }), {
+        status: 423,
+        headers: { 'Content-Type':'application/json' }
+      }));
+    } catch(e) {
+      return Promise.reject(new Error(reason || 'invite-gate-blocked'));
+    }
+  }
+  function isConfigUrl(url){ return String(url || '').indexOf('invite-config.json') >= 0; }
+  function shouldBlockReadBeforeAccess(url){
+    if (!isPreview || hasValidAccess() || isConfigUrl(url)) return false;
+    url = String(url || '');
+    return /\/tracking|\/snapshots|\/watchlist|api\.telegram\.org|binance|bithumb|upbit|api\//i.test(url);
+  }
+  function shouldBlockPreviewWrite(url, method){
+    if (!isPreview || !hasValidAccess()) return false;
+    if (!isWriteMethod(method)) return false;
+    url = String(url || '');
+    return /\/tracking|\/watchlist|api\.telegram\.org|sendMessage|snapshot|scan|api\//i.test(url);
+  }
+  function notifyBlocked(action){
+    var msg = '데모/프리뷰 모드에서는 ' + (action || '저장 작업') + '이 저장되지 않습니다.';
+    try { console.warn('[WOOS invite gate]', msg); } catch(e) {}
+    try {
+      var old = document.getElementById('woosInviteToast');
+      if (old) old.remove();
+      var el = document.createElement('div');
+      el.id = 'woosInviteToast';
+      el.className = 'woos-invite-toast';
+      el.textContent = msg;
+      document.body.appendChild(el);
+      setTimeout(function(){ try { el.remove(); } catch(e){} }, 2600);
+    } catch(e2) { try { alert(msg); } catch(_e){} }
+  }
+
+  window.WOOS_INVITE_PREVIEW_MODE = isPreview;
+  window.woosInviteHasAccess = hasValidAccess;
+  window.woosInviteRevokeAccess = revokeAccess;
+  window.woosInviteBlockWriteAction = function(action){
+    if (isPreview && hasValidAccess()) {
+      notifyBlocked(action || '저장 작업');
+      return true;
+    }
+    return false;
+  };
+
+  if (isPreview && !hasValidAccess()) {
+    try { document.documentElement.classList.add('woos-invite-locked'); } catch(e) {}
+  }
+
+  if (nativeFetch) {
+    window.__WOOS_NATIVE_FETCH__ = nativeFetch;
+    window.fetch = function(input, options){
+      var url = getFetchUrl(input);
+      var method = (options && options.method) || (input && input.method) || 'GET';
+      if (shouldBlockReadBeforeAccess(url)) return makeBlockedResponse('invite-required');
+      if (shouldBlockPreviewWrite(url, method)) return makeBlockedResponse('preview-write-blocked');
+      return nativeFetch(input, options);
+    };
+  }
+
+  function loadConfig(){
+    if (!nativeFetch) return Promise.reject(new Error('fetch unavailable'));
+    return nativeFetch(CONFIG_URL + Date.now(), { cache:'no-store' }).then(function(res){
+      if (!res || !res.ok) throw new Error('invite-config load failed: ' + (res ? res.status : 'no-response'));
+      return res.json();
+    });
+  }
+  function escapeHtml(s){
+    return String(s == null ? '' : s).replace(/[&<>'"]/g, function(c){ return ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]); });
+  }
+  function fmtUntil(ms){
+    if (!ms) return '';
+    try { return new Date(ms).toLocaleString('ko-KR', { hour12:false }); } catch(e) { return ''; }
+  }
+  function renderBanner(){
+    if (!isPreview || !hasValidAccess()) return;
+    try {
+      if (document.getElementById('woosInvitePreviewBanner')) return;
+      var b = document.createElement('div');
+      b.id = 'woosInvitePreviewBanner';
+      b.className = 'woos-invite-preview-banner';
+      b.innerHTML = '<span>🧪 PREVIEW MODE · 실시간 데이터 보기 전용 · 저장 작업 차단</span>'
+                  + '<button type="button" id="woosInviteLogoutBtn">잠금</button>';
+      document.body.insertBefore(b, document.body.firstChild);
+      var btn = document.getElementById('woosInviteLogoutBtn');
+      if (btn) btn.addEventListener('click', function(){ revokeAccess(); location.reload(); });
+    } catch(e) {}
+  }
+  function renderGate(){
+    if (!isPreview || hasValidAccess()) { renderBanner(); return; }
+    document.addEventListener('DOMContentLoaded', function(){
+      var root = document.createElement('div');
+      root.id = 'woosInviteGateRoot';
+      root.className = 'woos-invite-gate-root';
+      root.innerHTML = ''
+        + '<div class="woos-invite-card">'
+        +   '<div class="woos-invite-kicker">WOOS PREVIEW ACCESS</div>'
+        +   '<div class="woos-invite-title">초대코드를 입력하세요</div>'
+        +   '<div class="woos-invite-msg" id="woosInviteMsg">설정 파일을 확인하는 중입니다.</div>'
+        +   '<input id="woosInviteCodeInput" class="woos-invite-input" type="password" autocomplete="off" placeholder="초대코드" disabled />'
+        +   '<button id="woosInviteEnterBtn" class="woos-invite-btn" type="button" disabled>입장하기</button>'
+        +   '<div class="woos-invite-foot">실시간 데이터 보기 전용 · Worker/KV 저장 작업은 차단됩니다.</div>'
+        + '</div>';
+      document.body.appendChild(root);
+      var msg = document.getElementById('woosInviteMsg');
+      var input = document.getElementById('woosInviteCodeInput');
+      var btn = document.getElementById('woosInviteEnterBtn');
+      loadConfig().then(function(config){
+        if (!config || config.enabled === false) {
+          if (msg) msg.textContent = '프리뷰 접근이 현재 닫혀 있습니다.';
+          return;
+        }
+        if (isExpiredConfig(config)) {
+          if (msg) msg.textContent = '초대코드가 만료되었습니다. 관리자에게 새 코드를 요청하세요.';
+          return;
+        }
+        var codes = [];
+        if (Array.isArray(config.codes)) codes = config.codes.map(String);
+        else if (config.code) codes = [String(config.code)];
+        if (!codes.length) {
+          if (msg) msg.textContent = 'invite-config.json에 초대코드가 없습니다.';
+          return;
+        }
+        if (msg) msg.innerHTML = escapeHtml(config.message || 'WOOS 프리뷰 접근')
+          + (config.expiresAt ? '<br><span>만료: ' + escapeHtml(config.expiresAt) + '</span>' : '');
+        input.disabled = false;
+        btn.disabled = false;
+        input.focus();
+        function submit(){
+          var v = String(input.value || '').trim();
+          if (codes.indexOf(v) < 0) {
+            input.value = '';
+            if (msg) msg.textContent = '초대코드가 맞지 않습니다.';
+            input.focus();
+            return;
+          }
+          grantAccess(config);
+          if (msg) msg.textContent = '접근 허용됨. 앱을 여는 중입니다.';
+          document.documentElement.classList.remove('woos-invite-locked');
+          location.reload();
+        }
+        btn.addEventListener('click', submit);
+        input.addEventListener('keydown', function(e){ if (e.key === 'Enter') submit(); });
+      }).catch(function(err){
+        if (msg) msg.textContent = 'invite-config.json을 불러오지 못했습니다. 파일 배포를 확인하세요.';
+        try { console.error('[WOOS invite config]', err); } catch(e) {}
+      });
+    });
+  }
+  if (isPreview && hasValidAccess()) {
+    document.addEventListener('DOMContentLoaded', renderBanner);
+  }
+  renderGate();
+})();
+</script>
+<style id="woos-invite-gate-style">
+html.woos-invite-locked body > *:not(#woosInviteGateRoot) { display:none !important; }
+.woos-invite-gate-root{position:fixed;inset:0;z-index:2147483647;display:flex;align-items:center;justify-content:center;padding:24px;background:radial-gradient(circle at 50% 10%,rgba(0,212,255,.12),transparent 34%),#060a0f;color:#e2eaf5;font-family:'Noto Sans KR',system-ui,sans-serif;}
+.woos-invite-card{width:min(420px,100%);border:1px solid rgba(0,212,255,.28);background:rgba(12,20,32,.92);border-radius:18px;padding:26px 22px;box-shadow:0 0 28px rgba(0,212,255,.16), inset 0 0 0 1px rgba(255,255,255,.03);backdrop-filter:blur(14px);}
+.woos-invite-kicker{font-family:'JetBrains Mono',monospace;font-size:.72rem;letter-spacing:2px;color:#00d4ff;margin-bottom:10px;text-shadow:0 0 10px rgba(0,212,255,.45);}
+.woos-invite-title{font-size:1.22rem;font-weight:800;margin-bottom:10px;}
+.woos-invite-msg{font-size:.82rem;line-height:1.7;color:#8fb1cc;margin-bottom:16px;min-height:40px;}
+.woos-invite-msg span{font-family:'JetBrains Mono',monospace;font-size:.72rem;color:#5e829d;}
+.woos-invite-input{width:100%;border:1px solid rgba(0,212,255,.25);background:#08111c;color:#e2eaf5;border-radius:10px;padding:13px 14px;font-family:'JetBrains Mono',monospace;font-size:.95rem;outline:none;margin-bottom:10px;}
+.woos-invite-input:focus{border-color:#00d4ff;box-shadow:0 0 12px rgba(0,212,255,.22);}
+.woos-invite-input:disabled{opacity:.45;}
+.woos-invite-btn{width:100%;border:1px solid #00d4ff;background:rgba(0,212,255,.11);color:#00d4ff;border-radius:10px;padding:13px;font-weight:800;font-family:'JetBrains Mono',monospace;letter-spacing:2px;cursor:pointer;}
+.woos-invite-btn:disabled{opacity:.45;cursor:not-allowed;}
+.woos-invite-foot{margin-top:14px;font-size:.72rem;color:#607d96;line-height:1.6;text-align:center;}
+.woos-invite-preview-banner{position:sticky;top:0;z-index:99999;display:flex;justify-content:center;align-items:center;gap:10px;padding:7px 12px;background:rgba(0,20,30,.94);border-bottom:1px solid rgba(0,212,255,.26);color:#00d4ff;font-family:'JetBrains Mono',monospace;font-size:.68rem;letter-spacing:.5px;backdrop-filter:blur(10px);}
+.woos-invite-preview-banner button{border:1px solid rgba(0,212,255,.35);color:#9eeeff;background:rgba(0,212,255,.08);border-radius:999px;padding:2px 9px;font-size:.6rem;font-family:'JetBrains Mono',monospace;}
+.woos-invite-toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:2147483647;padding:10px 14px;border-radius:999px;background:rgba(10,20,32,.96);border:1px solid rgba(0,212,255,.35);color:#e2eaf5;font-size:.78rem;box-shadow:0 0 18px rgba(0,212,255,.2);}
+</style>
 
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
@@ -15276,6 +15526,9 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       }
     }
     function v44_toggleWatchlist(base) {
+      if (typeof window !== 'undefined' && window.woosInviteBlockWriteAction && window.woosInviteBlockWriteAction('관심코인 변경')) {
+        try { return (typeof v44_isWatchlist === 'function') ? v44_isWatchlist(base) : false; } catch(_e) { return false; }
+      }
       if (!base) return false;
       var b = String(base).toUpperCase();
       var list = v44_getWatchlist();
@@ -18763,6 +19016,7 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       try {
         if (event && typeof event.stopPropagation === 'function') event.stopPropagation();
         if (event && typeof event.preventDefault === 'function') event.preventDefault();
+        if (typeof window !== 'undefined' && window.woosInviteBlockWriteAction && window.woosInviteBlockWriteAction('관심코인 변경')) return;
         if (!base || !window.WOOS_ANALYZER || typeof window.WOOS_ANALYZER.toggleWatchlist !== 'function') return;
         
         // [State Lock 명세 6] 관심 해제 모달 조건 — w1_getEffectiveWatchState 기준
@@ -18852,6 +19106,7 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
     }
         function v47_executeWatchOn(base) {
       try {
+        if (typeof window !== 'undefined' && window.woosInviteBlockWriteAction && window.woosInviteBlockWriteAction('관심코인 등록')) return;
         if (!base || !window.WOOS_ANALYZER || typeof window.WOOS_ANALYZER.toggleWatchlist !== 'function') return;
         
         // [State Lock 2 fix-2] canonical 정규화 + pending mutex 가드
@@ -18996,6 +19251,7 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
     // [v4.7.21-detail-toggle-fix] Worker API 동기화 + active 재조회
     function v47_syncWatchApi(base, isWatch) {
       try {
+        if (typeof window !== 'undefined' && window.woosInviteBlockWriteAction && window.woosInviteBlockWriteAction('서버 동기화')) return;
         // [State Lock 2 fix-2] canonical base 정규화 (v44/Worker 키 통일)
         var canonicalBase = (typeof w1_getCanonicalBaseKey === 'function')
           ? w1_getCanonicalBaseKey(base)
@@ -19160,6 +19416,7 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
     // [Phase 4.7 공사 4 — 6-2] end-watch-mode 라우트 호출 + UI 갱신
     function v47_executeEndWatchMode(base, exchanges) {
       try {
+        if (typeof window !== 'undefined' && window.woosInviteBlockWriteAction && window.woosInviteBlockWriteAction('관심코인 해제')) return;
         // [State Lock 2 fix-2] canonical 정규화 + pending mutex 가드
         var canonicalBase = (typeof w1_getCanonicalBaseKey === 'function')
           ? w1_getCanonicalBaseKey(base)
