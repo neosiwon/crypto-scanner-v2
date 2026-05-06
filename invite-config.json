@@ -1,7 +1,8 @@
 {
   "enabled": true,
-  "code": "woosdemo1",
-  "expiresAt": "2026-05-08T23:59:59+09:00",
+  "mode": "workerDailyHash",
+  "verifyEndpoint": "https://auto-alert-worker-v3.neosiwon.workers.dev/invite/verify",
+  "todayEndpoint": "https://auto-alert-worker-v3.neosiwon.workers.dev/invite/today",
   "sessionExpireHours": 24,
   "readOnly": true,
   "message": "WOOS 실시간 프리뷰 접근"

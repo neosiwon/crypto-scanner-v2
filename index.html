@@ -152,7 +152,7 @@
 <script>
 /* [v4.7.42] 캐시 강제 리셋 — SW 완전 제거 후 리로드 */
 (function(){
-  var VER = 'v4.9.4+invite-gate-config';  // [v4.9.4+] 초대코드 게이트 외부 invite-config.json 분리 + preview read-only gate
+  var VER = 'v4.9.4+invite-dailyhash-gate';  // [v4.9.4+] Worker dailyHash invite gate + postmortem data fix
   try {
     var LKEY = 'woos_hard_reset_ver';
     if (localStorage.getItem(LKEY) === VER) return;
@@ -191,13 +191,13 @@
   });
 })();
 </script>
-
 <script>
 /* ═══════════════════════════════════════════════════════════════
- * [v4.9.4+invite-gate-config]
- * ?demo=1 / ?preview=1 초대코드 게이트
+ * [v4.9.4+invite-dailyhash-gate]
+ * ?demo=1 / ?preview=1 Worker 검증형 dailyHash 초대코드 게이트
  * - invite-config.json 외부 설정 파일 사용
- * - sessionStorage 기반 휘발성 접근권한
+ * - Worker /invite/verify 검증, /invite/today 관리자 조회
+ * - sessionStorage 기반 24h 기본 접근권한
  * - 접근 전 앱 UI 숨김 + Worker/API fetch 차단
  * - preview/demo 모드에서 write action 차단
  * ═══════════════════════════════════════════════════════════════ */
@@ -209,6 +209,8 @@
   var ACCESS_AT_KEY = 'woos_invite_access_at';
   var CONFIG_URL = './invite-config.json?ts=';
   var nativeFetch = window.fetch ? window.fetch.bind(window) : null;
+  var loadedConfig = null;
+  var writeWrappersInstalled = false;
 
   function now(){ return Date.now(); }
   function getUntil(){
@@ -235,8 +237,9 @@
       sessionStorage.removeItem(ACCESS_AT_KEY);
     } catch(e) {}
   }
-  function grantAccess(config){
-    var hours = Number(config && config.sessionExpireHours);
+  function grantAccess(config, verifyPayload){
+    var hours = Number(verifyPayload && verifyPayload.sessionExpireHours);
+    if (!isFinite(hours) || hours <= 0) hours = Number(config && config.sessionExpireHours);
     if (!isFinite(hours) || hours <= 0) hours = 24;
     var until = now() + hours * 60 * 60 * 1000;
     if (config && config.expiresAt) {
@@ -276,14 +279,18 @@
     }
   }
   function isConfigUrl(url){ return String(url || '').indexOf('invite-config.json') >= 0; }
+  function isInviteUrl(url){ return /\/invite\/(verify|today)/i.test(String(url || '')); }
   function shouldBlockReadBeforeAccess(url){
-    if (!isPreview || hasValidAccess() || isConfigUrl(url)) return false;
+    if (!isPreview || hasValidAccess() || isConfigUrl(url) || isInviteUrl(url)) return false;
     url = String(url || '');
     return /\/tracking|\/snapshots|\/watchlist|api\.telegram\.org|binance|bithumb|upbit|api\//i.test(url);
   }
   function shouldBlockPreviewWrite(url, method){
     if (!isPreview || !hasValidAccess()) return false;
     if (!isWriteMethod(method)) return false;
+    if (isInviteUrl(url)) return false;
+    var readOnly = !loadedConfig || loadedConfig.readOnly !== false;
+    if (!readOnly) return false;
     url = String(url || '');
     return /\/tracking|\/watchlist|api\.telegram\.org|sendMessage|snapshot|scan|api\//i.test(url);
   }
@@ -306,7 +313,7 @@
   window.woosInviteHasAccess = hasValidAccess;
   window.woosInviteRevokeAccess = revokeAccess;
   window.woosInviteBlockWriteAction = function(action){
-    if (isPreview && hasValidAccess()) {
+    if (isPreview && hasValidAccess() && (!loadedConfig || loadedConfig.readOnly !== false)) {
       notifyBlocked(action || '저장 작업');
       return true;
     }
@@ -330,10 +337,11 @@
 
   function loadConfig(){
     if (!nativeFetch) return Promise.reject(new Error('fetch unavailable'));
+    if (loadedConfig) return Promise.resolve(loadedConfig);
     return nativeFetch(CONFIG_URL + Date.now(), { cache:'no-store' }).then(function(res){
       if (!res || !res.ok) throw new Error('invite-config load failed: ' + (res ? res.status : 'no-response'));
       return res.json();
-    });
+    }).then(function(config){ loadedConfig = config || {}; return loadedConfig; });
   }
   function escapeHtml(s){
     return String(s == null ? '' : s).replace(/[&<>'"]/g, function(c){ return ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]); });
@@ -342,6 +350,55 @@
     if (!ms) return '';
     try { return new Date(ms).toLocaleString('ko-KR', { hour12:false }); } catch(e) { return ''; }
   }
+  function verifyInviteCode(config, code){
+    code = String(code || '').trim().toUpperCase();
+    if (!code) return Promise.resolve({ ok:false, reason:'empty' });
+    var mode = String((config && config.mode) || 'fixed');
+    if (mode === 'workerDailyHash') {
+      if (!config.verifyEndpoint) return Promise.resolve({ ok:false, reason:'missing-verifyEndpoint' });
+      return nativeFetch(config.verifyEndpoint, {
+        method:'POST',
+        headers:{ 'Content-Type':'application/json' },
+        body:JSON.stringify({ code: code })
+      }).then(function(res){ return res.json(); }).catch(function(err){
+        try { console.error('[WOOS invite verify]', err); } catch(e) {}
+        return { ok:false, reason:'verify-failed' };
+      });
+    }
+    var codes = [];
+    if (Array.isArray(config && config.codes)) codes = config.codes.map(function(v){ return String(v).trim().toUpperCase(); });
+    else if (config && config.code) codes = [String(config.code).trim().toUpperCase()];
+    return Promise.resolve({ ok: codes.indexOf(code) >= 0 });
+  }
+  function getTodayCode(config, adminKey){
+    if (!config || !config.todayEndpoint) return Promise.resolve({ ok:false, reason:'missing-todayEndpoint' });
+    var sep = String(config.todayEndpoint).indexOf('?') >= 0 ? '&' : '?';
+    var url = String(config.todayEndpoint) + sep + 'adminKey=' + encodeURIComponent(String(adminKey || ''));
+    return nativeFetch(url, { cache:'no-store' }).then(function(res){ return res.json(); }).catch(function(err){
+      try { console.error('[WOOS invite today]', err); } catch(e) {}
+      return { ok:false, reason:'today-failed' };
+    });
+  }
+  function showTodayCode(config, targetEl){
+    var adminKey = prompt('관리자 키를 입력하세요');
+    if (!adminKey) return;
+    var out = targetEl || document.getElementById('woosInviteAdminOutput');
+    if (out) out.textContent = '확인 중...';
+    getTodayCode(config, adminKey).then(function(d){
+      if (!d || !d.ok) {
+        if (out) out.textContent = '관리자 키가 올바르지 않거나 코드를 불러오지 못했습니다.';
+        else alert('관리자 키가 올바르지 않습니다.');
+        return;
+      }
+      var text = '오늘 초대코드: ' + d.todayCode + (d.dateKst ? ' · KST ' + d.dateKst : '') + (d.sessionExpireHours ? ' · 유지 ' + d.sessionExpireHours + 'h' : '');
+      if (out) out.textContent = text;
+      else alert(text);
+    });
+  }
+  window.woosInviteShowTodayCode = function(){
+    loadConfig().then(function(config){ showTodayCode(config); });
+  };
+
   function renderBanner(){
     if (!isPreview || !hasValidAccess()) return;
     try {
@@ -349,12 +406,43 @@
       var b = document.createElement('div');
       b.id = 'woosInvitePreviewBanner';
       b.className = 'woos-invite-preview-banner';
-      b.innerHTML = '<span>🧪 PREVIEW MODE · 실시간 데이터 보기 전용 · 저장 작업 차단</span>'
+      var until = fmtUntil(getUntil());
+      b.innerHTML = '<span>🧪 PREVIEW MODE · 실시간 데이터 보기 전용 · 저장 작업 차단' + (until ? ' · 만료 ' + escapeHtml(until) : '') + '</span>'
+                  + '<button type="button" id="woosInviteTodayBtn">오늘 코드</button>'
                   + '<button type="button" id="woosInviteLogoutBtn">잠금</button>';
       document.body.insertBefore(b, document.body.firstChild);
+      var btnToday = document.getElementById('woosInviteTodayBtn');
+      if (btnToday) btnToday.addEventListener('click', function(){ loadConfig().then(function(config){ showTodayCode(config); }); });
       var btn = document.getElementById('woosInviteLogoutBtn');
       if (btn) btn.addEventListener('click', function(){ revokeAccess(); location.reload(); });
+      installWriteWrappersSoon();
     } catch(e) {}
+  }
+  function installWriteWrappersSoon(){
+    if (writeWrappersInstalled) return;
+    var tries = 0;
+    var names = ['v44_toggleWatchlist','v45HandleWatchToggle','v47_executeWatchOn','v47_executeEndWatchMode','v47_syncWatchApi','sendTelegramMessage'];
+    function wrap(){
+      tries++;
+      var any = false;
+      names.forEach(function(name){
+        try {
+          var fn = window[name];
+          if (typeof fn === 'function' && !fn.__woosInviteWrapped) {
+            var wrapped = function(){
+              if (window.woosInviteBlockWriteAction(name)) return Promise.resolve({ ok:false, blocked:true, preview:true });
+              return fn.apply(this, arguments);
+            };
+            wrapped.__woosInviteWrapped = true;
+            window[name] = wrapped;
+            any = true;
+          }
+        } catch(e) {}
+      });
+      if (tries < 40) setTimeout(wrap, any ? 1000 : 250);
+      else writeWrappersInstalled = true;
+    }
+    setTimeout(wrap, 250);
   }
   function renderGate(){
     if (!isPreview || hasValidAccess()) { renderBanner(); return; }
@@ -369,48 +457,62 @@
         +   '<div class="woos-invite-msg" id="woosInviteMsg">설정 파일을 확인하는 중입니다.</div>'
         +   '<input id="woosInviteCodeInput" class="woos-invite-input" type="password" autocomplete="off" placeholder="초대코드" disabled />'
         +   '<button id="woosInviteEnterBtn" class="woos-invite-btn" type="button" disabled>입장하기</button>'
+        +   '<button id="woosInviteAdminBtn" class="woos-invite-admin" type="button" disabled>오늘 초대코드 확인</button>'
+        +   '<div id="woosInviteAdminOutput" class="woos-invite-admin-output"></div>'
         +   '<div class="woos-invite-foot">실시간 데이터 보기 전용 · Worker/KV 저장 작업은 차단됩니다.</div>'
         + '</div>';
       document.body.appendChild(root);
       var msg = document.getElementById('woosInviteMsg');
       var input = document.getElementById('woosInviteCodeInput');
       var btn = document.getElementById('woosInviteEnterBtn');
+      var adminBtn = document.getElementById('woosInviteAdminBtn');
+      var adminOut = document.getElementById('woosInviteAdminOutput');
       loadConfig().then(function(config){
         if (!config || config.enabled === false) {
           if (msg) msg.textContent = '프리뷰 접근이 현재 닫혀 있습니다.';
           return;
         }
         if (isExpiredConfig(config)) {
-          if (msg) msg.textContent = '초대코드가 만료되었습니다. 관리자에게 새 코드를 요청하세요.';
+          if (msg) msg.textContent = '초대 설정이 만료되었습니다. 관리자에게 새 설정을 요청하세요.';
           return;
         }
-        var codes = [];
-        if (Array.isArray(config.codes)) codes = config.codes.map(String);
-        else if (config.code) codes = [String(config.code)];
-        if (!codes.length) {
+        var mode = String(config.mode || 'fixed');
+        if (mode === 'workerDailyHash' && !config.verifyEndpoint) {
+          if (msg) msg.textContent = 'invite-config.json에 verifyEndpoint가 없습니다.';
+          return;
+        }
+        if (mode !== 'workerDailyHash' && !config.code && !Array.isArray(config.codes)) {
           if (msg) msg.textContent = 'invite-config.json에 초대코드가 없습니다.';
           return;
         }
         if (msg) msg.innerHTML = escapeHtml(config.message || 'WOOS 프리뷰 접근')
-          + (config.expiresAt ? '<br><span>만료: ' + escapeHtml(config.expiresAt) + '</span>' : '');
+          + '<br><span>접속 유지: ' + escapeHtml(String(config.sessionExpireHours || 24)) + '시간</span>';
         input.disabled = false;
         btn.disabled = false;
+        if (adminBtn && config.todayEndpoint) adminBtn.disabled = false;
         input.focus();
         function submit(){
           var v = String(input.value || '').trim();
-          if (codes.indexOf(v) < 0) {
-            input.value = '';
-            if (msg) msg.textContent = '초대코드가 맞지 않습니다.';
-            input.focus();
-            return;
-          }
-          grantAccess(config);
-          if (msg) msg.textContent = '접근 허용됨. 앱을 여는 중입니다.';
-          document.documentElement.classList.remove('woos-invite-locked');
-          location.reload();
+          if (!v) { if (msg) msg.textContent = '초대코드를 입력하세요.'; input.focus(); return; }
+          btn.disabled = true;
+          if (msg) msg.textContent = '초대코드를 확인하는 중입니다.';
+          verifyInviteCode(config, v).then(function(result){
+            if (!result || !result.ok) {
+              input.value = '';
+              btn.disabled = false;
+              if (msg) msg.textContent = '초대코드가 맞지 않습니다.';
+              input.focus();
+              return;
+            }
+            grantAccess(config, result);
+            if (msg) msg.textContent = '접근 허용됨. 앱을 여는 중입니다.';
+            document.documentElement.classList.remove('woos-invite-locked');
+            location.reload();
+          });
         }
         btn.addEventListener('click', submit);
         input.addEventListener('keydown', function(e){ if (e.key === 'Enter') submit(); });
+        if (adminBtn) adminBtn.addEventListener('click', function(){ showTodayCode(config, adminOut); });
       }).catch(function(err){
         if (msg) msg.textContent = 'invite-config.json을 불러오지 못했습니다. 파일 배포를 확인하세요.';
         try { console.error('[WOOS invite config]', err); } catch(e) {}
@@ -418,29 +520,36 @@
     });
   }
   if (isPreview && hasValidAccess()) {
-    document.addEventListener('DOMContentLoaded', renderBanner);
+    document.addEventListener('DOMContentLoaded', function(){ loadConfig().then(function(){ renderBanner(); }).catch(renderBanner); });
   }
   renderGate();
 })();
+
 </script>
-<style id="woos-invite-gate-style">
-html.woos-invite-locked body > *:not(#woosInviteGateRoot) { display:none !important; }
-.woos-invite-gate-root{position:fixed;inset:0;z-index:2147483647;display:flex;align-items:center;justify-content:center;padding:24px;background:radial-gradient(circle at 50% 10%,rgba(0,212,255,.12),transparent 34%),#060a0f;color:#e2eaf5;font-family:'Noto Sans KR',system-ui,sans-serif;}
-.woos-invite-card{width:min(420px,100%);border:1px solid rgba(0,212,255,.28);background:rgba(12,20,32,.92);border-radius:18px;padding:26px 22px;box-shadow:0 0 28px rgba(0,212,255,.16), inset 0 0 0 1px rgba(255,255,255,.03);backdrop-filter:blur(14px);}
-.woos-invite-kicker{font-family:'JetBrains Mono',monospace;font-size:.72rem;letter-spacing:2px;color:#00d4ff;margin-bottom:10px;text-shadow:0 0 10px rgba(0,212,255,.45);}
-.woos-invite-title{font-size:1.22rem;font-weight:800;margin-bottom:10px;}
-.woos-invite-msg{font-size:.82rem;line-height:1.7;color:#8fb1cc;margin-bottom:16px;min-height:40px;}
-.woos-invite-msg span{font-family:'JetBrains Mono',monospace;font-size:.72rem;color:#5e829d;}
-.woos-invite-input{width:100%;border:1px solid rgba(0,212,255,.25);background:#08111c;color:#e2eaf5;border-radius:10px;padding:13px 14px;font-family:'JetBrains Mono',monospace;font-size:.95rem;outline:none;margin-bottom:10px;}
-.woos-invite-input:focus{border-color:#00d4ff;box-shadow:0 0 12px rgba(0,212,255,.22);}
-.woos-invite-input:disabled{opacity:.45;}
-.woos-invite-btn{width:100%;border:1px solid #00d4ff;background:rgba(0,212,255,.11);color:#00d4ff;border-radius:10px;padding:13px;font-weight:800;font-family:'JetBrains Mono',monospace;letter-spacing:2px;cursor:pointer;}
-.woos-invite-btn:disabled{opacity:.45;cursor:not-allowed;}
-.woos-invite-foot{margin-top:14px;font-size:.72rem;color:#607d96;line-height:1.6;text-align:center;}
-.woos-invite-preview-banner{position:sticky;top:0;z-index:99999;display:flex;justify-content:center;align-items:center;gap:10px;padding:7px 12px;background:rgba(0,20,30,.94);border-bottom:1px solid rgba(0,212,255,.26);color:#00d4ff;font-family:'JetBrains Mono',monospace;font-size:.68rem;letter-spacing:.5px;backdrop-filter:blur(10px);}
-.woos-invite-preview-banner button{border:1px solid rgba(0,212,255,.35);color:#9eeeff;background:rgba(0,212,255,.08);border-radius:999px;padding:2px 9px;font-size:.6rem;font-family:'JetBrains Mono',monospace;}
-.woos-invite-toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:2147483647;padding:10px 14px;border-radius:999px;background:rgba(10,20,32,.96);border:1px solid rgba(0,212,255,.35);color:#e2eaf5;font-size:.78rem;box-shadow:0 0 18px rgba(0,212,255,.2);}
+<style>
+/* ═══════════════════════════════════════════════════════════════
+   [v4.9.4+invite-dailyhash-gate] Preview Invite Gate
+═══════════════════════════════════════════════════════════════ */
+html.woos-invite-locked body > *:not(#woosInviteGateRoot):not(script):not(style){filter:blur(12px);pointer-events:none;user-select:none;}
+.woos-invite-gate-root{position:fixed;inset:0;z-index:2147483646;display:flex;align-items:center;justify-content:center;padding:18px;background:radial-gradient(circle at top,rgba(0,212,255,.16),rgba(5,9,15,.96) 42%,rgba(5,9,15,.99));font-family:'Noto Sans KR',system-ui,sans-serif;}
+.woos-invite-card{width:min(420px,calc(100vw - 32px));border:1px solid rgba(0,212,255,.34);background:rgba(10,18,29,.94);box-shadow:0 0 38px rgba(0,212,255,.16),inset 0 0 0 1px rgba(255,255,255,.03);border-radius:18px;padding:24px 20px;text-align:center;color:#e2eaf5;backdrop-filter:blur(14px);}
+.woos-invite-kicker{font-family:'JetBrains Mono',monospace;font-size:.68rem;letter-spacing:2px;color:#00d4ff;margin-bottom:8px;text-shadow:0 0 12px rgba(0,212,255,.35);}
+.woos-invite-title{font-size:1.24rem;font-weight:800;margin-bottom:10px;}
+.woos-invite-msg{font-size:.78rem;line-height:1.6;color:#8fb0ca;min-height:42px;margin-bottom:14px;}
+.woos-invite-msg span{font-family:'JetBrains Mono',monospace;color:#5f7f98;font-size:.68rem;}
+.woos-invite-input{width:100%;height:44px;border-radius:10px;border:1px solid rgba(0,212,255,.24);background:#08111c;color:#f4fbff;font-family:'JetBrains Mono',monospace;text-align:center;font-size:.95rem;letter-spacing:1px;margin-bottom:10px;outline:none;}
+.woos-invite-input:focus{border-color:#00d4ff;box-shadow:0 0 0 3px rgba(0,212,255,.12);}
+.woos-invite-btn{width:100%;height:44px;border-radius:10px;border:1px solid rgba(0,212,255,.5);background:linear-gradient(135deg,rgba(0,212,255,.18),rgba(0,230,118,.10));color:#9eeeff;font-family:'JetBrains Mono',monospace;font-weight:800;letter-spacing:1px;}
+.woos-invite-btn:disabled,.woos-invite-admin:disabled{opacity:.45;cursor:not-allowed;}
+.woos-invite-admin{width:100%;margin-top:8px;height:34px;border-radius:10px;border:1px solid rgba(125,154,182,.28);background:rgba(255,255,255,.03);color:#8fb0ca;font-family:'JetBrains Mono',monospace;font-size:.67rem;}
+.woos-invite-admin-output{margin-top:8px;min-height:18px;color:#00d4ff;font-family:'JetBrains Mono',monospace;font-size:.66rem;line-height:1.5;word-break:break-all;}
+.woos-invite-foot{margin-top:12px;color:#5f7f98;font-size:.66rem;line-height:1.5;}
+.woos-invite-preview-banner{position:sticky;top:0;z-index:99999;display:flex;justify-content:center;align-items:center;gap:8px;padding:7px 12px;background:rgba(0,20,30,.94);border-bottom:1px solid rgba(0,212,255,.26);color:#00d4ff;font-family:'JetBrains Mono',monospace;font-size:.66rem;letter-spacing:.3px;backdrop-filter:blur(10px);flex-wrap:wrap;}
+.woos-invite-preview-banner button{border:1px solid rgba(0,212,255,.35);color:#9eeeff;background:rgba(0,212,255,.08);border-radius:999px;padding:2px 9px;font-size:.58rem;font-family:'JetBrains Mono',monospace;}
+.woos-invite-toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);z-index:2147483647;padding:10px 14px;border-radius:999px;background:rgba(10,18,29,.96);border:1px solid rgba(255,214,0,.35);color:#ffd600;font-family:'JetBrains Mono',monospace;font-size:.68rem;box-shadow:0 0 20px rgba(255,214,0,.12);}
+
 </style>
+
 
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
@@ -15526,9 +15635,6 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       }
     }
     function v44_toggleWatchlist(base) {
-      if (typeof window !== 'undefined' && window.woosInviteBlockWriteAction && window.woosInviteBlockWriteAction('관심코인 변경')) {
-        try { return (typeof v44_isWatchlist === 'function') ? v44_isWatchlist(base) : false; } catch(_e) { return false; }
-      }
       if (!base) return false;
       var b = String(base).toUpperCase();
       var list = v44_getWatchlist();
@@ -19016,7 +19122,6 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       try {
         if (event && typeof event.stopPropagation === 'function') event.stopPropagation();
         if (event && typeof event.preventDefault === 'function') event.preventDefault();
-        if (typeof window !== 'undefined' && window.woosInviteBlockWriteAction && window.woosInviteBlockWriteAction('관심코인 변경')) return;
         if (!base || !window.WOOS_ANALYZER || typeof window.WOOS_ANALYZER.toggleWatchlist !== 'function') return;
         
         // [State Lock 명세 6] 관심 해제 모달 조건 — w1_getEffectiveWatchState 기준
@@ -19106,7 +19211,6 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
     }
         function v47_executeWatchOn(base) {
       try {
-        if (typeof window !== 'undefined' && window.woosInviteBlockWriteAction && window.woosInviteBlockWriteAction('관심코인 등록')) return;
         if (!base || !window.WOOS_ANALYZER || typeof window.WOOS_ANALYZER.toggleWatchlist !== 'function') return;
         
         // [State Lock 2 fix-2] canonical 정규화 + pending mutex 가드
@@ -19251,7 +19355,6 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
     // [v4.7.21-detail-toggle-fix] Worker API 동기화 + active 재조회
     function v47_syncWatchApi(base, isWatch) {
       try {
-        if (typeof window !== 'undefined' && window.woosInviteBlockWriteAction && window.woosInviteBlockWriteAction('서버 동기화')) return;
         // [State Lock 2 fix-2] canonical base 정규화 (v44/Worker 키 통일)
         var canonicalBase = (typeof w1_getCanonicalBaseKey === 'function')
           ? w1_getCanonicalBaseKey(base)
@@ -19416,7 +19519,6 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
     // [Phase 4.7 공사 4 — 6-2] end-watch-mode 라우트 호출 + UI 갱신
     function v47_executeEndWatchMode(base, exchanges) {
       try {
-        if (typeof window !== 'undefined' && window.woosInviteBlockWriteAction && window.woosInviteBlockWriteAction('관심코인 해제')) return;
         // [State Lock 2 fix-2] canonical 정규화 + pending mutex 가드
         var canonicalBase = (typeof w1_getCanonicalBaseKey === 'function')
           ? w1_getCanonicalBaseKey(base)
