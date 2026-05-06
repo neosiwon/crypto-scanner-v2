@@ -152,7 +152,7 @@
 <script>
 /* [v4.7.42] 캐시 강제 리셋 — SW 완전 제거 후 리로드 */
 (function(){
-  var VER = 'v4.9.4+briefing-storytelling';  // [v4.9.4+] 옵션 C 보존 + v44_buildBriefingBlock 4단계 스토리텔링 (알람당시→현재추적→갭분석→현재대응) + 5케이스 분기
+  var VER = 'v4.9.4+briefing-storytelling-r2';  // [v4.9.4+] 4단계 스토리텔링 + 잔잔한 수정 (정밀분석 라벨 한국어 + levels alertSnap fallback + meta 박제 보강)
   try {
     var LKEY = 'woos_hard_reset_ver';
     if (localStorage.getItem(LKEY) === VER) return;
@@ -7266,7 +7266,7 @@ async function opsDashboard() {
 // 탭 시 상세 팝업
 // ═══════════════════════════════════════════════════════════════
 
-var HTML_VERSION = 'v4.9.4+briefing-storytelling';  // [v4.9.4+] v44 4단계 스토리텔링
+var HTML_VERSION = 'v4.9.4+briefing-storytelling-r2';  // [v4.9.4+] 4단계 + 잔잔한 수정
 var _cachedBuildInfo = null;
 
 // [State Lock 2 Action fix-2c] 패치 확인용 — 페이지 로드 시 버전명 출력 (DevTools 콘솔)
@@ -16086,12 +16086,30 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       var labelMap = {
         'entryReady': '진입 가능 신호',
         'watchlist': '⭐ 관심 등록',
+        // [v4.9.4+ 잔잔한 수정] 추가 매핑
+        'watchlist-local-7d-persist': '⭐ 관심 등록 (7일 유지)',
+        'watchlist-optimistic-ui': '⭐ 관심 등록 (대기)',
       };
       var label = labelMap[reason] || reason;
       if (reason && reason.indexOf('grade-') === 0) {
         label = reason.split('-')[1] + ' 등급';
       } else if (reason && reason.indexOf('sCount24-') === 0) {
         label = '24h S급 ' + reason.split('-')[1] + '회';
+      }
+      // [v4.9.4+ 잔잔한 수정] duplicate-auto-sCountN-aCountM 변환
+      // 사용자 보고: "정밀분석 · duplicate-auto-sCount10-aCount17 — 이게 뭔지?"
+      // → 영문 raw reason 그대로 노출 → 한국어 변환
+      else if (reason && reason.indexOf('duplicate-auto-') === 0) {
+        var match = reason.match(/sCount(\d+)-aCount(\d+)/);
+        if (match) {
+          label = '24h S급 ' + match[1] + '회 · A급 ' + match[2] + '회';
+        } else {
+          label = '24h 누적 신호 (자동 정밀)';
+        }
+      }
+      // [v4.9.4+ 잔잔한 수정] 알 수 없는 reason fallback (raw 영문 노출 방지)
+      else if (label === reason && reason.indexOf('-') !== -1) {
+        label = '정밀 진입 조건';
       }
       
       return '<span class="woos-mode-reason-badge">정밀분석 · ' + v40_escapeHtml(label) + '</span>';
@@ -16909,11 +16927,51 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
     
     function v40_resolveLevels(track, entryPrice) {
       var meta = track.meta || (track.keys && track.keys.meta && track.keys.meta.value) || {};
-      var atr = meta.atr != null ? meta.atr : null;
+      
+      // [v4.9.4+ 잔잔한 수정] alertSnapshot / snapshot에서도 levels fallback
+      // 사용자 보고: "전략 a b 세력판단 — 이거 스냅샷에 정보 다있는데 못불러옴"
+      // → meta에 박제 안 되어 있어도 alertSnapshot/snapshot에서 가져옴
+      var alertSnap = track.alertSnapshot || meta.alertSnapshot || null;
+      var snap = track.snapshot || alertSnap || {};
+      
+      // tp1 — meta → alertSnap → snap
+      var tp1 = (meta.tp1Price != null) ? meta.tp1Price 
+              : (alertSnap && alertSnap.tp1 != null) ? alertSnap.tp1
+              : (alertSnap && alertSnap.tp1Price != null) ? alertSnap.tp1Price
+              : (snap && snap.tp1Price != null) ? snap.tp1Price
+              : (snap && snap.tp1 != null) ? snap.tp1
+              : null;
+      // tp2
+      var tp2 = (meta.tp2Price != null) ? meta.tp2Price
+              : (alertSnap && alertSnap.tp2 != null) ? alertSnap.tp2
+              : (alertSnap && alertSnap.tp2Price != null) ? alertSnap.tp2Price
+              : (snap && snap.tp2Price != null) ? snap.tp2Price
+              : (snap && snap.tp2 != null) ? snap.tp2
+              : null;
+      // boxLow (또는 stopLoss)
+      var boxLow = (meta.boxLow != null) ? meta.boxLow
+                 : (alertSnap && alertSnap.boxLow != null) ? alertSnap.boxLow
+                 : (alertSnap && alertSnap.stopLoss != null) ? alertSnap.stopLoss
+                 : (snap && snap.boxLow != null) ? snap.boxLow
+                 : (snap && snap.stopLoss != null) ? snap.stopLoss
+                 : null;
+      // boxHigh
+      var boxHigh = (meta.boxHigh != null) ? meta.boxHigh
+                  : (alertSnap && alertSnap.boxHigh != null) ? alertSnap.boxHigh
+                  : (snap && snap.boxHigh != null) ? snap.boxHigh
+                  : null;
+      // atr
+      var atr = (meta.atr != null) ? meta.atr
+              : (alertSnap && alertSnap.atr != null) ? alertSnap.atr
+              : (snap && snap.atr != null) ? snap.atr
+              : null;
+      
       var atrPct = (atr != null && entryPrice != null && entryPrice > 0) ? (atr / entryPrice) * 100 : null;
-      return { tp1: meta.tp1Price != null ? meta.tp1Price : null, tp2: meta.tp2Price != null ? meta.tp2Price : null,
-        boxLow: meta.boxLow != null ? meta.boxLow : null, boxHigh: meta.boxHigh != null ? meta.boxHigh : null,
-        atr: atr, atrPct: atrPct };
+      return { 
+        tp1: tp1, tp2: tp2, 
+        boxLow: boxLow, boxHigh: boxHigh, 
+        atr: atr, atrPct: atrPct 
+      };
     }
     
     function v40_computeProgressPct(track) {
@@ -17724,6 +17782,31 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       item = item || {};
       td = td || {};
       var meta = td.meta || {};
+      
+      // [v4.9.4+ 잔잔한 수정] alertSnapshot에서 meta에 levels 박제 보강
+      // 사용자 보고: "스냅샷에 정보 다있는데 못불러옴"
+      // → meta에 tp1Price/atr 등 없으면 alertSnapshot에서 복사하여 박제
+      // → v40_resolveLevels이 levels 정상 반환할 수 있도록 source 보강
+      try {
+        var alertSnap = item.alertSnapshot || td.alertSnapshot || meta.alertSnapshot || null;
+        if (alertSnap && typeof alertSnap === 'object') {
+          if (meta.tp1Price == null) {
+            if (alertSnap.tp1 != null) meta.tp1Price = alertSnap.tp1;
+            else if (alertSnap.tp1Price != null) meta.tp1Price = alertSnap.tp1Price;
+          }
+          if (meta.tp2Price == null) {
+            if (alertSnap.tp2 != null) meta.tp2Price = alertSnap.tp2;
+            else if (alertSnap.tp2Price != null) meta.tp2Price = alertSnap.tp2Price;
+          }
+          if (meta.boxLow == null) {
+            if (alertSnap.boxLow != null) meta.boxLow = alertSnap.boxLow;
+            else if (alertSnap.stopLoss != null) meta.boxLow = alertSnap.stopLoss;
+          }
+          if (meta.boxHigh == null && alertSnap.boxHigh != null) meta.boxHigh = alertSnap.boxHigh;
+          if (meta.atr == null && alertSnap.atr != null) meta.atr = alertSnap.atr;
+        }
+      } catch(e) { /* meta 객체가 readonly 등 예외 시 무시 */ }
+      
       var sid = item.snapshotId || item.id || meta.snapshotId || td.snapshotId || td.id || '';
       return {
         snapshotId: sid, id: sid,
