@@ -152,7 +152,7 @@
 <script>
 /* [v4.7.42] 캐시 강제 리셋 — SW 완전 제거 후 리로드 */
 (function(){
-  var VER = 'v4.9.4+dailyhash-mobile-gate-fit';  // [v4.9.4+] Worker dailyHash invite gate + mobile preview frame + postmortem data fix
+  var VER = 'v4.9.4+dailyhash-mobile-gate-center';  // [v4.9.4+] Worker dailyHash invite gate + centered mobile gate + postmortem data fix
   try {
     var LKEY = 'woos_hard_reset_ver';
     if (localStorage.getItem(LKEY) === VER) return;
@@ -193,7 +193,7 @@
 </script>
 <script>
 /* ═══════════════════════════════════════════════════════════════
- * [v4.9.4+dailyhash-mobile-gate-fit]
+ * [v4.9.4+dailyhash-mobile-gate-center]
  * ?demo=1 / ?preview=1 Worker 검증형 dailyHash 초대코드 게이트
  * ?mobile=1 PC에서도 모바일 앱 프레임 폭으로 표시
  * - invite-config.json 외부 설정 파일 사용
@@ -555,7 +555,7 @@
 </script>
 <style>
 /* ═══════════════════════════════════════════════════════════════
-   [v4.9.4+dailyhash-mobile-gate-fit] Preview Invite Gate
+   [v4.9.4+dailyhash-mobile-gate-center] Preview Invite Gate
 ═══════════════════════════════════════════════════════════════ */
 html.woos-invite-locked body > *:not(#woosInviteGateRoot):not(script):not(style){filter:blur(12px);pointer-events:none;user-select:none;}
 .woos-invite-gate-root{position:fixed;inset:0;z-index:2147483646;display:flex;align-items:center;justify-content:center;padding:18px;background:radial-gradient(circle at top,rgba(0,212,255,.16),rgba(5,9,15,.96) 42%,rgba(5,9,15,.99));font-family:'Noto Sans KR',system-ui,sans-serif;}
@@ -669,6 +669,61 @@ html.woos-mobile-preview .woos-invite-admin {
   }
   html.woos-mobile-preview .woos-invite-main-admin-btn {
     right: 10px;
+  }
+}
+
+/* ── [v4.9.4+dailyhash-mobile-gate-center] 최종 보정
+   이전 gate-fit은 root 자체를 430px로 줄여 일부 모바일 브라우저에서
+   left:50%만 적용되고 transform이 무시되어 입력창이 우측으로 밀릴 수 있었다.
+   해결: 오버레이(root)는 항상 전체 viewport, 카드만 모바일 폭으로 중앙 고정. */
+html.woos-mobile-preview .woos-invite-gate-root {
+  position: fixed !important;
+  inset: 0 !important;
+  top: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  left: 0 !important;
+  width: 100vw !important;
+  max-width: none !important;
+  min-width: 0 !important;
+  height: 100vh !important;
+  min-height: 100vh !important;
+  transform: none !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 18px 16px !important;
+  overflow: hidden !important;
+  border-left: none !important;
+  border-right: none !important;
+  box-shadow: none !important;
+}
+@supports (height: 100dvh) {
+  html.woos-mobile-preview .woos-invite-gate-root {
+    height: 100dvh !important;
+    min-height: 100dvh !important;
+  }
+}
+html.woos-mobile-preview .woos-invite-card {
+  width: min(390px, calc(100vw - 32px)) !important;
+  max-width: 390px !important;
+  min-width: 0 !important;
+  margin: 0 auto !important;
+  transform: none !important;
+  box-sizing: border-box !important;
+}
+@media (max-width: 520px) {
+  html.woos-mobile-preview .woos-invite-gate-root {
+    width: 100vw !important;
+    max-width: none !important;
+    left: 0 !important;
+    right: 0 !important;
+    transform: none !important;
+    padding: 16px 14px !important;
+  }
+  html.woos-mobile-preview .woos-invite-card {
+    width: min(390px, calc(100vw - 28px)) !important;
+    max-width: 390px !important;
   }
 }
 
@@ -7898,7 +7953,7 @@ async function opsDashboard() {
 // 탭 시 상세 팝업
 // ═══════════════════════════════════════════════════════════════
 
-var HTML_VERSION = 'v4.9.4+dailyhash-mobile-gate-fit';  // [v4.9.4+] dailyHash invite gate + mobile preview frame + postmortem data fix
+var HTML_VERSION = 'v4.9.4+dailyhash-mobile-gate-center';  // [v4.9.4+] dailyHash invite gate + centered mobile gate + postmortem data fix
 var _cachedBuildInfo = null;
 
 // [State Lock 2 Action fix-2c] 패치 확인용 — 페이지 로드 시 버전명 출력 (DevTools 콘솔)
