@@ -152,7 +152,7 @@
 <script>
 /* [v4.7.42] 캐시 강제 리셋 — SW 완전 제거 후 리로드 */
 (function(){
-  var VER = 'v4.9.4+briefing-storytelling-r3';  // [v4.9.4+] 4단계 + 잔잔한 수정 + gapText 성공/실패/중립 분기 (B3 손익비 2.85 모순 수정)
+  var VER = 'v4.9.4+postmortem-report';  // [v4.9.4+] 분석 완료 사후평가 리포트 (24개 항목 7개 블록 A~G + v44 isCompleted + 정적 룰 메모 + 점수 칩)
   try {
     var LKEY = 'woos_hard_reset_ver';
     if (localStorage.getItem(LKEY) === VER) return;
@@ -4316,6 +4316,155 @@ details.progress-rich-card.woos-group[open] { border-color: rgba(124, 58, 237, 0
 .hist-window7d { color: #fbbf24; font-weight: 600; padding: 0 4px; border: 1px solid rgba(251,191,36,0.3); border-radius: 4px; }
 .hist-pattern { color: #c4b5fd; font-style: italic; }
 .woos-history-body { padding: 10px 14px; border-top: 1px solid rgba(255,255,255,0.05); }
+
+/* [v4.9.4+ 분석 완료 사후평가 리포트] 7개 블록 + 점수 칩 + 영역별 스타일 */
+
+/* 점수 칩 — 헤더 (v462_buildHistoryCard) + 펼친 카드 영역 1 */
+.hist-score-chip {
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  margin-left: 4px;
+  white-space: nowrap;
+}
+.hist-score-chip.score-jackpot { background: rgba(34, 197, 94, .18); color: #22c55e; border: 1px solid rgba(34, 197, 94, .35); }
+.hist-score-chip.score-good    { background: rgba(0, 212, 255, .18); color: #00d4ff; border: 1px solid rgba(0, 212, 255, .35); }
+.hist-score-chip.score-even    { background: rgba(148, 163, 184, .18); color: #94a3b8; border: 1px solid rgba(148, 163, 184, .35); }
+.hist-score-chip.score-loss    { background: rgba(249, 115, 22, .18); color: #f97316; border: 1px solid rgba(249, 115, 22, .35); }
+.hist-score-chip.score-bigloss { background: rgba(239, 68, 68, .18); color: #ef4444; border: 1px solid rgba(239, 68, 68, .35); }
+
+/* 사후평가 리포트 컨테이너 */
+.woos-postmortem-report {
+  display: flex; flex-direction: column; gap: 16px;
+  padding: 4px 0;
+}
+.woos-postmortem-report .pm-block {
+  padding: 12px 14px;
+  background: rgba(7, 16, 32, .35);
+  border: 1px solid rgba(255, 255, 255, .04);
+  border-radius: 12px;
+}
+.woos-postmortem-report .pm-block-title {
+  font-size: 0.85rem; font-weight: 700;
+  color: #00d4ff;
+  margin-bottom: 10px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid rgba(0, 212, 255, .12);
+}
+
+/* 블록 A — 최종 결과 요약 (강조 박스) */
+.pm-block-a {
+  background: linear-gradient(135deg, rgba(0, 229, 255, .06), rgba(124, 58, 237, .04)) !important;
+  border-left: 3px solid #00d4ff !important;
+}
+.pm-final-row {
+  display: flex; gap: 10px; align-items: center;
+  margin-bottom: 10px; flex-wrap: wrap;
+}
+.pm-score-big {
+  font-size: 1rem; font-weight: 700;
+  padding: 6px 12px; border-radius: 12px;
+}
+.pm-score-big small { font-size: 0.78rem; opacity: .8; margin-left: 4px; }
+.pm-score-big.score-jackpot { background: rgba(34, 197, 94, .22); color: #22c55e; }
+.pm-score-big.score-good    { background: rgba(0, 212, 255, .22); color: #00d4ff; }
+.pm-score-big.score-even    { background: rgba(148, 163, 184, .22); color: #94a3b8; }
+.pm-score-big.score-loss    { background: rgba(249, 115, 22, .22); color: #f97316; }
+.pm-score-big.score-bigloss { background: rgba(239, 68, 68, .22); color: #ef4444; }
+.pm-outcome-big { font-size: 0.95rem; font-weight: 600; padding: 4px 10px; }
+.pm-price-flow {
+  font-size: 0.85rem; padding: 8px 0;
+  color: #cbd5e1;
+}
+.pm-price-flow b { font-size: 0.95rem; margin-left: 6px; }
+.pm-up { color: #22c55e !important; }
+.pm-down { color: #ef4444 !important; }
+.pm-mfemae-row {
+  display: flex; gap: 16px; flex-wrap: wrap;
+  font-size: 0.85rem; color: #cbd5e1;
+}
+
+/* 블록 C — 신호 흐름 */
+.pm-grade-flow {
+  font-size: 0.82rem;
+  padding: 8px 10px; margin: 8px 0;
+  background: rgba(0, 212, 255, .04);
+  border-left: 2px solid rgba(0, 212, 255, .25);
+  border-radius: 4px;
+  color: #cbd5e1; line-height: 1.7;
+  word-break: break-all;
+}
+.pm-count-line {
+  font-size: 0.78rem; color: #94a3b8;
+  padding: 4px 0;
+}
+.pm-count-line b { color: #00d4ff; }
+
+/* 블록 D — 강점/약점 */
+.pm-strengths, .pm-weaknesses {
+  font-size: 0.82rem;
+  padding: 8px 10px; margin-top: 8px;
+  border-radius: 6px;
+  line-height: 1.6;
+}
+.pm-strengths {
+  background: rgba(34, 197, 94, .06);
+  border-left: 2px solid rgba(34, 197, 94, .3);
+  color: #cbd5e1;
+}
+.pm-strengths b { color: #22c55e; }
+.pm-weaknesses {
+  background: rgba(239, 68, 68, .06);
+  border-left: 2px solid rgba(239, 68, 68, .3);
+  color: #cbd5e1;
+}
+.pm-weaknesses b { color: #ef4444; }
+
+/* 블록 E — 패턴 / 손익비 */
+.pm-pattern-line, .pm-ratio-line {
+  font-size: 0.85rem; padding: 6px 0;
+  color: #cbd5e1;
+}
+.pm-pattern-line b, .pm-ratio-line b { color: #00d4ff; margin-right: 6px; }
+.pm-pattern-line small, .pm-ratio-line small { color: #94a3b8; margin-left: 4px; }
+
+/* 블록 F — 전략 평가 */
+.pm-strat {
+  font-size: 0.82rem;
+  padding: 8px 10px; margin-top: 6px;
+  background: rgba(124, 58, 237, .05);
+  border-left: 2px solid rgba(124, 58, 237, .3);
+  border-radius: 4px;
+  color: #cbd5e1; line-height: 1.6;
+}
+.pm-strat b { color: #a78bfa; margin-right: 4px; }
+
+/* 블록 G — 최종 사후평가 (강조 박스) */
+.pm-block-g {
+  background: linear-gradient(135deg, rgba(0, 229, 255, .04), rgba(124, 58, 237, .03)) !important;
+  border: 1px solid rgba(0, 229, 255, .15) !important;
+}
+.pm-improvement-memo {
+  margin-top: 14px; padding: 12px;
+  background: rgba(7, 16, 32, .4);
+  border: 1px dashed rgba(0, 212, 255, .2);
+  border-radius: 8px;
+}
+.pm-memo-title {
+  font-size: 0.82rem; font-weight: 700;
+  color: #00d4ff; margin-bottom: 8px;
+}
+.woos-postmortem-memo-body .memo-line {
+  font-size: 0.82rem; color: #cbd5e1;
+  padding: 4px 0; line-height: 1.65;
+}
+
+/* 빈 데이터 fallback */
+.woos-postmortem-report .woos-empty {
+  font-size: 0.78rem; color: #6b7280;
+  padding: 8px 0; font-style: italic;
+}
 .woos-history-loading { text-align: center; color: #6b7280; padding: 20px; font-size: 0.78rem; }
 .woos-history-empty { text-align: center; color: #6b7280; padding: 30px; font-size: 0.85rem; }
 
@@ -7266,7 +7415,7 @@ async function opsDashboard() {
 // 탭 시 상세 팝업
 // ═══════════════════════════════════════════════════════════════
 
-var HTML_VERSION = 'v4.9.4+briefing-storytelling-r3';  // [v4.9.4+] 4단계 + 잔잔한 수정 + gapText 분기 보강
+var HTML_VERSION = 'v4.9.4+postmortem-report';  // [v4.9.4+] 분석 완료 사후평가 리포트
 var _cachedBuildInfo = null;
 
 // [State Lock 2 Action fix-2c] 패치 확인용 — 페이지 로드 시 버전명 출력 (DevTools 콘솔)
@@ -13199,6 +13348,83 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
   }
   
   // 단일 히스토리 상세 fetch (펼침 시)
+  /* [v4.9.4+ 분석 완료 사후평가 리포트] 정적 룰 스캐너 개선 메모 생성기
+   * 사용자 결정 2 = A: AI 호출 X / Worker 수정 X / 새 데이터 source X
+   * advanced / pattern / outcome / MFE / MAE / hit 여부 등 기존 값만 사용
+   * 출력: 짧은 텍스트 3~5줄 (자연어, 불릿 X)
+   */
+  function v498_buildScannerImprovementMemo(baseMetrics, advanced, alertSnap, outcome) {
+    if (!baseMetrics || !baseMetrics.hasData) {
+      return '<div class="woos-postmortem-memo-body">스캐너 개선 메모 산출을 위한 데이터가 부족합니다.</div>';
+    }
+    var mfe = baseMetrics.mfe || 0;
+    var mae = baseMetrics.mae || 0;
+    var absMae = Math.abs(mae);
+    var ratio = (advanced && advanced.profitLossRatio != null) ? advanced.profitLossRatio : null;
+    var pattern = (advanced && advanced.pattern) || null;
+    var patternKr = (pattern && pattern.kr) ? pattern.kr : '';
+    var plus3Hit = !!baseMetrics.plus3Hit;
+    var plus5Hit = !!baseMetrics.plus5Hit;
+    var tp1Hit = !!baseMetrics.tp1Hit;
+    var strengths = (alertSnap && alertSnap.analysis && Array.isArray(alertSnap.analysis.strengths)) ? alertSnap.analysis.strengths : [];
+    
+    var memos = [];
+    
+    // 룰 1: 성공 케이스
+    if (outcome === 'success' || (mfe >= 5 && absMae < 2)) {
+      memos.push('알람 당시 강점이 실제 가격 결과로 이어진 성공 표본입니다.');
+      if (strengths.length > 0) {
+        var topStrength = String(strengths[0]).split(' — ')[0].split('(')[0].trim();
+        memos.push(topStrength + ' 조건이 유효하게 작동한 케이스로 향후 유사 패턴 우선순위 가산 후보입니다.');
+      }
+      if (tp1Hit) memos.push('TP1 도달 케이스로 분할 청산 전략이 유효한 표본입니다.');
+    }
+    // 룰 2: 실패 케이스 — MAE 확대
+    else if (outcome === 'fail' || (absMae >= 3 && mfe < 2)) {
+      memos.push('알람 당시 강점이 실제 가격 결과로 이어지지 못한 실패 케이스입니다.');
+      if (patternKr === '음봉 연속' || patternKr === '느린 하락') {
+        memos.push(patternKr + ' 흐름 진입 시 MAE 확대를 더 빠르게 위험 신호로 반영해야 합니다.');
+      }
+      if (!plus3Hit && absMae > 5) {
+        memos.push('+3% 미도달 후 MAE -' + absMae.toFixed(1) + '%까지 확대된 케이스로 단기 손절 임계 검토 필요.');
+      }
+      if (ratio != null && ratio < 0.5) {
+        memos.push('손익비 ' + ratio.toFixed(2) + '로 매우 나쁜 표본이며 진입 조건 강화 검토 대상입니다.');
+      }
+    }
+    // 룰 3: 부분 성공
+    else if (outcome === 'partial' || (mfe >= 3 && mfe < 5)) {
+      memos.push('일부 상승 후 추가 탄력 부족으로 부분 성공에 그친 케이스입니다.');
+      if (!plus5Hit) memos.push('+5% 미도달로 청산 타이밍 또는 목표가 조정이 필요한 표본입니다.');
+    }
+    // 룰 4: 변동성/혼조
+    else if (mfe > 2 && mae < -2) {
+      memos.push('상방·하방 모두 크게 열린 변동성 케이스로 진입 타이밍에 따라 결과가 갈리는 표본입니다.');
+      memos.push('단기 ATR 트레일링 또는 분할 진입 전략 검토 대상.');
+    }
+    // 룰 5: 보합/관찰
+    else {
+      memos.push('박스권 보합 케이스로 알람 시점 신호 강도 대비 가격 반응이 제한적이었습니다.');
+      memos.push('진입 후 박스 이탈 확인 전 신규 진입 보류가 안전한 표본입니다.');
+    }
+    
+    if (memos.length === 0) {
+      return '<div class="woos-postmortem-memo-body">스캐너 개선 메모 산출을 위한 데이터가 부족합니다.</div>';
+    }
+    
+    return '<div class="woos-postmortem-memo-body">' + memos.map(function(m) {
+      return '<div class="memo-line">• ' + escapeHtml(m) + '</div>';
+    }).join('') + '</div>';
+  }
+  
+  /* [v4.9.4+ 분석 완료 사후평가] 분석 완료 카드 펼침 — 7개 블록 (24개 항목)
+   * 사용자 결정:
+   *   1=C (v44 isCompleted) / 2=A (정적 룰) / 3=C (그래프+텍스트) / 4=A (속도/안정성/기회 X)
+   *   5=C (stratA/B + simulate, fallback) / 6=A (헤더+펼친 둘 다) / 7=A (한 번에)
+   * 절대 보존:
+   *   - 17개 동결 함수 / Worker / Core v2 / vm 흐름 / 활성 카드 / 그래프 본체
+   * 가짜 데이터 X / 없는 source는 fallback 표시
+   */
   window._fetchHistoryDetail = function(snapshotId, bodyEl) {
     if (!snapshotId || !bodyEl) return;
     var workerBase = window.WORKER_BASE_URL || '';
@@ -13210,62 +13436,348 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
           return;
         }
         var c = data.completed;
-        var meta = data.meta || {};
-        var alertSnap = meta.alertSnapshot || data.snapshot || {};
+        var meta = data.meta || c.meta || {};
+        var alertSnap = meta.alertSnapshot || data.snapshot || c.alertSnapshot || {};
+        var samples = data.samples || c.samples || [];
+        var entryPrice = alertSnap.price || c.entryPrice || meta.entryPrice;
         
-        // [Phase 4.7 공사 3 — Q17] 풀 사후 평가 시도
-        var pmHtml = '';
-        try {
-          if (window.WOOS_ANALYZER && window.WOOS_ANALYZER.buildPostMortem) {
-            // track 객체 + samples 구성
-            var samples = data.samples || [];
-            var track = {
-              snapshotId: snapshotId,
-              base: c.base, exchange: c.exchange,
-              entryPrice: alertSnap.price,
-              meta: meta,
+        // ─── track 객체 구성 (분석 완료 contextual track) ───
+        var track = {
+          snapshotId: snapshotId,
+          base: c.base, exchange: c.exchange,
+          entryPrice: entryPrice,
+          startedAt: c.startedAt || meta.windowStart,
+          windowEnd: c.completedAt || meta.windowEnd,
+          meta: meta,
+          alertSnapshot: alertSnap,
+          gradeHistory: c.gradeHistory || meta.gradeHistory || [],
+          alertCount: c.alarmCount24 || c.alertCount || 1,
+        };
+        
+        // ─── baseMetrics 계산 ───
+        var baseMetrics = null;
+        var advanced = null;
+        var levels = null;
+        var entryInfo = { value: entryPrice };
+        
+        if (entryPrice && samples.length > 0) {
+          var mfe = 0, mae = 0;
+          for (var si = 0; si < samples.length; si++) {
+            var pct = ((samples[si].price - entryPrice) / entryPrice) * 100;
+            if (pct > mfe) mfe = pct;
+            if (pct < mae) mae = pct;
+          }
+          var lastPct = ((samples[samples.length-1].price - entryPrice) / entryPrice) * 100;
+          
+          // levels 활용 (v40_resolveLevels — alertSnap fallback 적용됨)
+          if (window.WOOS_ANALYZER && window.WOOS_ANALYZER.resolveLevels) {
+            try { levels = window.WOOS_ANALYZER.resolveLevels(track, entryPrice); } catch(e) { levels = {}; }
+          } else {
+            levels = {
+              tp1: alertSnap.tp1 || alertSnap.tp1Price || null,
+              tp2: alertSnap.tp2 || alertSnap.tp2Price || null,
+              boxLow: alertSnap.boxLow || alertSnap.stopLoss || null,
+              boxHigh: alertSnap.boxHigh || null,
+              atr: alertSnap.atr || null,
+              atrPct: null,
             };
-            var entryPrice = alertSnap.price;
-            if (entryPrice && samples.length > 0) {
-              // baseMetrics 자체 계산 (간단 버전)
-              var mfe = 0, mae = 0;
-              for (var si = 0; si < samples.length; si++) {
-                var pct = ((samples[si].price - entryPrice) / entryPrice) * 100;
-                if (pct > mfe) mfe = pct;
-                if (pct < mae) mae = pct;
-              }
-              // 도달 마일스톤
-              var plus3 = mfe >= 3, plus5 = mfe >= 5;
-              var tp1Hit = (alertSnap.distributionTargets && alertSnap.distributionTargets.target1) ?
-                samples.some(function(s){ return s.price >= alertSnap.distributionTargets.target1; }) : false;
-              var tp2Hit = (alertSnap.distributionTargets && alertSnap.distributionTargets.target2) ?
-                samples.some(function(s){ return s.price >= alertSnap.distributionTargets.target2; }) : false;
-              var baseMetrics = {
-                hasData: true,
-                mfe: mfe, mae: mae,
-                plus3Hit: plus3, plus5Hit: plus5,
-                tp1Hit: tp1Hit, tp2Hit: tp2Hit,
-                currentPct: ((samples[samples.length-1].price - entryPrice) / entryPrice) * 100,
-              };
-              var advanced = {
-                earlyMFE: 0,  // 박제 X — 0
-                closeReturn: baseMetrics.currentPct,
-              };
-              // 패턴 계산
-              var pattern = window.WOOS_ANALYZER.computePattern(baseMetrics, advanced);
-              pmHtml = window.WOOS_ANALYZER.buildPostMortem(track, samples, alertSnap, baseMetrics, pattern);
+            if (levels.atr && entryPrice) levels.atrPct = (levels.atr / entryPrice) * 100;
+          }
+          
+          var plus3Hit = mfe >= 3;
+          var plus5Hit = mfe >= 5;
+          var tp1Hit = (levels.tp1 != null) ? samples.some(function(s){ return s.price >= levels.tp1; }) : false;
+          var tp2Hit = (levels.tp2 != null) ? samples.some(function(s){ return s.price >= levels.tp2; }) : false;
+          var stopHit = (levels.boxLow != null) ? samples.some(function(s){ return s.price <= levels.boxLow; }) : false;
+          
+          baseMetrics = {
+            hasData: true,
+            mfe: mfe, mae: mae,
+            currentPct: lastPct,
+            plus3Hit: plus3Hit, plus5Hit: plus5Hit,
+            tp1Hit: tp1Hit, tp2Hit: tp2Hit, stopHit: stopHit,
+          };
+          
+          // advanced — v43_computeAdvancedMetrics 활용
+          if (window.WOOS_ANALYZER && window.WOOS_ANALYZER.computeAdvancedMetrics) {
+            try { advanced = window.WOOS_ANALYZER.computeAdvancedMetrics(track, samples, entryPrice, levels, baseMetrics); } catch(e) { advanced = null; }
+          }
+          if (!advanced) {
+            // fallback 손익비만 계산
+            var ratio = mae < 0 ? mfe / Math.abs(mae) : null;
+            advanced = { profitLossRatio: ratio, pattern: null, closeReturn: lastPct };
+          }
+        }
+        
+        // ─── 결과 분류 (헤더와 동일) ───
+        var mfe2 = baseMetrics ? baseMetrics.mfe : (c.maxRise || 0);
+        var mae2 = baseMetrics ? baseMetrics.mae : (c.maxDrop || 0);
+        var absMae2 = Math.abs(mae2);
+        var outcome = c.outcome || c.result5 || 
+          (mfe2 >= 5 && absMae2 < 2 ? 'success' 
+           : mfe2 >= 3 ? 'partial'
+           : absMae2 >= 3 ? 'fail' 
+           : 'neutral');
+        var outcomeMap = { success: '✅ 성공', partial: '🟡 부분', neutral: '⚪ 중립', fail: '🔴 실패', doji: '🔄 도지' };
+        var outcomeLabel = outcomeMap[outcome] || '⚪ 중립';
+        
+        // ─── 알람가 → 종료가 ───
+        var endPrice = (samples.length > 0) ? samples[samples.length-1].price : (c.endPrice || entryPrice);
+        var pctChange = (entryPrice && endPrice) ? ((endPrice - entryPrice) / entryPrice * 100) : 0;
+        var pctSign = pctChange >= 0 ? '+' : '';
+        var priceFlowHtml = entryPrice
+          ? ('<div class="pm-price-flow"><span>알람 ' + entryPrice + '</span> → <span>종료 ' + endPrice + '</span> <b class="' + (pctChange >= 0 ? 'pm-up' : 'pm-down') + '">' + pctSign + pctChange.toFixed(2) + '%</b></div>')
+          : '<div class="pm-price-flow woos-empty">가격 데이터 없음</div>';
+        
+        // ─── 직관 점수 (헤더와 동일 산식) ───
+        var trackingScore2 = (c.trackingScore != null) ? c.trackingScore 
+                          : Math.max(0, Math.min(100, 50 + (mfe2 - absMae2) * 5));
+        var scoreLabel2 = c.scoreLabel || (
+          trackingScore2 >= 80 ? '🚀 대박'
+          : trackingScore2 >= 60 ? '✨ 쏠쏠'
+          : trackingScore2 >= 40 ? '⚖️ 본전'
+          : trackingScore2 >= 20 ? '📉 손실'
+          : '💥 큰 손실'
+        );
+        var scoreCls2 = trackingScore2 >= 80 ? 'score-jackpot'
+                     : trackingScore2 >= 60 ? 'score-good'
+                     : trackingScore2 >= 40 ? 'score-even'
+                     : trackingScore2 >= 20 ? 'score-loss'
+                     : 'score-bigloss';
+        
+        // ═══════════════════════════════════════════
+        // 블록 A — 최종 결과 요약 (1~5)
+        // ═══════════════════════════════════════════
+        var blockAHtml = '<div class="pm-block pm-block-a">'
+          + '<div class="pm-block-title">📊 최종 결과 요약</div>'
+          + '<div class="pm-final-row">'
+          +   '<span class="pm-score-big ' + scoreCls2 + '">' + scoreLabel2 + ' <small>' + Math.round(trackingScore2) + '점</small></span>'
+          +   '<span class="pm-outcome-big">' + outcomeLabel + '</span>'
+          + '</div>'
+          + priceFlowHtml
+          + '<div class="pm-mfemae-row">'
+          +   '<span class="pm-mfe-big">MFE <b class="pm-up">+' + mfe2.toFixed(2) + '%</b></span>'
+          +   '<span class="pm-mae-big">MAE <b class="pm-down">' + mae2.toFixed(2) + '%</b></span>'
+          + '</div>'
+          + '</div>';
+        
+        // ═══════════════════════════════════════════
+        // 블록 B — 가격 결과 / 도달 분석 (6~7)
+        // ═══════════════════════════════════════════
+        var svgChartHtml = '';
+        var timelineHtml = '';
+        try {
+          if (baseMetrics && samples.length > 0 && window.WOOS_ANALYZER) {
+            if (window.WOOS_ANALYZER.generateTrackingSVGChart) {
+              svgChartHtml = window.WOOS_ANALYZER.generateTrackingSVGChart(track, samples, baseMetrics, entryInfo, levels, { isFirstRender: false });
+            }
+            if (window.WOOS_ANALYZER.buildTimeline) {
+              timelineHtml = window.WOOS_ANALYZER.buildTimeline(baseMetrics, advanced, levels);
             }
           }
-        } catch(pmErr) { console.error('[postMortem]', pmErr); }
+        } catch(e) { console.warn('[postmortem block B]', e); }
+        var blockBHtml = '<div class="pm-block pm-block-b">'
+          + '<div class="pm-block-title">📈 가격 결과 / 도달 분석</div>'
+          + (svgChartHtml ? '<div class="woos-graph-wrap">' + svgChartHtml + '</div>' : '<div class="woos-empty">가격 그래프 데이터 부족</div>')
+          + (timelineHtml || '<div class="woos-empty">도달 타임라인 데이터 부족</div>')
+          + '</div>';
         
-        var detailHtml = pmHtml + '<div style="font-size:0.78rem;color:#cbd5e1;line-height:1.7;margin-top:12px">'
-                       + '<div><b>스캐너 등급:</b> ' + escapeHtml(c.gradeCode || '?') + '</div>'
-                       + (alertSnap.scoreSummary ? '<div><b>점수 요약:</b> ' + escapeHtml(alertSnap.scoreSummary) + '</div>' : '')
-                       + '<div><b>추적 기간:</b> ' + (c.windowDays || 1) + '일</div>'
-                       + '<div><b>분석 모드:</b> ' + (c.trackingMode === 'deep' ? '정밀' : c.trackingMode === 'light' ? '라이트' : '표준') + '</div>'
-                       + (alertSnap.analysis && alertSnap.analysis.conclusion ? '<div style="margin-top:8px;padding:8px;background:rgba(255,255,255,0.03);border-radius:6px"><b>스캐너 결론:</b> ' + escapeHtml(alertSnap.analysis.conclusion) + '</div>' : '')
-                       + '</div>';
-        bodyEl.innerHTML = detailHtml;
+        // ═══════════════════════════════════════════
+        // 블록 C — 신호 흐름 (8~10)
+        //   8. 등급 변화 그래프 (v47_buildGradeChangeChart)
+        //   9. 코인신호 추이 텍스트 (gradeHistory 자연어)
+        //   10. 알람 수 / 표시 신호 수
+        // ═══════════════════════════════════════════
+        var gradeHistory = track.gradeHistory || [];
+        var gradeChartHtml = '';
+        var gradeFlowText = '';
+        try {
+          if (window.WOOS_ANALYZER && window.WOOS_ANALYZER.buildGradeChangeChart && gradeHistory.length > 0) {
+            // group 형식으로 변환 (v47_buildGradeChangeChart input)
+            var fakeGroup = {
+              base: c.base,
+              representative: { exchange: c.exchange, gradeHistory: gradeHistory, meta: meta },
+              items: [{ exchange: c.exchange, gradeHistory: gradeHistory, meta: meta }],
+              gradeHistory: gradeHistory,
+            };
+            gradeChartHtml = window.WOOS_ANALYZER.buildGradeChangeChart(fakeGroup);
+          }
+        } catch(e) { console.warn('[postmortem grade chart]', e); }
+        // 코인신호 추이 텍스트 (자연어)
+        if (gradeHistory.length > 0) {
+          var gradeArr = gradeHistory.map(function(pt){
+            var g = pt.grade || pt.gradeCode || '';
+            return (g === 'SPLUS') ? 'S+' : g;
+          }).filter(function(g){ return g; });
+          if (gradeArr.length > 0) {
+            gradeFlowText = '<div class="pm-grade-flow">' + gradeArr.slice(0, 20).join(' → ') 
+                          + (gradeArr.length > 20 ? ' ...' : '') + '</div>';
+          }
+        }
+        var alertCountTotal = c.alarmCount24 || c.alertCount || 1;
+        var gradeRecordCount = gradeHistory.length;
+        var countLineHtml = '<div class="pm-count-line">알람 <b>x' + alertCountTotal + '</b> / 등급 기록 <b>' + gradeRecordCount + '건</b> 표시</div>';
+        var blockCHtml = '<div class="pm-block pm-block-c">'
+          + '<div class="pm-block-title">📉 신호 흐름</div>'
+          + (gradeChartHtml || '<div class="woos-empty">등급 변화 그래프 데이터 부족</div>')
+          + (gradeFlowText || '<div class="woos-empty">등급 흐름 텍스트 데이터 부족</div>')
+          + countLineHtml
+          + '</div>';
+        
+        // ═══════════════════════════════════════════
+        // 블록 D — 스캐너 판단 복기 (11~14)
+        //   11. 스캐너 채점 (v43_buildScoringTable) — 속도/안정성/기회 포함
+        //   12. 점수 시각화 (v44_buildScoreVisualization)
+        //   13. 강점 (alertSnap.analysis.strengths)
+        //   14. 약점 (alertSnap.analysis.weaknesses)
+        // ═══════════════════════════════════════════
+        var scoringTableHtml = '';
+        var scoreVizHtml = '';
+        try {
+          if (window.WOOS_ANALYZER) {
+            if (window.WOOS_ANALYZER.buildScoringTable && baseMetrics) {
+              scoringTableHtml = window.WOOS_ANALYZER.buildScoringTable(baseMetrics, advanced, levels);
+            }
+            if (window.WOOS_ANALYZER.buildScoreVisualization) {
+              scoreVizHtml = window.WOOS_ANALYZER.buildScoreVisualization(alertSnap, track);
+            }
+          }
+        } catch(e) { console.warn('[postmortem block D]', e); }
+        // strengths / weaknesses
+        var analysis = (alertSnap && alertSnap.analysis) || {};
+        var strengths = Array.isArray(analysis.strengths) ? analysis.strengths : [];
+        var weaknesses = Array.isArray(analysis.weaknesses) ? analysis.weaknesses : [];
+        var strengthsHtml = '';
+        if (strengths.length > 0) {
+          var topStrengths = strengths.slice(0, 5);
+          strengthsHtml = '<div class="pm-strengths"><b>강점:</b> ' + topStrengths.map(escapeHtml).join(' · ') + '</div>';
+        }
+        var weaknessesHtml = '';
+        if (weaknesses.length > 0) {
+          var topWeak = weaknesses.slice(0, 5);
+          weaknessesHtml = '<div class="pm-weaknesses"><b>약점:</b> ' + topWeak.map(escapeHtml).join(' · ') + '</div>';
+        }
+        var blockDHtml = '<div class="pm-block pm-block-d">'
+          + '<div class="pm-block-title">🎯 스캐너 판단 복기</div>'
+          + (scoringTableHtml || '<div class="woos-empty">스캐너 채점 데이터 부족</div>')
+          + (scoreVizHtml || '')
+          + strengthsHtml
+          + weaknessesHtml
+          + '</div>';
+        
+        // ═══════════════════════════════════════════
+        // 블록 E — 패턴 / 손익비 / 리스크 요약 (15~16)
+        //   17~19 (속도/안정성/기회)는 결정 4 = A → 별도 영역 X (블록 D 채점표에 포함)
+        // ═══════════════════════════════════════════
+        var patternKr = (advanced && advanced.pattern && advanced.pattern.kr) ? advanced.pattern.kr : '';
+        var patternEn = (advanced && advanced.pattern && advanced.pattern.en) ? advanced.pattern.en : '';
+        var patternHtml = patternKr 
+          ? '<div class="pm-pattern-line"><b>패턴:</b> ' + escapeHtml(patternKr) + (patternEn ? ' <small>(' + escapeHtml(patternEn) + ')</small>' : '') + '</div>'
+          : '<div class="pm-pattern-line woos-empty">패턴 데이터 부족</div>';
+        var ratio2 = (advanced && advanced.profitLossRatio != null) ? advanced.profitLossRatio : null;
+        var ratioLabel = '';
+        if (ratio2 != null) {
+          ratioLabel = ratio2 >= 2.0 ? '양호' : ratio2 >= 1.0 ? '보통' : ratio2 >= 0.5 ? '약화' : '악화';
+        }
+        var ratioHtml = ratio2 != null
+          ? '<div class="pm-ratio-line"><b>손익비:</b> ' + ratio2.toFixed(2) + ' <small>(' + ratioLabel + ')</small></div>'
+          : '<div class="pm-ratio-line woos-empty">손익비 데이터 부족</div>';
+        var blockEHtml = '<div class="pm-block pm-block-e">'
+          + '<div class="pm-block-title">⚠️ 패턴 · 손익비 · 리스크</div>'
+          + patternHtml
+          + ratioHtml
+          + '</div>';
+        
+        // ═══════════════════════════════════════════
+        // 블록 F — 세력 / 전략 평가 (20~22)
+        //   20. 세력·수급 판단 (v41_buildForceContextBlock)
+        //   21~22. 전략 A/B + simulateStrategyA/B 둘 다 (결정 5 = C)
+        //   fallback: source 없으면 "전략 평가 데이터 부족"
+        // ═══════════════════════════════════════════
+        var forceCtxHtml = '';
+        var stratHtml = '';
+        try {
+          if (window.WOOS_ANALYZER && window.WOOS_ANALYZER.buildForceContextBlock) {
+            forceCtxHtml = window.WOOS_ANALYZER.buildForceContextBlock(alertSnap, track);
+          }
+          // 전략 A/B — simulateStrategyA/B 우선
+          var simA = null, simB = null;
+          if (window.WOOS_ANALYZER && window.WOOS_ANALYZER.simulateStrategyA && samples.length > 0) {
+            try { simA = window.WOOS_ANALYZER.simulateStrategyA(track, samples, alertSnap); } catch(e) {}
+          }
+          if (window.WOOS_ANALYZER && window.WOOS_ANALYZER.simulateStrategyB && samples.length > 0) {
+            try { simB = window.WOOS_ANALYZER.simulateStrategyB(track, samples, alertSnap); } catch(e) {}
+          }
+          var stratLines = [];
+          if (simA && !simA.error) {
+            var aRet = (simA.virtualReturn != null) ? simA.virtualReturn.toFixed(2) : '-';
+            stratLines.push('<div class="pm-strat"><b>전략 A · 분할매도:</b> 가상 수익 ' + aRet + '% '
+              + '(target1 ' + (simA.t1Hit ? '✓' : '✗') + ' / target2 ' + (simA.t2Hit ? '✓' : '✗') 
+              + (simA.stopHit ? ' / 손절' : '') + ')</div>');
+          }
+          if (simB && !simB.error) {
+            var bRet = (simB.virtualReturn != null) ? simB.virtualReturn.toFixed(2) : '-';
+            stratLines.push('<div class="pm-strat"><b>전략 B · ATR 트레일링:</b> 가상 수익 ' + bRet + '% '
+              + (simB.exitReason ? '(' + escapeHtml(simB.exitReason) + ')' : '') + '</div>');
+          }
+          // 전략 A/B levels 기반 조건 (fallback)
+          if (stratLines.length === 0 && levels) {
+            if (levels.tp1 != null || levels.tp2 != null || levels.boxLow != null) {
+              var aRows = [];
+              if (levels.tp1 != null) aRows.push('TP1 ' + (baseMetrics && baseMetrics.tp1Hit ? '도달' : '미도달'));
+              if (levels.tp2 != null) aRows.push('TP2 ' + (baseMetrics && baseMetrics.tp2Hit ? '도달' : '미도달'));
+              if (levels.boxLow != null) aRows.push('STOP ' + (baseMetrics && baseMetrics.stopHit ? '도달' : '미도달'));
+              stratLines.push('<div class="pm-strat"><b>전략 A · 구조 기반 분할:</b> ' + aRows.join(' · ') + '</div>');
+            }
+            if (levels.atr != null && levels.atr > 0 && baseMetrics) {
+              var atrPct2 = levels.atrPct;
+              var stratBState = (baseMetrics.mfe >= atrPct2 * 2) ? 'trailing 활성' 
+                              : (baseMetrics.mae <= -atrPct2 * 2) ? '하단 이탈' : '관찰 중';
+              stratLines.push('<div class="pm-strat"><b>전략 B · ATR 트레일링:</b> +2ATR (' + (atrPct2 * 2).toFixed(2) + '%) · ' + stratBState + '</div>');
+            }
+          }
+          if (stratLines.length === 0) {
+            stratHtml = '<div class="woos-empty">전략 평가 데이터 부족</div>';
+          } else {
+            stratHtml = stratLines.join('');
+          }
+        } catch(e) { console.warn('[postmortem block F]', e); stratHtml = '<div class="woos-empty">전략 평가 데이터 부족</div>'; }
+        var blockFHtml = '<div class="pm-block pm-block-f">'
+          + '<div class="pm-block-title">💼 세력 · 전략 평가</div>'
+          + (forceCtxHtml || '<div class="woos-empty">세력 판단 데이터 부족</div>')
+          + stratHtml
+          + '</div>';
+        
+        // ═══════════════════════════════════════════
+        // 블록 G — 최종 사후평가 (23~24)
+        //   23. 종합 사후평가 브리핑 (v44_buildBriefingBlock + isCompleted: true)
+        //   24. 스캐너 개선 메모 (v498_buildScannerImprovementMemo)
+        // ═══════════════════════════════════════════
+        var briefingHtml = '';
+        try {
+          if (window.WOOS_ANALYZER && window.WOOS_ANALYZER.buildBriefingBlock && baseMetrics) {
+            briefingHtml = window.WOOS_ANALYZER.buildBriefingBlock(track, alertSnap, baseMetrics, advanced, levels, { isCompleted: true });
+          }
+        } catch(e) { console.warn('[postmortem briefing]', e); }
+        var memoHtml = v498_buildScannerImprovementMemo(baseMetrics, advanced, alertSnap, outcome);
+        var blockGHtml = '<div class="pm-block pm-block-g">'
+          + '<div class="pm-block-title">📝 최종 사후평가</div>'
+          + (briefingHtml || '<div class="woos-empty">사후평가 브리핑 데이터 부족</div>')
+          + '<div class="pm-improvement-memo"><div class="pm-memo-title">🔍 스캐너 개선 메모</div>' + memoHtml + '</div>'
+          + '</div>';
+        
+        // ═══════════════════════════════════════════
+        // 출력 — 7개 블록 자연 연결
+        // ═══════════════════════════════════════════
+        bodyEl.innerHTML = '<div class="woos-postmortem-report">'
+          + blockAHtml
+          + blockBHtml
+          + blockCHtml
+          + blockDHtml
+          + blockEHtml
+          + blockFHtml
+          + blockGHtml
+          + '</div>';
       })
       .catch(function(err){
         bodyEl.innerHTML = '<div class="woos-history-empty">로딩 실패: ' + escapeHtml(err.message || '오류') + '</div>';
@@ -14241,7 +14753,13 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
      *   - "진입 유효" 단독 표기 금지 — 시점 명시
      *   - 새 함수 X / 입력값 그대로 / Worker X
      */
-    function v44_buildBriefingBlock(track, alertSnapshot, baseMetrics, advanced, levels) {
+    function v44_buildBriefingBlock(track, alertSnapshot, baseMetrics, advanced, levels, opts) {
+      // [v4.9.4+ 분석 완료 사후평가] opts.isCompleted = true 시 시제 변환
+      //   - 활성 카드: "현재 기준" / "현재 추적 결과"
+      //   - 분석 완료 카드: "최종 기준" / "최종 추적 결과" / "사후평가 기준"
+      //   - 기본값 false (활성 카드 영향 X)
+      opts = opts || {};
+      var isCompleted = !!opts.isCompleted;
       // ── 입력 안전 추출 ──
       var analysis = (alertSnapshot && alertSnapshot.analysis) || {};
       var strengths = Array.isArray(analysis.strengths) ? analysis.strengths : [];
@@ -14285,40 +14803,61 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       }
       
       // ─────────────────────────────────────────────
-      // 문장 2 — 현재 추적 결과 해석
+      // 문장 2 — 현재/최종 추적 결과 해석 (isCompleted 분기)
       // ─────────────────────────────────────────────
       var resultText = '';
       if (hasMetrics && currentPct != null) {
-        var elapsedPart = elapsedText ? ('추적 ' + elapsedText + ' 이후 ') : '';
+        // [v4.9.4+ isCompleted] 분석 완료 시 "최종 추적 결과 N시간 동안" 표현
+        var elapsedPart = '';
+        if (elapsedText) {
+          elapsedPart = isCompleted ? ('최종 추적 ' + elapsedText + ' 동안 ') : ('추적 ' + elapsedText + ' 이후 ');
+        }
         var pctSign = currentPct >= 0 ? '+' : '';
         var pctStr = currentPct.toFixed(2);
         var dirText = '';
         if (currentPct < -0.3) {
-          dirText = '진입가 대비 ' + pctSign + pctStr + '%까지 밀렸고';
+          dirText = isCompleted 
+            ? '진입가 대비 ' + pctSign + pctStr + '%로 종료되었고'
+            : '진입가 대비 ' + pctSign + pctStr + '%까지 밀렸고';
         } else if (currentPct > 0.3) {
-          dirText = '진입가 대비 ' + pctSign + pctStr + '%까지 상승했고';
+          dirText = isCompleted
+            ? '진입가 대비 ' + pctSign + pctStr + '%로 마감되었고'
+            : '진입가 대비 ' + pctSign + pctStr + '%까지 상승했고';
         } else {
-          dirText = '진입가 부근(' + pctSign + pctStr + '%)에 머물러 있고';
+          dirText = isCompleted
+            ? '진입가 부근(' + pctSign + pctStr + '%)에서 마감되었고'
+            : '진입가 부근(' + pctSign + pctStr + '%)에 머물러 있고';
         }
         
-        // MFE / MAE 비교
+        // MFE / MAE 비교 (시제 변환)
         var mfeMaeText = '';
         if (mfe != null && mae != null) {
           var mfeStr = (mfe >= 0 ? '+' : '') + mfe.toFixed(2);
           var maeStr = mae.toFixed(2);
           if (Math.abs(mae) > Math.abs(mfe) + 0.5) {
-            mfeMaeText = ', MFE는 ' + mfeStr + '%에 그친 반면 MAE는 ' + maeStr + '%까지 확대되어 상승 시도보다 하방 압력이 더 크게 나타난 상태입니다';
+            mfeMaeText = isCompleted
+              ? ', MFE는 ' + mfeStr + '%에 그쳤고 MAE는 ' + maeStr + '%까지 확대되어 상승 시도보다 하방 압력이 더 크게 작용한 결과입니다'
+              : ', MFE는 ' + mfeStr + '%에 그친 반면 MAE는 ' + maeStr + '%까지 확대되어 상승 시도보다 하방 압력이 더 크게 나타난 상태입니다';
           } else if (mfe > Math.abs(mae) + 0.5) {
-            mfeMaeText = ', MFE가 ' + mfeStr + '%까지 확대된 반면 MAE는 ' + maeStr + '% 수준에서 방어되어 상방 우위 흐름을 유지한 상태입니다';
+            mfeMaeText = isCompleted
+              ? ', MFE가 ' + mfeStr + '%까지 확대된 반면 MAE는 ' + maeStr + '% 수준에서 방어되어 상방 우위 흐름으로 마감되었습니다'
+              : ', MFE가 ' + mfeStr + '%까지 확대된 반면 MAE는 ' + maeStr + '% 수준에서 방어되어 상방 우위 흐름을 유지한 상태입니다';
           } else if (mfe > 2 && mae < -2) {
-            mfeMaeText = ', MFE ' + mfeStr + '%와 MAE ' + maeStr + '%가 함께 크게 열리며 매수·매도 공방이 강하게 나타난 상태입니다';
+            mfeMaeText = isCompleted
+              ? ', MFE ' + mfeStr + '%와 MAE ' + maeStr + '%가 함께 크게 열리며 매수·매도 공방이 강하게 작용한 변동성 결과입니다'
+              : ', MFE ' + mfeStr + '%와 MAE ' + maeStr + '%가 함께 크게 열리며 매수·매도 공방이 강하게 나타난 상태입니다';
           } else {
-            mfeMaeText = ', MFE는 ' + mfeStr + '% / MAE는 ' + maeStr + '% 수준에서 방향성이 제한된 상태입니다';
+            mfeMaeText = isCompleted
+              ? ', MFE는 ' + mfeStr + '% / MAE는 ' + maeStr + '% 수준에서 방향성이 제한된 결과입니다'
+              : ', MFE는 ' + mfeStr + '% / MAE는 ' + maeStr + '% 수준에서 방향성이 제한된 상태입니다';
           }
         }
-        resultText = '다만 ' + elapsedPart + dirText + mfeMaeText + '.';
+        var prefix = isCompleted ? '실제 ' : '다만 ';
+        resultText = prefix + elapsedPart + dirText + mfeMaeText + '.';
       } else {
-        resultText = '다만 현재 추적 결과는 아직 데이터가 누적되는 중입니다.';
+        resultText = isCompleted 
+          ? '최종 추적 결과 데이터가 충분히 수집되지 않았습니다.'
+          : '다만 현재 추적 결과는 아직 데이터가 누적되는 중입니다.';
       }
       
       // ─────────────────────────────────────────────
@@ -14362,33 +14901,46 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       }
       
       // ─────────────────────────────────────────────
-      // 문장 4 — 현재 기준 대응 판단 (5개 케이스 분기)
+      // 문장 4 — 현재/최종 기준 대응 판단 (5개 케이스 분기)
       // 우선순위: 실패/위험 → 성공/강세 → 변동성/혼조 → 보합/횡보 → fallback
+      // [v4.9.4+ isCompleted] "현재 기준" → "최종 기준 / 사후평가 기준" 시제 분기
       // ─────────────────────────────────────────────
       var responseText = '';
       if (hasMetrics && currentPct != null && mfe != null && mae != null) {
         // 1. 실패/위험 (가장 먼저 — 안전)
         if (currentPct < -1.5 && Math.abs(mae) > mfe) {
-          responseText = '따라서 현재 기준으로는 신규 진입 유효가 아니라, 알람 당시 신호는 유효했지만 추적 결과는 실패/위험 구간에 가까우며 회복 여부 관찰과 리스크 관리가 우선입니다.';
+          responseText = isCompleted
+            ? '따라서 사후평가 기준으로는 알람 당시 신호는 유효했으나 추적 결과는 실패/위험 구간으로 마감되었으며, 향후 유사 케이스에서는 MAE 확대 신호를 더 빠르게 위험으로 반영해야 하는 표본입니다.'
+            : '따라서 현재 기준으로는 신규 진입 유효가 아니라, 알람 당시 신호는 유효했지만 추적 결과는 실패/위험 구간에 가까우며 회복 여부 관찰과 리스크 관리가 우선입니다.';
         }
         // 2. 성공/강세
         else if (currentPct > 1.5 && mfe > Math.abs(mae)) {
-          responseText = '따라서 현재 기준으로는 알람 당시 신호가 가격 결과로 이어진 성공 흐름에 가까우며, 추세 유지 여부를 확인하면서 수익 보호와 추가 상승 여지를 함께 보는 구간입니다.';
+          responseText = isCompleted
+            ? '따라서 사후평가 기준으로는 알람 당시 신호가 실제 가격 결과로 이어진 성공 케이스로 분류되며, 스캐너 조건 (PRE-PUMP, 거래량, 구조 돌파 등)이 유효하게 작동한 표본으로 볼 수 있습니다.'
+            : '따라서 현재 기준으로는 알람 당시 신호가 가격 결과로 이어진 성공 흐름에 가까우며, 추세 유지 여부를 확인하면서 수익 보호와 추가 상승 여지를 함께 보는 구간입니다.';
         }
-        // 3. 변동성/혼조 (보합보다 먼저 — MFE/MAE 둘 다 큰 케이스)
+        // 3. 변동성/혼조
         else if (mfe > 2 && mae < -2) {
-          responseText = '따라서 현재 기준으로는 방향을 단정하기보다 변동성 관리와 기준가 재확인이 우선이며, 무리한 추격보다 재돌파 또는 이탈 여부를 확인해야 합니다.';
+          responseText = isCompleted
+            ? '따라서 사후평가 기준으로는 상방과 하방 모두 크게 열린 변동성 케이스로 분류되며, 진입 타이밍과 청산 기준에 따라 결과가 크게 갈리는 표본입니다.'
+            : '따라서 현재 기준으로는 방향을 단정하기보다 변동성 관리와 기준가 재확인이 우선이며, 무리한 추격보다 재돌파 또는 이탈 여부를 확인해야 합니다.';
         }
         // 4. 보합/횡보
         else if (currentPct >= -1.5 && currentPct <= 1.5 && mfe < 2 && mae > -2) {
-          responseText = '따라서 현재 기준으로는 신규 진입보다 방향성 이탈 확인이 우선이며, 박스권을 벗어나는 추가 신호를 기다리는 관찰 구간입니다.';
+          responseText = isCompleted
+            ? '따라서 사후평가 기준으로는 박스권 보합으로 마감된 케이스이며, 알람 신호 강도 대비 가격 반응이 제한적이었던 표본으로 분류됩니다.'
+            : '따라서 현재 기준으로는 신규 진입보다 방향성 이탈 확인이 우선이며, 박스권을 벗어나는 추가 신호를 기다리는 관찰 구간입니다.';
         }
         // 5. fallback
         else {
-          responseText = '따라서 현재 기준으로는 추가 신호와 가격 반응을 함께 확인하는 관찰 구간입니다.';
+          responseText = isCompleted
+            ? '따라서 사후평가 기준으로는 신호와 가격 반응이 명확한 방향성을 보이지 않은 케이스로 분류됩니다.'
+            : '따라서 현재 기준으로는 추가 신호와 가격 반응을 함께 확인하는 관찰 구간입니다.';
         }
       } else {
-        responseText = '따라서 현재 기준으로는 추가 데이터가 누적되는 동안 신호 유지 여부를 함께 확인하는 관찰 구간입니다.';
+        responseText = isCompleted
+          ? '따라서 사후평가 기준 데이터가 충분하지 않아 결과 분류를 보류합니다.'
+          : '따라서 현재 기준으로는 추가 데이터가 누적되는 동안 신호 유지 여부를 함께 확인하는 관찰 구간입니다.';
       }
       
       // ─────────────────────────────────────────────
@@ -14402,10 +14954,13 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       }
       
       // ─────────────────────────────────────────────
-      // actionDesc 별도 줄 "📋 [참고 지침]"
       // ─────────────────────────────────────────────
+      // actionDesc 별도 줄 "📋 [참고 지침] / [알람 시점 권장]"
+      // [v4.9.4+ isCompleted] 분석 완료 시 "[알람 시점 권장]" 라벨로 변환
+      // ─────────────────────────────────────────────
+      var actionLabel = isCompleted ? '[알람 시점 권장]' : '[참고 지침]';
       var actionHtml = actionDesc 
-        ? '<div class="woos-briefing-action">📋 [참고 지침] ' + v40_escapeHtml(actionDesc) + '</div>' 
+        ? '<div class="woos-briefing-action">📋 ' + actionLabel + ' ' + v40_escapeHtml(actionDesc) + '</div>' 
         : '';
       
       // ─────────────────────────────────────────────
@@ -16494,6 +17049,25 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
         autoPreciseLabel = '<span class="woos-auto-precise-label">(자동 정밀)</span>';
       }
       
+      // [v4.9.4+ 사후평가 영역 1] 헤더 점수 칩 (item.trackingScore Worker 박제 또는 fallback)
+      // 사용자 결정 6 = A: 헤더 + 펼친 카드 둘 다 점수 표시
+      var trackingScore = (item.trackingScore != null) ? item.trackingScore 
+                        : Math.max(0, Math.min(100, 50 + (mfe - Math.abs(mae)) * 5));
+      var scoreLabel = item.scoreLabel || (
+        trackingScore >= 80 ? '🚀 대박'
+        : trackingScore >= 60 ? '✨ 쏠쏠'
+        : trackingScore >= 40 ? '⚖️ 본전'
+        : trackingScore >= 20 ? '📉 손실'
+        : '💥 큰 손실'
+      );
+      var scoreCls = trackingScore >= 80 ? 'score-jackpot'
+                   : trackingScore >= 60 ? 'score-good'
+                   : trackingScore >= 40 ? 'score-even'
+                   : trackingScore >= 20 ? 'score-loss'
+                   : 'score-bigloss';
+      var scoreChip = '<span class="hist-score-chip ' + scoreCls + '" title="최종 직관 점수 ' + Math.round(trackingScore) + '점">' 
+                    + scoreLabel + '</span>';
+      
       var openAttr = isOpen ? ' open' : '';
       return '<details class="woos-history-card"' + openAttr + ' data-id="' + v40_escapeHtml(item.id) + '" ontoggle="window.v462HandleHistoryToggle(event, this)">'
         + '<summary class="woos-history-summary">'
@@ -16503,6 +17077,7 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
         +     '<span class="hist-exchange">' + v40_escapeHtml(exchange) + '</span>'
         +     '<span class="hist-grade hist-grade-' + grade + '">' + v40_escapeHtml(gradeLabel) + '</span>'
         +     '<span class="hist-outcome">' + outcomeLabel + '</span>'
+        +     scoreChip
         +     autoPreciseLabel
         +   '</div>'
         +   '<div class="hist-row2">'
@@ -17995,6 +18570,15 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       buildPostMortem: v47_buildPostMortem,
       simulateStrategyA: v47_simulateStrategyA,
       simulateStrategyB: v47_simulateStrategyB,
+      // [v4.9.4+ 분석 완료 사후평가 리포트] 추가 함수 노출 (_fetchHistoryDetail에서 호출)
+      generateTrackingSVGChart: v40_generateTrackingSVGChart,
+      buildTimeline: v43_buildTimeline,
+      buildScoringTable: v43_buildScoringTable,
+      buildScoreVisualization: v44_buildScoreVisualization,
+      buildBriefingBlock: v44_buildBriefingBlock,
+      buildForceContextBlock: v41_buildForceContextBlock,
+      computeAdvancedMetrics: v43_computeAdvancedMetrics,
+      resolveLevels: v40_resolveLevels,
       // [Phase 4.7 공사 4 — 2-8] 모달 컴포넌트 (재사용)
       showModal: v47_showModal,
       checkTierARejectedAndShowModal: v47_checkTierARejectedAndShowModal,
