@@ -152,7 +152,7 @@
 <script>
 /* [v4.7.42] 캐시 강제 리셋 — SW 완전 제거 후 리로드 */
 (function(){
-  var VER = 'v4.9.4+invite-dailyhash-gate';  // [v4.9.4+] Worker dailyHash invite gate + postmortem data fix
+  var VER = 'v4.9.4+dailyhash-main-admin';  // [v4.9.4+] Worker dailyHash invite gate + postmortem data fix
   try {
     var LKEY = 'woos_hard_reset_ver';
     if (localStorage.getItem(LKEY) === VER) return;
@@ -193,7 +193,7 @@
 </script>
 <script>
 /* ═══════════════════════════════════════════════════════════════
- * [v4.9.4+invite-dailyhash-gate]
+ * [v4.9.4+dailyhash-main-admin]
  * ?demo=1 / ?preview=1 Worker 검증형 dailyHash 초대코드 게이트
  * - invite-config.json 외부 설정 파일 사용
  * - Worker /invite/verify 검증, /invite/today 관리자 조회
@@ -399,6 +399,27 @@
     loadConfig().then(function(config){ showTodayCode(config); });
   };
 
+
+  function renderMainAdminButton(){
+    try {
+      if (document.getElementById('woosInviteMainAdminBtn')) return;
+      loadConfig().then(function(config){
+        if (!config || !config.todayEndpoint) return;
+        if (document.getElementById('woosInviteMainAdminBtn')) return;
+        var b = document.createElement('button');
+        b.type = 'button';
+        b.id = 'woosInviteMainAdminBtn';
+        b.className = 'woos-invite-main-admin-btn';
+        b.textContent = '🔐 오늘 코드';
+        b.title = '관리자 키로 오늘 초대코드 확인';
+        b.addEventListener('click', function(){ showTodayCode(config); });
+        document.body.appendChild(b);
+      }).catch(function(err){
+        try { console.warn('[WOOS invite main admin]', err); } catch(e) {}
+      });
+    } catch(e) {}
+  }
+
   function renderBanner(){
     if (!isPreview || !hasValidAccess()) return;
     try {
@@ -522,13 +543,14 @@
   if (isPreview && hasValidAccess()) {
     document.addEventListener('DOMContentLoaded', function(){ loadConfig().then(function(){ renderBanner(); }).catch(renderBanner); });
   }
+  document.addEventListener('DOMContentLoaded', renderMainAdminButton);
   renderGate();
 })();
 
 </script>
 <style>
 /* ═══════════════════════════════════════════════════════════════
-   [v4.9.4+invite-dailyhash-gate] Preview Invite Gate
+   [v4.9.4+dailyhash-main-admin] Preview Invite Gate
 ═══════════════════════════════════════════════════════════════ */
 html.woos-invite-locked body > *:not(#woosInviteGateRoot):not(script):not(style){filter:blur(12px);pointer-events:none;user-select:none;}
 .woos-invite-gate-root{position:fixed;inset:0;z-index:2147483646;display:flex;align-items:center;justify-content:center;padding:18px;background:radial-gradient(circle at top,rgba(0,212,255,.16),rgba(5,9,15,.96) 42%,rgba(5,9,15,.99));font-family:'Noto Sans KR',system-ui,sans-serif;}
@@ -548,6 +570,10 @@ html.woos-invite-locked body > *:not(#woosInviteGateRoot):not(script):not(style)
 .woos-invite-preview-banner button{border:1px solid rgba(0,212,255,.35);color:#9eeeff;background:rgba(0,212,255,.08);border-radius:999px;padding:2px 9px;font-size:.58rem;font-family:'JetBrains Mono',monospace;}
 .woos-invite-toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);z-index:2147483647;padding:10px 14px;border-radius:999px;background:rgba(10,18,29,.96);border:1px solid rgba(255,214,0,.35);color:#ffd600;font-family:'JetBrains Mono',monospace;font-size:.68rem;box-shadow:0 0 20px rgba(255,214,0,.12);}
 
+
+.woos-invite-main-admin-btn{position:fixed;right:12px;bottom:12px;z-index:2147483000;border:1px solid rgba(0,212,255,.35);background:rgba(6,13,22,.78);color:#9eefff;border-radius:999px;padding:8px 11px;font-family:'JetBrains Mono','Noto Sans KR',monospace;font-size:.68rem;font-weight:800;letter-spacing:.2px;box-shadow:0 0 18px rgba(0,212,255,.14);backdrop-filter:blur(10px);}
+.woos-invite-main-admin-btn:hover{background:rgba(0,212,255,.12);border-color:rgba(0,212,255,.62);color:#fff;}
+@media(max-width:520px){.woos-invite-main-admin-btn{right:10px;bottom:10px;font-size:.62rem;padding:7px 9px;}}
 </style>
 
 
