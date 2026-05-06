@@ -152,7 +152,7 @@
 <script>
 /* [v4.7.42] 캐시 강제 리셋 — SW 완전 제거 후 리로드 */
 (function(){
-  var VER = 'v4.9.4+dailyhash-mobile-splash-fit';  // [v4.9.4+] Worker dailyHash invite gate + centered mobile gate + postmortem data fix
+  var VER = 'v4.9.4+dailyhash-mobile-clean';  // [v4.9.4+] Worker dailyHash invite gate + mobile preview clean
   try {
     var LKEY = 'woos_hard_reset_ver';
     if (localStorage.getItem(LKEY) === VER) return;
@@ -193,9 +193,8 @@
 </script>
 <script>
 /* ═══════════════════════════════════════════════════════════════
- * [v4.9.4+dailyhash-mobile-splash-fit]
+ * [v4.9.4+dailyhash-mobile-clean]
  * ?demo=1 / ?preview=1 Worker 검증형 dailyHash 초대코드 게이트
- * ?mobile=1 PC에서도 모바일 앱 프레임 폭으로 표시
  * - invite-config.json 외부 설정 파일 사용
  * - Worker /invite/verify 검증, /invite/today 관리자 조회
  * - sessionStorage 기반 24h 기본 접근권한
@@ -205,7 +204,7 @@
 (function(){
   var params = new URLSearchParams(location.search || '');
   var isPreview = params.has('demo') || params.has('preview');
-  var isMobilePreview = (params.has('mobile') || params.has('appview') || params.has('phone')) && isPreview;
+  var isMobilePreview = isPreview && params.has('mobile');
   if (isMobilePreview) {
     try { document.documentElement.classList.add('woos-mobile-preview'); } catch(e) {}
   }
@@ -555,9 +554,9 @@
 </script>
 <style>
 /* ═══════════════════════════════════════════════════════════════
-   [v4.9.4+dailyhash-mobile-splash-fit] Preview Invite Gate
+   [v4.9.4+dailyhash-mobile-clean] Preview Invite Gate
 ═══════════════════════════════════════════════════════════════ */
-html.woos-invite-locked body > *:not(#woosInviteGateRoot):not(#woosPwaSplash):not(script):not(style){filter:blur(12px);pointer-events:none;user-select:none;}
+html.woos-invite-locked body > *:not(#woosInviteGateRoot):not(script):not(style){filter:blur(12px);pointer-events:none;user-select:none;}
 .woos-invite-gate-root{position:fixed;inset:0;z-index:2147483646;display:flex;align-items:center;justify-content:center;padding:18px;background:radial-gradient(circle at top,rgba(0,212,255,.16),rgba(5,9,15,.96) 42%,rgba(5,9,15,.99));font-family:'Noto Sans KR',system-ui,sans-serif;}
 .woos-invite-card{width:min(420px,calc(100vw - 32px));border:1px solid rgba(0,212,255,.34);background:rgba(10,18,29,.94);box-shadow:0 0 38px rgba(0,212,255,.16),inset 0 0 0 1px rgba(255,255,255,.03);border-radius:18px;padding:24px 20px;text-align:center;color:#e2eaf5;backdrop-filter:blur(14px);}
 .woos-invite-kicker{font-family:'JetBrains Mono',monospace;font-size:.68rem;letter-spacing:2px;color:#00d4ff;margin-bottom:8px;text-shadow:0 0 12px rgba(0,212,255,.35);}
@@ -578,124 +577,69 @@ html.woos-invite-locked body > *:not(#woosInviteGateRoot):not(#woosPwaSplash):no
 
 .woos-invite-main-admin-btn{position:fixed;right:12px;bottom:12px;z-index:2147483000;border:1px solid rgba(0,212,255,.35);background:rgba(6,13,22,.78);color:#9eefff;border-radius:999px;padding:8px 11px;font-family:'JetBrains Mono','Noto Sans KR',monospace;font-size:.68rem;font-weight:800;letter-spacing:.2px;box-shadow:0 0 18px rgba(0,212,255,.14);backdrop-filter:blur(10px);}
 .woos-invite-main-admin-btn:hover{background:rgba(0,212,255,.12);border-color:rgba(0,212,255,.62);color:#fff;}
+
 @media(max-width:520px){.woos-invite-main-admin-btn{right:10px;bottom:10px;font-size:.62rem;padding:7px 9px;}}
 
-/* ── 모바일 시연 프레임: ?demo=1&mobile=1 / ?preview=1&mobile=1 ── */
+/* ═══════════════════════════════════════════════════════════════
+   [v4.9.4+dailyhash-mobile-clean] ?demo=1&mobile=1 모바일 시연 모드
+   - root/overlay를 줄이지 않음: 밀림 방지
+   - 카드와 앱 컨테이너만 모바일 폭으로 중앙 정렬
+   - PWA splash는 원본 구조 유지 + 중앙 보정만 적용
+═══════════════════════════════════════════════════════════════ */
+html.woos-mobile-preview,
 html.woos-mobile-preview body {
-  background: #03070d;
+  width: 100%;
+  min-width: 0 !important;
+  overflow-x: hidden !important;
+  background: #03070d !important;
 }
+
 html.woos-mobile-preview #app {
+  width: 430px !important;
   max-width: 430px !important;
+  min-width: 0 !important;
   min-height: 100vh;
-  margin: 0 auto !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+  overflow-x: hidden !important;
   border-left: 1px solid rgba(0,212,255,.18);
   border-right: 1px solid rgba(0,212,255,.18);
   box-shadow: 0 0 40px rgba(0,212,255,.08);
   background: rgba(8,13,19,.96);
 }
+
+html.woos-mobile-preview #app > * {
+  max-width: 100% !important;
+}
+
 html.woos-mobile-preview .woos-invite-preview-banner {
-  max-width: 430px;
-  margin: 0 auto;
-  border-left: 1px solid rgba(0,212,255,.18);
-  border-right: 1px solid rgba(0,212,255,.18);
-}
-html.woos-mobile-preview .woos-invite-main-admin-btn {
-  right: calc(50% - 205px);
-}
-
-/* ── 초대코드 게이트도 모바일 프레임 안에 고정: ?demo=1&mobile=1 ── */
-html.woos-mobile-preview .woos-invite-gate-root {
-  width: 430px !important;
   max-width: 430px !important;
-  left: 50% !important;
-  right: auto !important;
-  transform: translateX(-50%) !important;
-  padding: 18px 14px !important;
-  overflow-x: hidden !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
   border-left: 1px solid rgba(0,212,255,.18);
   border-right: 1px solid rgba(0,212,255,.18);
-  box-shadow: 0 0 40px rgba(0,212,255,.08);
-}
-html.woos-mobile-preview .woos-invite-card {
-  width: 100% !important;
-  max-width: 390px !important;
-  border-radius: 16px !important;
-  padding: 22px 16px !important;
-}
-html.woos-mobile-preview .woos-invite-title {
-  font-size: 1.08rem !important;
-}
-html.woos-mobile-preview .woos-invite-msg {
-  font-size: .72rem !important;
-  min-height: 38px !important;
-}
-html.woos-mobile-preview .woos-invite-input,
-html.woos-mobile-preview .woos-invite-btn {
-  height: 42px !important;
-  font-size: .86rem !important;
-  border-radius: 9px !important;
-}
-html.woos-mobile-preview .woos-invite-admin {
-  height: 32px !important;
-  font-size: .62rem !important;
-}
-@media (max-width: 520px) {
-  html.woos-mobile-preview .woos-invite-gate-root {
-    width: 100% !important;
-    max-width: 100% !important;
-    left: 0 !important;
-    right: 0 !important;
-    transform: none !important;
-    border-left: none;
-    border-right: none;
-    box-shadow: none;
-  }
-  html.woos-mobile-preview .woos-invite-card {
-    max-width: 390px !important;
-  }
 }
 
-@media (max-width: 520px) {
-  html.woos-mobile-preview #app {
-    max-width: 100% !important;
-    border-left: none;
-    border-right: none;
-    box-shadow: none;
-  }
-  html.woos-mobile-preview .woos-invite-preview-banner {
-    max-width: 100%;
-    border-left: none;
-    border-right: none;
-  }
-  html.woos-mobile-preview .woos-invite-main-admin-btn {
-    right: 10px;
-  }
+html.woos-mobile-preview .woos-invite-main-admin-btn {
+  right: calc(50% - 205px) !important;
 }
 
-/* ── [v4.9.4+dailyhash-mobile-splash-fit] 최종 보정
-   이전 gate-fit은 root 자체를 430px로 줄여 일부 모바일 브라우저에서
-   left:50%만 적용되고 transform이 무시되어 입력창이 우측으로 밀릴 수 있었다.
-   해결: 오버레이(root)는 항상 전체 viewport, 카드만 모바일 폭으로 중앙 고정. */
+/* 초대코드 게이트: overlay는 전체 화면, 카드만 중앙 정렬 */
 html.woos-mobile-preview .woos-invite-gate-root {
   position: fixed !important;
   inset: 0 !important;
-  top: 0 !important;
-  right: 0 !important;
-  bottom: 0 !important;
-  left: 0 !important;
   width: 100vw !important;
   max-width: none !important;
   min-width: 0 !important;
   height: 100vh !important;
   min-height: 100vh !important;
-  transform: none !important;
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
-  padding: 18px 16px !important;
+  padding: 16px !important;
   overflow: hidden !important;
-  border-left: none !important;
-  border-right: none !important;
+  transform: none !important;
+  border: 0 !important;
   box-shadow: none !important;
 }
 @supports (height: 100dvh) {
@@ -709,24 +653,86 @@ html.woos-mobile-preview .woos-invite-card {
   max-width: 390px !important;
   min-width: 0 !important;
   margin: 0 auto !important;
+  box-sizing: border-box !important;
+  border-radius: 16px !important;
+  padding: 22px 16px !important;
+}
+html.woos-mobile-preview .woos-invite-title { font-size: 1.08rem !important; }
+html.woos-mobile-preview .woos-invite-msg { font-size: .72rem !important; min-height: 38px !important; }
+html.woos-mobile-preview .woos-invite-input,
+html.woos-mobile-preview .woos-invite-btn { height: 42px !important; font-size: .86rem !important; border-radius: 9px !important; }
+html.woos-mobile-preview .woos-invite-admin { height: 32px !important; font-size: .62rem !important; }
+
+/* PWA 스플래시: 제거하지 않고 중앙 고정 */
+html.woos-mobile-preview #woosPwaSplash {
+  position: fixed !important;
+  inset: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  min-height: 100vh !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  background: #000 !important;
+  overflow: hidden !important;
   transform: none !important;
+}
+@supports (height: 100dvh) {
+  html.woos-mobile-preview #woosPwaSplash { height: 100dvh !important; min-height: 100dvh !important; }
+}
+html.woos-mobile-preview #woosPwaSplash .woos-pwa-splash-stack {
+  width: min(86vw, 390px) !important;
+  max-width: 390px !important;
+  margin: 0 auto !important;
+  align-items: center !important;
+  justify-content: center !important;
+  transform: translate3d(0, -3vh, 0) !important;
   box-sizing: border-box !important;
 }
-@media (max-width: 520px) {
-  html.woos-mobile-preview .woos-invite-gate-root {
-    width: 100vw !important;
-    max-width: none !important;
-    left: 0 !important;
-    right: 0 !important;
-    transform: none !important;
-    padding: 16px 14px !important;
-  }
-  html.woos-mobile-preview .woos-invite-card {
-    width: min(390px, calc(100vw - 28px)) !important;
-    max-width: 390px !important;
-  }
+html.woos-mobile-preview #woosPwaSplash .woos-pwa-splash-logo-wrap {
+  width: min(74vw, 320px) !important;
+  max-width: 320px !important;
+  overflow: hidden !important;
+}
+html.woos-mobile-preview #woosPwaSplash .woos-pwa-splash-video {
+  width: 100% !important;
+  max-width: 100% !important;
+  height: auto !important;
+  object-fit: contain !important;
+  object-position: center center !important;
+  transform: none !important;
+}
+html.woos-mobile-preview #woosPwaSplash .woos-pwa-splash-wordmark-wrap {
+  width: min(62vw, 250px) !important;
+  max-width: 250px !important;
+  margin-top: 14px !important;
+}
+html.woos-mobile-preview #woosPwaSplash .woos-pwa-splash-wordmark-img {
+  width: 100% !important;
+  max-width: 250px !important;
+  height: auto !important;
+  object-fit: contain !important;
+  object-position: center center !important;
 }
 
+@media (max-width: 520px) {
+  html.woos-mobile-preview #app {
+    width: 100% !important;
+    max-width: 100% !important;
+    border-left: none !important;
+    border-right: none !important;
+    box-shadow: none !important;
+  }
+  html.woos-mobile-preview .woos-invite-preview-banner {
+    max-width: 100% !important;
+    border-left: none !important;
+    border-right: none !important;
+  }
+  html.woos-mobile-preview .woos-invite-main-admin-btn { right: 10px !important; }
+  html.woos-mobile-preview .woos-invite-gate-root { padding: 14px !important; }
+  html.woos-mobile-preview .woos-invite-card { width: min(390px, calc(100vw - 28px)) !important; }
+  html.woos-mobile-preview #woosPwaSplash .woos-pwa-splash-stack { width: min(88vw, 390px) !important; }
+}
 </style>
 
 
@@ -6839,94 +6845,7 @@ details.analyzer-progress-card > summary.progress-compact-summary {
     margin-top: 20px;
   }
 }
-
 </style>
-
-
-/* [v4.9.4+dailyhash-mobile-splash-fit]
-   모바일 프리뷰에서도 PWA 스플래시는 제거하지 않는다.
-   overlay는 전체 viewport를 유지하고, 영상/워드마크 stack만 중앙에 고정한다. */
-html.woos-mobile-preview #woosPwaSplash {
-  position: fixed !important;
-  inset: 0 !important;
-  width: 100vw !important;
-  max-width: none !important;
-  min-width: 0 !important;
-  height: 100vh !important;
-  min-height: 100vh !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  background: #000 !important;
-  overflow: hidden !important;
-  transform: none !important;
-  filter: none !important;
-}
-@supports (height: 100dvh) {
-  html.woos-mobile-preview #woosPwaSplash {
-    height: 100dvh !important;
-    min-height: 100dvh !important;
-  }
-}
-html.woos-mobile-preview #woosPwaSplash .woos-pwa-splash-stack {
-  width: min(86vw, 390px) !important;
-  max-width: 390px !important;
-  min-width: 0 !important;
-  margin: 0 auto !important;
-  display: flex !important;
-  flex-direction: column !important;
-  align-items: center !important;
-  justify-content: center !important;
-  transform: translate3d(0, -2vh, 0) !important;
-  box-sizing: border-box !important;
-}
-html.woos-mobile-preview #woosPwaSplash .woos-pwa-splash-logo-wrap {
-  width: min(74vw, 330px) !important;
-  max-width: 330px !important;
-  min-width: 0 !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  overflow: hidden !important;
-}
-html.woos-mobile-preview #woosPwaSplash .woos-pwa-splash-video {
-  width: 100% !important;
-  max-width: 100% !important;
-  height: auto !important;
-  display: block !important;
-  object-fit: contain !important;
-  object-position: center center !important;
-  margin: 0 auto !important;
-  transform: none !important;
-  filter: none !important;
-}
-html.woos-mobile-preview #woosPwaSplash .woos-pwa-splash-wordmark-wrap {
-  width: min(62vw, 260px) !important;
-  max-width: 260px !important;
-  margin-top: 16px !important;
-}
-html.woos-mobile-preview #woosPwaSplash .woos-pwa-splash-wordmark-img {
-  width: 100% !important;
-  max-width: 260px !important;
-  height: auto !important;
-  object-fit: contain !important;
-  object-position: center center !important;
-}
-@media (max-width: 520px) {
-  html.woos-mobile-preview #woosPwaSplash .woos-pwa-splash-stack {
-    width: min(88vw, 390px) !important;
-    transform: translate3d(0, -2vh, 0) !important;
-  }
-  html.woos-mobile-preview #woosPwaSplash .woos-pwa-splash-logo-wrap {
-    width: min(76vw, 320px) !important;
-  }
-  html.woos-mobile-preview #woosPwaSplash .woos-pwa-splash-wordmark-wrap {
-    width: min(64vw, 250px) !important;
-    max-width: 250px !important;
-    margin-top: 14px !important;
-  }
-}
-
 <!-- [WOOS PWA SPLASH CSS END] -->
 
 </head>
@@ -8040,7 +7959,7 @@ async function opsDashboard() {
 // 탭 시 상세 팝업
 // ═══════════════════════════════════════════════════════════════
 
-var HTML_VERSION = 'v4.9.4+dailyhash-mobile-splash-fit';  // [v4.9.4+] dailyHash invite gate + centered mobile gate + postmortem data fix
+var HTML_VERSION = 'v4.9.4+postmortem-data-fix';  // [v4.9.4+] 분석 완료 데이터 매핑 fix
 var _cachedBuildInfo = null;
 
 // [State Lock 2 Action fix-2c] 패치 확인용 — 페이지 로드 시 버전명 출력 (DevTools 콘솔)
