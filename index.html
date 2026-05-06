@@ -152,7 +152,7 @@
 <script>
 /* [v4.7.42] 캐시 강제 리셋 — SW 완전 제거 후 리로드 */
 (function(){
-  var VER = 'v4.9.4+briefing-storytelling-r2';  // [v4.9.4+] 4단계 스토리텔링 + 잔잔한 수정 (정밀분석 라벨 한국어 + levels alertSnap fallback + meta 박제 보강)
+  var VER = 'v4.9.4+briefing-storytelling-r3';  // [v4.9.4+] 4단계 + 잔잔한 수정 + gapText 성공/실패/중립 분기 (B3 손익비 2.85 모순 수정)
   try {
     var LKEY = 'woos_hard_reset_ver';
     if (localStorage.getItem(LKEY) === VER) return;
@@ -7266,7 +7266,7 @@ async function opsDashboard() {
 // 탭 시 상세 팝업
 // ═══════════════════════════════════════════════════════════════
 
-var HTML_VERSION = 'v4.9.4+briefing-storytelling-r2';  // [v4.9.4+] 4단계 + 잔잔한 수정
+var HTML_VERSION = 'v4.9.4+briefing-storytelling-r3';  // [v4.9.4+] 4단계 + 잔잔한 수정 + gapText 분기 보강
 var _cachedBuildInfo = null;
 
 // [State Lock 2 Action fix-2c] 패치 확인용 — 페이지 로드 시 버전명 출력 (DevTools 콘솔)
@@ -14322,23 +14322,42 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       }
       
       // ─────────────────────────────────────────────
-      // 문장 3 — 갭 분석 (pattern + 손익비 fallback 4가지)
+      // 문장 3 — 갭 분석 (성공/실패/중립 + 패턴 신뢰도)
+      // [v4.9.4+r3 수정] 사용자 보고:
+      //   - 성공 케이스에서도 "악화되어" 출력 모순
+      //   - 패턴 "혼조"는 v43 fallback 분류라 신뢰 낮음 (출력 X)
+      // 사용자 결정: 성공/실패/중립 3분기 + 패턴 신뢰도 (혼조/박스권 무시)
       // ─────────────────────────────────────────────
       var gapText = '';
-      if (patternKr && ratio != null) {
-        // 둘 다 있음
-        var ratioText = ratio < 0.5 ? '손익비 ' + ratio.toFixed(2) + '로 악화'
-                      : ratio < 1 ? '손익비 ' + ratio.toFixed(2) + '로 약화'
-                      : '손익비 ' + ratio.toFixed(2);
-        gapText = '특히 ' + v40_escapeHtml(patternKr) + ' 흐름과 ' + ratioText + '가 함께 확인되어, 알람 당시의 구조적 강점이 현재 가격 결과로는 충분히 이어지지 못한 상태입니다.';
-      } else if (patternKr) {
-        // pattern만
+      // 패턴 신뢰도 — v43에서 fallback 분류된 패턴은 신뢰 낮음
+      // ('혼조' = MIXED, '박스권' = RANGE_BOUND — 명확 케이스에 매칭 안 된 fallback)
+      var hasReliablePattern = patternKr && patternKr !== '혼조' && patternKr !== '박스권';
+      
+      if (ratio != null) {
+        var isSuccess = ratio >= 1.5;
+        var isFailure = ratio < 0.5;
+        
+        if (isSuccess) {
+          // 성공 케이스 — 손익비 양호 + 강점이 결과로 이어진 케이스
+          gapText = hasReliablePattern
+            ? '특히 ' + v40_escapeHtml(patternKr) + ' 흐름과 손익비 ' + ratio.toFixed(2) + '로 양호하게 유지되어, 알람 당시의 구조적 강점이 현재 가격 결과로 충분히 이어진 케이스로 해석됩니다.'
+            : '특히 손익비 ' + ratio.toFixed(2) + '로 양호하게 유지되어, 알람 당시의 구조적 강점이 현재 가격 결과로 충분히 이어진 케이스로 해석됩니다.';
+        } else if (isFailure) {
+          // 실패 케이스 — 손익비 악화 + 강점이 결과로 이어지지 못함
+          gapText = hasReliablePattern
+            ? '특히 ' + v40_escapeHtml(patternKr) + ' 흐름과 손익비 ' + ratio.toFixed(2) + '로 악화되어, 알람 당시의 구조적 강점이 현재 가격 결과로는 충분히 이어지지 못한 상태입니다.'
+            : '특히 손익비 ' + ratio.toFixed(2) + '로 악화되어, 알람 당시의 신호가 현재 결과로는 충분히 이어지지 못한 상태입니다.';
+        } else {
+          // 중립 케이스 (0.5 ~ 1.5)
+          gapText = hasReliablePattern
+            ? '특히 ' + v40_escapeHtml(patternKr) + ' 흐름이 확인되어, 알람 당시의 구조적 강점과 현재 가격 흐름 사이에 차이가 발생한 상태입니다.'
+            : '알람 당시 판단과 현재 추적 결과 사이의 차이를 함께 확인해야 하는 구간입니다.';
+        }
+      } else if (hasReliablePattern) {
+        // 손익비 X, 명확한 패턴만 있음
         gapText = '특히 ' + v40_escapeHtml(patternKr) + ' 흐름이 확인되어, 알람 당시의 구조적 강점과 현재 가격 흐름 사이에 차이가 발생한 상태입니다.';
-      } else if (ratio != null) {
-        // 손익비만
-        gapText = '특히 손익비 ' + ratio.toFixed(2) + ' 수준으로 악화되어, 알람 당시의 신호가 현재 결과로는 충분히 이어지지 못한 상태입니다.';
       } else {
-        // 둘 다 없음
+        // 둘 다 없음 또는 패턴 신뢰 낮음 (혼조/박스권만)
         gapText = '알람 당시 판단과 현재 추적 결과 사이의 차이를 함께 확인해야 하는 구간입니다.';
       }
       
