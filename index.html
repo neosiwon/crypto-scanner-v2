@@ -152,7 +152,7 @@
 <script>
 /* [v4.7.42] 캐시 강제 리셋 — SW 완전 제거 후 리로드 */
 (function(){
-  var VER = 'v4.9.4+dailyhash-mobile-gate-nosplash';  // [v4.9.4+] Worker dailyHash invite gate + centered mobile gate + postmortem data fix
+  var VER = 'v4.9.4+dailyhash-mobile-splash-fit';  // [v4.9.4+] Worker dailyHash invite gate + centered mobile gate + postmortem data fix
   try {
     var LKEY = 'woos_hard_reset_ver';
     if (localStorage.getItem(LKEY) === VER) return;
@@ -193,7 +193,7 @@
 </script>
 <script>
 /* ═══════════════════════════════════════════════════════════════
- * [v4.9.4+dailyhash-mobile-gate-nosplash]
+ * [v4.9.4+dailyhash-mobile-splash-fit]
  * ?demo=1 / ?preview=1 Worker 검증형 dailyHash 초대코드 게이트
  * ?mobile=1 PC에서도 모바일 앱 프레임 폭으로 표시
  * - invite-config.json 외부 설정 파일 사용
@@ -555,9 +555,9 @@
 </script>
 <style>
 /* ═══════════════════════════════════════════════════════════════
-   [v4.9.4+dailyhash-mobile-gate-nosplash] Preview Invite Gate
+   [v4.9.4+dailyhash-mobile-splash-fit] Preview Invite Gate
 ═══════════════════════════════════════════════════════════════ */
-html.woos-invite-locked body > *:not(#woosInviteGateRoot):not(script):not(style){filter:blur(12px);pointer-events:none;user-select:none;}
+html.woos-invite-locked body > *:not(#woosInviteGateRoot):not(#woosPwaSplash):not(script):not(style){filter:blur(12px);pointer-events:none;user-select:none;}
 .woos-invite-gate-root{position:fixed;inset:0;z-index:2147483646;display:flex;align-items:center;justify-content:center;padding:18px;background:radial-gradient(circle at top,rgba(0,212,255,.16),rgba(5,9,15,.96) 42%,rgba(5,9,15,.99));font-family:'Noto Sans KR',system-ui,sans-serif;}
 .woos-invite-card{width:min(420px,calc(100vw - 32px));border:1px solid rgba(0,212,255,.34);background:rgba(10,18,29,.94);box-shadow:0 0 38px rgba(0,212,255,.16),inset 0 0 0 1px rgba(255,255,255,.03);border-radius:18px;padding:24px 20px;text-align:center;color:#e2eaf5;backdrop-filter:blur(14px);}
 .woos-invite-kicker{font-family:'JetBrains Mono',monospace;font-size:.68rem;letter-spacing:2px;color:#00d4ff;margin-bottom:8px;text-shadow:0 0 12px rgba(0,212,255,.35);}
@@ -672,7 +672,7 @@ html.woos-mobile-preview .woos-invite-admin {
   }
 }
 
-/* ── [v4.9.4+dailyhash-mobile-gate-nosplash] 최종 보정
+/* ── [v4.9.4+dailyhash-mobile-splash-fit] 최종 보정
    이전 gate-fit은 root 자체를 430px로 줄여 일부 모바일 브라우저에서
    left:50%만 적용되고 transform이 무시되어 입력창이 우측으로 밀릴 수 있었다.
    해결: 오버레이(root)는 항상 전체 viewport, 카드만 모바일 폭으로 중앙 고정. */
@@ -6840,17 +6840,93 @@ details.analyzer-progress-card > summary.progress-compact-summary {
   }
 }
 
-
-/* [v4.9.4+dailyhash-mobile-gate-nosplash]
-   모바일 프리뷰(?demo=1&mobile=1)에서는 초대코드 게이트가 첫 화면이므로
-   PWA 스플래시 비디오를 숨겨 우측/하단 밀림 현상을 차단한다. */
-html.woos-mobile-preview #woosPwaSplash {
-  display: none !important;
-  opacity: 0 !important;
-  visibility: hidden !important;
-  pointer-events: none !important;
-}
 </style>
+
+
+/* [v4.9.4+dailyhash-mobile-splash-fit]
+   모바일 프리뷰에서도 PWA 스플래시는 제거하지 않는다.
+   overlay는 전체 viewport를 유지하고, 영상/워드마크 stack만 중앙에 고정한다. */
+html.woos-mobile-preview #woosPwaSplash {
+  position: fixed !important;
+  inset: 0 !important;
+  width: 100vw !important;
+  max-width: none !important;
+  min-width: 0 !important;
+  height: 100vh !important;
+  min-height: 100vh !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  background: #000 !important;
+  overflow: hidden !important;
+  transform: none !important;
+  filter: none !important;
+}
+@supports (height: 100dvh) {
+  html.woos-mobile-preview #woosPwaSplash {
+    height: 100dvh !important;
+    min-height: 100dvh !important;
+  }
+}
+html.woos-mobile-preview #woosPwaSplash .woos-pwa-splash-stack {
+  width: min(86vw, 390px) !important;
+  max-width: 390px !important;
+  min-width: 0 !important;
+  margin: 0 auto !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  transform: translate3d(0, -2vh, 0) !important;
+  box-sizing: border-box !important;
+}
+html.woos-mobile-preview #woosPwaSplash .woos-pwa-splash-logo-wrap {
+  width: min(74vw, 330px) !important;
+  max-width: 330px !important;
+  min-width: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  overflow: hidden !important;
+}
+html.woos-mobile-preview #woosPwaSplash .woos-pwa-splash-video {
+  width: 100% !important;
+  max-width: 100% !important;
+  height: auto !important;
+  display: block !important;
+  object-fit: contain !important;
+  object-position: center center !important;
+  margin: 0 auto !important;
+  transform: none !important;
+  filter: none !important;
+}
+html.woos-mobile-preview #woosPwaSplash .woos-pwa-splash-wordmark-wrap {
+  width: min(62vw, 260px) !important;
+  max-width: 260px !important;
+  margin-top: 16px !important;
+}
+html.woos-mobile-preview #woosPwaSplash .woos-pwa-splash-wordmark-img {
+  width: 100% !important;
+  max-width: 260px !important;
+  height: auto !important;
+  object-fit: contain !important;
+  object-position: center center !important;
+}
+@media (max-width: 520px) {
+  html.woos-mobile-preview #woosPwaSplash .woos-pwa-splash-stack {
+    width: min(88vw, 390px) !important;
+    transform: translate3d(0, -2vh, 0) !important;
+  }
+  html.woos-mobile-preview #woosPwaSplash .woos-pwa-splash-logo-wrap {
+    width: min(76vw, 320px) !important;
+  }
+  html.woos-mobile-preview #woosPwaSplash .woos-pwa-splash-wordmark-wrap {
+    width: min(64vw, 250px) !important;
+    max-width: 250px !important;
+    margin-top: 14px !important;
+  }
+}
+
 <!-- [WOOS PWA SPLASH CSS END] -->
 
 </head>
@@ -6889,22 +6965,6 @@ html.woos-mobile-preview #woosPwaSplash {
   var splash = document.getElementById('woosPwaSplash');
   var video = document.getElementById('woosPwaSplashVideo');
   if (!splash) return;
-
-  // [v4.9.4+dailyhash-mobile-gate-nosplash]
-  // 모바일 프리뷰에서는 초대코드 게이트가 첫 화면이다.
-  // 스플래시 비디오가 일부 모바일 브라우저에서 우측/하단으로 밀려 보일 수 있어 즉시 제거한다.
-  try {
-    var __woosSplashParams = new URLSearchParams(location.search || '');
-    var __woosSplashPreview = __woosSplashParams.has('demo') || __woosSplashParams.has('preview');
-    var __woosSplashMobile = __woosSplashParams.has('mobile');
-    if (__woosSplashPreview && __woosSplashMobile) {
-      if (video) {
-        try { video.pause(); video.removeAttribute('src'); video.load(); } catch(e) {}
-      }
-      if (splash && splash.parentNode) splash.parentNode.removeChild(splash);
-      return;
-    }
-  } catch(e) {}
 
   var SPLASH_MS = 3200;
   var removed = false;
@@ -7980,7 +8040,7 @@ async function opsDashboard() {
 // 탭 시 상세 팝업
 // ═══════════════════════════════════════════════════════════════
 
-var HTML_VERSION = 'v4.9.4+dailyhash-mobile-gate-nosplash';  // [v4.9.4+] dailyHash invite gate + centered mobile gate + postmortem data fix
+var HTML_VERSION = 'v4.9.4+dailyhash-mobile-splash-fit';  // [v4.9.4+] dailyHash invite gate + centered mobile gate + postmortem data fix
 var _cachedBuildInfo = null;
 
 // [State Lock 2 Action fix-2c] 패치 확인용 — 페이지 로드 시 버전명 출력 (DevTools 콘솔)
