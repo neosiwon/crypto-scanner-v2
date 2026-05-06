@@ -152,7 +152,7 @@
 <script>
 /* [v4.7.42] 캐시 강제 리셋 — SW 완전 제거 후 리로드 */
 (function(){
-  var VER = 'v4.9.4+dailyhash-main-admin';  // [v4.9.4+] Worker dailyHash invite gate + postmortem data fix
+  var VER = 'v4.9.4+dailyhash-mobile-gate-fit';  // [v4.9.4+] Worker dailyHash invite gate + mobile preview frame + postmortem data fix
   try {
     var LKEY = 'woos_hard_reset_ver';
     if (localStorage.getItem(LKEY) === VER) return;
@@ -193,8 +193,9 @@
 </script>
 <script>
 /* ═══════════════════════════════════════════════════════════════
- * [v4.9.4+dailyhash-main-admin]
+ * [v4.9.4+dailyhash-mobile-gate-fit]
  * ?demo=1 / ?preview=1 Worker 검증형 dailyHash 초대코드 게이트
+ * ?mobile=1 PC에서도 모바일 앱 프레임 폭으로 표시
  * - invite-config.json 외부 설정 파일 사용
  * - Worker /invite/verify 검증, /invite/today 관리자 조회
  * - sessionStorage 기반 24h 기본 접근권한
@@ -204,6 +205,10 @@
 (function(){
   var params = new URLSearchParams(location.search || '');
   var isPreview = params.has('demo') || params.has('preview');
+  var isMobilePreview = (params.has('mobile') || params.has('appview') || params.has('phone')) && isPreview;
+  if (isMobilePreview) {
+    try { document.documentElement.classList.add('woos-mobile-preview'); } catch(e) {}
+  }
   var ACCESS_KEY = 'woos_invite_access_ok';
   var ACCESS_UNTIL_KEY = 'woos_invite_access_until';
   var ACCESS_AT_KEY = 'woos_invite_access_at';
@@ -550,7 +555,7 @@
 </script>
 <style>
 /* ═══════════════════════════════════════════════════════════════
-   [v4.9.4+dailyhash-main-admin] Preview Invite Gate
+   [v4.9.4+dailyhash-mobile-gate-fit] Preview Invite Gate
 ═══════════════════════════════════════════════════════════════ */
 html.woos-invite-locked body > *:not(#woosInviteGateRoot):not(script):not(style){filter:blur(12px);pointer-events:none;user-select:none;}
 .woos-invite-gate-root{position:fixed;inset:0;z-index:2147483646;display:flex;align-items:center;justify-content:center;padding:18px;background:radial-gradient(circle at top,rgba(0,212,255,.16),rgba(5,9,15,.96) 42%,rgba(5,9,15,.99));font-family:'Noto Sans KR',system-ui,sans-serif;}
@@ -574,6 +579,99 @@ html.woos-invite-locked body > *:not(#woosInviteGateRoot):not(script):not(style)
 .woos-invite-main-admin-btn{position:fixed;right:12px;bottom:12px;z-index:2147483000;border:1px solid rgba(0,212,255,.35);background:rgba(6,13,22,.78);color:#9eefff;border-radius:999px;padding:8px 11px;font-family:'JetBrains Mono','Noto Sans KR',monospace;font-size:.68rem;font-weight:800;letter-spacing:.2px;box-shadow:0 0 18px rgba(0,212,255,.14);backdrop-filter:blur(10px);}
 .woos-invite-main-admin-btn:hover{background:rgba(0,212,255,.12);border-color:rgba(0,212,255,.62);color:#fff;}
 @media(max-width:520px){.woos-invite-main-admin-btn{right:10px;bottom:10px;font-size:.62rem;padding:7px 9px;}}
+
+/* ── 모바일 시연 프레임: ?demo=1&mobile=1 / ?preview=1&mobile=1 ── */
+html.woos-mobile-preview body {
+  background: #03070d;
+}
+html.woos-mobile-preview #app {
+  max-width: 430px !important;
+  min-height: 100vh;
+  margin: 0 auto !important;
+  border-left: 1px solid rgba(0,212,255,.18);
+  border-right: 1px solid rgba(0,212,255,.18);
+  box-shadow: 0 0 40px rgba(0,212,255,.08);
+  background: rgba(8,13,19,.96);
+}
+html.woos-mobile-preview .woos-invite-preview-banner {
+  max-width: 430px;
+  margin: 0 auto;
+  border-left: 1px solid rgba(0,212,255,.18);
+  border-right: 1px solid rgba(0,212,255,.18);
+}
+html.woos-mobile-preview .woos-invite-main-admin-btn {
+  right: calc(50% - 205px);
+}
+
+/* ── 초대코드 게이트도 모바일 프레임 안에 고정: ?demo=1&mobile=1 ── */
+html.woos-mobile-preview .woos-invite-gate-root {
+  width: 430px !important;
+  max-width: 430px !important;
+  left: 50% !important;
+  right: auto !important;
+  transform: translateX(-50%) !important;
+  padding: 18px 14px !important;
+  overflow-x: hidden !important;
+  border-left: 1px solid rgba(0,212,255,.18);
+  border-right: 1px solid rgba(0,212,255,.18);
+  box-shadow: 0 0 40px rgba(0,212,255,.08);
+}
+html.woos-mobile-preview .woos-invite-card {
+  width: 100% !important;
+  max-width: 390px !important;
+  border-radius: 16px !important;
+  padding: 22px 16px !important;
+}
+html.woos-mobile-preview .woos-invite-title {
+  font-size: 1.08rem !important;
+}
+html.woos-mobile-preview .woos-invite-msg {
+  font-size: .72rem !important;
+  min-height: 38px !important;
+}
+html.woos-mobile-preview .woos-invite-input,
+html.woos-mobile-preview .woos-invite-btn {
+  height: 42px !important;
+  font-size: .86rem !important;
+  border-radius: 9px !important;
+}
+html.woos-mobile-preview .woos-invite-admin {
+  height: 32px !important;
+  font-size: .62rem !important;
+}
+@media (max-width: 520px) {
+  html.woos-mobile-preview .woos-invite-gate-root {
+    width: 100% !important;
+    max-width: 100% !important;
+    left: 0 !important;
+    right: 0 !important;
+    transform: none !important;
+    border-left: none;
+    border-right: none;
+    box-shadow: none;
+  }
+  html.woos-mobile-preview .woos-invite-card {
+    max-width: 390px !important;
+  }
+}
+
+@media (max-width: 520px) {
+  html.woos-mobile-preview #app {
+    max-width: 100% !important;
+    border-left: none;
+    border-right: none;
+    box-shadow: none;
+  }
+  html.woos-mobile-preview .woos-invite-preview-banner {
+    max-width: 100%;
+    border-left: none;
+    border-right: none;
+  }
+  html.woos-mobile-preview .woos-invite-main-admin-btn {
+    right: 10px;
+  }
+}
+
 </style>
 
 
@@ -7800,7 +7898,7 @@ async function opsDashboard() {
 // 탭 시 상세 팝업
 // ═══════════════════════════════════════════════════════════════
 
-var HTML_VERSION = 'v4.9.4+postmortem-data-fix';  // [v4.9.4+] 분석 완료 데이터 매핑 fix
+var HTML_VERSION = 'v4.9.4+dailyhash-mobile-gate-fit';  // [v4.9.4+] dailyHash invite gate + mobile preview frame + postmortem data fix
 var _cachedBuildInfo = null;
 
 // [State Lock 2 Action fix-2c] 패치 확인용 — 페이지 로드 시 버전명 출력 (DevTools 콘솔)
