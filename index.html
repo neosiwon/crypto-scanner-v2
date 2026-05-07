@@ -152,7 +152,7 @@
 <script>
 /* [v4.7.42] 캐시 강제 리셋 — SW 완전 제거 후 리로드 */
 (function(){
-  var VER = 'v4.9.4+v5-prep-r2-history-fix';  // [V5 prep r2] 정밀 1~4 (Shadow Score + 검증샘플 분리 + 승격 칩) + 탭 자동전환 버그 fix
+  var VER = 'v4.9.4+v5-prep-r2-history-fix-3';  // [V5 prep r2] 정밀 1~4 (Shadow Score + 검증샘플 분리 + 승격 칩) + 탭 자동전환 버그 fix
   try {
     var LKEY = 'woos_hard_reset_ver';
     if (localStorage.getItem(LKEY) === VER) return;
@@ -7403,6 +7403,12 @@ details.progress-rich-card[open] .v4721-detail-toggle {
 .tracking-more-btn {
   display: none !important;
 }
+/* [V5 v4.9.4+v5-prep-r2-history-fix-2] 분석 완료 탭 더 보기 버튼만 강제 표시
+   원인: .tracking-more-btn 전역 display:none → 분석 완료 탭의 더 보기 버튼도 숨김
+   해결: ID 셀렉터로 분석 완료 탭 버튼만 inline-block 강제 (다른 탭의 더 보기는 그대로 숨김 유지) */
+#woosHistoryMoreBtn.tracking-more-btn {
+  display: inline-block !important;
+}
 
 
 /* [v4.7.27] LOGO / LOADING IMAGE STRICT SEPARATION
@@ -8919,7 +8925,7 @@ async function opsDashboard() {
 // 탭 시 상세 팝업
 // ═══════════════════════════════════════════════════════════════
 
-var HTML_VERSION = 'v4.9.4+v5-prep-r2-history-fix';  // [V5 prep r2] + 분석 완료 탭 60초 자동 복원
+var HTML_VERSION = 'v4.9.4+v5-prep-r2-history-fix-3';  // [V5 prep r2] + 분석 완료 탭 60초 자동 복원
 var _cachedBuildInfo = null;
 
 // [State Lock 2 Action fix-2c] 패치 확인용 — 페이지 로드 시 버전명 출력 (DevTools 콘솔)
