@@ -152,7 +152,7 @@
 <script>
 /* [v4.7.42] 캐시 강제 리셋 — SW 완전 제거 후 리로드 */
 (function(){
-  var VER = 'v4.9.4+history-export';  // [v4.9.4+] 분석완료 데이터 export (관리자 인증 모달 + 데모 모드 X + 진행도 + JSON + 메타+통계)
+  var VER = 'v4.9.4+history-export-r2';  // [v4.9.4+] export 인증 버그 fix (window.woosVerifyAdminKey) + 등급별 적중률 통계 (B등급 검증)
   try {
     var LKEY = 'woos_hard_reset_ver';
     if (localStorage.getItem(LKEY) === VER) return;
@@ -431,6 +431,25 @@
   }
   window.woosInviteShowTodayCode = function(){
     loadConfig().then(function(config){ showTodayCode(config); });
+  };
+  
+  /* [v4.9.4+ history-export r2] 관리자 키 검증 헬퍼 — IIFE 외부에서 호출용
+   * scope 격리 해결: loadConfig + getTodayCode는 IIFE 안에 갇혀 있음
+   * → export 모달은 다른 scope (line ~14416)
+   * → 이 함수를 window에 노출하여 외부에서 호출 가능
+   * 반환: Promise<{ ok: boolean, todayCode?, dateKst?, reason? }>
+   */
+  window.woosVerifyAdminKey = function(adminKey) {
+    if (!adminKey) return Promise.resolve({ ok: false, reason: 'empty-key' });
+    return loadConfig().then(function(config){
+      if (!config || !config.todayEndpoint) {
+        return { ok: false, reason: 'config-load-failed' };
+      }
+      return getTodayCode(config, adminKey);
+    }).catch(function(err){
+      try { console.error('[WOOS verify admin key]', err); } catch(e) {}
+      return { ok: false, reason: 'exception', message: err && err.message };
+    });
   };
 
 
@@ -8660,7 +8679,7 @@ async function opsDashboard() {
 // 탭 시 상세 팝업
 // ═══════════════════════════════════════════════════════════════
 
-var HTML_VERSION = 'v4.9.4+history-export';  // [v4.9.4+] 분석완료 데이터 export
+var HTML_VERSION = 'v4.9.4+history-export-r2';  // [v4.9.4+] 인증 버그 fix + 등급별 적중률 (B검증)
 var _cachedBuildInfo = null;
 
 // [State Lock 2 Action fix-2c] 패치 확인용 — 페이지 로드 시 버전명 출력 (DevTools 콘솔)
@@ -14628,6 +14647,17 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
         spikeSuccess: 0,          // mfe>10 but closeReturn<0
         trapPattern: 0,           // alarmCount>=4 + closeReturn<0
         earlyDetectionSuccess: 0  // alarmCount<=2 + mfe>10
+      },
+      // [v4.9.4+ history-export r2] 사용자 명시: "B등급도 추출되게"
+      // B등급은 ENTRY_READY 가드로 알람 적지만
+      // 추적 중 등급 변화/그룹 분류 등으로 B 데이터 일부 존재 가능
+      // → 등급별 적중률 (V4 가설: B 등급 적중률 검증) 추가
+      gradeAccuracy: {
+        'S+': { count: 0, mfeSum: 0, maeSum: 0, successCount: 0, mfeAvg: 0, maeAvg: 0, successRate: 0 },
+        'S':  { count: 0, mfeSum: 0, maeSum: 0, successCount: 0, mfeAvg: 0, maeAvg: 0, successRate: 0 },
+        'A':  { count: 0, mfeSum: 0, maeSum: 0, successCount: 0, mfeAvg: 0, maeAvg: 0, successRate: 0 },
+        'B':  { count: 0, mfeSum: 0, maeSum: 0, successCount: 0, mfeAvg: 0, maeAvg: 0, successRate: 0 },
+        'Other': { count: 0, mfeSum: 0, maeSum: 0, successCount: 0, mfeAvg: 0, maeAvg: 0, successRate: 0 }
       }
     };
     var ratios = [];
@@ -14638,6 +14668,8 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       else stats.byResult.Other++;
       // grade
       var g = (it.gradeLabel || it.gradeCode || 'Other');
+      // gradeCode 'SPLUS' → 'S+' 정규화
+      if (g === 'SPLUS') g = 'S+';
       if (stats.byGrade[g] != null) stats.byGrade[g]++;
       else stats.byGrade.Other++;
       // pattern
@@ -14687,12 +14719,32 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       if (mfe > 0 && mfe < 5) stats.v4Hypotheses.successWithMFElt5++;
       if (Math.abs(mae) > 10) stats.v4Hypotheses.failWithMAEgt10++;
       if (ac >= 4 && cr < 0) stats.v4Hypotheses.trapPattern++;
+      
+      // [v4.9.4+ history-export r2] 등급별 적중률 누적
+      // 사용자 명시: "B등급 적중률 좋다 → 별도 통계 검증 필요"
+      // (B등급은 ENTRY_READY 가드로 알람 적지만 그룹 분류 등으로 일부 데이터 존재 가능)
+      var gAcc = stats.gradeAccuracy[g] || stats.gradeAccuracy.Other;
+      gAcc.count++;
+      if (isFinite(mfe)) gAcc.mfeSum += mfe;
+      if (isFinite(mae)) gAcc.maeSum += mae;
+      // 성공 정의: mfe >= 3% (Worker 분석기 +3% 임계 일관)
+      if (mfe >= 3) gAcc.successCount++;
     });
     // 평균 계산
     if (stats.mfeStats.count) stats.mfeStats.avg = stats.mfeStats.sum / stats.mfeStats.count;
     if (stats.maeStats.count) stats.maeStats.avg = stats.maeStats.sum / stats.maeStats.count;
     if (stats.closeReturnStats.count) stats.closeReturnStats.avg = stats.closeReturnStats.sum / stats.closeReturnStats.count;
     if (ratios.length) stats.profitLossRatioAvg = ratios.reduce(function(a,b){return a+b;},0) / ratios.length;
+    
+    // [v4.9.4+ history-export r2] 등급별 평균 + 성공률 계산
+    Object.keys(stats.gradeAccuracy).forEach(function(grade){
+      var gAcc = stats.gradeAccuracy[grade];
+      if (gAcc.count > 0) {
+        gAcc.mfeAvg = gAcc.mfeSum / gAcc.count;
+        gAcc.maeAvg = gAcc.maeSum / gAcc.count;
+        gAcc.successRate = (gAcc.successCount / gAcc.count) * 100;
+      }
+    });
     return stats;
   }
   
@@ -14709,11 +14761,15 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       meta: {
         exportedAt: now.toISOString(),
         exportedAtKst: now.toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' }),
-        version: 'v4.9.4+history-export',
+        version: 'v4.9.4+history-export-r2',
         itemsCount: items.length,
         totalCount: totalCount || items.length,
         sourceEndpoint: '/tracking/completed',
-        purpose: 'V4 정밀화 분석 + 패턴 분류 진단'
+        purpose: 'V4 정밀화 분석 + 패턴 분류 진단 + B등급 적중률 검증',
+        // [v4.9.4+ history-export r2] 등급 분포 메타 (B 등급 검증 가이드)
+        gradeDistribution: stats ? stats.byGrade : null,
+        gradeAccuracySummary: stats ? stats.gradeAccuracy : null,
+        notes: 'gradeAccuracy.B.successRate 가 다른 등급 대비 높은지 확인 (사용자 가설)'
       },
       stats: stats,
       items: items
@@ -14783,13 +14839,18 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       btnConfirm.disabled = true;
       btnCancel.disabled = true;
       
-      // 1단계: 관리자 키 검증 (loadConfig + getTodayCode 활용)
-      loadConfig().then(function(config){
-        if (!config || !config.todayEndpoint) {
-          throw new Error('config 로드 실패');
-        }
-        return getTodayCode(config, key);
-      }).then(function(d){
+      // [v4.9.4+ history-export r2] 1단계: 관리자 키 검증
+      // window.woosVerifyAdminKey 사용 (IIFE scope 격리 해결)
+      // — loadConfig + getTodayCode는 invite-gate IIFE 안에 갇혀 있어 직접 호출 X
+      // — window 노출된 헬퍼로 호출
+      if (typeof window.woosVerifyAdminKey !== 'function') {
+        msg.textContent = '❌ 인증 헬퍼 미초기화 — 페이지를 새로고침하세요.';
+        msg.className = 'woos-export-admin-msg msg-error';
+        btnConfirm.disabled = false;
+        btnCancel.disabled = false;
+        return;
+      }
+      window.woosVerifyAdminKey(key).then(function(d){
         if (!d || !d.ok) {
           throw new Error('관리자 키가 올바르지 않습니다.');
         }
