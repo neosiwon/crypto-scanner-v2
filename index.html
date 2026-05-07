@@ -152,7 +152,7 @@
 <script>
 /* [v4.7.42] 캐시 강제 리셋 — SW 완전 제거 후 리로드 */
 (function(){
-  var VER = 'v4.9.4+history-export-r2';  // [v4.9.4+] export 인증 버그 fix (window.woosVerifyAdminKey) + 등급별 적중률 통계 (B등급 검증)
+  var VER = 'v4.9.4+v5-prep';  // [V5 prep] B/C 박제 분기 + 알람목록 (Worker /api/snapshots + 페이지네이션 + TTL 90일 가정)
   try {
     var LKEY = 'woos_hard_reset_ver';
     if (localStorage.getItem(LKEY) === VER) return;
@@ -5566,6 +5566,168 @@ details.progress-rich-card.woos-group[open] { border-color: rgba(124, 58, 237, 0
 .woos-history-empty { text-align: center; color: #6b7280; padding: 30px; font-size: 0.85rem; }
 
 /* ═══════════════════════════════════════════════════════════════
+   [V5 v4.9.4+v5-prep] 알람목록 (B/C 포함) — 토글 섹션 + 필터 + 카드
+═══════════════════════════════════════════════════════════════ */
+.woos-alert-list-section {
+  margin-top: 20px;
+  border-top: 1px solid rgba(168, 85, 247, .14);
+  padding-top: 14px;
+}
+.woos-alert-list-toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  border: 1px solid rgba(168, 85, 247, .32);
+  background: linear-gradient(135deg, rgba(168, 85, 247, .10), rgba(0, 212, 255, .06));
+  color: #d8b4fe;
+  border-radius: 8px;
+  font-family: 'JetBrains Mono','Noto Sans KR',monospace;
+  font-size: .82rem;
+  font-weight: 750;
+  letter-spacing: .3px;
+  cursor: pointer;
+  text-align: left;
+}
+.woos-alert-list-toggle:hover {
+  background: linear-gradient(135deg, rgba(168, 85, 247, .20), rgba(0, 212, 255, .10));
+  color: #fff;
+}
+.woos-alert-list-toggle-icon {
+  font-size: .8rem;
+  color: #a855f7;
+  width: 12px;
+}
+.woos-alert-list-toggle-count {
+  margin-left: auto;
+  font-size: .72rem;
+  color: #94a3b8;
+  font-weight: 600;
+}
+.woos-alert-list-body {
+  margin-top: 10px;
+  padding: 10px;
+  background: rgba(10, 18, 29, .4);
+  border: 1px solid rgba(168, 85, 247, .14);
+  border-radius: 8px;
+}
+.woos-alert-list-loading {
+  text-align: center;
+  padding: 20px;
+  color: #94a3b8;
+  font-size: .8rem;
+}
+.woos-alert-list-empty {
+  text-align: center;
+  padding: 20px;
+  color: #6b7280;
+  font-size: .8rem;
+}
+.woos-alert-list-controls {
+  margin-bottom: 10px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, .06);
+}
+.woos-alert-list-filter-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.woos-alert-list-select {
+  flex: 1;
+  min-width: 100px;
+  padding: 7px 10px;
+  border: 1px solid rgba(168, 85, 247, .22);
+  background: rgba(0, 0, 0, .35);
+  color: #cbd5e1;
+  border-radius: 6px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: .72rem;
+  outline: none;
+}
+.woos-alert-list-select:focus { border-color: rgba(168, 85, 247, .5); }
+.woos-alert-list-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.woos-alert-list-card {
+  padding: 8px 10px;
+  background: linear-gradient(135deg, rgba(20, 28, 40, .6), rgba(15, 22, 32, .8));
+  border: 1px solid rgba(255, 255, 255, .06);
+  border-radius: 6px;
+  font-family: 'JetBrains Mono','Noto Sans KR',monospace;
+  font-size: .72rem;
+}
+.al-row1 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.al-row2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: .68rem;
+  color: #94a3b8;
+}
+.al-grade-chip {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: .68rem;
+  font-weight: 800;
+  letter-spacing: .3px;
+  min-width: 30px;
+  text-align: center;
+}
+.al-grade-splus { background: linear-gradient(135deg, #ff6b9d, #c44569); color: #fff; }
+.al-grade-s { background: linear-gradient(135deg, #f59e0b, #d97706); color: #fff; }
+.al-grade-a { background: linear-gradient(135deg, #00d4ff, #0891b2); color: #fff; }
+.al-grade-b { background: linear-gradient(135deg, #facc15, #ca8a04); color: #1f2937; }
+.al-grade-c { background: linear-gradient(135deg, #94a3b8, #64748b); color: #fff; }
+.al-grade-unknown { background: rgba(255, 255, 255, .14); color: #94a3b8; }
+.al-base {
+  flex: 1;
+  font-weight: 700;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.al-exchange {
+  font-size: .65rem;
+  color: #00d4ff;
+  font-weight: 600;
+  letter-spacing: .3px;
+}
+.al-score { font-weight: 700; color: #d8b4fe; }
+.al-time { color: #94a3b8; }
+.al-no-alert { color: #6b7280; font-size: .65rem; }
+.al-alert { color: #22f69b; font-size: .65rem; font-weight: 600; }
+.woos-alert-list-more-btn {
+  width: 100%;
+  margin-top: 10px;
+  padding: 9px;
+  border: 1px solid rgba(168, 85, 247, .28);
+  background: rgba(168, 85, 247, .08);
+  color: #d8b4fe;
+  border-radius: 6px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: .72rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.woos-alert-list-more-btn:hover { background: rgba(168, 85, 247, .18); color: #fff; }
+
+@media (max-width: 520px) {
+  .woos-alert-list-filter-row { flex-direction: column; }
+  .woos-alert-list-select { width: 100%; }
+}
+
+/* ═══════════════════════════════════════════════════════════════
    [v4.9.4+ history-export] 분석완료 데이터 export 버튼 + 인증 모달
 ═══════════════════════════════════════════════════════════════ */
 .woos-history-export-wrap {
@@ -8679,7 +8841,7 @@ async function opsDashboard() {
 // 탭 시 상세 팝업
 // ═══════════════════════════════════════════════════════════════
 
-var HTML_VERSION = 'v4.9.4+history-export-r2';  // [v4.9.4+] 인증 버그 fix + 등급별 적중률 (B검증)
+var HTML_VERSION = 'v4.9.4+v5-prep';  // [V5 prep] B/C 박제 + 알람목록
 var _cachedBuildInfo = null;
 
 // [State Lock 2 Action fix-2c] 패치 확인용 — 페이지 로드 시 버전명 출력 (DevTools 콘솔)
@@ -11111,7 +11273,10 @@ function markAlertSent(base,type,grade,score){var st=getAlertSt(base);st.sentAt[
 async function processAllAlerts(coins){
   var cfg=getTgConfig();if(!cfg.token||!cfg.chatId)return;
   if(isInSleepTime()){addLog('[TG] 수면 시간 차단','info');return;}
-  var targets=coins.filter(function(c){var g=c.representative.gradeCode;return g!=='B'&&g!=='C';});
+  // [V5 v4.9.4+v5-prep] B/C도 processOneCoinAlert 호출 (안에서 박제 분기 처리)
+  // 기존: B/C 필터링 → processOneCoinAlert 진입 X
+  // 변경: B/C도 진입 → 박제만 + 알람 X (line 11127 분기)
+  var targets=coins;
   if(!targets.length){addLog('[TG] 알림 대상 없음','info');return;}
   addLog('[TG] '+targets.length+'개 처리...','info');
   for(var i=0;i<targets.length;i++){await processOneCoinAlert(targets[i],cfg);if(i<targets.length-1)await sleep(600);}
@@ -11124,7 +11289,23 @@ async function processOneCoinAlert(coin,cfg){
   var score = rep.total;
 
   // ── 1차 필터: 코어 기반 ─────────────────────────────────────────
-  if (grade === 'B' || grade === 'C') return;
+  // [V5 v4.9.4+v5-prep] B/C 등급 박제 분기 — 알람 X / 추적 X / 박제만
+  // 사용자 명시 결정: V5 정책상 B/C도 박제하여 알람목록에서 검증
+  // - saveSnapshotRemote 호출 (Worker가 alertType=B/C 보고 추적 X)
+  // - saveSnapshotLocal 호출 (localStorage 200건 한도)
+  // - sendTelegramMessage 호출 X (알람 X)
+  // - markAlertSent 호출 X (쿨다운 영향 X)
+  if (grade === 'B' || grade === 'C') {
+    try {
+      var bcSnapshot = buildSnapshotPayload(coin, grade);  // alertType = 'B' or 'C'
+      await saveSnapshotRemote(bcSnapshot);
+      saveSnapshotLocal(bcSnapshot);
+      addLog('[BC] '+base+' '+grade+' 박제 (알람 X / 추적 X)','info');
+    } catch(e) {
+      addLog('[BC] '+base+' '+grade+' 박제 실패: '+(e.message||e),'warn');
+    }
+    return;
+  }
   if (!rep.prePump && !rep.isEntryReady) return;
 
   // ── 2차 필터: 설명 레이어 기반 (대표 거래소 기준) ───────────────
@@ -14757,22 +14938,52 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
                 + '_' + pad(now.getHours()) + pad(now.getMinutes());
     var fileName = 'woos_history_' + items.length + '_' + dateStr + '.json';
     
+    // [V5 v4.9.4+v5-prep] 알람목록 (B/C 포함) 통합 export
+    var alertListData = null;
+    try {
+      if (typeof window.woosGetAlertListCache === 'function') {
+        var cache = window.woosGetAlertListCache();
+        if (Array.isArray(cache) && cache.length > 0) {
+          alertListData = {
+            count: cache.length,
+            byGrade: cache.reduce(function(a, s){
+              var g = s.gradeCode || 'NULL';
+              if (g === 'SPLUS') g = 'S+';
+              a[g] = (a[g]||0) + 1;
+              return a;
+            }, {}),
+            byExchange: cache.reduce(function(a, s){
+              var e = s.exchange || 'NULL';
+              a[e] = (a[e]||0) + 1;
+              return a;
+            }, {}),
+            items: cache
+          };
+        }
+      }
+    } catch(e) {}
+    
     var exportData = {
       meta: {
         exportedAt: now.toISOString(),
         exportedAtKst: now.toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' }),
-        version: 'v4.9.4+history-export-r2',
+        version: 'v4.9.4+v5-prep',
         itemsCount: items.length,
         totalCount: totalCount || items.length,
         sourceEndpoint: '/tracking/completed',
-        purpose: 'V4 정밀화 분석 + 패턴 분류 진단 + B등급 적중률 검증',
+        purpose: 'V4 정밀화 분석 + 패턴 분류 진단 + B/C 등급 적중률 검증 + V5 알람목록',
         // [v4.9.4+ history-export r2] 등급 분포 메타 (B 등급 검증 가이드)
         gradeDistribution: stats ? stats.byGrade : null,
         gradeAccuracySummary: stats ? stats.gradeAccuracy : null,
+        // [V5 v4.9.4+v5-prep] 알람목록 (B/C 포함) 메타
+        alertListIncluded: alertListData != null,
+        alertListCount: alertListData ? alertListData.count : 0,
         notes: 'gradeAccuracy.B.successRate 가 다른 등급 대비 높은지 확인 (사용자 가설)'
       },
       stats: stats,
-      items: items
+      items: items,
+      // [V5 v4.9.4+v5-prep] 알람목록 (B/C 포함)
+      alertList: alertListData
     };
     
     var json = JSON.stringify(exportData, null, 2);
@@ -14988,7 +15199,7 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       moreBtn = '<button class="tracking-more-btn" id="woosHistoryMoreBtn" type="button">더 보기 (+50)</button>';
     }
     
-    contentEl.innerHTML = exportBtnHtml + totalLabel + statsHtml + '<div class="woos-history-list">' + cardsHtml + '</div>' + moreBtn;
+    contentEl.innerHTML = exportBtnHtml + totalLabel + statsHtml + '<div class="woos-history-list">' + cardsHtml + '</div>' + moreBtn + _buildAlertListSection();
     
     // 더 보기 핸들러
     var moreBtnEl = document.getElementById('woosHistoryMoreBtn');
@@ -14998,7 +15209,236 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
         _fetchAndRenderHistory(true);
       });
     }
+    
+    // [V5 v4.9.4+v5-prep] 알람목록 토글 핸들러 + 자동 fetch
+    _attachAlertListHandlers();
   }
+  
+  /* ═══════════════════════════════════════════════════════════════
+   * [V5 v4.9.4+v5-prep] 알람목록 (B/C 포함) — 추적 분석 탭 안 토글 섹션
+   * 사용자 결정:
+   *   ✅ 결정 1=B: Worker /snapshots 페이지네이션
+   *   ✅ 결정 2=A: alertType=B/C 박제 분기
+   *   ✅ 결정 3=A: limit max=100
+   *   ✅ 결정 4=A: TTL 90일
+   *   ✅ 결정 A=A: 직접 수정 (동결 일부 해제)
+   *   ✅ 결정 B=C: 무제한 + TTL 자연 정리
+   *   ✅ 결정 C=A: Worker /api/snapshots 신설 (호환)
+   * 데이터 source: GET /snapshots?limit=100&offset=N (페이지네이션)
+   * 필터: 등급 / 거래소
+   * 정렬: 시간순 / 등급순 / 거래소순 / 점수순
+   * ═══════════════════════════════════════════════════════════════ */
+  
+  var _alertListCache = [];
+  var _alertListOffset = 0;
+  var _alertListLimit = 100;
+  var _alertListTotal = 0;
+  var _alertListExpanded = false;
+  var _alertListFilters = { grade: 'ALL', exchange: 'ALL' };
+  var _alertListSort = 'time_desc';  // time_desc / time_asc / grade / exchange / score
+  
+  function _buildAlertListSection() {
+    return '<div class="woos-alert-list-section">'
+      + '<button type="button" class="woos-alert-list-toggle" id="woosAlertListToggleBtn">'
+      +   '<span class="woos-alert-list-toggle-icon">▶</span>'
+      +   '<span>📥 알람목록 (B/C 포함)</span>'
+      +   '<span class="woos-alert-list-toggle-count" id="woosAlertListToggleCount"></span>'
+      + '</button>'
+      + '<div class="woos-alert-list-body" id="woosAlertListBody" style="display:none;">'
+      +   '<div class="woos-alert-list-loading" id="woosAlertListLoading">알람목록 로딩 중...</div>'
+      +   '<div class="woos-alert-list-controls" id="woosAlertListControls" style="display:none;">'
+      +     '<div class="woos-alert-list-filter-row">'
+      +       '<select class="woos-alert-list-select" id="woosAlertListFilterGrade">'
+      +         '<option value="ALL">전체 등급</option>'
+      +         '<option value="SPLUS">S+</option>'
+      +         '<option value="S">S</option>'
+      +         '<option value="A">A</option>'
+      +         '<option value="B">B</option>'
+      +         '<option value="C">C</option>'
+      +       '</select>'
+      +       '<select class="woos-alert-list-select" id="woosAlertListFilterExchange">'
+      +         '<option value="ALL">전체 거래소</option>'
+      +         '<option value="BINANCE">BINANCE</option>'
+      +         '<option value="BITHUMB">BITHUMB</option>'
+      +         '<option value="UPBIT">UPBIT</option>'
+      +       '</select>'
+      +       '<select class="woos-alert-list-select" id="woosAlertListSort">'
+      +         '<option value="time_desc">최신순</option>'
+      +         '<option value="time_asc">오래된순</option>'
+      +         '<option value="grade">등급순</option>'
+      +         '<option value="exchange">거래소순</option>'
+      +         '<option value="score">점수순</option>'
+      +       '</select>'
+      +     '</div>'
+      +   '</div>'
+      +   '<div class="woos-alert-list-cards" id="woosAlertListCards"></div>'
+      +   '<button type="button" class="woos-alert-list-more-btn" id="woosAlertListMoreBtn" style="display:none;">더 보기 (+100)</button>'
+      + '</div>'
+      + '</div>';
+  }
+  
+  function _attachAlertListHandlers() {
+    var toggleBtn = document.getElementById('woosAlertListToggleBtn');
+    if (!toggleBtn) return;
+    toggleBtn.onclick = function(){
+      var body = document.getElementById('woosAlertListBody');
+      var icon = toggleBtn.querySelector('.woos-alert-list-toggle-icon');
+      _alertListExpanded = !_alertListExpanded;
+      if (_alertListExpanded) {
+        body.style.display = 'block';
+        if (icon) icon.textContent = '▼';
+        if (_alertListCache.length === 0) {
+          _fetchAlertList(false);
+        }
+      } else {
+        body.style.display = 'none';
+        if (icon) icon.textContent = '▶';
+      }
+    };
+  }
+  
+  function _fetchAlertList(append) {
+    var loadingEl = document.getElementById('woosAlertListLoading');
+    var controlsEl = document.getElementById('woosAlertListControls');
+    var workerBase = window.WORKER_BASE_URL || '';
+    var url = workerBase + '/snapshots?limit=' + _alertListLimit + '&offset=' + _alertListOffset;
+    
+    if (loadingEl) loadingEl.style.display = 'block';
+    fetch(url).then(function(r){ return r.json(); }).then(function(data){
+      if (!data || !Array.isArray(data.items)) {
+        if (loadingEl) loadingEl.innerHTML = '<div class="woos-alert-list-empty">알람목록 데이터 없음</div>';
+        return;
+      }
+      if (append) {
+        _alertListCache = (_alertListCache || []).concat(data.items);
+      } else {
+        _alertListCache = data.items;
+      }
+      _alertListTotal = data.total || data.items.length || 0;
+      
+      if (loadingEl) loadingEl.style.display = 'none';
+      if (controlsEl) controlsEl.style.display = 'block';
+      
+      _renderAlertList();
+      _attachAlertListFilterHandlers();
+      _attachAlertListMoreHandler(data.hasMore);
+      _updateAlertListCount();
+    }).catch(function(err){
+      if (loadingEl) loadingEl.innerHTML = '<div class="woos-alert-list-empty">로딩 실패: ' + (err.message || '오류') + '</div>';
+    });
+  }
+  
+  function _renderAlertList() {
+    var cardsEl = document.getElementById('woosAlertListCards');
+    if (!cardsEl) return;
+    
+    var filtered = _alertListCache.filter(function(it){
+      if (_alertListFilters.grade !== 'ALL' && it.gradeCode !== _alertListFilters.grade) return false;
+      if (_alertListFilters.exchange !== 'ALL' && it.exchange !== _alertListFilters.exchange) return false;
+      return true;
+    });
+    
+    var sorted = filtered.slice();
+    var gradeOrder = { 'SPLUS': 5, 'S': 4, 'A': 3, 'B': 2, 'C': 1 };
+    if (_alertListSort === 'time_desc') {
+      sorted.sort(function(a, b){ return (new Date(b.timestamp).getTime() || 0) - (new Date(a.timestamp).getTime() || 0); });
+    } else if (_alertListSort === 'time_asc') {
+      sorted.sort(function(a, b){ return (new Date(a.timestamp).getTime() || 0) - (new Date(b.timestamp).getTime() || 0); });
+    } else if (_alertListSort === 'grade') {
+      sorted.sort(function(a, b){ return (gradeOrder[b.gradeCode] || 0) - (gradeOrder[a.gradeCode] || 0); });
+    } else if (_alertListSort === 'exchange') {
+      sorted.sort(function(a, b){ return String(a.exchange || '').localeCompare(String(b.exchange || '')); });
+    } else if (_alertListSort === 'score') {
+      sorted.sort(function(a, b){ return (b.total || 0) - (a.total || 0); });
+    }
+    
+    if (sorted.length === 0) {
+      cardsEl.innerHTML = '<div class="woos-alert-list-empty">조건에 맞는 알람 없음</div>';
+      return;
+    }
+    
+    cardsEl.innerHTML = sorted.map(_buildAlertCardHtml).join('');
+  }
+  
+  function _buildAlertCardHtml(item) {
+    var grade = item.gradeCode || '?';
+    if (grade === 'SPLUS') grade = 'S+';
+    var gradeClass = 'al-grade-' + (item.gradeCode || 'unknown').toLowerCase();
+    var alertType = item.alertType || '';
+    var noAlert = (alertType === 'B' || alertType === 'C') || (item.gradeCode === 'B' || item.gradeCode === 'C');
+    var alertLabel = noAlert ? '<span class="al-no-alert">📵 알람 X</span>' : '<span class="al-alert">📨 ' + escapeHtml(alertType || '알람') + '</span>';
+    var displayName = item.base || '?';
+    try {
+      if (window.v49_getCoinDisplayName) {
+        var krName = window.v49_getCoinDisplayName(item.base);
+        if (krName && krName !== item.base) {
+          displayName = krName + ' (' + item.base + ')';
+        }
+      }
+    } catch(e) {}
+    var ts = item.timestamp ? new Date(item.timestamp) : null;
+    var tsLabel = '';
+    if (ts) {
+      try {
+        tsLabel = ts.toLocaleString('ko-KR', { 
+          timeZone: 'Asia/Seoul', month: '2-digit', day: '2-digit', 
+          hour: '2-digit', minute: '2-digit', hour12: false 
+        });
+      } catch(e) {}
+    }
+    
+    return '<div class="woos-alert-list-card">'
+      + '<div class="al-row1">'
+      +   '<span class="al-grade-chip ' + gradeClass + '">' + escapeHtml(grade) + '</span>'
+      +   '<span class="al-base">' + escapeHtml(displayName) + '</span>'
+      +   '<span class="al-exchange">' + escapeHtml(item.exchange || '') + '</span>'
+      + '</div>'
+      + '<div class="al-row2">'
+      +   '<span class="al-score">점수 ' + (item.total != null ? item.total : '-') + '</span>'
+      +   '<span class="al-time">' + escapeHtml(tsLabel) + '</span>'
+      +   alertLabel
+      + '</div>'
+      + '</div>';
+  }
+  
+  function _attachAlertListFilterHandlers() {
+    var fGrade = document.getElementById('woosAlertListFilterGrade');
+    var fExchange = document.getElementById('woosAlertListFilterExchange');
+    var fSort = document.getElementById('woosAlertListSort');
+    if (fGrade) fGrade.onchange = function(){ _alertListFilters.grade = fGrade.value; _renderAlertList(); _updateAlertListCount(); };
+    if (fExchange) fExchange.onchange = function(){ _alertListFilters.exchange = fExchange.value; _renderAlertList(); _updateAlertListCount(); };
+    if (fSort) fSort.onchange = function(){ _alertListSort = fSort.value; _renderAlertList(); };
+  }
+  
+  function _attachAlertListMoreHandler(hasMore) {
+    var btn = document.getElementById('woosAlertListMoreBtn');
+    if (!btn) return;
+    if (hasMore && _alertListCache.length < _alertListTotal) {
+      btn.style.display = 'block';
+      btn.onclick = function(){
+        _alertListOffset += _alertListLimit;
+        _fetchAlertList(true);
+      };
+    } else {
+      btn.style.display = 'none';
+    }
+  }
+  
+  function _updateAlertListCount() {
+    var countEl = document.getElementById('woosAlertListToggleCount');
+    if (!countEl) return;
+    var filtered = _alertListCache.filter(function(it){
+      if (_alertListFilters.grade !== 'ALL' && it.gradeCode !== _alertListFilters.grade) return false;
+      if (_alertListFilters.exchange !== 'ALL' && it.exchange !== _alertListFilters.exchange) return false;
+      return true;
+    });
+    countEl.textContent = '(' + filtered.length + '/' + _alertListCache.length + (_alertListTotal > _alertListCache.length ? ' / 총 ' + _alertListTotal : '') + ')';
+  }
+  
+  // window 노출 (export 함수에서 활용)
+  window.woosFetchAlertList = _fetchAlertList;
+  window.woosGetAlertListCache = function(){ return _alertListCache; };
+  
   
   // 단일 히스토리 상세 fetch (펼침 시)
   /* [v4.9.4+ 분석 완료 사후평가 리포트] 정적 룰 스캐너 개선 메모 생성기
