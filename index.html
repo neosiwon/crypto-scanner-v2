@@ -152,7 +152,7 @@
 <script>
 /* [v4.7.42] 캐시 강제 리셋 — SW 완전 제거 후 리로드 */
 (function(){
-  var VER = 'v4.9.4+v5-prep-r2';  // [V5 prep r2] 정밀 1~4 (Shadow Score + 검증샘플 분리 + 승격 칩) + 탭 자동전환 버그 fix
+  var VER = 'v4.9.4+v5-prep-r2-history-fix';  // [V5 prep r2] 정밀 1~4 (Shadow Score + 검증샘플 분리 + 승격 칩) + 탭 자동전환 버그 fix
   try {
     var LKEY = 'woos_hard_reset_ver';
     if (localStorage.getItem(LKEY) === VER) return;
@@ -8919,7 +8919,7 @@ async function opsDashboard() {
 // 탭 시 상세 팝업
 // ═══════════════════════════════════════════════════════════════
 
-var HTML_VERSION = 'v4.9.4+v5-prep-r2';  // [V5 prep r2] 정밀 1~4 + 탭 fix
+var HTML_VERSION = 'v4.9.4+v5-prep-r2-history-fix';  // [V5 prep r2] + 분석 완료 탭 60초 자동 복원
 var _cachedBuildInfo = null;
 
 // [State Lock 2 Action fix-2c] 패치 확인용 — 페이지 로드 시 버전명 출력 (DevTools 콘솔)
@@ -14767,7 +14767,22 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
     var __w1_opened = (typeof w1_captureOpenCards === 'function') ? w1_captureOpenCards() : null;
     
     container.innerHTML = headerHtml + activeContainerHtml + historyContainerHtml;
-    
+
+    // [V5 v4.9.4+v5-prep-r2-history-fix] 60초 자동 갱신 후 분석 완료 탭 콘텐츠 자동 복원
+    //   원인: container.innerHTML 교체 시 historyContainerHtml = '<div>히스토리 로딩 중...</div>' (빈 상태)
+    //         사용자가 분석 완료 탭 보고 있어도 60초마다 빈 상태로 리셋 → 사용자 보고 "60초 리프레쉬"
+    //   해결: 분석 완료 탭 active이면 _historyCache 살아있으면 즉시 _renderHistoryUI, 아니면 _fetchAndRenderHistory
+    //   효과: 60초 갱신 후 재클릭 불필요. cache 재사용으로 Worker 부담 X.
+    if (savedAnalyzerTab === 'history') {
+      try {
+        if (Array.isArray(_historyCache) && _historyCache.length > 0 && typeof _renderHistoryUI === 'function') {
+          _renderHistoryUI(_historyCache, _historyCache.length);
+        } else if (typeof _fetchAndRenderHistory === 'function') {
+          _fetchAndRenderHistory();
+        }
+      } catch(e) { /* 분석 완료 탭 복원 실패는 무시 */ }
+    }
+
     // [Week 1 — Round 1] 11355 직후 — 정확 상태 복원 (빈 배열도 호출, stale open 무효화)
     if (typeof w1_restoreOpenCards === 'function' && __w1_opened !== null) {
       w1_restoreOpenCards(__w1_opened);
