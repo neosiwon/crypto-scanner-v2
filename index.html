@@ -152,7 +152,7 @@
 <script>
 /* [v4.7.42] 캐시 강제 리셋 — SW 완전 제거 후 리로드 */
 (function(){
-  var VER = 'v4.9.4+guide-modal';  // [v4.9.4+] 데모 모드 전용 도움말 모달 (?demo=1 / ?preview=1) — 버튼 + 첫 진입 자동 팝업 + 4개 섹션 + 등급 의미 + 핵심 지표
+  var VER = 'v4.9.4+pct-fallback';  // [v4.9.4+] 카드 헤더 수익률 % fallback (samples 부족 + alertSnapshot.price 있을 때 0.00% neutral 회색 표시 — 헤더 빈 공간 방지)
   try {
     var LKEY = 'woos_hard_reset_ver';
     if (localStorage.getItem(LKEY) === VER) return;
@@ -4761,6 +4761,7 @@ details.analyzer-progress-card details.progress-deeper > div {
 .woos-pct { font-weight: 700; font-size: 0.85rem; margin-right: 8px; }
 .woos-pct-up   { color: #00e676; }
 .woos-pct-down { color: #ff4560; }
+.woos-pct-neutral { color: #6b7280; font-weight: 600; }  /* [v4.9.4+ pct-fallback] samples 부족 시 0.00% neutral */
 .woos-pct.woos-empty { color: #6b7280; font-weight: 400; font-style: italic; }
 
 /* 펼친 본문 — 기존 progress-rich-body 안에 들어가는 새 영역 */
@@ -6664,6 +6665,7 @@ details.v477-track-card > summary.v478-summary {
 .v478-profit-wrap .woos-pct { font-size: 1.03rem !important; font-weight: 850 !important; font-family: var(--mono, monospace); }
 .v478-profit-wrap .woos-pct-up { color: #22f69b !important; text-shadow: 0 0 12px rgba(34, 246, 155, .34); }
 .v478-profit-wrap .woos-pct-down { color: #ff5c72 !important; text-shadow: 0 0 12px rgba(255, 92, 114, .34); }
+.v478-profit-wrap .woos-pct-neutral { color: #8a96a8 !important; text-shadow: none !important; font-weight: 700 !important; }  /* [v4.9.4+ pct-fallback] 0.00% 회색 */
 .v478-summary .hdr-mode-chip { height: 23px !important; padding: 0 10px !important; margin-left: 0 !important; border-radius: 999px !important; font-size: .70rem !important; font-weight: 850 !important; white-space: nowrap; }
 .v478-summary .hdr-mode-chip.mode-watch { color: #00151f !important; background: linear-gradient(135deg, #00e5ff, #36ffbd) !important; border: 1px solid rgba(0,229,255,.58) !important; box-shadow: 0 0 14px rgba(0,229,255,.42) !important; }
 .v478-summary .hdr-mode-chip.mode-precise { color: #fff !important; background: linear-gradient(135deg, #7b5cff, #b66cff) !important; border: 1px solid rgba(167,139,250,.52) !important; box-shadow: 0 0 14px rgba(123,92,255,.42) !important; }
@@ -8492,7 +8494,7 @@ async function opsDashboard() {
 // 탭 시 상세 팝업
 // ═══════════════════════════════════════════════════════════════
 
-var HTML_VERSION = 'v4.9.4+guide-modal';  // [v4.9.4+] 데모 모드 도움말 모달
+var HTML_VERSION = 'v4.9.4+pct-fallback';  // [v4.9.4+] 카드 헤더 수익률 % fallback
 var _cachedBuildInfo = null;
 
 // [State Lock 2 Action fix-2c] 패치 확인용 — 페이지 로드 시 버전명 출력 (DevTools 콘솔)
@@ -19382,10 +19384,25 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       // if (exchange) { ... }  // 비활성화
       
       // [Phase 4.7 공사 1 — Q1] 등락 % 표시
+      // [v4.9.4+ pct-fallback] 사용자 명시 결정 1=B, 2=C, 3=A:
+      //   - 우선순위 1: metrics.hasData && currentPct → 정상 표시 (기존 색)
+      //   - 우선순위 2: prefetched currentPct (computeLiveMetrics 안에서 hasData=true로 처리됨)
+      //   - 우선순위 3: samples/prefetched X + alertSnapshot.price 있음 → "0.00%" neutral 회색
+      //   - 우선순위 4: alertSnapshot.price도 없음 → 빈 값 (기존 동작)
+      // 금지: alertSnapshot.changeRate (24h 변화율) 사용 X — 추적 currentPct 의미 X
+      // 금지: "수집중" 등 문구 표시 X
       var pctLabel = '';
       if (metrics && metrics.hasData && metrics.currentPct != null) {
+        // 우선순위 1, 2: 정상 표시 (samples 또는 prefetched 기반)
         var sign = metrics.currentPct >= 0 ? '+' : '';
         pctLabel = '<span class="woos-pct woos-pct-' + (metrics.currentPct >= 0 ? 'up' : 'down') + '">' + sign + metrics.currentPct.toFixed(2) + '%</span>';
+      } else {
+        // 우선순위 3: alertSnapshot.price 있으면 "0.00%" neutral fallback (헤더 비어 보이지 않게)
+        var _alertSnapForPct = (track && track.alertSnapshot) || (track && track.meta && track.meta.alertSnapshot) || null;
+        if (_alertSnapForPct && _alertSnapForPct.price != null) {
+          pctLabel = '<span class="woos-pct woos-pct-neutral">0.00%</span>';
+        }
+        // 우선순위 4: alertSnapshot.price도 없음 → 빈 값 (기존 동작 유지)
       }
       
       // [Phase 4.7 공사 4 — 2-3] 가격 변화량 (lastPrice - entryPrice)
