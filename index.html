@@ -152,7 +152,7 @@
 <script>
 /* [v4.7.42] 캐시 강제 리셋 — SW 완전 제거 후 리로드 */
 (function(){
-  var VER = 'v4.9.4+pct-fallback';  // [v4.9.4+] 카드 헤더 수익률 % fallback (samples 부족 + alertSnapshot.price 있을 때 0.00% neutral 회색 표시 — 헤더 빈 공간 방지)
+  var VER = 'v4.9.4+pct-fallback-r2';  // [v4.9.4+] 카드 헤더 % fallback chain 강화 (v49_readAlertSnapshot + track.entryPrice 5순위) — PAXG/APT 케이스 fix
   try {
     var LKEY = 'woos_hard_reset_ver';
     if (localStorage.getItem(LKEY) === VER) return;
@@ -8494,7 +8494,7 @@ async function opsDashboard() {
 // 탭 시 상세 팝업
 // ═══════════════════════════════════════════════════════════════
 
-var HTML_VERSION = 'v4.9.4+pct-fallback';  // [v4.9.4+] 카드 헤더 수익률 % fallback
+var HTML_VERSION = 'v4.9.4+pct-fallback-r2';  // [v4.9.4+] pctLabel fallback chain 강화
 var _cachedBuildInfo = null;
 
 // [State Lock 2 Action fix-2c] 패치 확인용 — 페이지 로드 시 버전명 출력 (DevTools 콘솔)
@@ -19384,12 +19384,17 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       // if (exchange) { ... }  // 비활성화
       
       // [Phase 4.7 공사 1 — Q1] 등락 % 표시
-      // [v4.9.4+ pct-fallback] 사용자 명시 결정 1=B, 2=C, 3=A:
-      //   - 우선순위 1: metrics.hasData && currentPct → 정상 표시 (기존 색)
-      //   - 우선순위 2: prefetched currentPct (computeLiveMetrics 안에서 hasData=true로 처리됨)
-      //   - 우선순위 3: samples/prefetched X + alertSnapshot.price 있음 → "0.00%" neutral 회색
-      //   - 우선순위 4: alertSnapshot.price도 없음 → 빈 값 (기존 동작)
+      // [v4.9.4+ pct-fallback-r2] 사용자 명시 결정 1=A, 2=C:
+      //   - 결정 1=A: v49_readAlertSnapshot(track) 활용 (가장 강력한 fallback chain)
+      //   - 결정 2=C: alertSnapshot.price → track.entryPrice → 없으면 빈 값 (5순위)
+      // 우선순위:
+      //   1. metrics.hasData && currentPct → 정상 표시 (기존 색)
+      //   2. prefetched currentPct → computeLiveMetrics 안에서 hasData=true 처리됨
+      //   3. samples/prefetched X + alertSnapshot.price 있음 → "0.00%" neutral
+      //   4. alertSnapshot.price X but track.entryPrice 있음 → "0.00%" neutral (이중 안전망)
+      //   5. entryPrice도 없음 → 빈 값 (기존 동작)
       // 금지: alertSnapshot.changeRate (24h 변화율) 사용 X — 추적 currentPct 의미 X
+      // 금지: "+0.00%" 표시 X — 반드시 "0.00%" (sign 없음)
       // 금지: "수집중" 등 문구 표시 X
       var pctLabel = '';
       if (metrics && metrics.hasData && metrics.currentPct != null) {
@@ -19397,12 +19402,29 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
         var sign = metrics.currentPct >= 0 ? '+' : '';
         pctLabel = '<span class="woos-pct woos-pct-' + (metrics.currentPct >= 0 ? 'up' : 'down') + '">' + sign + metrics.currentPct.toFixed(2) + '%</span>';
       } else {
-        // 우선순위 3: alertSnapshot.price 있으면 "0.00%" neutral fallback (헤더 비어 보이지 않게)
-        var _alertSnapForPct = (track && track.alertSnapshot) || (track && track.meta && track.meta.alertSnapshot) || null;
-        if (_alertSnapForPct && _alertSnapForPct.price != null) {
+        // 우선순위 3, 4: alertSnapshot fallback chain 강화 (v49_readAlertSnapshot 우선)
+        var _alertSnapForPct = null;
+        if (typeof v49_readAlertSnapshot === 'function') {
+          // v49_readAlertSnapshot: track.snapshot → track.alertSnapshot → meta.alertSnapshot → v41_getAlertSnapshot 까지 검색
+          _alertSnapForPct = v49_readAlertSnapshot(track);
+        } else {
+          // 헬퍼 미정의 케이스 (방어적 — 정상 흐름에서는 발생 X)
+          _alertSnapForPct =
+            (track && track.snapshot) ||
+            (track && track.alertSnapshot) ||
+            (track && track.meta && track.meta.alertSnapshot) ||
+            null;
+        }
+        // entryPrice 추출 (alertSnapshot.price → track.entryPrice 순)
+        var _entryPriceForPct =
+          (_alertSnapForPct && _alertSnapForPct.price != null)
+            ? _alertSnapForPct.price
+            : (track && track.entryPrice != null ? track.entryPrice : null);
+        if (_entryPriceForPct != null) {
+          // 우선순위 3, 4: entryPrice 있음 → 0.00% neutral (헤더 빈 공간 방지)
           pctLabel = '<span class="woos-pct woos-pct-neutral">0.00%</span>';
         }
-        // 우선순위 4: alertSnapshot.price도 없음 → 빈 값 (기존 동작 유지)
+        // 우선순위 5: entryPrice도 없음 → 빈 값 (기존 동작 유지)
       }
       
       // [Phase 4.7 공사 4 — 2-3] 가격 변화량 (lastPrice - entryPrice)
