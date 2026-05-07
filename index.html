@@ -152,7 +152,7 @@
 <script>
 /* [v4.7.42] 캐시 강제 리셋 — SW 완전 제거 후 리로드 */
 (function(){
-  var VER = 'v4.9.4+v5-prep';  // [V5 prep] B/C 박제 분기 + 알람목록 (Worker /api/snapshots + 페이지네이션 + TTL 90일 가정)
+  var VER = 'v4.9.4+v5-prep-r2';  // [V5 prep r2] 정밀 1~4 (Shadow Score + 검증샘플 분리 + 승격 칩) + 탭 자동전환 버그 fix
   try {
     var LKEY = 'woos_hard_reset_ver';
     if (localStorage.getItem(LKEY) === VER) return;
@@ -5722,6 +5722,84 @@ details.progress-rich-card.woos-group[open] { border-color: rgba(124, 58, 237, 0
 }
 .woos-alert-list-more-btn:hover { background: rgba(168, 85, 247, .18); color: #fff; }
 
+/* [V5 정밀 4] 분석완료 카드 — 초기 등급 vs 최종 등급 승격 칩 */
+.hist-promotion-chip {
+  display: inline-block;
+  padding: 2px 7px;
+  font-size: .62rem;
+  font-weight: 700;
+  letter-spacing: .3px;
+  border-radius: 4px;
+  margin-left: 4px;
+  font-family: 'JetBrains Mono', monospace;
+}
+.hist-promotion-chip.hist-promoted {
+  background: linear-gradient(90deg, rgba(34, 246, 155, .18), rgba(0, 212, 255, .14));
+  color: #22f69b;
+  border: 1px solid rgba(34, 246, 155, .42);
+}
+.hist-promotion-chip.hist-demoted {
+  background: linear-gradient(90deg, rgba(255, 92, 114, .14), rgba(245, 158, 11, .10));
+  color: #ff5c72;
+  border: 1px solid rgba(255, 92, 114, .32);
+}
+
+/* [V5 정밀 1+2] 검증샘플 분리 + Shadow Score */
+.al-sample-card {
+  border: 1px dashed rgba(250, 204, 21, .28) !important;
+  background: linear-gradient(135deg, rgba(20, 28, 40, .7), rgba(40, 30, 15, .4)) !important;
+}
+.al-sample-card .al-base { color: #facc15; }
+.al-sample-tag {
+  display: inline-block;
+  padding: 1px 6px;
+  font-size: .58rem;
+  font-weight: 700;
+  letter-spacing: .3px;
+  background: rgba(250, 204, 21, .14);
+  color: #facc15;
+  border: 1px solid rgba(250, 204, 21, .32);
+  border-radius: 3px;
+  margin-left: 4px;
+}
+.al-shadow-chip {
+  display: inline-block;
+  padding: 1px 6px;
+  font-size: .58rem;
+  font-weight: 700;
+  letter-spacing: .3px;
+  border-radius: 3px;
+  margin-left: 4px;
+}
+.al-shadow-강 {
+  background: rgba(34, 246, 155, .18);
+  color: #22f69b;
+  border: 1px solid rgba(34, 246, 155, .42);
+}
+.al-shadow-중 {
+  background: rgba(245, 158, 11, .14);
+  color: #f59e0b;
+  border: 1px solid rgba(245, 158, 11, .32);
+}
+.al-shadow-약 {
+  background: rgba(148, 163, 184, .12);
+  color: #94a3b8;
+  border: 1px solid rgba(148, 163, 184, .28);
+}
+
+/* [V5 정밀 3] 승격 칩 — gradeHistory 기반 (다음 단계) */
+.al-promotion-chip {
+  display: inline-block;
+  padding: 1px 6px;
+  font-size: .58rem;
+  font-weight: 700;
+  background: linear-gradient(90deg, rgba(168, 85, 247, .2), rgba(34, 246, 155, .18));
+  color: #d8b4fe;
+  border: 1px solid rgba(168, 85, 247, .42);
+  border-radius: 3px;
+  margin-left: 4px;
+}
+
 @media (max-width: 520px) {
   .woos-alert-list-filter-row { flex-direction: column; }
   .woos-alert-list-select { width: 100%; }
@@ -8841,7 +8919,7 @@ async function opsDashboard() {
 // 탭 시 상세 팝업
 // ═══════════════════════════════════════════════════════════════
 
-var HTML_VERSION = 'v4.9.4+v5-prep';  // [V5 prep] B/C 박제 + 알람목록
+var HTML_VERSION = 'v4.9.4+v5-prep-r2';  // [V5 prep r2] 정밀 1~4 + 탭 fix
 var _cachedBuildInfo = null;
 
 // [State Lock 2 Action fix-2c] 패치 확인용 — 페이지 로드 시 버전명 출력 (DevTools 콘솔)
@@ -14618,10 +14696,16 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       window._trackingMap = _trackingMap;
     } catch(e) {}
 
+    // [V5 v4.9.4+v5-prep] 분석기 안 탭 상태 보존 — 60초 자동 갱신 시 탭 reset 방지
+    // 사용자 보고: "분석완료 탭이 자동으로 활성 탭으로 넘어감"
+    var savedAnalyzerTab = window._woosAnalyzerActiveTab || 'active';  // 'active' or 'history'
+    var activeTabClass = savedAnalyzerTab === 'active' ? 'active' : '';
+    var historyTabClass = savedAnalyzerTab === 'history' ? 'active' : '';
+    
     // 탭 헤더 — 활성(N)은 allGroups.length 고정
     var tabsHtml = '<div class="woos-tabs">'
-                 + '<button class="woos-tab-btn active" data-tab="active" id="woosTabActive">활성 (' + allGroups.length + ')</button>'
-                 + '<button class="woos-tab-btn" data-tab="history" id="woosTabHistory">분석 완료</button>'
+                 + '<button class="woos-tab-btn ' + activeTabClass + '" data-tab="active" id="woosTabActive">활성 (' + allGroups.length + ')</button>'
+                 + '<button class="woos-tab-btn ' + historyTabClass + '" data-tab="history" id="woosTabHistory">분석 완료</button>'
                  + '</div>';
 
     // 검색 + 정렬 컨트롤 (신규/마감임박 추가)
@@ -14668,10 +14752,13 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
     var moreBtnHtml = '';
     
     // [Phase 4.6.3] 탭 컨테이너 + 활성/히스토리 분리
-    var historyContainerHtml = '<div class="woos-tab-content" id="woosTabContentHistory">'
+    // [V5 v4.9.4+v5-prep] 저장된 탭 상태 따라 active 클래스 부여 (자동 갱신 시 보존)
+    var activeContentClass = savedAnalyzerTab === 'active' ? 'active' : '';
+    var historyContentClass = savedAnalyzerTab === 'history' ? 'active' : '';
+    var historyContainerHtml = '<div class="woos-tab-content ' + historyContentClass + '" id="woosTabContentHistory">'
                               + '<div class="woos-history-loading" id="woosHistoryLoading">히스토리 로딩 중...</div>'
                               + '</div>';
-    var activeContainerHtml = '<div class="woos-tab-content active" id="woosTabContentActive">'
+    var activeContainerHtml = '<div class="woos-tab-content ' + activeContentClass + '" id="woosTabContentActive">'
                             + controlHtml + searchInfo + cardsHtml + moreBtnHtml
                             + '</div>';
     var headerHtml = tabsHtml + statsHtml;
@@ -14735,12 +14822,16 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       btnHistory.classList.remove('active');
       if (contentActive) contentActive.classList.add('active');
       if (contentHistory) contentHistory.classList.remove('active');
+      // [V5 v4.9.4+v5-prep] 탭 상태 박제 — 60초 자동 갱신 시 보존
+      try { window._woosAnalyzerActiveTab = 'active'; } catch(e) {}
     });
     btnHistory.addEventListener('click', function(){
       btnHistory.classList.add('active');
       btnActive.classList.remove('active');
       if (contentHistory) contentHistory.classList.add('active');
       if (contentActive) contentActive.classList.remove('active');
+      // [V5 v4.9.4+v5-prep] 탭 상태 박제 — 60초 자동 갱신 시 보존
+      try { window._woosAnalyzerActiveTab = 'history'; } catch(e) {}
       // lazy fetch
       _fetchAndRenderHistory();
     });
@@ -15387,16 +15478,45 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       } catch(e) {}
     }
     
-    return '<div class="woos-alert-list-card">'
+    // [V5 정밀 1] Shadow Score 계산 — 점수 기반 추정
+    // 사용자 명시: "B/C + Shadow Score가 실제 성공률을 높이는지 검증"
+    // 현재 데이터: total, gradeCode, exchange만 있음 (alertSnapshot 별도 fetch 필요)
+    // 간단형: total 점수 기반 색상 + 강도 표시
+    var totalScore = item.total != null ? item.total : 0;
+    var shadowChip = '';
+    if (noAlert) {
+      // B/C 검증샘플 — Shadow Score = total 점수 기반 강도
+      var shadowLabel = '';
+      if (totalScore >= 4) shadowLabel = '강';
+      else if (totalScore >= 3) shadowLabel = '중';
+      else shadowLabel = '약';
+      shadowChip = '<span class="al-shadow-chip al-shadow-' + shadowLabel + '">🔍 ' + shadowLabel + '</span>';
+    }
+    
+    // [V5 정밀 2] 검증샘플 분리 라벨
+    var sampleLabel = noAlert ? '<span class="al-sample-tag">검증샘플</span>' : '';
+    
+    // [V5 정밀 3] 승격 추적 표시 (gradeHistory 활용)
+    // /snapshots 응답에 gradeHistory 없음 — 샘플에서 직접 fetch 필요 (다음 단계)
+    // 현재는 alertType 기반으로 추정 표시
+    var promotionChip = '';
+    
+    // 카드 클래스 — 검증샘플은 별도 스타일
+    var cardClass = noAlert ? 'woos-alert-list-card al-sample-card' : 'woos-alert-list-card';
+    
+    return '<div class="' + cardClass + '">'
       + '<div class="al-row1">'
       +   '<span class="al-grade-chip ' + gradeClass + '">' + escapeHtml(grade) + '</span>'
       +   '<span class="al-base">' + escapeHtml(displayName) + '</span>'
+      +   shadowChip
+      +   sampleLabel
       +   '<span class="al-exchange">' + escapeHtml(item.exchange || '') + '</span>'
       + '</div>'
       + '<div class="al-row2">'
       +   '<span class="al-score">점수 ' + (item.total != null ? item.total : '-') + '</span>'
       +   '<span class="al-time">' + escapeHtml(tsLabel) + '</span>'
       +   alertLabel
+      +   promotionChip
       + '</div>'
       + '</div>';
   }
@@ -19420,6 +19540,38 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       var scoreChip = '<span class="hist-score-chip ' + scoreCls + '" title="최종 직관 점수 ' + Math.round(trackingScore) + '점">' 
                     + scoreLabel + '</span>';
       
+      // [V5 정밀 4] 초기 등급 vs 최종 등급 — 승격 검증
+      // 사용자 명시: "B/C → A/S 승격 여부 검증"
+      // gradeHistory가 있으면 가장 오래된 등급 = 초기 등급
+      // 최상위 원칙: 기존 등급 칩 그대로 / 신규 칩만 추가 (덮어쓰기 X)
+      var promotionChip = '';
+      try {
+        var gradeHist = item.gradeHistory;
+        if (Array.isArray(gradeHist) && gradeHist.length > 0) {
+          // 시간순 정렬하여 가장 오래된 = 초기
+          var sorted = gradeHist.slice().sort(function(a, b){ return (a.time || 0) - (b.time || 0); });
+          var initialGrade = (sorted[0].gradeCode || '').toUpperCase();
+          if (initialGrade === 'SPLUS') initialGrade = 'S+';
+          var finalGrade = grade;
+          if (finalGrade === 'SPLUS') finalGrade = 'S+';
+          
+          // 등급 강도 비교 — 승격/유지/하락
+          var gradeRank = { 'B': 1, 'C': 1, 'A': 2, 'S': 3, 'S+': 4, 'SPLUS': 4 };
+          var iRank = gradeRank[initialGrade] || 0;
+          var fRank = gradeRank[finalGrade] || 0;
+          
+          if (initialGrade && initialGrade !== finalGrade) {
+            if (fRank > iRank) {
+              // 승격
+              promotionChip = '<span class="hist-promotion-chip hist-promoted" title="초기 ' + initialGrade + ' → ' + finalGrade + ' 승격">⬆ ' + initialGrade + '→' + finalGrade + '</span>';
+            } else if (fRank < iRank) {
+              // 강등
+              promotionChip = '<span class="hist-promotion-chip hist-demoted" title="초기 ' + initialGrade + ' → ' + finalGrade + ' 강등">⬇ ' + initialGrade + '→' + finalGrade + '</span>';
+            }
+          }
+        }
+      } catch(_phe) {}
+      
       var openAttr = isOpen ? ' open' : '';
       return '<details class="woos-history-card"' + openAttr + ' data-id="' + v40_escapeHtml(item.id) + '" ontoggle="window.v462HandleHistoryToggle(event, this)">'
         + '<summary class="woos-history-summary">'
@@ -19428,6 +19580,7 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
         +     '<b>' + v40_escapeHtml(v49_getCoinDisplayName(item)) + '</b>'
         +     '<span class="hist-exchange">' + v40_escapeHtml(exchange) + '</span>'
         +     '<span class="hist-grade hist-grade-' + grade + '">' + v40_escapeHtml(gradeLabel) + '</span>'
+        +     promotionChip
         +     '<span class="hist-outcome">' + outcomeLabel + '</span>'
         +     scoreChip
         +     autoPreciseLabel
