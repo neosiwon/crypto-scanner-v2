@@ -14776,7 +14776,9 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
     if (savedAnalyzerTab === 'history') {
       try {
         if (Array.isArray(_historyCache) && _historyCache.length > 0 && typeof _renderHistoryUI === 'function') {
-          _renderHistoryUI(_historyCache, _historyCache.length);
+          // [V5 history-fix] _historyTotal 우선 사용 (더 보기 버튼 보존)
+          var __histTotal = (typeof _historyTotal === 'number' && _historyTotal > 0) ? _historyTotal : _historyCache.length;
+          _renderHistoryUI(_historyCache, __histTotal);
         } else if (typeof _fetchAndRenderHistory === 'function') {
           _fetchAndRenderHistory();
         }
@@ -14856,6 +14858,8 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
   var _historyCache = null;
   var _historyOffset = 0;
   var _historyLimit = 50;
+  // [V5 v4.9.4+v5-prep-r2-history-fix] 60s 갱신 후 재표시 시 더 보기 버튼 보존용 (total 박제)
+  var _historyTotal = 0;
   
   /* ═══════════════════════════════════════════════════════════════
      [v4.9.4+ history-export] 분석완료 데이터 export 기능
@@ -15237,11 +15241,13 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       } else {
         _historyCache = data.items;
       }
+      // [V5 v4.9.4+v5-prep-r2-history-fix] total 박제 — 60s 갱신 후 재표시 시 더 보기 버튼 보존
+      _historyTotal = data.total || data.items.length || 0;
       try {
         var histBtn = document.getElementById('woosTabHistory');
-        if (histBtn) histBtn.textContent = '분석 완료 (' + (data.total || data.items.length || 0) + ')';
+        if (histBtn) histBtn.textContent = '분석 완료 (' + _historyTotal + ')';
       } catch(e) {}
-      _renderHistoryUI(_historyCache, data.total || 0);
+      _renderHistoryUI(_historyCache, _historyTotal);
     }).catch(function(err){
       contentEl.innerHTML = '<div class="woos-history-empty">히스토리 로딩 실패: ' + (err.message || '알 수 없는 오류') + '</div>';
     });
