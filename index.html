@@ -152,7 +152,7 @@
 <script>
 /* [v4.7.42] 캐시 강제 리셋 — SW 완전 제거 후 리로드 */
 (function(){
-  var VER = 'v4.9.4+v5-prep-r2-history-fix-3';  // [V5 prep r2] 정밀 1~4 (Shadow Score + 검증샘플 분리 + 승격 칩) + 탭 자동전환 버그 fix
+  var VER = 'v4.9.4+v5-prep-r2';  // [V5 prep r2] 정밀 1~4 (Shadow Score + 검증샘플 분리 + 승격 칩) + 탭 자동전환 버그 fix
   try {
     var LKEY = 'woos_hard_reset_ver';
     if (localStorage.getItem(LKEY) === VER) return;
@@ -5786,6 +5786,47 @@ details.progress-rich-card.woos-group[open] { border-color: rgba(124, 58, 237, 0
   color: #94a3b8;
   border: 1px solid rgba(148, 163, 184, .28);
 }
+/* [V5 정밀 1] Shadow Score 숫자 표시 (buildSnapshotPayload 박제값 활용) */
+.al-shadow-high {
+  background: linear-gradient(135deg, rgba(34, 246, 155, .22), rgba(0, 212, 255, .18));
+  color: #22f69b;
+  border: 1px solid rgba(34, 246, 155, .5);
+  text-shadow: 0 0 6px rgba(34, 246, 155, .4);
+}
+.al-shadow-mid {
+  background: rgba(245, 158, 11, .18);
+  color: #fbbf24;
+  border: 1px solid rgba(245, 158, 11, .42);
+}
+.al-shadow-low {
+  background: rgba(148, 163, 184, .14);
+  color: #94a3b8;
+  border: 1px solid rgba(148, 163, 184, .32);
+}
+/* [V5 정밀 3] 승격/멀티 알람 칩 (알람목록 카드용) */
+.al-promo {
+  display: inline-block;
+  padding: 1px 6px;
+  font-size: .58rem;
+  font-weight: 700;
+  background: linear-gradient(90deg, rgba(34, 246, 155, .22), rgba(0, 212, 255, .14));
+  color: #22f69b;
+  border: 1px solid rgba(34, 246, 155, .5);
+  border-radius: 3px;
+  margin-left: 4px;
+  text-shadow: 0 0 4px rgba(34, 246, 155, .3);
+}
+.al-multi {
+  display: inline-block;
+  padding: 1px 6px;
+  font-size: .58rem;
+  font-weight: 700;
+  background: rgba(168, 85, 247, .14);
+  color: #c4b5fd;
+  border: 1px solid rgba(168, 85, 247, .32);
+  border-radius: 3px;
+  margin-left: 4px;
+}
 
 /* [V5 정밀 3] 승격 칩 — gradeHistory 기반 (다음 단계) */
 .al-promotion-chip {
@@ -7403,12 +7444,6 @@ details.progress-rich-card[open] .v4721-detail-toggle {
 .tracking-more-btn {
   display: none !important;
 }
-/* [V5 v4.9.4+v5-prep-r2-history-fix-2] 분석 완료 탭 더 보기 버튼만 강제 표시
-   원인: .tracking-more-btn 전역 display:none → 분석 완료 탭의 더 보기 버튼도 숨김
-   해결: ID 셀렉터로 분석 완료 탭 버튼만 inline-block 강제 (다른 탭의 더 보기는 그대로 숨김 유지) */
-#woosHistoryMoreBtn.tracking-more-btn {
-  display: inline-block !important;
-}
 
 
 /* [v4.7.27] LOGO / LOADING IMAGE STRICT SEPARATION
@@ -8925,7 +8960,7 @@ async function opsDashboard() {
 // 탭 시 상세 팝업
 // ═══════════════════════════════════════════════════════════════
 
-var HTML_VERSION = 'v4.9.4+v5-prep-r2-history-fix-3';  // [V5 prep r2] + 분석 완료 탭 60초 자동 복원
+var HTML_VERSION = 'v4.9.4+v5-prep-r2';  // [V5 prep r2] 정밀 1~4 + 탭 fix
 var _cachedBuildInfo = null;
 
 // [State Lock 2 Action fix-2c] 패치 확인용 — 페이지 로드 시 버전명 출력 (DevTools 콘솔)
@@ -9974,6 +10009,27 @@ function buildSnapshotPayload(coin, alertType) {
     hitTarget2: null,
     hitTarget3: null,
     hitStopLoss: null,
+    // [V5 정밀 1] Shadow Score — B/C 검증샘플 정성평가
+    // 사용자 명시: "B/C + 매수세/수급반응 Shadow Score가 실제 성공률 높이는지 검증"
+    // 정의: accumulationStrength(0~10) + volRatio 가중 + obvTrend 가산
+    // 기존 정보 보존 (덮어쓰기 X) — 별도 필드로만 추가
+    shadowScore: (function(){
+      try {
+        var accSc = (rep.accumulationStrength && rep.accumulationStrength.score) || 0;
+        var vRatio = (rep.vol && rep.vol.ratio) || 1.0;
+        var vAccel = (rep.vol && rep.vol.accel) || 0;
+        var obvUp = (rep.obv && rep.obv.trend === 'UP') ? 1 : 0;
+        // 매수세 강도 (0~5점) + 매집 반영 (0~5점) = 0~10점
+        var volScore = Math.min(5, Math.max(0, (vRatio - 1) * 2 + vAccel * 0.5 + obvUp));
+        var accScore = Math.min(5, accSc * 0.5);
+        return Math.round((volScore + accScore) * 10) / 10;  // 소수 1자리
+      } catch(e) { return 0; }
+    })(),
+    shadowDetails: {
+      vol: rep.vol || null,
+      obv: rep.obv || null,
+      accStrength: rep.accumulationStrength || null,
+    },
     createdAt: Date.now(),
     updatedAt: Date.now()
   };
@@ -14773,24 +14829,7 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
     var __w1_opened = (typeof w1_captureOpenCards === 'function') ? w1_captureOpenCards() : null;
     
     container.innerHTML = headerHtml + activeContainerHtml + historyContainerHtml;
-
-    // [V5 v4.9.4+v5-prep-r2-history-fix] 60초 자동 갱신 후 분석 완료 탭 콘텐츠 자동 복원
-    //   원인: container.innerHTML 교체 시 historyContainerHtml = '<div>히스토리 로딩 중...</div>' (빈 상태)
-    //         사용자가 분석 완료 탭 보고 있어도 60초마다 빈 상태로 리셋 → 사용자 보고 "60초 리프레쉬"
-    //   해결: 분석 완료 탭 active이면 _historyCache 살아있으면 즉시 _renderHistoryUI, 아니면 _fetchAndRenderHistory
-    //   효과: 60초 갱신 후 재클릭 불필요. cache 재사용으로 Worker 부담 X.
-    if (savedAnalyzerTab === 'history') {
-      try {
-        if (Array.isArray(_historyCache) && _historyCache.length > 0 && typeof _renderHistoryUI === 'function') {
-          // [V5 history-fix] _historyTotal 우선 사용 (더 보기 버튼 보존)
-          var __histTotal = (typeof _historyTotal === 'number' && _historyTotal > 0) ? _historyTotal : _historyCache.length;
-          _renderHistoryUI(_historyCache, __histTotal);
-        } else if (typeof _fetchAndRenderHistory === 'function') {
-          _fetchAndRenderHistory();
-        }
-      } catch(e) { /* 분석 완료 탭 복원 실패는 무시 */ }
-    }
-
+    
     // [Week 1 — Round 1] 11355 직후 — 정확 상태 복원 (빈 배열도 호출, stale open 무효화)
     if (typeof w1_restoreOpenCards === 'function' && __w1_opened !== null) {
       w1_restoreOpenCards(__w1_opened);
@@ -14864,8 +14903,6 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
   var _historyCache = null;
   var _historyOffset = 0;
   var _historyLimit = 50;
-  // [V5 v4.9.4+v5-prep-r2-history-fix] 60s 갱신 후 재표시 시 더 보기 버튼 보존용 (total 박제)
-  var _historyTotal = 0;
   
   /* ═══════════════════════════════════════════════════════════════
      [v4.9.4+ history-export] 분석완료 데이터 export 기능
@@ -15247,13 +15284,11 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       } else {
         _historyCache = data.items;
       }
-      // [V5 v4.9.4+v5-prep-r2-history-fix] total 박제 — 60s 갱신 후 재표시 시 더 보기 버튼 보존
-      _historyTotal = data.total || data.items.length || 0;
       try {
         var histBtn = document.getElementById('woosTabHistory');
-        if (histBtn) histBtn.textContent = '분석 완료 (' + _historyTotal + ')';
+        if (histBtn) histBtn.textContent = '분석 완료 (' + (data.total || data.items.length || 0) + ')';
       } catch(e) {}
-      _renderHistoryUI(_historyCache, _historyTotal);
+      _renderHistoryUI(_historyCache, data.total || 0);
     }).catch(function(err){
       contentEl.innerHTML = '<div class="woos-history-empty">히스토리 로딩 실패: ' + (err.message || '알 수 없는 오류') + '</div>';
     });
@@ -15505,14 +15540,19 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       } catch(e) {}
     }
     
-    // [V5 정밀 1] Shadow Score 계산 — 점수 기반 추정
-    // 사용자 명시: "B/C + Shadow Score가 실제 성공률을 높이는지 검증"
-    // 현재 데이터: total, gradeCode, exchange만 있음 (alertSnapshot 별도 fetch 필요)
-    // 간단형: total 점수 기반 색상 + 강도 표시
-    var totalScore = item.total != null ? item.total : 0;
+    // [V5 정밀 1] Shadow Score 표시 — buildSnapshotPayload에서 박제된 실제 값 활용
+    // 박제 시 accumulationStrength + volRatio + obvTrend 종합 계산 (0~10점)
+    // fallback: 박제 안 된 기존 데이터는 total 점수 기반 추정
     var shadowChip = '';
-    if (noAlert) {
-      // B/C 검증샘플 — Shadow Score = total 점수 기반 강도
+    var shadowVal = (item.shadowScore != null) ? item.shadowScore : null;
+    if (shadowVal != null) {
+      var shadowGood = shadowVal >= 6;
+      var shadowMid = shadowVal >= 4;
+      var shadowCls = shadowGood ? 'al-shadow-high' : (shadowMid ? 'al-shadow-mid' : 'al-shadow-low');
+      shadowChip = '<span class="al-shadow-chip ' + shadowCls + '">💎 ' + shadowVal + '</span>';
+    } else if (noAlert) {
+      // fallback for legacy data
+      var totalScore = item.total != null ? item.total : 0;
       var shadowLabel = '';
       if (totalScore >= 4) shadowLabel = '강';
       else if (totalScore >= 3) shadowLabel = '중';
@@ -15523,10 +15563,27 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
     // [V5 정밀 2] 검증샘플 분리 라벨
     var sampleLabel = noAlert ? '<span class="al-sample-tag">검증샘플</span>' : '';
     
-    // [V5 정밀 3] 승격 추적 표시 (gradeHistory 활용)
-    // /snapshots 응답에 gradeHistory 없음 — 샘플에서 직접 fetch 필요 (다음 단계)
-    // 현재는 alertType 기반으로 추정 표시
+    // [V5 정밀 3] 승격 추적 본 구현 — 같은 base의 다른 등급 카운트
     var promotionChip = '';
+    try {
+      if (item.base && Array.isArray(_alertListCache)) {
+        var sameBase = _alertListCache.filter(function(s){ return s.base === item.base; });
+        if (sameBase.length > 1) {
+          var gradeOrderProm = { 'SPLUS': 5, 'S': 4, 'A': 3, 'B': 2, 'C': 1 };
+          var maxG = sameBase.reduce(function(m, s){
+            var v = gradeOrderProm[s.gradeCode] || 0;
+            return v > m.v ? { v: v, g: s.gradeCode } : m;
+          }, { v: 0, g: '' });
+          var curV = gradeOrderProm[item.gradeCode] || 0;
+          if (maxG.v > curV) {
+            var maxLabel = maxG.g === 'SPLUS' ? 'S+' : maxG.g;
+            promotionChip = '<span class="al-promo">↑ ' + escapeHtml(maxLabel) + ' 승격</span>';
+          } else if (sameBase.length >= 2) {
+            promotionChip = '<span class="al-multi">×' + sameBase.length + '회</span>';
+          }
+        }
+      }
+    } catch(_promErr) {}
     
     // 카드 클래스 — 검증샘플은 별도 스타일
     var cardClass = noAlert ? 'woos-alert-list-card al-sample-card' : 'woos-alert-list-card';
