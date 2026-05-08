@@ -1,6 +1,6 @@
 /* WOOS Shadow Styles
  * Base:    v4.9.5+phase2-v0-shadow-backfill-hotfix-r1
- * Current: v5.2.2 (스캐너 카드 정밀화 통합 — 본체 동기화. 스타일 추가 0건)
+ * Current: v5.2.3 (라벨 설명 모달 — .rl-info-* 스타일 추가)
  *
  * v5.1.5 = 본체 index.html line 5792~6322 (~531줄) 통째 이전.
  *          재작성 X / 인라인 그대로 / 클래스명 / specificity / 미디어쿼리 / 키프레임 모두 보존.
@@ -880,4 +880,142 @@ body:has(.woos-test-mode-banner) { padding-top: 38px; }
   .rl-chips-closed .rl-chip:nth-child(2) {
     display: none;
   }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+ * v5.2.3 — 라벨 설명 모달 (renderRefinementExpandedBlock 헤더 ❓ 트리거)
+ * ═══════════════════════════════════════════════════════════════ */
+.rl-info-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px; height: 22px;
+  margin-left: 6px;
+  padding: 0;
+  border: 1px solid rgba(170, 192, 230, 0.30);
+  border-radius: 50%;
+  background: rgba(170, 192, 230, 0.08);
+  color: #aac0e6;
+  font-size: 11px;
+  cursor: pointer;
+  vertical-align: middle;
+  line-height: 1;
+  transition: background 0.15s ease;
+}
+.rl-info-btn:hover {
+  background: rgba(170, 192, 230, 0.20);
+}
+
+.rl-info-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  animation: rl-info-fade-in 0.2s ease-out;
+  padding: 12px;
+  box-sizing: border-box;
+}
+@keyframes rl-info-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.rl-info-modal-box {
+  background: #161b29;
+  border: 1px solid rgba(170, 192, 230, 0.25);
+  border-radius: 12px;
+  padding: 20px 18px 14px;
+  width: min(94vw, 460px);
+  max-height: 85vh;
+  overflow-y: auto;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.55);
+  animation: rl-info-slide-up 0.25s ease-out;
+  box-sizing: border-box;
+}
+@keyframes rl-info-slide-up {
+  from { transform: translateY(20px); opacity: 0; }
+  to   { transform: translateY(0); opacity: 1; }
+}
+
+.rl-info-modal-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #e8eaf2;
+  margin-bottom: 14px;
+  text-align: center;
+}
+
+.rl-info-modal-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.rl-info-card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(170, 192, 230, 0.15);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+.rl-info-card-head {
+  font-weight: 700;
+  font-size: 14px;
+  margin-bottom: 4px;
+}
+.rl-info-card-title {
+  color: #e8eaf2;
+}
+.rl-info-card-desc {
+  font-size: 12px;
+  color: #aac0e6;
+  margin-bottom: 6px;
+  line-height: 1.45;
+}
+.rl-info-card-grades {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 12px;
+  color: #d0d6e4;
+  line-height: 1.5;
+}
+.rl-info-grade-tier {
+  display: inline-block;
+  font-weight: 600;
+  margin-right: 4px;
+}
+.rl-info-buy        .rl-info-grade-tier { color: #ffd76b; }
+.rl-info-liquidity  .rl-info-grade-tier { color: #6ba6ff; }
+.rl-info-absorption .rl-info-grade-tier { color: #6bd76b; }
+.rl-info-chase      .rl-info-grade-tier { color: #ff9466; }
+.rl-info-sell       .rl-info-grade-tier { color: #ff5c5c; }
+
+.rl-info-card-note {
+  font-size: 11px;
+  color: #889;
+  margin-top: 5px;
+  font-style: italic;
+  line-height: 1.45;
+}
+
+.rl-info-modal-close-row {
+  display: flex;
+  justify-content: center;
+  margin-top: 14px;
+}
+.rl-info-modal-close {
+  background: rgba(170, 192, 230, 0.12);
+  color: #d0d6e4;
+  border: 1px solid rgba(170, 192, 230, 0.25);
+  border-radius: 6px;
+  padding: 6px 22px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.rl-info-modal-close:hover {
+  background: rgba(170, 192, 230, 0.25);
 }

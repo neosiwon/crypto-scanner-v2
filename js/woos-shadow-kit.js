@@ -1,6 +1,6 @@
 /* WOOS Shadow Kit
  * Base:    v4.9.5+phase2-v0-shadow-backfill-hotfix-r1
- * Current: v5.2.2 (스캐너 카드 정밀화 통합 — 본체 동기화. 시그니처 변경 0건)
+ * Current: v5.2.3 (라벨 설명 모달 + 매수세 강중약 + 매도압 단독표시)
  *
  * Shadow Score / 라벨 / Backfill / ATR B / B-C 검증샘플 담당.
  *
@@ -501,8 +501,8 @@
       upperWickStrong = rep.candle.upperWickRatio >= 0.4;
     }
 
-    /* 🟡 매수세 */
-    var buyActive = s.buyPressure >= 5 && s.riskLevel !== 'high';
+    /* 🟡 매수세 [v5.2.3] 임계 5→1 (스캐너 검출 = 당연 표시 / 강중약으로 차별화) */
+    var buyActive = s.buyPressure >= 1 && s.riskLevel !== 'high';
     var buyStrength = s.buyPressure >= 8 ? 'strong' :
                       s.buyPressure >= 5 ? 'mid' : 'weak';
 
@@ -551,12 +551,25 @@
              '<span class="rl-nodata">정밀화 라벨 — 데이터 부족</span></div>';
     }
     mode = mode || 'expanded';
+
+    /* [v5.2.3] 매도압 active 시 단독 표시 — 위험 신호 우선, 다른 4종 숨김 */
+    if (labels.sellPressure.active) {
+      var sellStrengthText = labels.sellPressure.strength === 'strong' ? '강' :
+                             labels.sellPressure.strength === 'mid'    ? '중' : '약';
+      return '<div class="rl-chips rl-chips-' + mode + ' rl-chips-sell-only">' +
+             '<span class="rl-chip rl-chip-sell rl-chip-' + labels.sellPressure.strength + '">' +
+             '🔴 매도압 ' + sellStrengthText + '</span>' +
+             '</div>';
+    }
+
     var chips = [];
 
+    /* [v5.2.3] 매수세 강중약 항상 명시 — 스캐너 검출 = 당연 표시 (임계는 classifyRefinementLabels에서 1로 낮춤) */
     if (labels.buyPressure.active) {
+      var buyStrengthText = labels.buyPressure.strength === 'strong' ? '강' :
+                            labels.buyPressure.strength === 'mid'    ? '중' : '약';
       chips.push('<span class="rl-chip rl-chip-buy rl-chip-' + labels.buyPressure.strength + '">' +
-                 '🟡 매수세' + (labels.buyPressure.strength === 'strong' ? ' 강' : '') +
-                 '</span>');
+                 '🟡 매수세 ' + buyStrengthText + '</span>');
     }
     if (labels.liquidityReaction.active) {
       chips.push('<span class="rl-chip rl-chip-liquidity">🔵 수급반응</span>');
@@ -570,10 +583,6 @@
                       labels.chaseRisk.level === 'high'    ? '강한 추격주의' : '추격주의';
       chips.push('<span class="rl-chip rl-chip-chase rl-chip-chase-' + labels.chaseRisk.level + '">⚠️ ' +
                  chaseText + '</span>');
-    }
-    if (labels.sellPressure.active) {
-      chips.push('<span class="rl-chip rl-chip-sell rl-chip-' + labels.sellPressure.strength + '">' +
-                 '🔴 매도압' + (labels.sellPressure.strength === 'strong' ? ' 강' : '') + '</span>');
     }
 
     if (chips.length === 0) {
@@ -608,7 +617,11 @@
 
     var html = '<div class="ss-refinement-block">';
     html += '<div class="ss-refinement-title">📊 정밀화 검증 ' +
-            '<span class="ss-refinement-version">phase1-v0</span></div>';
+            '<span class="ss-refinement-version">phase1-v0</span>' +
+            /* [v5.2.3] 라벨 5종 설명 모달 트리거 ❓ */
+            '<button type="button" class="rl-info-btn" aria-label="라벨 설명" ' +
+            'onclick="if(window.openRefinementLabelInfo)window.openRefinementLabelInfo();">❓</button>' +
+            '</div>';
 
     /* 4차원 점수 그래프 (기존 .ss-bar-* 클래스 재사용) */
     html += '<div class="ss-refinement-scores ss-bars">';
@@ -935,9 +948,98 @@
     return subset;
   }
 
+  /* ═══════════════════════════════════════════════════════════════
+   * F8. 라벨 5종 설명 모달 데이터 + 빌더 (v5.2.3)
+   * ═══════════════════════════════════════════════════════════════ */
+  var REFINEMENT_LABEL_INFO = [
+    {
+      icon: '🟡',
+      title: '매수세',
+      cls: 'rl-info-buy',
+      desc: '거래량 / OBV / 가격 모멘텀 합산 점수 (0~10)',
+      grades: [
+        { tier: '강 (8~10점)', text: '강력한 매수 압력 — 거래량+OBV+모멘텀 모두 양호' },
+        { tier: '중 (5~7점)',  text: '보통 매수 압력' },
+        { tier: '약 (1~4점)',  text: '미약한 매수 압력 — 일부만 충족' }
+      ],
+      note: '※ 위험 high 등급에서는 표시 안 됨 / 스캐너 검출 코인은 항상 강중약 차별화 표시'
+    },
+    {
+      icon: '🔵',
+      title: '수급반응',
+      cls: 'rl-info-liquidity',
+      desc: '거래량 변화에 가격이 정상 반응하는지 검증',
+      grades: [
+        { tier: '활성 조건', text: '수급반응 점수 ≥ 6 + 위치품질 ≥ 5' }
+      ],
+      note: '※ 단계 구분 없음 (활성/비활성 이진)'
+    },
+    {
+      icon: '🟢',
+      title: '흡수',
+      cls: 'rl-info-absorption',
+      desc: '가격 안정 상태에서 매물 흡수 진행 추정',
+      grades: [
+        { tier: '활성 조건', text: '거래량 1.2배↑ + 변동률 < 5% + OBV 상승/평탄 + MFI ≥ 40' }
+      ],
+      note: '※ 입금량 데이터 X — 추정 라벨'
+    },
+    {
+      icon: '⚠️',
+      title: '추격주의',
+      cls: 'rl-info-chase',
+      desc: 'phase (현재가 / 박스 하단) 기반 단계',
+      grades: [
+        { tier: '진입 부적합 (extreme)', text: 'phase ≥ 1.25 — 너무 늦음, 진입 자제' },
+        { tier: '강한 추격주의 (high)',  text: 'phase ≥ 1.15 — 추격 매수 고위험' },
+        { tier: '추격주의 (mid)',        text: 'phase ≥ 1.08 — 진입 위치 다소 늦음' }
+      ],
+      note: '※ phase = 현재가 / 박스 하단 비율'
+    },
+    {
+      icon: '🔴',
+      title: '매도압',
+      cls: 'rl-info-sell',
+      desc: '거래량↑ + OBV↓ + 종가 약 + 윗꼬리 + MFI<50 — 5종 위험 신호 합산',
+      grades: [
+        { tier: '강 (4~5 신호)', text: '4개 이상 위험 신호 동시 발생 — 즉시 청산 검토' },
+        { tier: '중 (3 신호)',   text: '3개 위험 신호 발생 — 주의' }
+      ],
+      note: '※ 매도압 active 시 다른 라벨 모두 숨김 (위험 신호 우선) / 2개 이하는 표시 안 함'
+    }
+  ];
+
+  function buildLabelInfoModalHtml() {
+    var html = '<div class="rl-info-modal">';
+    html += '<div class="rl-info-modal-title">정밀화 라벨 5종 설명</div>';
+    html += '<div class="rl-info-modal-cards">';
+    for (var i = 0; i < REFINEMENT_LABEL_INFO.length; i++) {
+      var info = REFINEMENT_LABEL_INFO[i];
+      html += '<div class="rl-info-card ' + info.cls + '">';
+      html += '<div class="rl-info-card-head">' + info.icon +
+              ' <span class="rl-info-card-title">' + _ssEscapeHtml(info.title) + '</span></div>';
+      html += '<div class="rl-info-card-desc">' + _ssEscapeHtml(info.desc) + '</div>';
+      html += '<div class="rl-info-card-grades">';
+      for (var j = 0; j < info.grades.length; j++) {
+        var g = info.grades[j];
+        html += '<div class="rl-info-grade">' +
+                '<span class="rl-info-grade-tier">' + _ssEscapeHtml(g.tier) + '</span> ' +
+                _ssEscapeHtml(g.text) + '</div>';
+      }
+      html += '</div>';
+      if (info.note) {
+        html += '<div class="rl-info-card-note">' + _ssEscapeHtml(info.note) + '</div>';
+      }
+      html += '</div>';
+    }
+    html += '</div>';
+    html += '</div>';
+    return html;
+  }
+
   /* ─── 모듈 노출 ─── */
   global.WOOSShadowKit = {
-    VERSION: 'v5.2.2',
+    VERSION: 'v5.2.3',
     calcShadowScore: calcShadowScore,
     hasShadowInputData: hasShadowInputData,
     renderBackfillPanel: renderBackfillPanel,
@@ -959,7 +1061,9 @@
     renderCompletedInterpretation: renderCompletedInterpretation,
     renderStrategyBExpectedNote: renderStrategyBExpectedNote,
     /* v5.2.1 — 닫힌 카드 라벨 */
-    selectClosedCardLabels: selectClosedCardLabels
+    selectClosedCardLabels: selectClosedCardLabels,
+    /* v5.2.3 — 라벨 5종 설명 모달 */
+    buildLabelInfoModalHtml: buildLabelInfoModalHtml
   };
 
   /* ─── window alias 유지 ───
