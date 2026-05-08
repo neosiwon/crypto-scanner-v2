@@ -1,27 +1,29 @@
 /* WOOS Extension Bridge
  * Base:    v4.9.5+phase2-v0-shadow-backfill-hotfix-r1
- * Current: v5.1.4 (라벨 5종 외부화)
+ * Current: v5.1.5 (Shadow CSS 디자인 정리)
  *
  * 본체 ↔ shadow-kit 어댑터. hook point 단일 관리.
  *
+ * v5.1.5 변경:
+ *   - 본체 인라인 CSS(line 5792~6322)를 woos-shadow.css로 이전 (Bridge JS 시그니처 변경 없음)
+ *   - 한글 요약 화면 표기 (HTML_VERSION_LABEL 추가)
  * v5.1.4 변경:
- *   - ShadowKit이 라벨 UI 5종(Preview/검증샘플/Shadow강도fallback/승격칩/분석완료승격강등) 추가 노출
- *   - Bridge 시그니처 변경 없음
+ *   - ShadowKit이 라벨 UI 5종 추가 노출
  * v5.1.3 변경:
  *   - ShadowKit이 calcShadowScore / hasShadowInputData까지 책임
  * v5.1.2 변경:
  *   - renderHistoryAddon(item, ctx)로 시그니처 확장 — outcome 전달
- *   - renderHistoryAddon → ShadowKit.renderBackfillPanel 위임
  *
- * 보류 (v5.1.4 외):
+ * 보류 (v5.1.5 외):
  *   - renderAnalyzerAddon
  *   - buildSnapshotAddon
+ *   - ATR B (전략 B 함수/HTML/CSS — v5.1.6 예정)
  */
 (function (global) {
   'use strict';
 
   global.WOOSExtensionBridge = {
-    VERSION: 'v5.1.4',
+    VERSION: 'v5.1.5',
 
     // 스캐너 결과 카드 (buildCoinCardHTML)
     renderScannerCardAddon: function (coin, rep, idx) {
