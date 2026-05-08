@@ -1,6 +1,6 @@
 /* WOOS Shadow Kit
  * Base:    v4.9.5+phase2-v0-shadow-backfill-hotfix-r1
- * Current: v5.1.5 (Shadow CSS 디자인 정리)
+ * Current: v5.1.6 (ATR B 함수 외부화)
  *
  * Shadow Score / 라벨 / Backfill / ATR B / B-C 검증샘플 담당.
  *
@@ -375,9 +375,57 @@
     return html;
   }
 
+  /* ═══════════════════════════════════════════════════════════════
+   * v5.1.6 — ATR B 함수 외부화
+   *
+   * 본체 index.html(line 11219~11247) buildAutoTradeStrategyB 함수를
+   * 그대로 이전 (재작성 X / 계산식 / 트리거 텍스트 / note 100% 보존).
+   *
+   * 의존성:
+   *   - rep.atr (snapshot 빌드 시 calcATR(candles) 결과 박제값)
+   *   - rep.price / rep.box.low
+   *   - calcATR 동결 함수 직접 호출 0건 (rep.atr 박제값만 사용)
+   *
+   * 호출처 (본체 미터치):
+   *   - index.html line 9917 (snapshot payload 박제)
+   *   - index.html line 11335 (전략 B HTML 빌드)
+   *   - alias `window.buildAutoTradeStrategyB`로 작동 (T-Q3=A1)
+   *
+   * payload strategyB 필드 구조 1:1 보존 (Worker / KV / export 호환성).
+   * ═══════════════════════════════════════════════════════════════ */
+  function buildAutoTradeStrategyB(coin) {
+    var rep = (coin && coin.representative) || {};
+    var atr = Number(rep.atr || 0);
+    var price = Number(rep.price || 0);
+    var boxLow = rep.box ? rep.box.low : null;
+    if (!atr || isNaN(atr) || !isFinite(atr) || atr <= 0 || !price) {
+      return { ok: false, reason: 'ATR 데이터 부족으로 계산 불가' };
+    }
+    var trailWidth = atr * 2;
+    var stage1Trig = price + atr * 1.5;  // 스탑 → 진입가 (본전)
+    var stage2Trig = price + atr * 3.0;  // 스탑 → 고점 - 2ATR
+    return {
+      ok: true,
+      trigger:     '고점 대비 ATR×2 하락 시 전량 청산',
+      atr:         atr,
+      trailWidth:  trailWidth,
+      initialStop: boxLow,
+      stage1: {
+        trigger: stage1Trig,
+        action:  '스탑을 진입가로 이동 (본전 확보)'
+      },
+      stage2: {
+        trigger: stage2Trig,
+        action:  '스탑을 고점 - ATR×2 로 이동 (트레일링 시작)'
+      },
+      finalExit: '고점 - ATR×2 이탈 시 전량 청산',
+      note:      '전략 A 와 달리 전량 청산 방식 — 추세 지속 시 수익 극대화, 변동성 큰 코인에 적합'
+    };
+  }
+
   /* ─── 모듈 노출 ─── */
   global.WOOSShadowKit = {
-    VERSION: 'v5.1.5',
+    VERSION: 'v5.1.6',
     calcShadowScore: calcShadowScore,
     hasShadowInputData: hasShadowInputData,
     renderBackfillPanel: renderBackfillPanel,
@@ -386,17 +434,22 @@
     renderSampleLabel: renderSampleLabel,
     renderShadowChipFallback: renderShadowChipFallback,
     renderPromotionChip: renderPromotionChip,
-    renderHistoryPromotionChip: renderHistoryPromotionChip
+    renderHistoryPromotionChip: renderHistoryPromotionChip,
+    /* v5.1.6 — ATR B 함수 외부화 */
+    buildAutoTradeStrategyB: buildAutoTradeStrategyB
   };
 
-  /* ─── window alias 유지 (v5.1.3 D-Q1=A) ───
-   * 본체 호출처 5곳 미터치를 위한 alias.
-   * - index.html line 10500 (snapshot payload 박제)
-   * - index.html line 11394 (buildCoinCardHTML 스캐너 카드)
-   * - index.html line 15632/15642/15656 (분석완료 통계)
+  /* ─── window alias 유지 ───
+   * 본체 호출처 미터치를 위한 alias.
+   * - WOOS_calcShadowScore / WOOS_hasShadowInputData (v5.1.3)
+   *     index.html line 10500 / 11394 / 15632 / 15642 / 15656
+   * - buildAutoTradeStrategyB (v5.1.6)
+   *     index.html line 9917 (snapshot payload 박제)
+   *     index.html line 11335 (전략 B HTML 빌드)
    */
   global.WOOS_calcShadowScore   = calcShadowScore;
   global.WOOS_hasShadowInputData = hasShadowInputData;
+  global.buildAutoTradeStrategyB = buildAutoTradeStrategyB;
 
   try {
     if (typeof console !== 'undefined' && console.log) {

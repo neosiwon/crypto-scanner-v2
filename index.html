@@ -153,7 +153,7 @@
 <script>
 /* [v4.7.42] 캐시 강제 리셋 — SW 완전 제거 후 리로드 */
 (function(){
-  var VER = 'v5.1.5';  // Shadow CSS 디자인 정리 (Base: v4.9.5+phase2-v0-shadow-backfill-hotfix-r1)
+  var VER = 'v5.1.6';  // ATR B 함수 외부화 (Base: v4.9.5+phase2-v0-shadow-backfill-hotfix-r1)
   try {
     var LKEY = 'woos_hard_reset_ver';
     if (localStorage.getItem(LKEY) === VER) return;
@@ -7802,10 +7802,10 @@ details.analyzer-progress-card > summary.progress-compact-summary {
 </style>
 <!-- [WOOS PWA SPLASH CSS END] -->
 
-<!-- [v5.1.5 Shadow CSS 디자인 정리] Base: v4.9.5+phase2-v0-shadow-backfill-hotfix-r1 -->
-<link rel="stylesheet" href="./css/woos-shadow.css?v=v5.1.5">
-<script src="./js/woos-shadow-kit.js?v=v5.1.5"></script>
-<script src="./js/woos-extension-bridge.js?v=v5.1.5"></script>
+<!-- [v5.1.6 ATR B 함수 외부화] Base: v4.9.5+phase2-v0-shadow-backfill-hotfix-r1 -->
+<link rel="stylesheet" href="./css/woos-shadow.css?v=v5.1.6">
+<script src="./js/woos-shadow-kit.js?v=v5.1.6"></script>
+<script src="./js/woos-extension-bridge.js?v=v5.1.6"></script>
 
 </head>
 <body>
@@ -8918,9 +8918,9 @@ async function opsDashboard() {
 // 탭 시 상세 팝업
 // ═══════════════════════════════════════════════════════════════
 
-var HTML_VERSION = 'v5.1.5';  // Shadow CSS 디자인 정리 (Base: v4.9.5+phase2-v0-shadow-backfill-hotfix-r1)
+var HTML_VERSION = 'v5.1.6';  // ATR B 함수 외부화 (Base: v4.9.5+phase2-v0-shadow-backfill-hotfix-r1)
 /* [v5.1.5] 한글 요약 화면 표기 — updateBuildBadge에서 한글 요약 동반 (사용자 명명법 강화) */
-var HTML_VERSION_LABEL = 'Shadow CSS 디자인 정리';
+var HTML_VERSION_LABEL = 'ATR B 함수 외부화';
 var _cachedBuildInfo = null;
 
 // [State Lock 2 Action fix-2c] 패치 확인용 — 페이지 로드 시 버전명 출력 (DevTools 콘솔)
@@ -11212,42 +11212,12 @@ function buildAutoTradeStrategy(coin){
 }
 
 // ═══════════════════════════════════════════════════════════════
-// [MODULE: strategy_b]  — v3.5 신규 (ATR 트레일링 구체화)
-// 향후 core/strategy.js 로 분리 예정.
-// A 전략 (분할 익절) 과 대칭 구조. 전량 청산 + 단계별 스탑 상향.
-// ═══════════════════════════════════════════════════════════════
-function buildAutoTradeStrategyB(coin){
-  var rep = coin.representative || {};
-  var atr = Number(rep.atr || 0);
-  var price = Number(rep.price || 0);
-  var boxLow = rep.box ? rep.box.low : null;
-  if (!atr || isNaN(atr) || !isFinite(atr) || atr <= 0 || !price) {
-    return { ok:false, reason:'ATR 데이터 부족으로 계산 불가' };
-  }
-  var trailWidth  = atr * 2;
-  var stage1Trig  = price + atr * 1.5;  // 스탑 → 진입가 (본전)
-  var stage2Trig  = price + atr * 3.0;  // 스탑 → 고점 - 2ATR
-  return {
-    ok: true,
-    trigger:     '고점 대비 ATR×2 하락 시 전량 청산',
-    atr:         atr,
-    trailWidth:  trailWidth,
-    initialStop: boxLow,
-    stage1: {
-      trigger: stage1Trig,
-      action:  '스탑을 진입가로 이동 (본전 확보)'
-    },
-    stage2: {
-      trigger: stage2Trig,
-      action:  '스탑을 고점 - ATR×2 로 이동 (트레일링 시작)'
-    },
-    finalExit: '고점 - ATR×2 이탈 시 전량 청산',
-    note:      '전략 A 와 달리 전량 청산 방식 — 추세 지속 시 수익 극대화, 변동성 큰 코인에 적합'
-  };
-}
-// ═══════════════════════════════════════════════════════════════
-// [END MODULE: strategy_b]
-// ═══════════════════════════════════════════════════════════════
+/* [v5.1.6] ATR B 함수 외부화 — buildAutoTradeStrategyB(coin) 본문은
+ * /js/woos-shadow-kit.js 로 이전 (재작성 X / 계산식 / 트리거 텍스트 / note 100% 보존).
+ * 본체 호출처 2곳(line 9917 snapshot 박제 / line 11335 HTML 빌드) 미터치를 위해
+ * window.buildAutoTradeStrategyB alias는 ShadowKit에서 등록 유지.
+ * calcATR 동결 함수 / 전략 B HTML 빌드 / .strategy-card-b CSS 모두 본체 보존.
+ */
 
 function buildScoreVizHtml(scoreViz){
   function head(cardCls, data){
