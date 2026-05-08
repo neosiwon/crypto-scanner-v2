@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+<!-- HOTFIX VERSION: v4.9.5+phase2-v0-shadow-backfill-hotfix-r1 | Shadow Backfill 데이터 부족 가짜 점수 방지 -->
 <!-- ════════════════════════════════════════════════════════════════
      WOOS Crypto Scanner v3 — v4.9.1-w1r4-state-lock-2-action-fix-2c
      ════════════════════════════════════════════════════════════════
@@ -152,7 +153,7 @@
 <script>
 /* [v4.7.42] 캐시 강제 리셋 — SW 완전 제거 후 리로드 */
 (function(){
-  var VER = 'v4.9.5+phase2-v0';  // [Phase 2 — 분석완료 정교화] Backfill 항상 표시 + 검증 매칭 (TP/TN/FP/FN) + Export 가설 검증 통계
+  var VER = 'v4.9.5+phase2-v0-shadow-backfill-hotfix-r1';  // [Phase 2 — 분석완료 정교화] Backfill 항상 표시 + 검증 매칭 (TP/TN/FP/FN) + Export 가설 검증 통계
   try {
     var LKEY = 'woos_hard_reset_ver';
     if (localStorage.getItem(LKEY) === VER) return;
@@ -9439,7 +9440,7 @@ async function opsDashboard() {
 // 탭 시 상세 팝업
 // ═══════════════════════════════════════════════════════════════
 
-var HTML_VERSION = 'v4.9.5+phase2-v0';  // [Phase 2 — 분석완료 정교화] Backfill + 검증 매칭 + Export 통계
+var HTML_VERSION = 'v4.9.5+phase2-v0-shadow-backfill-hotfix-r1';  // [Phase 2 — 분석완료 정교화] Backfill + 검증 매칭 + Export 통계
 var _cachedBuildInfo = null;
 
 // [State Lock 2 Action fix-2c] 패치 확인용 — 페이지 로드 시 버전명 출력 (DevTools 콘솔)
@@ -11467,6 +11468,31 @@ window.WOOS_calcShadowScore = function(coin, rep) {
     };
   } catch(e) {
     return { error: e.message, version: 'phase1-v0' };
+  }
+};
+
+// [Phase 1 v0 hotfix — 2026-05-08]
+// Shadow Score Backfill 안전 가드.
+// 분석완료 export 171건처럼 알람 당시 raw 지표(vol/obv/mfi/currentPhase/rr 등)가 없는 경우,
+// 기본값(거래량=1, MFI=50, phase=1, RR=0)으로 가짜 Shadow Score가 생성되는 것을 차단한다.
+// 스캐너 실시간 rep에는 영향 없음.
+window.WOOS_hasShadowInputData = function(snap) {
+  try {
+    if (!snap) return false;
+    if (snap.shadowScore && !snap.shadowScore.error) return true;
+    function has(v){ return v !== undefined && v !== null && v !== ''; }
+    return !!(
+      snap.vol || has(snap.volumeRatio) || has(snap.volumeAccel) ||
+      snap.obv || has(snap.obvDirection) ||
+      snap.indicators || has(snap.mfi) || has(snap.rsi) ||
+      snap.currentPhase || has(snap.currentPhaseRatio) ||
+      snap.accumulationStrength || has(snap.accStrength) ||
+      snap.rr || has(snap.rrValue) ||
+      snap.fakePump !== undefined || snap.lateEntry !== undefined ||
+      snap.boxRange || snap.candle
+    );
+  } catch(e) {
+    return false;
   }
 };
 
@@ -15725,6 +15751,7 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
         items.forEach(function(it){
           try {
             var snap = it.alertSnap || it;
+            if (typeof window.WOOS_hasShadowInputData === 'function' && !window.WOOS_hasShadowInputData(snap)) return;
             var pseudoCoin = { btcFilter: snap.btcFilter || null };
             var pseudoRep = {
               vol: snap.vol || { ratio: snap.volumeRatio || 1, accel: snap.volumeAccel || 1 },
@@ -15859,7 +15886,7 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       meta: {
         exportedAt: now.toISOString(),
         exportedAtKst: now.toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' }),
-        version: 'v4.9.5+phase2-v0',
+        version: 'v4.9.5+phase2-v0-shadow-backfill-hotfix-r1',
         itemsCount: items.length,
         totalCount: totalCount || items.length,
         sourceEndpoint: '/tracking/completed',
@@ -20441,6 +20468,16 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
         if (typeof window.WOOS_calcShadowScore === 'function') {
           // alertSnap에서 coin/rep 재구성하여 Shadow Score 계산
           var snap = item.alertSnap || item;
+          if (typeof window.WOOS_hasShadowInputData === 'function' && !window.WOOS_hasShadowInputData(snap)) {
+            historyBackfillHtml = '<div class="ss-shadow-section ss-backfill ss-data-missing">'
+              + '<div class="ss-header">'
+              +   '<span class="ss-title">💎 Shadow Score</span>'
+              +   '<span class="ss-backfill-label">[Backfill]</span>'
+              +   '<span class="ss-risk-chip ss-risk-mid">데이터 부족</span>'
+              + '</div>'
+              + '<div class="ss-data-missing-text">알람 당시 raw 지표 부족 — 기본값 기반 가짜 점수 생성을 차단했습니다.</div>'
+              + '</div>';
+          } else {
           var pseudoCoin = { btcFilter: snap.btcFilter || null };
           var pseudoRep = {
             vol: snap.vol || { ratio: snap.volumeRatio || 1, accel: snap.volumeAccel || 1 },
@@ -20500,6 +20537,7 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
               +   '<div class="ss-bar-row"><span class="ss-bar-lbl">손익비</span>' + _bbar(ssBackfill.rrScore, 10) + '<span class="ss-bar-val">' + ssBackfill.rrScore + (ssBackfill.rrValue ? ' RR ' + ssBackfill.rrValue.toFixed(1) : '') + '</span></div>'
               + '</div>'
               + '</div>';
+          }
           }
         }
       } catch(_bfErr) {}
