@@ -1,6 +1,6 @@
 /* WOOS Shadow Kit
  * Base:    v4.9.5+phase2-v0-shadow-backfill-hotfix-r1
- * Current: v5.2.3 (라벨 설명 모달 + 매수세 강중약 + 매도압 단독표시)
+ * Current: v5.2.3.1 (모달 자연어 보강 + 위치품질/손익비 7종 통합)
  *
  * Shadow Score / 라벨 / Backfill / ATR B / B-C 검증샘플 담당.
  *
@@ -949,7 +949,9 @@
   }
 
   /* ═══════════════════════════════════════════════════════════════
-   * F8. 라벨 5종 설명 모달 데이터 + 빌더 (v5.2.3)
+   * F8. 정밀화 검증 7종 설명 모달 데이터 + 빌더 (v5.2.3.1)
+   *   v5.2.3:   라벨 5종 (매수세/수급반응/흡수/추격주의/매도압)
+   *   v5.2.3.1: + 그래프 2종 (위치품질/손익비) + 자연어 narrative 단락
    * ═══════════════════════════════════════════════════════════════ */
   var REFINEMENT_LABEL_INFO = [
     {
@@ -957,6 +959,7 @@
       title: '매수세',
       cls: 'rl-info-buy',
       desc: '거래량 / OBV / 가격 모멘텀 합산 점수 (0~10)',
+      narrative: '매수 측이 가격을 위로 끌어올리려는 압력을 0~10점으로 정량화한 지표입니다. 거래량 급증, OBV(누적 거래량) 추세, 가격 모멘텀 세 가지 신호를 합산해 계산합니다. 점수가 높을수록 단기 상승 여력이 클 것으로 추정되지만, 위험도가 high인 경우는 함정(가짜 펌프) 가능성이 있어 표시되지 않습니다. 스캐너에 검출된 코인은 기본적으로 매수세가 어느 정도는 있으므로 실제 강도를 강/중/약으로 차별화해 보여줍니다.',
       grades: [
         { tier: '강 (8~10점)', text: '강력한 매수 압력 — 거래량+OBV+모멘텀 모두 양호' },
         { tier: '중 (5~7점)',  text: '보통 매수 압력' },
@@ -969,16 +972,48 @@
       title: '수급반응',
       cls: 'rl-info-liquidity',
       desc: '거래량 변화에 가격이 정상 반응하는지 검증',
+      narrative: '거래량이 늘었을 때 가격이 "정상적으로" 반응했는지를 검증하는 지표입니다. 단순히 거래만 많은 게 아니라 위치품질(저점 대비 상대적 위치)도 충족돼야 활성화됩니다. 활성화되었다는 건 "시장이 이 코인을 무리 없이 받아주고 있다"는 신호로, 매수세가 비정상적인 펌프가 아니라 정상 흐름임을 의미합니다.',
       grades: [
         { tier: '활성 조건', text: '수급반응 점수 ≥ 6 + 위치품질 ≥ 5' }
       ],
       note: '※ 단계 구분 없음 (활성/비활성 이진)'
     },
     {
+      icon: '📍',
+      title: '위치품질',
+      cls: 'rl-info-position',
+      desc: '박스권 안에서 현재 가격 위치 — phase 기반 (그래프 항목)',
+      narrative: '현재 가격이 박스권 안에서 어디에 위치하는지를 0~10점으로 평가합니다. 박스 하단(저점)에 가까울수록 점수가 높고, 박스 상단(고점)에 가까울수록 점수가 낮아집니다. 진입 위치가 좋을수록 손절가까지의 거리가 짧아 손익비가 유리해지고 추격 매수 위험도 줄어듭니다. 추격주의 라벨과 같은 맥락이지만, 위치품질은 점수로 정량화한 지표이고 추격주의는 임계 이상일 때 표시되는 경고성 라벨입니다.',
+      grades: [
+        { tier: '우수 (8~10점)', text: 'phase 0.98~1.05 + 매집 강도 ≥ 7 (박스 진입선 + 강한 매집)' },
+        { tier: '양호 (5~7점)',  text: 'phase 1.05~1.08 또는 매집 강도 ≥ 4' },
+        { tier: '미흡 (2~4점)',  text: 'phase 1.08~1.25 (추격 위험)' },
+        { tier: '부적합 (0~1점)', text: 'phase ≥ 1.25 (진입 자제)' }
+      ],
+      note: '※ phase < 0.95 (박스 하단 이탈)는 별도 2점 — 손절 임박 신호 / 라벨 칩 표시 X (그래프 항목)'
+    },
+    {
+      icon: '⚖️',
+      title: '손익비 (RR)',
+      cls: 'rl-info-rr',
+      desc: '목표가 잠재 수익 ÷ 손절가 잠재 손실 — Risk/Reward 비율 (그래프 항목)',
+      narrative: '진입 시 목표가까지의 잠재 수익과 손절가까지의 잠재 손실 비율(RR)을 0~10점으로 표시합니다. 예를 들어 RR이 2.0이면 손절 시 1만큼 잃을 때 목표 도달 시 2만큼 벌 수 있다는 의미입니다. 일반적으로 RR이 1.5 이상이면 진입 가치가 있고, 2.0 이상이면 우수한 손익비로 평가됩니다. 박스권 진입 위치(저점 근접)에서 가장 좋은 손익비가 나오므로, 추격 매수보다는 박스 하단 매수가 손익비 측면에서 유리합니다.',
+      grades: [
+        { tier: '10점', text: 'RR ≥ 5.0 — 매우 우수' },
+        { tier: '8점',  text: 'RR ≥ 3.0 — 우수' },
+        { tier: '6점',  text: 'RR ≥ 2.0 — 양호 (권장 진입선)' },
+        { tier: '4점',  text: 'RR ≥ 1.5 — 미흡' },
+        { tier: '2점',  text: '0 < RR < 1.5 — 진입 재고' },
+        { tier: '0점',  text: 'RR 데이터 없음 / 0' }
+      ],
+      note: '※ 입력값 = rep.rr.value (본체에서 박제) / 변환은 calcShadowScore에서 처리 / 라벨 칩 표시 X (그래프 항목)'
+    },
+    {
       icon: '🟢',
       title: '흡수',
       cls: 'rl-info-absorption',
-      desc: '가격 안정 상태에서 매물 흡수 진행 추정',
+      desc: '가격 안정 + 거래량 유입 — 매물 흡수 추정',
+      narrative: '가격이 크게 움직이지 않으면서 거래량이 꾸준히 들어오는 상태입니다. 세력이 매물을 매집하면서 박스권을 형성할 때 나타나는 전형적인 패턴으로 해석됩니다. 다만 실제 입금량(매집) 데이터를 직접 볼 수 없어 거래량 / OBV / MFI 등의 간접 지표로 추정하는 라벨이라는 점을 유의해야 합니다.',
       grades: [
         { tier: '활성 조건', text: '거래량 1.2배↑ + 변동률 < 5% + OBV 상승/평탄 + MFI ≥ 40' }
       ],
@@ -989,6 +1024,7 @@
       title: '추격주의',
       cls: 'rl-info-chase',
       desc: 'phase (현재가 / 박스 하단) 기반 단계',
+      narrative: '현재 가격이 박스 하단 대비 얼마나 올랐는지를 phase(현재가 ÷ 박스 하단 비율)로 측정해 진입 위치의 위험도를 판단합니다. phase가 1.08을 넘으면 이미 일찍 진입한 사람들의 익절 구간에 들어가 추격 매수는 손익비가 나빠지고, 1.25 이상이면 진입 자체를 자제하는 게 안전합니다. 늦은 진입은 작은 조정에도 손절가가 가까워 리스크가 크게 증가합니다.',
       grades: [
         { tier: '진입 부적합 (extreme)', text: 'phase ≥ 1.25 — 너무 늦음, 진입 자제' },
         { tier: '강한 추격주의 (high)',  text: 'phase ≥ 1.15 — 추격 매수 고위험' },
@@ -1001,6 +1037,7 @@
       title: '매도압',
       cls: 'rl-info-sell',
       desc: '거래량↑ + OBV↓ + 종가 약 + 윗꼬리 + MFI<50 — 5종 위험 신호 합산',
+      narrative: '여러 위험 신호가 동시에 발생하는 상태입니다. 거래량 급증 + OBV 하락 + 종가 약세(캔들 중간보다 낮은 종가) + 윗꼬리 강함 + MFI 하락 등 5종 신호 중 3개 이상이 동시에 발생하면 활성화됩니다. 매도압이 활성화되면 매수세 / 수급반응 / 흡수 / 추격주의 등 다른 라벨은 모두 숨기고 위험 신호 하나만 단일로 표시해, 즉시 청산 검토가 권장됩니다.',
       grades: [
         { tier: '강 (4~5 신호)', text: '4개 이상 위험 신호 동시 발생 — 즉시 청산 검토' },
         { tier: '중 (3 신호)',   text: '3개 위험 신호 발생 — 주의' }
@@ -1011,7 +1048,7 @@
 
   function buildLabelInfoModalHtml() {
     var html = '<div class="rl-info-modal">';
-    html += '<div class="rl-info-modal-title">정밀화 라벨 5종 설명</div>';
+    html += '<div class="rl-info-modal-title">정밀화 검증 7종 설명</div>';
     html += '<div class="rl-info-modal-cards">';
     for (var i = 0; i < REFINEMENT_LABEL_INFO.length; i++) {
       var info = REFINEMENT_LABEL_INFO[i];
@@ -1019,6 +1056,10 @@
       html += '<div class="rl-info-card-head">' + info.icon +
               ' <span class="rl-info-card-title">' + _ssEscapeHtml(info.title) + '</span></div>';
       html += '<div class="rl-info-card-desc">' + _ssEscapeHtml(info.desc) + '</div>';
+      /* [v5.2.3.1] 자연어 설명 단락 */
+      if (info.narrative) {
+        html += '<div class="rl-info-card-narrative">' + _ssEscapeHtml(info.narrative) + '</div>';
+      }
       html += '<div class="rl-info-card-grades">';
       for (var j = 0; j < info.grades.length; j++) {
         var g = info.grades[j];
@@ -1039,7 +1080,7 @@
 
   /* ─── 모듈 노출 ─── */
   global.WOOSShadowKit = {
-    VERSION: 'v5.2.3',
+    VERSION: 'v5.2.3.1',
     calcShadowScore: calcShadowScore,
     hasShadowInputData: hasShadowInputData,
     renderBackfillPanel: renderBackfillPanel,

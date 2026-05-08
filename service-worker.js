@@ -1,7 +1,7 @@
-// WOOS service-worker v5.2.3 (Base: v4.9.5+phase2-v0-shadow-backfill-hotfix-r1)
+// WOOS service-worker v5.2.3.1 (Base: v4.9.5+phase2-v0-shadow-backfill-hotfix-r1)
 // Network-first / no stale app shell. This prevents broken cached index from causing infinite loading.
 
-const CACHE_NAME = "woos-pwa-v5-2-3";
+const CACHE_NAME = "woos-pwa-v5-2-3-1";
 
 self.addEventListener("install", event => {
   self.skipWaiting();

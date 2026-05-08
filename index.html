@@ -153,7 +153,7 @@
 <script>
 /* [v4.7.42] 캐시 강제 리셋 — SW 완전 제거 후 리로드 */
 (function(){
-  var VER = 'v5.2.3';  // 라벨 설명 모달 (Base: v4.9.5+phase2-v0-shadow-backfill-hotfix-r1)
+  var VER = 'v5.2.3.1';  // 모달 자연어 보강 + 위치품질/손익비 7종 (Base: v4.9.5+phase2-v0-shadow-backfill-hotfix-r1)
   try {
     var LKEY = 'woos_hard_reset_ver';
     if (localStorage.getItem(LKEY) === VER) return;
@@ -7802,10 +7802,10 @@ details.analyzer-progress-card > summary.progress-compact-summary {
 </style>
 <!-- [WOOS PWA SPLASH CSS END] -->
 
-<!-- [v5.2.3 라벨 설명 모달] Base: v4.9.5+phase2-v0-shadow-backfill-hotfix-r1 -->
-<link rel="stylesheet" href="./css/woos-shadow.css?v=v5.2.3">
-<script src="./js/woos-shadow-kit.js?v=v5.2.3"></script>
-<script src="./js/woos-extension-bridge.js?v=v5.2.3"></script>
+<!-- [v5.2.3.1 모달 자연어 보강 + 위치품질/손익비 7종] Base: v4.9.5+phase2-v0-shadow-backfill-hotfix-r1 -->
+<link rel="stylesheet" href="./css/woos-shadow.css?v=v5.2.3.1">
+<script src="./js/woos-shadow-kit.js?v=v5.2.3.1"></script>
+<script src="./js/woos-extension-bridge.js?v=v5.2.3.1"></script>
 
 </head>
 <body>
@@ -8918,14 +8918,14 @@ async function opsDashboard() {
 // 탭 시 상세 팝업
 // ═══════════════════════════════════════════════════════════════
 
-var HTML_VERSION = 'v5.2.3';  // 라벨 설명 모달 (Base: v4.9.5+phase2-v0-shadow-backfill-hotfix-r1)
+var HTML_VERSION = 'v5.2.3.1';  // 모달 자연어 보강 + 위치품질/손익비 7종 (Base: v4.9.5+phase2-v0-shadow-backfill-hotfix-r1)
 /* [v5.1.5] 한글 요약 화면 표기 — updateBuildBadge에서 한글 요약 동반 (사용자 명명법 강화) */
-var HTML_VERSION_LABEL = '라벨 설명 모달';
+var HTML_VERSION_LABEL = '모달 자연어 보강';
 var _cachedBuildInfo = null;
 
 // [State Lock 2 Action fix-2c] 패치 확인용 — 페이지 로드 시 버전명 출력 (DevTools 콘솔)
 try {
-  console.log('[WOOS] ' + HTML_VERSION + ' loaded — 라벨 설명 모달');
+  console.log('[WOOS] ' + HTML_VERSION + ' loaded — 모달 자연어 보강');
   window.WOOS_VERSION = HTML_VERSION;
 } catch(e) {}
 
