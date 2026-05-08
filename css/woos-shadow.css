@@ -1,6 +1,6 @@
 /* WOOS Shadow Styles
  * Base:    v4.9.5+phase2-v0-shadow-backfill-hotfix-r1
- * Current: v5.2.0 (스캐너 정밀화 통합)
+ * Current: v5.2.1 (닫힌 카드 라벨)
  *
  * v5.1.5 = 본체 index.html line 5792~6322 (~531줄) 통째 이전.
  *          재작성 X / 인라인 그대로 / 클래스명 / specificity / 미디어쿼리 / 키프레임 모두 보존.
@@ -839,4 +839,45 @@ body:has(.woos-test-mode-banner) { padding-top: 38px; }
 .strategy-b-expected-note-desc {
   color: #a090b0;
   font-size: 10px;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   [v5.2.1] 닫힌 카드 라벨 칩 — R10 헤더 row2 영역
+   - 4칩 한도 (등급 + 정/표 + 그룹/라벨 + 라벨)
+   - 위험 라벨 우선 (V-Q2=A 정책)
+   - 모바일 380px 이하: 라벨 1개로 자동 축소
+   ※ 기존 .rl-chip / .rl-chips 클래스 재사용 — 닫힌 모드 전용 스타일만 추가
+   ═══════════════════════════════════════════════════════════════ */
+
+.rl-chips-closed {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+  margin-left: 6px;
+  vertical-align: middle;
+}
+
+.rl-chips-closed .rl-chip {
+  padding: 2px 7px;
+  font-size: 10px;
+  line-height: 1.4;
+  border-radius: 9px;
+}
+
+/* 위험 강조 — 매도압 강 */
+.rl-chips-closed .rl-chip-sell.rl-chip-strong {
+  animation: rl-chip-sell-pulse 2s infinite;
+}
+
+/* 위험 강조 — 추격주의 extreme (CSS 클래스명 .rl-chip-chase-extreme — F2 출력 형식과 일치) */
+.rl-chips-closed .rl-chip-chase-extreme {
+  font-weight: 700;
+  background: rgba(239, 68, 68, 0.25);
+}
+
+/* 모바일 380px 이하: 두 번째 라벨 칩 자동 숨김 */
+@media (max-width: 380px) {
+  .rl-chips-closed .rl-chip:nth-child(2) {
+    display: none;
+  }
 }
