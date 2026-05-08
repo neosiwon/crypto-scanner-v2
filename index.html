@@ -153,7 +153,7 @@
 <script>
 /* [v4.7.42] 캐시 강제 리셋 — SW 완전 제거 후 리로드 */
 (function(){
-  var VER = 'v5.2.1.1';  // 라벨 데이터 보강 (Base: v4.9.5+phase2-v0-shadow-backfill-hotfix-r1)
+  var VER = 'v5.2.2';  // 스캐너 카드 정밀화 통합 (Base: v4.9.5+phase2-v0-shadow-backfill-hotfix-r1)
   try {
     var LKEY = 'woos_hard_reset_ver';
     if (localStorage.getItem(LKEY) === VER) return;
@@ -7802,10 +7802,10 @@ details.analyzer-progress-card > summary.progress-compact-summary {
 </style>
 <!-- [WOOS PWA SPLASH CSS END] -->
 
-<!-- [v5.2.1.1 라벨 데이터 보강] Base: v4.9.5+phase2-v0-shadow-backfill-hotfix-r1 -->
-<link rel="stylesheet" href="./css/woos-shadow.css?v=v5.2.1.1">
-<script src="./js/woos-shadow-kit.js?v=v5.2.1.1"></script>
-<script src="./js/woos-extension-bridge.js?v=v5.2.1.1"></script>
+<!-- [v5.2.2 스캐너 카드 정밀화 통합] Base: v4.9.5+phase2-v0-shadow-backfill-hotfix-r1 -->
+<link rel="stylesheet" href="./css/woos-shadow.css?v=v5.2.2">
+<script src="./js/woos-shadow-kit.js?v=v5.2.2"></script>
+<script src="./js/woos-extension-bridge.js?v=v5.2.2"></script>
 
 </head>
 <body>
@@ -8918,14 +8918,14 @@ async function opsDashboard() {
 // 탭 시 상세 팝업
 // ═══════════════════════════════════════════════════════════════
 
-var HTML_VERSION = 'v5.2.1.1';  // 라벨 데이터 보강 (Base: v4.9.5+phase2-v0-shadow-backfill-hotfix-r1)
+var HTML_VERSION = 'v5.2.2';  // 스캐너 카드 정밀화 통합 (Base: v4.9.5+phase2-v0-shadow-backfill-hotfix-r1)
 /* [v5.1.5] 한글 요약 화면 표기 — updateBuildBadge에서 한글 요약 동반 (사용자 명명법 강화) */
-var HTML_VERSION_LABEL = '라벨 데이터 보강';
+var HTML_VERSION_LABEL = '스캐너 카드 정밀화 통합';
 var _cachedBuildInfo = null;
 
 // [State Lock 2 Action fix-2c] 패치 확인용 — 페이지 로드 시 버전명 출력 (DevTools 콘솔)
 try {
-  console.log('[WOOS] ' + HTML_VERSION + ' loaded — Signal Reason 중복 제거');
+  console.log('[WOOS] ' + HTML_VERSION + ' loaded — 스캐너 카드 정밀화 통합');
   window.WOOS_VERSION = HTML_VERSION;
 } catch(e) {}
 
@@ -10923,7 +10923,9 @@ function buildCoinCardHTML(coin, idx) {
     +'<div class="rep-exchange-banner"><span class="rep-exchange-label">대표:</span><span class="rep-exchange-name">'+rep.exchange+'</span></div>'
     +'<div class="ex-tags">'+existsBadges+'</div></div>'
     +entryBanner
-    +'<div class="card-signals">'+prePumpBadge+syncBadge+'</div>'
+    +'<div class="card-signals">'+prePumpBadge+syncBadge
+    + ((function(){ try { var b = window.WOOSExtensionBridge; return (b && b.renderClosedHeaderLabelsAddon) ? (b.renderClosedHeaderLabelsAddon(rep, false) || '') : ''; } catch(e) { return ''; } })()) /* [v5.2.2] H5 — 스캐너 닫힌 라벨 칩 */
+    +'</div>'
     +'</div>'
     +'<div class="card-right">'
     +'<div class="card-score" style="color:'+gCol+'">'+rep.total+'</div>'
@@ -10931,39 +10933,10 @@ function buildCoinCardHTML(coin, idx) {
     +'</div>'
     +'<div class="card-chevron" id="chev-'+idx+'">▼</div>'
     +'</div>'
-    + (function(){
-        // [Phase 1 v0 r3] 테스트 모드 ON일 때만 Shadow Score 표시
-        // 사용자 명시: "테스트 버전을 키고 끌 수 있게 / 관리자코드 사용"
-        // OFF 상태 = 기존 화면 그대로 (변화 X)
-        // ON 상태 = Shadow Score 5차원 그래프 + Preview 라벨 (조건 미충족 시)
-        var testModeOn = (window.WOOS_TEST_MODE && window.WOOS_TEST_MODE.enabled);
-        if (!testModeOn) return '';
-        if (!shadowScore || shadowScore.error) return '';
-        
-        // Preview 라벨 — 알람 조건 미충족 카드 식별 [v5.1.4 외부화 — WOOSShadowKit.renderPreviewLabel]
-        var isPreview = !rep.isEntryReady && !rep.prePump;  /* ss-preview 클래스 결정용 — 본체 보존 */
-        var previewLabel = (window.WOOSShadowKit && WOOSShadowKit.renderPreviewLabel) ? WOOSShadowKit.renderPreviewLabel(rep) : '';
-        
-        function _bar(val, max) {
-          var pct = Math.min(100, Math.max(0, (val / max) * 100));
-          return '<span class="ss-bar-track"><span class="ss-bar-fill" style="width:' + pct + '%;"></span></span>';
-        }
-        var riskCls = shadowScore.riskLevel === 'high' ? 'ss-risk-high' : (shadowScore.riskLevel === 'mid' ? 'ss-risk-mid' : 'ss-risk-low');
-        return '<div class="ss-shadow-section ' + (isPreview ? 'ss-preview' : '') + '">'
-          + '<div class="ss-header">'
-          +   '<span class="ss-title">💎 Shadow Score</span>'
-          +   '<span class="ss-avg">' + shadowScore.avgScore + '/10</span>'
-          +   previewLabel
-          +   '<span class="ss-risk-chip ' + riskCls + '">위험 ' + shadowScore.riskLabel + '</span>'
-          + '</div>'
-          + '<div class="ss-bars">'
-          +   '<div class="ss-bar-row"><span class="ss-bar-lbl">매수세</span>' + _bar(shadowScore.buyPressure, 10) + '<span class="ss-bar-val">' + shadowScore.buyPressure + '</span></div>'
-          +   '<div class="ss-bar-row"><span class="ss-bar-lbl">수급반응</span>' + _bar(shadowScore.liquidityReaction, 10) + '<span class="ss-bar-val">' + shadowScore.liquidityReaction + '</span></div>'
-          +   '<div class="ss-bar-row"><span class="ss-bar-lbl">위치품질</span>' + _bar(shadowScore.positionQuality, 10) + '<span class="ss-bar-val">' + shadowScore.positionQuality + '</span></div>'
-          +   '<div class="ss-bar-row"><span class="ss-bar-lbl">손익비</span>' + _bar(shadowScore.rrScore, 10) + '<span class="ss-bar-val">' + shadowScore.rrScore + (shadowScore.rrValue ? ' RR ' + shadowScore.rrValue.toFixed(1) : '') + '</span></div>'
-          + '</div>'
-          + '</div>';
-      })()
+    /* [v5.2.2] testMode Shadow Score IIFE 제거 → H1/H2/H4 hooks로 대체 (스캐너 카드 정밀화 통합) */
+    + ((function(){ try { var b = window.WOOSExtensionBridge; return (b && b.renderRefinementBlock) ? (b.renderRefinementBlock(rep, coin, 'scanner') || '') : ''; } catch(e) { return ''; } })()) /* [v5.2.2] H1 — 스캐너 정밀화 블록 */
+    + ((function(){ try { var b = window.WOOSExtensionBridge; return (b && b.renderBCSampleAddon) ? (b.renderBCSampleAddon(coin, { source: 'scanner' }) || '') : ''; } catch(e) { return ''; } })()) /* [v5.2.2] H2 — 스캐너 B/C 검증샘플 */
+    + ((function(){ try { var b = window.WOOSExtensionBridge; return (b && b.renderStrategyBNoteAddon) ? (b.renderStrategyBNoteAddon(coin) || '') : ''; } catch(e) { return ''; } })()) /* [v5.2.2] H4 — 스캐너 ATR B 안내 */
     + ((function(){ try { var b = window.WOOSExtensionBridge; return (b && b.renderScannerCardAddon) ? (b.renderScannerCardAddon(coin, rep, idx) || '') : ''; } catch(e) { return ''; } })()) /* [v5.1.1] scanner addon hook */
     +'<div class="card-detail" id="detail-'+idx+'"></div>'
     +'</div>';
