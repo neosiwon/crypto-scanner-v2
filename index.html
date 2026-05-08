@@ -152,7 +152,7 @@
 <script>
 /* [v4.7.42] 캐시 강제 리셋 — SW 완전 제거 후 리로드 */
 (function(){
-  var VER = 'v4.9.5+phase1-v0-r3';  // [Phase 1 v0 r3] 테스트 모드 토글 (관리자 인증) + History Backfill + Preview 모드
+  var VER = 'v4.9.5+phase2-v0';  // [Phase 2 — 분석완료 정교화] Backfill 항상 표시 + 검증 매칭 (TP/TN/FP/FN) + Export 가설 검증 통계
   try {
     var LKEY = 'woos_hard_reset_ver';
     if (localStorage.getItem(LKEY) === VER) return;
@@ -6254,6 +6254,59 @@ body:has(.woos-test-mode-banner) { padding-top: 38px; }
 .ss-shadow-section.ss-backfill .ss-bar-row { font-size: .62rem; }
 .ss-shadow-section.ss-backfill .ss-bar-track { height: 5px; }
 
+/* [Phase 2 — 분석완료 정교화 / 2026-05-08] 검증 매칭 라벨
+   사용자 명시: "스캐너 정교화 = 분석완료 검증이 필요한 순환구조"
+   목적: Shadow Score 예측 vs 실제 outcome 자동 매칭 표시
+   TP/TN/FP/FN 4분류로 가설 검증 정량화 */
+.ss-verify-match {
+  display: inline-block;
+  padding: 1px 6px;
+  font-size: .58rem;
+  font-weight: 700;
+  border-radius: 3px;
+  letter-spacing: .3px;
+}
+.ss-verify-tp {
+  background: rgba(34, 246, 155, .18);
+  color: #22f69b;
+  border: 1px solid rgba(34, 246, 155, .42);
+  text-shadow: 0 0 4px rgba(34, 246, 155, .3);
+}
+.ss-verify-tn {
+  background: rgba(0, 212, 255, .14);
+  color: #00d4ff;
+  border: 1px solid rgba(0, 212, 255, .35);
+}
+.ss-verify-mismatch {
+  display: inline-block;
+  padding: 1px 6px;
+  font-size: .58rem;
+  font-weight: 700;
+  border-radius: 3px;
+  letter-spacing: .3px;
+}
+.ss-verify-fp {
+  background: rgba(239, 68, 68, .18);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, .42);
+}
+.ss-verify-fn {
+  background: rgba(245, 158, 11, .16);
+  color: #fbbf24;
+  border: 1px solid rgba(245, 158, 11, .38);
+}
+.ss-verify-neutral {
+  display: inline-block;
+  padding: 1px 6px;
+  font-size: .58rem;
+  font-weight: 600;
+  background: rgba(148, 163, 184, .14);
+  color: #94a3b8;
+  border: 1px solid rgba(148, 163, 184, .32);
+  border-radius: 3px;
+  letter-spacing: .3px;
+}
+
 /* [V5 정밀 3] 승격 칩 — gradeHistory 기반 (다음 단계) */
 .al-promotion-chip {
   display: inline-block;
@@ -9386,7 +9439,7 @@ async function opsDashboard() {
 // 탭 시 상세 팝업
 // ═══════════════════════════════════════════════════════════════
 
-var HTML_VERSION = 'v4.9.5+phase1-v0-r3';  // [Phase 1 v0 r3] 테스트 모드 토글 + Backfill + Preview
+var HTML_VERSION = 'v4.9.5+phase2-v0';  // [Phase 2 — 분석완료 정교화] Backfill + 검증 매칭 + Export 통계
 var _cachedBuildInfo = null;
 
 // [State Lock 2 Action fix-2c] 패치 확인용 — 페이지 로드 시 버전명 출력 (DevTools 콘솔)
@@ -15638,6 +15691,133 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
         gAcc.successRate = (gAcc.successCount / gAcc.count) * 100;
       }
     });
+    
+    // [Phase 2 — 분석완료 정교화 / 2026-05-08] Shadow Score 가설 검증 통계
+    // 사용자 명시: "스캐너 정교화 = 분석완료 검증이 필요한 순환구조"
+    // 목적: V4 가설 정량 검증 (Shadow Score vs 실제 성공률)
+    // TP/TN/FP/FN 4분류 + 5차원별 평균 계산
+    try {
+      stats.shadowScore = {
+        version: 'phase2-v0',
+        tp: 0, tn: 0, fp: 0, fn: 0, neutral: 0,  // 4분류 카운트
+        precision: 0, recall: 0, accuracy: 0,    // 정확도 지표
+        bpAvg: 0, lrAvg: 0, posAvg: 0, rrAvg: 0, // 5차원 평균
+        bpStats: { successAvg: 0, failAvg: 0 },  // 매수세 성공/실패 평균
+        lrStats: { successAvg: 0, failAvg: 0 },
+        posStats: { successAvg: 0, failAvg: 0 },
+        rrStats: { successAvg: 0, failAvg: 0 },
+        riskDist: { low: 0, mid: 0, high: 0 },   // 위험도 분포
+        riskOutcome: { 
+          low:  { success: 0, fail: 0, neutral: 0 },
+          mid:  { success: 0, fail: 0, neutral: 0 },
+          high: { success: 0, fail: 0, neutral: 0 }
+        },
+        scoreCount: 0
+      };
+      
+      if (typeof window.WOOS_calcShadowScore === 'function') {
+        var bpSum = 0, lrSum = 0, posSum = 0, rrSum = 0;
+        var bpSuccessSum = 0, bpFailSum = 0, bpSuccCnt = 0, bpFailCnt = 0;
+        var lrSuccessSum = 0, lrFailSum = 0;
+        var posSuccessSum = 0, posFailSum = 0;
+        var rrSuccessSum = 0, rrFailSum = 0;
+        
+        items.forEach(function(it){
+          try {
+            var snap = it.alertSnap || it;
+            var pseudoCoin = { btcFilter: snap.btcFilter || null };
+            var pseudoRep = {
+              vol: snap.vol || { ratio: snap.volumeRatio || 1, accel: snap.volumeAccel || 1 },
+              obv: snap.obv || { trend: snap.obvDirection || 'flat' },
+              indicators: snap.indicators || { mfi: snap.mfi || 50, rsi: snap.rsi || 50 },
+              currentPhase: snap.currentPhase || { ratio: snap.currentPhaseRatio || 1.0 },
+              accumulationStrength: snap.accumulationStrength || { score: snap.accStrength || 0 },
+              rr: snap.rr || { value: snap.rrValue || 0 },
+              fakePump: !!snap.fakePump,
+              lateEntry: !!snap.lateEntry,
+              boxRange: snap.boxRange || null,
+              candle: snap.candle || null
+            };
+            var ss = window.WOOS_calcShadowScore(pseudoCoin, pseudoRep);
+            if (!ss || ss.error) return;
+            
+            stats.shadowScore.scoreCount++;
+            bpSum += ss.buyPressure;
+            lrSum += ss.liquidityReaction;
+            posSum += ss.positionQuality;
+            rrSum += ss.rrScore;
+            
+            // 위험도 분포
+            var risk = ss.riskLevel || 'low';
+            stats.shadowScore.riskDist[risk]++;
+            
+            // 실제 outcome
+            var mfe = it.maxRise != null ? it.maxRise : 0;
+            var mae = it.maxDrop != null ? it.maxDrop : 0;
+            var oc = it.outcome || (mfe >= 5 ? 'success' : mfe >= 3 ? 'partial' : mae <= -3 ? 'fail' : 'neutral');
+            var actGood = (oc === 'success' || oc === 'partial');
+            var actBad = (oc === 'fail');
+            
+            // 위험도 vs outcome
+            stats.shadowScore.riskOutcome[risk][actGood ? 'success' : (actBad ? 'fail' : 'neutral')]++;
+            
+            // 4분류
+            var ssGood = ss.avgScore >= 6;
+            var ssBad = ss.avgScore < 4;
+            
+            if (ssGood && actGood) stats.shadowScore.tp++;
+            else if (ssBad && actBad) stats.shadowScore.tn++;
+            else if (ssGood && actBad) stats.shadowScore.fp++;
+            else if (ssBad && actGood) stats.shadowScore.fn++;
+            else stats.shadowScore.neutral++;
+            
+            // 5차원별 성공/실패 평균
+            if (actGood) {
+              bpSuccessSum += ss.buyPressure;
+              lrSuccessSum += ss.liquidityReaction;
+              posSuccessSum += ss.positionQuality;
+              rrSuccessSum += ss.rrScore;
+              bpSuccCnt++;
+            } else if (actBad) {
+              bpFailSum += ss.buyPressure;
+              lrFailSum += ss.liquidityReaction;
+              posFailSum += ss.positionQuality;
+              rrFailSum += ss.rrScore;
+              bpFailCnt++;
+            }
+          } catch(_e) {}
+        });
+        
+        var n = stats.shadowScore.scoreCount;
+        if (n > 0) {
+          stats.shadowScore.bpAvg = Math.round((bpSum / n) * 10) / 10;
+          stats.shadowScore.lrAvg = Math.round((lrSum / n) * 10) / 10;
+          stats.shadowScore.posAvg = Math.round((posSum / n) * 10) / 10;
+          stats.shadowScore.rrAvg = Math.round((rrSum / n) * 10) / 10;
+          
+          // 정확도 지표
+          var tp = stats.shadowScore.tp, tn = stats.shadowScore.tn, fp = stats.shadowScore.fp, fn = stats.shadowScore.fn;
+          stats.shadowScore.accuracy = (tp + tn) > 0 ? Math.round(((tp + tn) / n) * 1000) / 10 : 0;
+          stats.shadowScore.precision = (tp + fp) > 0 ? Math.round((tp / (tp + fp)) * 1000) / 10 : 0;
+          stats.shadowScore.recall = (tp + fn) > 0 ? Math.round((tp / (tp + fn)) * 1000) / 10 : 0;
+        }
+        if (bpSuccCnt > 0) {
+          stats.shadowScore.bpStats.successAvg = Math.round((bpSuccessSum / bpSuccCnt) * 10) / 10;
+          stats.shadowScore.lrStats.successAvg = Math.round((lrSuccessSum / bpSuccCnt) * 10) / 10;
+          stats.shadowScore.posStats.successAvg = Math.round((posSuccessSum / bpSuccCnt) * 10) / 10;
+          stats.shadowScore.rrStats.successAvg = Math.round((rrSuccessSum / bpSuccCnt) * 10) / 10;
+        }
+        if (bpFailCnt > 0) {
+          stats.shadowScore.bpStats.failAvg = Math.round((bpFailSum / bpFailCnt) * 10) / 10;
+          stats.shadowScore.lrStats.failAvg = Math.round((lrFailSum / bpFailCnt) * 10) / 10;
+          stats.shadowScore.posStats.failAvg = Math.round((posFailSum / bpFailCnt) * 10) / 10;
+          stats.shadowScore.rrStats.failAvg = Math.round((rrFailSum / bpFailCnt) * 10) / 10;
+        }
+      }
+    } catch(_ssErr) {
+      stats.shadowScore = { error: _ssErr.message };
+    }
+    
     return stats;
   }
   
@@ -15679,18 +15859,22 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       meta: {
         exportedAt: now.toISOString(),
         exportedAtKst: now.toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' }),
-        version: 'v4.9.4+v5-prep',
+        version: 'v4.9.5+phase2-v0',
         itemsCount: items.length,
         totalCount: totalCount || items.length,
         sourceEndpoint: '/tracking/completed',
-        purpose: 'V4 정밀화 분석 + 패턴 분류 진단 + B/C 등급 적중률 검증 + V5 알람목록',
+        purpose: 'V4 정밀화 + 패턴 분류 + B/C 적중률 + V5 알람목록 + Phase 2 Shadow Score 가설 검증',
         // [v4.9.4+ history-export r2] 등급 분포 메타 (B 등급 검증 가이드)
         gradeDistribution: stats ? stats.byGrade : null,
         gradeAccuracySummary: stats ? stats.gradeAccuracy : null,
         // [V5 v4.9.4+v5-prep] 알람목록 (B/C 포함) 메타
         alertListIncluded: alertListData != null,
         alertListCount: alertListData ? alertListData.count : 0,
-        notes: 'gradeAccuracy.B.successRate 가 다른 등급 대비 높은지 확인 (사용자 가설)'
+        // [Phase 2 — 분석완료 정교화 / 2026-05-08] Shadow Score 가설 검증
+        // 사용자 명시: "스캐너 정교화 = 분석완료 검증이 필요한 순환구조"
+        // TP/TN/FP/FN 4분류 + 정확도 + 5차원별 성공/실패 평균 + 위험도 outcome 매핑
+        shadowScoreSummary: stats ? stats.shadowScore : null,
+        notes: 'shadowScore.accuracy = Shadow Score 예측 정확도. shadowScore.bpStats.successAvg vs failAvg 차이가 클수록 매수세가 좋은 예측 변수. gradeAccuracy.B.successRate 도 함께 확인 (B등급 검증).'
       },
       stats: stats,
       items: items,
@@ -20247,13 +20431,14 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
         }
       } catch(_phe) {}
       
-      // [Phase 1 v0 r3] History Backfill — 테스트 모드 ON일 때만
-      // 사용자 명시: "분석완료에도 최종 적용 / 테스트 모드 ON 켜고 끌 수 있게"
-      // 기존 분석완료 정보 보존 / 별도 영역 (요약 안)
+      // [Phase 2 — 분석완료 정교화 / 2026-05-08]
+      // 사용자 명시: "분석완료 정교화 → 데이터 추출 후 스캐너 정교화 (순환구조)"
+      // 변경: 테스트 모드 조건 제거 → 항상 Shadow Score 표시
+      // 분석완료 = 검증 인프라 핵심 (스캐너 정교화 위한 검증 자료)
+      // 기존 분석완료 정보 보존 (덮어쓰기 X) / 신규 영역만 추가
       var historyBackfillHtml = '';
       try {
-        var testModeOn = (typeof window !== 'undefined' && window.WOOS_TEST_MODE && window.WOOS_TEST_MODE.enabled);
-        if (testModeOn && typeof window.WOOS_calcShadowScore === 'function') {
+        if (typeof window.WOOS_calcShadowScore === 'function') {
           // alertSnap에서 coin/rep 재구성하여 Shadow Score 계산
           var snap = item.alertSnap || item;
           var pseudoCoin = { btcFilter: snap.btcFilter || null };
@@ -20276,12 +20461,37 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
               return '<span class="ss-bar-track"><span class="ss-bar-fill" style="width:' + pct + '%;"></span></span>';
             }
             var bRiskCls = ssBackfill.riskLevel === 'high' ? 'ss-risk-high' : (ssBackfill.riskLevel === 'mid' ? 'ss-risk-mid' : 'ss-risk-low');
+            
+            // [Phase 2 정교화] 검증 결과 자동 매칭
+            // Shadow Score vs 실제 outcome 비교 라벨
+            // 가설 정량 검증 = 핵심 (스캐너 정교화 위한 검증 인프라)
+            var verifyLabel = '';
+            try {
+              var ssAvg = ssBackfill.avgScore || 0;
+              var ssPred = ssAvg >= 6 ? 'good' : (ssAvg >= 4 ? 'mid' : 'bad');
+              var actualGood = (outcome === 'success' || outcome === 'partial');
+              var actualBad = (outcome === 'fail');
+              
+              if (ssPred === 'good' && actualGood) {
+                verifyLabel = '<span class="ss-verify-match ss-verify-tp">✅ 예측 적중 (TP)</span>';
+              } else if (ssPred === 'bad' && actualBad) {
+                verifyLabel = '<span class="ss-verify-match ss-verify-tn">✅ 예측 적중 (TN)</span>';
+              } else if (ssPred === 'good' && actualBad) {
+                verifyLabel = '<span class="ss-verify-mismatch ss-verify-fp">❌ 예측 빗나감 (FP)</span>';
+              } else if (ssPred === 'bad' && actualGood) {
+                verifyLabel = '<span class="ss-verify-mismatch ss-verify-fn">❌ 예측 빗나감 (FN)</span>';
+              } else {
+                verifyLabel = '<span class="ss-verify-neutral">⚪ 중립</span>';
+              }
+            } catch(_vErr) {}
+            
             historyBackfillHtml = '<div class="ss-shadow-section ss-backfill">'
               + '<div class="ss-header">'
               +   '<span class="ss-title">💎 Shadow Score</span>'
               +   '<span class="ss-avg">' + ssBackfill.avgScore + '/10</span>'
-              +   '<span class="ss-backfill-label">[검증용 Backfill]</span>'
+              +   '<span class="ss-backfill-label">[Backfill]</span>'
               +   '<span class="ss-risk-chip ' + bRiskCls + '">위험 ' + ssBackfill.riskLabel + '</span>'
+              +   verifyLabel
               + '</div>'
               + '<div class="ss-bars">'
               +   '<div class="ss-bar-row"><span class="ss-bar-lbl">매수세</span>' + _bbar(ssBackfill.buyPressure, 10) + '<span class="ss-bar-val">' + ssBackfill.buyPressure + '</span></div>'
