@@ -153,7 +153,7 @@
 <script>
 /* [v4.7.42] 캐시 강제 리셋 — SW 완전 제거 후 리로드 */
 (function(){
-  var VER = 'v5.1.2';  // 분석완료 Backfill 외부화 (Base: v4.9.5+phase2-v0-shadow-backfill-hotfix-r1)
+  var VER = 'v5.1.3';  // Shadow Score 계산 외부화 (Base: v4.9.5+phase2-v0-shadow-backfill-hotfix-r1)
   try {
     var LKEY = 'woos_hard_reset_ver';
     if (localStorage.getItem(LKEY) === VER) return;
@@ -8329,10 +8329,10 @@ details.analyzer-progress-card > summary.progress-compact-summary {
 </style>
 <!-- [WOOS PWA SPLASH CSS END] -->
 
-<!-- [v5.1.2 분석완료 Backfill 외부화] Base: v4.9.5+phase2-v0-shadow-backfill-hotfix-r1 -->
-<link rel="stylesheet" href="./css/woos-shadow.css?v=v5.1.2">
-<script src="./js/woos-shadow-kit.js?v=v5.1.2"></script>
-<script src="./js/woos-extension-bridge.js?v=v5.1.2"></script>
+<!-- [v5.1.3 Shadow Score 계산 외부화] Base: v4.9.5+phase2-v0-shadow-backfill-hotfix-r1 -->
+<link rel="stylesheet" href="./css/woos-shadow.css?v=v5.1.3">
+<script src="./js/woos-shadow-kit.js?v=v5.1.3"></script>
+<script src="./js/woos-extension-bridge.js?v=v5.1.3"></script>
 
 </head>
 <body>
@@ -9445,7 +9445,7 @@ async function opsDashboard() {
 // 탭 시 상세 팝업
 // ═══════════════════════════════════════════════════════════════
 
-var HTML_VERSION = 'v5.1.2';  // 분석완료 Backfill 외부화 (Base: v4.9.5+phase2-v0-shadow-backfill-hotfix-r1)
+var HTML_VERSION = 'v5.1.3';  // Shadow Score 계산 외부화 (Base: v4.9.5+phase2-v0-shadow-backfill-hotfix-r1)
 var _cachedBuildInfo = null;
 
 // [State Lock 2 Action fix-2c] 패치 확인용 — 페이지 로드 시 버전명 출력 (DevTools 콘솔)
@@ -11373,133 +11373,15 @@ function renderCoinList(coins) {
   list.innerHTML = coins.map(function(c,i){return buildCoinCardHTML(c,i);}).join('');
 }
 
-// ═══════════════════════════════════════════════════════════════
-// [Phase 1 v0 — 2026-05-08] Shadow Score 5차원 계산 함수
-// ═══════════════════════════════════════════════════════════════
-// 목적: 스캐너 메인 카드 + 박제 둘 다에서 동일한 5차원 계산
-// 사용자 결정 사항 (Phase 1 v0):
-//   1. 매수세 점수 (vRatio + vAccel + OBV + MFI + phase) 0-10
-//   2. 수급반응 점수 (boxRange + phase + accStrength + OBV + vol) 0-10
-//   3. 위치품질 점수 (phase 0.98-1.05=5점 / 1.15+=1점) 0-10
-//   4. 손익비 점수 (RR < 1.5=2점 / 5+=10점) 0-10 + RR 숫자 별도
-//   5. 위험도 가중합 (낮음/보통/높음)
-// 기존 WOOS 점수체계 변경 X / 보조 검증 점수
-// ═══════════════════════════════════════════════════════════════
-window.WOOS_calcShadowScore = function(coin, rep) {
-  if (!rep) return null;
-  try {
-    var vol = rep.vol || {};
-    var vRatio = vol.ratio || 1.0;
-    var vAccel = vol.accel || 1.0;
-    var obvTrend = (rep.obv && rep.obv.trend) || 'flat';
-    var mfi = (rep.indicators && rep.indicators.mfi) || 50;
-    var phase = (rep.currentPhase && rep.currentPhase.ratio) || 1.0;
-    var accSc = (rep.accumulationStrength && rep.accumulationStrength.score) || 0;
-    var rr = (rep.rr && rep.rr.value) || 0;
-    var fakePump = !!rep.fakePump;
-    var lateEntry = !!rep.lateEntry;
-    var btcBear = (coin && coin.btcFilter && coin.btcFilter.penalty >= 2);
-    var upperWick = (rep.candle && rep.candle.upperWickRatio >= 0.4);
-    
-    // 1. 매수세 (0-10)
-    var bp = 0;
-    if (vRatio >= 2.0) bp += 3; else if (vRatio >= 1.5) bp += 2; else if (vRatio >= 1.2) bp += 1;
-    if (vAccel >= 1.20) bp += 2; else if (vAccel >= 1.05) bp += 1;
-    if (obvTrend === 'up' || obvTrend === 'UP') bp += 2;
-    else if (obvTrend === 'flat' || obvTrend === 'FLAT') bp += 1;
-    if (mfi >= 85) bp += 0; else if (mfi >= 75) bp += 1; else if (mfi >= 60) bp += 2; else if (mfi >= 50) bp += 1;
-    if (phase >= 1.00 && phase < 1.08) bp += 1;
-    bp = Math.min(10, Math.max(0, bp));
-    
-    // 2. 수급반응 (0-10)
-    var lr = 0;
-    if (rep.boxRange && rep.boxRange.exists) lr += 2;
-    else if (rep.boxRange && rep.boxRange.width) lr += 1;
-    if (phase >= 0.98 && phase < 1.05) lr += 3;
-    else if (phase >= 1.05 && phase < 1.08) lr += 2;
-    else if (phase < 0.98) lr += 1;
-    lr += Math.min(3, Math.round(accSc * 0.3));
-    if (obvTrend === 'up' || obvTrend === 'UP' || obvTrend === 'flat' || obvTrend === 'FLAT') lr += 1;
-    if (vRatio >= 1.2) lr += 1;
-    lr = Math.min(10, Math.max(0, lr));
-    
-    // 3. 위치품질 (0-10)
-    var pos = 0;
-    if (phase >= 0.98 && phase < 1.05) pos = 5;
-    else if (phase >= 1.05 && phase < 1.08) pos = 4;
-    else if (phase >= 1.08 && phase < 1.15) pos = 2;
-    else if (phase >= 1.15 && phase < 1.25) pos = 1;
-    else if (phase >= 1.25) pos = 0;
-    else if (phase < 0.95) pos = 2;
-    if (accSc >= 7) pos = Math.min(10, pos + 3);
-    else if (accSc >= 4) pos = Math.min(10, pos + 1);
-    pos = Math.min(10, Math.max(0, pos));
-    
-    // 4. 손익비 (0-10) + RR 숫자
-    var rrSc = 0;
-    if (rr >= 5.0) rrSc = 10;
-    else if (rr >= 3.0) rrSc = 8;
-    else if (rr >= 2.0) rrSc = 6;
-    else if (rr >= 1.5) rrSc = 4;
-    else if (rr > 0) rrSc = 2;
-    
-    // 5. 위험도 가중합
-    var rw = 0;
-    if (phase >= 1.15) rw += 2;
-    if (obvTrend === 'down' || obvTrend === 'DOWN') rw += 2;
-    if (fakePump) rw += 2;
-    if (lateEntry) rw += 2;
-    if (mfi >= 85) rw += 1;
-    if (btcBear) rw += 1;
-    if (upperWick) rw += 1;
-    if (rr > 0 && rr < 1.5) rw += 1;
-    var riskLevel = (rw >= 4) ? 'high' : ((rw >= 2) ? 'mid' : 'low');
-    var riskLabel = (riskLevel === 'high') ? '높음' : ((riskLevel === 'mid') ? '보통' : '낮음');
-    
-    var avg = Math.round(((bp + lr + pos + rrSc) / 4) * 10) / 10;
-    
-    return {
-      buyPressure: bp,
-      liquidityReaction: lr,
-      positionQuality: pos,
-      rrScore: rrSc,
-      rrValue: rr,
-      riskLevel: riskLevel,
-      riskLabel: riskLabel,
-      riskWeight: rw,
-      avgScore: avg,
-      version: 'phase1-v0',
-      calculatedAt: Date.now()
-    };
-  } catch(e) {
-    return { error: e.message, version: 'phase1-v0' };
-  }
-};
-
-// [Phase 1 v0 hotfix — 2026-05-08]
-// Shadow Score Backfill 안전 가드.
-// 분석완료 export 171건처럼 알람 당시 raw 지표(vol/obv/mfi/currentPhase/rr 등)가 없는 경우,
-// 기본값(거래량=1, MFI=50, phase=1, RR=0)으로 가짜 Shadow Score가 생성되는 것을 차단한다.
-// 스캐너 실시간 rep에는 영향 없음.
-window.WOOS_hasShadowInputData = function(snap) {
-  try {
-    if (!snap) return false;
-    if (snap.shadowScore && !snap.shadowScore.error) return true;
-    function has(v){ return v !== undefined && v !== null && v !== ''; }
-    return !!(
-      snap.vol || has(snap.volumeRatio) || has(snap.volumeAccel) ||
-      snap.obv || has(snap.obvDirection) ||
-      snap.indicators || has(snap.mfi) || has(snap.rsi) ||
-      snap.currentPhase || has(snap.currentPhaseRatio) ||
-      snap.accumulationStrength || has(snap.accStrength) ||
-      snap.rr || has(snap.rrValue) ||
-      snap.fakePump !== undefined || snap.lateEntry !== undefined ||
-      snap.boxRange || snap.candle
-    );
-  } catch(e) {
-    return false;
-  }
-};
+/* [v5.1.3] Shadow Score 계산 외부화
+ * 기존 window.WOOS_calcShadowScore (~90줄) / window.WOOS_hasShadowInputData (~19줄) 본문은
+ * /js/woos-shadow-kit.js 로 이동 (재작성 X, 동작 동일).
+ * 본체 호출처 5곳(line 10500/11512/15750/15760/15774) 미터치를 위해
+ * window alias는 ShadowKit에서 등록 유지.
+ *   window.WOOS_calcShadowScore   = WOOSShadowKit.calcShadowScore
+ *   window.WOOS_hasShadowInputData = WOOSShadowKit.hasShadowInputData
+ * 내부 반환 version 'phase1-v0' 식별자는 payload 호환성용으로 보존.
+ */
 
 function buildCoinCardHTML(coin, idx) {
   var rep = coin.representative;
