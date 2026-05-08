@@ -153,7 +153,7 @@
 <script>
 /* [v4.7.42] 캐시 강제 리셋 — SW 완전 제거 후 리로드 */
 (function(){
-  var VER = 'v5.1.4';  // 라벨 5종 외부화 (Base: v4.9.5+phase2-v0-shadow-backfill-hotfix-r1)
+  var VER = 'v5.1.5';  // Shadow CSS 디자인 정리 (Base: v4.9.5+phase2-v0-shadow-backfill-hotfix-r1)
   try {
     var LKEY = 'woos_hard_reset_ver';
     if (localStorage.getItem(LKEY) === VER) return;
@@ -5789,537 +5789,10 @@ details.progress-rich-card.woos-group[open] { border-color: rgba(124, 58, 237, 0
   font-family: 'JetBrains Mono','Noto Sans KR',monospace;
   font-size: .72rem;
 }
-.al-row1 {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 4px;
-}
-.al-row2 {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: .68rem;
-  color: #94a3b8;
-}
-.al-grade-chip {
-  display: inline-block;
-  padding: 2px 8px;
-  border-radius: 4px;
-  font-size: .68rem;
-  font-weight: 800;
-  letter-spacing: .3px;
-  min-width: 30px;
-  text-align: center;
-}
-.al-grade-splus { background: linear-gradient(135deg, #ff6b9d, #c44569); color: #fff; }
-.al-grade-s { background: linear-gradient(135deg, #f59e0b, #d97706); color: #fff; }
-.al-grade-a { background: linear-gradient(135deg, #00d4ff, #0891b2); color: #fff; }
-.al-grade-b { background: linear-gradient(135deg, #facc15, #ca8a04); color: #1f2937; }
-.al-grade-c { background: linear-gradient(135deg, #94a3b8, #64748b); color: #fff; }
-.al-grade-unknown { background: rgba(255, 255, 255, .14); color: #94a3b8; }
-.al-base {
-  flex: 1;
-  font-weight: 700;
-  color: #fff;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.al-exchange {
-  font-size: .65rem;
-  color: #00d4ff;
-  font-weight: 600;
-  letter-spacing: .3px;
-}
-.al-score { font-weight: 700; color: #d8b4fe; }
-.al-time { color: #94a3b8; }
-.al-no-alert { color: #6b7280; font-size: .65rem; }
-.al-alert { color: #22f69b; font-size: .65rem; font-weight: 600; }
-.woos-alert-list-more-btn {
-  width: 100%;
-  margin-top: 10px;
-  padding: 9px;
-  border: 1px solid rgba(168, 85, 247, .28);
-  background: rgba(168, 85, 247, .08);
-  color: #d8b4fe;
-  border-radius: 6px;
-  font-family: 'JetBrains Mono', monospace;
-  font-size: .72rem;
-  font-weight: 700;
-  cursor: pointer;
-}
-.woos-alert-list-more-btn:hover { background: rgba(168, 85, 247, .18); color: #fff; }
-
-/* [V5 정밀 4] 분석완료 카드 — 초기 등급 vs 최종 등급 승격 칩 */
-.hist-promotion-chip {
-  display: inline-block;
-  padding: 2px 7px;
-  font-size: .62rem;
-  font-weight: 700;
-  letter-spacing: .3px;
-  border-radius: 4px;
-  margin-left: 4px;
-  font-family: 'JetBrains Mono', monospace;
-}
-.hist-promotion-chip.hist-promoted {
-  background: linear-gradient(90deg, rgba(34, 246, 155, .18), rgba(0, 212, 255, .14));
-  color: #22f69b;
-  border: 1px solid rgba(34, 246, 155, .42);
-}
-.hist-promotion-chip.hist-demoted {
-  background: linear-gradient(90deg, rgba(255, 92, 114, .14), rgba(245, 158, 11, .10));
-  color: #ff5c72;
-  border: 1px solid rgba(255, 92, 114, .32);
-}
-
-/* [V5 정밀 1+2] 검증샘플 분리 + Shadow Score */
-.al-sample-card {
-  border: 1px dashed rgba(250, 204, 21, .28) !important;
-  background: linear-gradient(135deg, rgba(20, 28, 40, .7), rgba(40, 30, 15, .4)) !important;
-}
-.al-sample-card .al-base { color: #facc15; }
-.al-sample-tag {
-  display: inline-block;
-  padding: 1px 6px;
-  font-size: .58rem;
-  font-weight: 700;
-  letter-spacing: .3px;
-  background: rgba(250, 204, 21, .14);
-  color: #facc15;
-  border: 1px solid rgba(250, 204, 21, .32);
-  border-radius: 3px;
-  margin-left: 4px;
-}
-.al-shadow-chip {
-  display: inline-block;
-  padding: 1px 6px;
-  font-size: .58rem;
-  font-weight: 700;
-  letter-spacing: .3px;
-  border-radius: 3px;
-  margin-left: 4px;
-}
-.al-shadow-강 {
-  background: rgba(34, 246, 155, .18);
-  color: #22f69b;
-  border: 1px solid rgba(34, 246, 155, .42);
-}
-.al-shadow-중 {
-  background: rgba(245, 158, 11, .14);
-  color: #f59e0b;
-  border: 1px solid rgba(245, 158, 11, .32);
-}
-.al-shadow-약 {
-  background: rgba(148, 163, 184, .12);
-  color: #94a3b8;
-  border: 1px solid rgba(148, 163, 184, .28);
-}
-/* [V5 정밀 1] Shadow Score 숫자 표시 (buildSnapshotPayload 박제값 활용) */
-.al-shadow-high {
-  background: linear-gradient(135deg, rgba(34, 246, 155, .22), rgba(0, 212, 255, .18));
-  color: #22f69b;
-  border: 1px solid rgba(34, 246, 155, .5);
-  text-shadow: 0 0 6px rgba(34, 246, 155, .4);
-}
-.al-shadow-mid {
-  background: rgba(245, 158, 11, .18);
-  color: #fbbf24;
-  border: 1px solid rgba(245, 158, 11, .42);
-}
-.al-shadow-low {
-  background: rgba(148, 163, 184, .14);
-  color: #94a3b8;
-  border: 1px solid rgba(148, 163, 184, .32);
-}
-/* [V5 정밀 3] 승격/멀티 알람 칩 (알람목록 카드용) */
-.al-promo {
-  display: inline-block;
-  padding: 1px 6px;
-  font-size: .58rem;
-  font-weight: 700;
-  background: linear-gradient(90deg, rgba(34, 246, 155, .22), rgba(0, 212, 255, .14));
-  color: #22f69b;
-  border: 1px solid rgba(34, 246, 155, .5);
-  border-radius: 3px;
-  margin-left: 4px;
-  text-shadow: 0 0 4px rgba(34, 246, 155, .3);
-}
-.al-multi {
-  display: inline-block;
-  padding: 1px 6px;
-  font-size: .58rem;
-  font-weight: 700;
-  background: rgba(168, 85, 247, .14);
-  color: #c4b5fd;
-  border: 1px solid rgba(168, 85, 247, .32);
-  border-radius: 3px;
-  margin-left: 4px;
-}
-
-/* [Phase 1 v0] Shadow Score 5차원 그래프 (분석기 스타일) */
-.al-shadow-bars {
-  margin-top: 8px;
-  padding-top: 7px;
-  border-top: 1px dashed rgba(255, 255, 255, .07);
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-.al-bar-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: .65rem;
-  color: #cbd5e1;
-}
-.al-bar-lbl {
-  flex: 0 0 52px;
-  font-weight: 700;
-  color: #94a3b8;
-  letter-spacing: .3px;
-}
-.al-bar-track {
-  flex: 1;
-  height: 6px;
-  background: rgba(255, 255, 255, .05);
-  border-radius: 3px;
-  overflow: hidden;
-  position: relative;
-}
-.al-bar-fill {
-  display: block;
-  height: 100%;
-  background: linear-gradient(90deg, #00d4ff, #a855f7);
-  border-radius: 3px;
-  transition: width .3s ease;
-  box-shadow: 0 0 4px rgba(168, 85, 247, .4);
-}
-.al-bar-val {
-  flex: 0 0 65px;
-  text-align: right;
-  font-weight: 600;
-  color: #d8b4fe;
-  font-size: .62rem;
-}
-/* 위험도 칩 (Phase 1 v0) */
-.al-risk-chip {
-  display: inline-block;
-  padding: 1px 5px;
-  font-size: .58rem;
-  font-weight: 700;
-  border-radius: 3px;
-  margin-left: 4px;
-  letter-spacing: .3px;
-}
-.al-risk-low {
-  background: rgba(34, 246, 155, .14);
-  color: #22f69b;
-  border: 1px solid rgba(34, 246, 155, .32);
-}
-.al-risk-mid {
-  background: rgba(245, 158, 11, .16);
-  color: #fbbf24;
-  border: 1px solid rgba(245, 158, 11, .38);
-}
-.al-risk-high {
-  background: rgba(239, 68, 68, .18);
-  color: #f87171;
-  border: 1px solid rgba(239, 68, 68, .42);
-}
-
-/* ═══════════════════════════════════════════════════════════════
-   [Phase 1 v0 — 2026-05-08] 스캐너 메인 카드 Shadow Score 5차원
-   사용자 명시: "스캐너 (분석기 X)에 패치되어야 하는 부분"
-   buildCoinCardHTML 안 별도 영역 (card-header 아래 / card-detail 위)
-   기존 카드 정보 보존 + 추가 영역 (덮어쓰기 X)
-═══════════════════════════════════════════════════════════════ */
-.ss-shadow-section {
-  margin: 0 12px 10px;
-  padding: 10px 12px;
-  background: linear-gradient(135deg, rgba(168, 85, 247, .06), rgba(0, 212, 255, .04));
-  border: 1px solid rgba(168, 85, 247, .18);
-  border-radius: 8px;
-  font-family: 'JetBrains Mono', 'Noto Sans KR', monospace;
-}
-.ss-header {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 8px;
-  font-size: .72rem;
-}
-.ss-title {
-  font-weight: 700;
-  color: #d8b4fe;
-  letter-spacing: .3px;
-}
-.ss-avg {
-  font-weight: 800;
-  color: #fff;
-  font-size: .82rem;
-  letter-spacing: .5px;
-}
-.ss-risk-chip {
-  padding: 2px 8px;
-  font-size: .62rem;
-  font-weight: 700;
-  border-radius: 4px;
-  letter-spacing: .3px;
-  margin-left: auto;
-}
-.ss-risk-low {
-  background: rgba(34, 246, 155, .14);
-  color: #22f69b;
-  border: 1px solid rgba(34, 246, 155, .32);
-}
-.ss-risk-mid {
-  background: rgba(245, 158, 11, .16);
-  color: #fbbf24;
-  border: 1px solid rgba(245, 158, 11, .38);
-}
-.ss-risk-high {
-  background: rgba(239, 68, 68, .18);
-  color: #f87171;
-  border: 1px solid rgba(239, 68, 68, .42);
-}
-.ss-bars {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-}
-.ss-bar-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: .68rem;
-}
-.ss-bar-lbl {
-  flex: 0 0 56px;
-  font-weight: 700;
-  color: #94a3b8;
-  letter-spacing: .3px;
-}
-.ss-bar-track {
-  flex: 1;
-  height: 7px;
-  background: rgba(255, 255, 255, .05);
-  border-radius: 4px;
-  overflow: hidden;
-  position: relative;
-}
-.ss-bar-fill {
-  display: block;
-  height: 100%;
-  background: linear-gradient(90deg, #00d4ff, #a855f7);
-  border-radius: 4px;
-  transition: width .35s ease;
-  box-shadow: 0 0 5px rgba(168, 85, 247, .35);
-}
-.ss-bar-val {
-  flex: 0 0 70px;
-  text-align: right;
-  font-weight: 700;
-  color: #d8b4fe;
-  font-size: .65rem;
-}
-
-@media (max-width: 520px) {
-  .ss-shadow-section { margin: 0 10px 8px; padding: 9px 10px; }
-  .ss-bar-lbl { flex: 0 0 50px; font-size: .62rem; }
-  .ss-bar-val { flex: 0 0 60px; font-size: .60rem; }
-}
-
-/* ═══════════════════════════════════════════════════════════════
-   [Phase 1 v0 r3 — 2026-05-08] 테스트 모드 토글 시스템
-   사용자 명시: "테스트 버전 켜고 끌 수 있게 / 관리자코드 사용"
-═══════════════════════════════════════════════════════════════ */
-.woos-test-mode-toggle-btn {
-  position: fixed;
-  bottom: 130px;
-  right: 16px;
-  z-index: 998;
-  padding: 9px 14px;
-  border: 1px solid rgba(168, 85, 247, .42);
-  background: linear-gradient(135deg, rgba(20, 28, 40, .92), rgba(15, 22, 32, .95));
-  color: #d8b4fe;
-  border-radius: 24px;
-  font-family: 'JetBrains Mono', 'Noto Sans KR', monospace;
-  font-size: .72rem;
-  font-weight: 700;
-  cursor: pointer;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, .35);
-  letter-spacing: .3px;
-  transition: all .2s ease;
-}
-.woos-test-mode-toggle-btn:hover {
-  background: linear-gradient(135deg, rgba(168, 85, 247, .25), rgba(0, 212, 255, .12));
-  color: #fff;
-  transform: translateY(-1px);
-}
-.woos-test-mode-toggle-btn.woos-test-mode-active {
-  background: linear-gradient(135deg, #f59e0b, #d97706);
-  color: #fff;
-  border-color: rgba(245, 158, 11, .8);
-  box-shadow: 0 4px 18px rgba(245, 158, 11, .5);
-  animation: wtm-pulse 2s ease-in-out infinite;
-}
-@keyframes wtm-pulse {
-  0%, 100% { box-shadow: 0 4px 18px rgba(245, 158, 11, .5); }
-  50%      { box-shadow: 0 4px 24px rgba(245, 158, 11, .8); }
-}
-
-/* 테스트 모드 활성 배너 */
-.woos-test-mode-banner {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  z-index: 1000;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 9px 16px;
-  background: linear-gradient(90deg, #f59e0b, #d97706, #f59e0b);
-  background-size: 200% 100%;
-  animation: wtm-banner-flow 4s linear infinite;
-  color: #fff;
-  font-family: 'JetBrains Mono', 'Noto Sans KR', monospace;
-  font-size: .74rem;
-  font-weight: 700;
-  letter-spacing: .3px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, .3);
-}
-@keyframes wtm-banner-flow {
-  0%   { background-position: 0% 50%; }
-  100% { background-position: 200% 50%; }
-}
-.wtm-icon { font-size: 1.05rem; }
-.wtm-title { font-weight: 800; }
-.wtm-desc { 
-  flex: 1; 
-  font-weight: 500; 
-  opacity: .95;
-  font-size: .68rem;
-}
-.wtm-close {
-  padding: 4px 12px;
-  border: 1px solid rgba(255, 255, 255, .55);
-  background: rgba(0, 0, 0, .25);
-  color: #fff;
-  border-radius: 4px;
-  font-size: .68rem;
-  font-weight: 700;
-  cursor: pointer;
-}
-.wtm-close:hover { background: rgba(0, 0, 0, .45); }
-
-/* 테스트 모드 활성 시 body 상단 패딩 */
-body:has(.woos-test-mode-banner) { padding-top: 38px; }
-
-/* Preview / Backfill 라벨 */
-.ss-preview-label {
-  display: inline-block;
-  padding: 2px 8px;
-  font-size: .62rem;
-  font-weight: 700;
-  background: rgba(245, 158, 11, .18);
-  color: #fbbf24;
-  border: 1px solid rgba(245, 158, 11, .42);
-  border-radius: 4px;
-  letter-spacing: .3px;
-}
-.ss-backfill-label {
-  display: inline-block;
-  padding: 2px 8px;
-  font-size: .60rem;
-  font-weight: 700;
-  background: rgba(168, 85, 247, .16);
-  color: #c4b5fd;
-  border: 1px solid rgba(168, 85, 247, .38);
-  border-radius: 4px;
-  letter-spacing: .3px;
-}
-
-/* Preview / Backfill 카드 색상 차별화 */
-.ss-shadow-section.ss-preview {
-  background: linear-gradient(135deg, rgba(245, 158, 11, .05), rgba(245, 158, 11, .02));
-  border-color: rgba(245, 158, 11, .25);
-}
-.ss-shadow-section.ss-backfill {
-  background: linear-gradient(135deg, rgba(168, 85, 247, .06), rgba(0, 212, 255, .03));
-  border-color: rgba(168, 85, 247, .22);
-  margin: 8px 0 0;
-  padding: 8px 10px;
-}
-.ss-shadow-section.ss-backfill .ss-bar-row { font-size: .62rem; }
-.ss-shadow-section.ss-backfill .ss-bar-track { height: 5px; }
-
-/* [Phase 2 — 분석완료 정교화 / 2026-05-08] 검증 매칭 라벨
-   사용자 명시: "스캐너 정교화 = 분석완료 검증이 필요한 순환구조"
-   목적: Shadow Score 예측 vs 실제 outcome 자동 매칭 표시
-   TP/TN/FP/FN 4분류로 가설 검증 정량화 */
-.ss-verify-match {
-  display: inline-block;
-  padding: 1px 6px;
-  font-size: .58rem;
-  font-weight: 700;
-  border-radius: 3px;
-  letter-spacing: .3px;
-}
-.ss-verify-tp {
-  background: rgba(34, 246, 155, .18);
-  color: #22f69b;
-  border: 1px solid rgba(34, 246, 155, .42);
-  text-shadow: 0 0 4px rgba(34, 246, 155, .3);
-}
-.ss-verify-tn {
-  background: rgba(0, 212, 255, .14);
-  color: #00d4ff;
-  border: 1px solid rgba(0, 212, 255, .35);
-}
-.ss-verify-mismatch {
-  display: inline-block;
-  padding: 1px 6px;
-  font-size: .58rem;
-  font-weight: 700;
-  border-radius: 3px;
-  letter-spacing: .3px;
-}
-.ss-verify-fp {
-  background: rgba(239, 68, 68, .18);
-  color: #f87171;
-  border: 1px solid rgba(239, 68, 68, .42);
-}
-.ss-verify-fn {
-  background: rgba(245, 158, 11, .16);
-  color: #fbbf24;
-  border: 1px solid rgba(245, 158, 11, .38);
-}
-.ss-verify-neutral {
-  display: inline-block;
-  padding: 1px 6px;
-  font-size: .58rem;
-  font-weight: 600;
-  background: rgba(148, 163, 184, .14);
-  color: #94a3b8;
-  border: 1px solid rgba(148, 163, 184, .32);
-  border-radius: 3px;
-  letter-spacing: .3px;
-}
-
-/* [V5 정밀 3] 승격 칩 — gradeHistory 기반 (다음 단계) */
-.al-promotion-chip {
-  display: inline-block;
-  padding: 1px 6px;
-  font-size: .58rem;
-  font-weight: 700;
-  background: linear-gradient(90deg, rgba(168, 85, 247, .2), rgba(34, 246, 155, .18));
-  color: #d8b4fe;
-  border: 1px solid rgba(168, 85, 247, .42);
-  border-radius: 3px;
-  margin-left: 4px;
-}
+/* [v5.1.5] Shadow CSS 디자인 정리 — 본체 인라인 line 5792~6322 (~531줄)을
+ * /css/woos-shadow.css 로 이전 (재작성 X, 클래스명/specificity/미디어쿼리/키프레임 보존).
+ * 외부 CSS는 <head> 끝부분에서 로드되어 본체 인라인보다 나중에 등장 → 우선순위 동일.
+ */
 
 @media (max-width: 520px) {
   .woos-alert-list-filter-row { flex-direction: column; }
@@ -8329,10 +7802,10 @@ details.analyzer-progress-card > summary.progress-compact-summary {
 </style>
 <!-- [WOOS PWA SPLASH CSS END] -->
 
-<!-- [v5.1.4 라벨 5종 외부화] Base: v4.9.5+phase2-v0-shadow-backfill-hotfix-r1 -->
-<link rel="stylesheet" href="./css/woos-shadow.css?v=v5.1.4">
-<script src="./js/woos-shadow-kit.js?v=v5.1.4"></script>
-<script src="./js/woos-extension-bridge.js?v=v5.1.4"></script>
+<!-- [v5.1.5 Shadow CSS 디자인 정리] Base: v4.9.5+phase2-v0-shadow-backfill-hotfix-r1 -->
+<link rel="stylesheet" href="./css/woos-shadow.css?v=v5.1.5">
+<script src="./js/woos-shadow-kit.js?v=v5.1.5"></script>
+<script src="./js/woos-extension-bridge.js?v=v5.1.5"></script>
 
 </head>
 <body>
@@ -9445,7 +8918,9 @@ async function opsDashboard() {
 // 탭 시 상세 팝업
 // ═══════════════════════════════════════════════════════════════
 
-var HTML_VERSION = 'v5.1.4';  // 라벨 5종 외부화 (Base: v4.9.5+phase2-v0-shadow-backfill-hotfix-r1)
+var HTML_VERSION = 'v5.1.5';  // Shadow CSS 디자인 정리 (Base: v4.9.5+phase2-v0-shadow-backfill-hotfix-r1)
+/* [v5.1.5] 한글 요약 화면 표기 — updateBuildBadge에서 한글 요약 동반 (사용자 명명법 강화) */
+var HTML_VERSION_LABEL = 'Shadow CSS 디자인 정리';
 var _cachedBuildInfo = null;
 
 // [State Lock 2 Action fix-2c] 패치 확인용 — 페이지 로드 시 버전명 출력 (DevTools 콘솔)
@@ -9470,8 +8945,10 @@ function updateBuildBadge(info) {
   var el = document.getElementById('buildBadge');
   if (!el) return;
   _cachedBuildInfo = info;
+  /* [v5.1.5] 한글 요약 동반 표기 — HTML_VERSION_LABEL 추가 (코드 식별자 보존) */
+  var verLabel = (typeof HTML_VERSION_LABEL !== 'undefined' && HTML_VERSION_LABEL) ? HTML_VERSION_LABEL : '';
   if (!info) {
-    el.textContent = HTML_VERSION;
+    el.textContent = verLabel ? (HTML_VERSION + ' · ' + verLabel) : HTML_VERSION;
     el.classList.add('build-syncing');
     el.title = 'Workers 연결 확인 중... (탭해서 재시도)';
     return;
@@ -9480,7 +8957,9 @@ function updateBuildBadge(info) {
   var serverTag = info.buildTag || '?';
   // 축약: 'phase2.1-outcome-verify-test1-migrate' → 'v2.1 · migrate'
   var shortTag = shortenBuildTag(serverTag);
-  el.textContent = HTML_VERSION + ' · ' + shortTag;
+  el.textContent = verLabel
+    ? (HTML_VERSION + ' · ' + verLabel + ' · ' + shortTag)
+    : (HTML_VERSION + ' · ' + shortTag);
   el.title = '탭해서 상세 보기';
 }
 

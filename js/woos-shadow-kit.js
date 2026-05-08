@@ -1,6 +1,6 @@
 /* WOOS Shadow Kit
  * Base:    v4.9.5+phase2-v0-shadow-backfill-hotfix-r1
- * Current: v5.1.3 (Shadow Score 계산 외부화)
+ * Current: v5.1.5 (Shadow CSS 디자인 정리)
  *
  * Shadow Score / 라벨 / Backfill / ATR B / B-C 검증샘플 담당.
  *
@@ -377,7 +377,7 @@
 
   /* ─── 모듈 노출 ─── */
   global.WOOSShadowKit = {
-    VERSION: 'v5.1.4',
+    VERSION: 'v5.1.5',
     calcShadowScore: calcShadowScore,
     hasShadowInputData: hasShadowInputData,
     renderBackfillPanel: renderBackfillPanel,
