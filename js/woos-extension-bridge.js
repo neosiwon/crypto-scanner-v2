@@ -1,11 +1,15 @@
 /* WOOS Extension Bridge
  * Base:    v4.9.5+phase2-v0-shadow-backfill-hotfix-r1
- * Current: v5.1.1 (최소 브릿지 모듈화)
+ * Current: v5.1.2 (분석완료 Backfill 외부화)
  *
  * 본체 ↔ shadow-kit 어댑터. hook point 단일 관리.
- * v5.1.1 = 빈 어댑터 (모든 hook이 '' 반환). 기능 동작 변경 0.
  *
- * 보류 (v5.1.1 외):
+ * v5.1.2 변경:
+ *   - renderHistoryAddon(item, ctx)로 시그니처 확장 — outcome 등 컨텍스트 전달
+ *   - renderHistoryAddon → ShadowKit.renderBackfillPanel 위임
+ *   - scanner / card hook은 v5.1.1 그대로 (빈 반환)
+ *
+ * 보류 (v5.1.2 외):
  *   - renderAnalyzerAddon
  *   - buildSnapshotAddon
  */
@@ -13,7 +17,7 @@
   'use strict';
 
   global.WOOSExtensionBridge = {
-    VERSION: 'v5.1.1',
+    VERSION: 'v5.1.2',
 
     // 스캐너 결과 카드 (buildCoinCardHTML)
     renderScannerCardAddon: function (coin, rep, idx) {
@@ -26,8 +30,14 @@
     },
 
     // 분석완료 카드 (v462_buildHistoryCard)
-    renderHistoryAddon: function (item) {
-      return '';
+    // ctx = { outcome: 'success'|'partial'|'fail'|'neutral' }
+    renderHistoryAddon: function (item, ctx) {
+      try {
+        var k = global.WOOSShadowKit;
+        return (k && typeof k.renderBackfillPanel === 'function')
+          ? (k.renderBackfillPanel(item, ctx) || '')
+          : '';
+      } catch (e) { return ''; }
     }
   };
 
