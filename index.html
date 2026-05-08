@@ -152,7 +152,7 @@
 <script>
 /* [v4.7.42] 캐시 강제 리셋 — SW 완전 제거 후 리로드 */
 (function(){
-  var VER = 'v4.9.5+phase1-v0-r2';  // [Phase 1 v0 r2] 스캐너 메인 카드에 Shadow Score 5차원 그래프 적용 (사용자 정정)
+  var VER = 'v4.9.5+phase1-v0-r3';  // [Phase 1 v0 r3] 테스트 모드 토글 (관리자 인증) + History Backfill + Preview 모드
   try {
     var LKEY = 'woos_hard_reset_ver';
     if (localStorage.getItem(LKEY) === VER) return;
@@ -452,6 +452,119 @@
     });
   };
 
+  // ═══════════════════════════════════════════════════════════════
+  // [Phase 1 v0 r3 — 2026-05-08] 테스트 모드 토글 시스템
+  // ═══════════════════════════════════════════════════════════════
+  // 사용자 명시: "테스트 버전을 키고 끌 수 있게 개발 / 관리자코드 사용"
+  // 목적:
+  //   - 헷갈리지 않게 명확 표시 ("[검증용]" / "[Preview]")
+  //   - 켜기/끄기 토글 가능
+  //   - 알람/추적/통계 영향 X (격리)
+  //   - 관리자 인증 필수 (일반 사용자 차단)
+  // 활성화 시 효과:
+  //   1. 분석완료 카드 = Shadow Score 5차원 그래프 표시 (Backfill)
+  //   2. 스캐너 카드 = 알람 조건 미충족도 "[Preview]" 라벨로 표시
+  //   3. 명확한 상단 배너 ("🧪 테스트 모드 활성")
+  // ═══════════════════════════════════════════════════════════════
+  window.WOOS_TEST_MODE = {
+    enabled: false,
+    sessionKey: 'woos_test_mode_enabled',
+    bannerVisible: false
+  };
+  
+  window.woosToggleTestMode = function(config) {
+    var current = window.WOOS_TEST_MODE.enabled;
+    if (current) {
+      // 끄기 — 인증 불필요
+      window.WOOS_TEST_MODE.enabled = false;
+      try { sessionStorage.removeItem(window.WOOS_TEST_MODE.sessionKey); } catch(e) {}
+      window.woosRemoveTestModeBanner();
+      window.woosUpdateTestModeBtn();
+      // 화면 새로고침 (스캐너/분석완료 둘 다)
+      try { 
+        if (typeof renderResults === 'function' && window._lastResults) renderResults(window._lastResults);
+        if (typeof _fetchAndRenderHistory === 'function') _fetchAndRenderHistory(false);
+      } catch(_e) {}
+      try { console.log('[WOOS] 테스트 모드 OFF'); } catch(e) {}
+      return;
+    }
+    
+    // 켜기 — 관리자 인증 필요
+    var key = prompt('🧪 Shadow Score 테스트 모드를 켜려면 관리자 코드를 입력하세요:\n\n(History Backfill + Preview 모드 활성화 / 알람·통계 영향 X)');
+    if (!key) return;
+    
+    if (typeof window.woosVerifyAdminKey !== 'function') {
+      alert('인증 시스템 미초기화. 페이지를 새로고침해주세요.');
+      return;
+    }
+    
+    window.woosVerifyAdminKey(key).then(function(d){
+      if (d && d.ok) {
+        window.WOOS_TEST_MODE.enabled = true;
+        try { sessionStorage.setItem(window.WOOS_TEST_MODE.sessionKey, '1'); } catch(e) {}
+        window.woosShowTestModeBanner();
+        window.woosUpdateTestModeBtn();
+        try { 
+          if (typeof renderResults === 'function' && window._lastResults) renderResults(window._lastResults);
+          if (typeof _fetchAndRenderHistory === 'function') _fetchAndRenderHistory(false);
+        } catch(_e) {}
+        alert('🧪 테스트 모드 ON\n\n• 분석완료 → Shadow Score 5차원 그래프 표시\n• 스캐너 → 조건 미충족 후보도 [Preview] 표시\n• 알람/통계 영향 X');
+      } else {
+        alert('❌ 관리자 코드 인증 실패: ' + (d && d.reason || '알 수 없음'));
+      }
+    });
+  };
+  
+  window.woosUpdateTestModeBtn = function() {
+    var btn = document.getElementById('woosTestModeToggleBtn');
+    if (!btn) return;
+    if (window.WOOS_TEST_MODE.enabled) {
+      btn.classList.add('woos-test-mode-active');
+      btn.textContent = '🧪 ON';
+      btn.title = '테스트 모드 활성 (클릭하면 끄기)';
+    } else {
+      btn.classList.remove('woos-test-mode-active');
+      btn.textContent = '🧪 테스트';
+      btn.title = '관리자 인증 후 테스트 모드 켜기';
+    }
+  };
+  
+  window.woosShowTestModeBanner = function() {
+    if (document.getElementById('woosTestModeBanner')) return;
+    var banner = document.createElement('div');
+    banner.id = 'woosTestModeBanner';
+    banner.className = 'woos-test-mode-banner';
+    banner.innerHTML = '<span class="wtm-icon">🧪</span>'
+      + '<span class="wtm-title">테스트 모드 활성</span>'
+      + '<span class="wtm-desc">Shadow Score Backfill + Preview / 알람·통계 영향 X</span>'
+      + '<button type="button" class="wtm-close" onclick="window.woosToggleTestMode()">끄기</button>';
+    document.body.appendChild(banner);
+    window.WOOS_TEST_MODE.bannerVisible = true;
+  };
+  
+  window.woosRemoveTestModeBanner = function() {
+    var banner = document.getElementById('woosTestModeBanner');
+    if (banner) banner.remove();
+    window.WOOS_TEST_MODE.bannerVisible = false;
+  };
+  
+  // 페이지 로드 시 sessionStorage 복원
+  try {
+    if (sessionStorage.getItem('woos_test_mode_enabled') === '1') {
+      window.WOOS_TEST_MODE.enabled = true;
+      // 배너는 DOM ready 후 표시
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', function(){
+          window.woosShowTestModeBanner();
+          window.woosUpdateTestModeBtn();
+        });
+      } else {
+        window.woosShowTestModeBanner();
+        window.woosUpdateTestModeBtn();
+      }
+    }
+  } catch(e) {}
+
 
   function renderMainAdminButton(){
     try {
@@ -467,6 +580,21 @@
         b.title = '관리자 키로 오늘 초대코드 확인';
         b.addEventListener('click', function(){ showTodayCode(config); });
         document.body.appendChild(b);
+        
+        // [Phase 1 v0 r3] 테스트 모드 토글 버튼 추가 (관리자 인증 후만)
+        // 사용자 명시: "테스트 버전을 키고 끌 수 있게 / 관리자코드 사용"
+        // 목적: History Backfill + Preview 모드 명확히 표시 / 알람·통계 영향 X
+        if (!document.getElementById('woosTestModeToggleBtn')) {
+          var tb = document.createElement('button');
+          tb.type = 'button';
+          tb.id = 'woosTestModeToggleBtn';
+          tb.className = 'woos-test-mode-toggle-btn';
+          tb.textContent = '🧪 테스트';
+          tb.title = '관리자 인증 후 Shadow Score 테스트 모드 켜기/끄기';
+          tb.addEventListener('click', function(){ window.woosToggleTestMode && window.woosToggleTestMode(config); });
+          document.body.appendChild(tb);
+          window.woosUpdateTestModeBtn();
+        }
       }).catch(function(err){
         try { console.warn('[WOOS invite main admin]', err); } catch(e) {}
       });
@@ -6001,6 +6129,131 @@ details.progress-rich-card.woos-group[open] { border-color: rgba(124, 58, 237, 0
   .ss-bar-val { flex: 0 0 60px; font-size: .60rem; }
 }
 
+/* ═══════════════════════════════════════════════════════════════
+   [Phase 1 v0 r3 — 2026-05-08] 테스트 모드 토글 시스템
+   사용자 명시: "테스트 버전 켜고 끌 수 있게 / 관리자코드 사용"
+═══════════════════════════════════════════════════════════════ */
+.woos-test-mode-toggle-btn {
+  position: fixed;
+  bottom: 130px;
+  right: 16px;
+  z-index: 998;
+  padding: 9px 14px;
+  border: 1px solid rgba(168, 85, 247, .42);
+  background: linear-gradient(135deg, rgba(20, 28, 40, .92), rgba(15, 22, 32, .95));
+  color: #d8b4fe;
+  border-radius: 24px;
+  font-family: 'JetBrains Mono', 'Noto Sans KR', monospace;
+  font-size: .72rem;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, .35);
+  letter-spacing: .3px;
+  transition: all .2s ease;
+}
+.woos-test-mode-toggle-btn:hover {
+  background: linear-gradient(135deg, rgba(168, 85, 247, .25), rgba(0, 212, 255, .12));
+  color: #fff;
+  transform: translateY(-1px);
+}
+.woos-test-mode-toggle-btn.woos-test-mode-active {
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+  color: #fff;
+  border-color: rgba(245, 158, 11, .8);
+  box-shadow: 0 4px 18px rgba(245, 158, 11, .5);
+  animation: wtm-pulse 2s ease-in-out infinite;
+}
+@keyframes wtm-pulse {
+  0%, 100% { box-shadow: 0 4px 18px rgba(245, 158, 11, .5); }
+  50%      { box-shadow: 0 4px 24px rgba(245, 158, 11, .8); }
+}
+
+/* 테스트 모드 활성 배너 */
+.woos-test-mode-banner {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 16px;
+  background: linear-gradient(90deg, #f59e0b, #d97706, #f59e0b);
+  background-size: 200% 100%;
+  animation: wtm-banner-flow 4s linear infinite;
+  color: #fff;
+  font-family: 'JetBrains Mono', 'Noto Sans KR', monospace;
+  font-size: .74rem;
+  font-weight: 700;
+  letter-spacing: .3px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, .3);
+}
+@keyframes wtm-banner-flow {
+  0%   { background-position: 0% 50%; }
+  100% { background-position: 200% 50%; }
+}
+.wtm-icon { font-size: 1.05rem; }
+.wtm-title { font-weight: 800; }
+.wtm-desc { 
+  flex: 1; 
+  font-weight: 500; 
+  opacity: .95;
+  font-size: .68rem;
+}
+.wtm-close {
+  padding: 4px 12px;
+  border: 1px solid rgba(255, 255, 255, .55);
+  background: rgba(0, 0, 0, .25);
+  color: #fff;
+  border-radius: 4px;
+  font-size: .68rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.wtm-close:hover { background: rgba(0, 0, 0, .45); }
+
+/* 테스트 모드 활성 시 body 상단 패딩 */
+body:has(.woos-test-mode-banner) { padding-top: 38px; }
+
+/* Preview / Backfill 라벨 */
+.ss-preview-label {
+  display: inline-block;
+  padding: 2px 8px;
+  font-size: .62rem;
+  font-weight: 700;
+  background: rgba(245, 158, 11, .18);
+  color: #fbbf24;
+  border: 1px solid rgba(245, 158, 11, .42);
+  border-radius: 4px;
+  letter-spacing: .3px;
+}
+.ss-backfill-label {
+  display: inline-block;
+  padding: 2px 8px;
+  font-size: .60rem;
+  font-weight: 700;
+  background: rgba(168, 85, 247, .16);
+  color: #c4b5fd;
+  border: 1px solid rgba(168, 85, 247, .38);
+  border-radius: 4px;
+  letter-spacing: .3px;
+}
+
+/* Preview / Backfill 카드 색상 차별화 */
+.ss-shadow-section.ss-preview {
+  background: linear-gradient(135deg, rgba(245, 158, 11, .05), rgba(245, 158, 11, .02));
+  border-color: rgba(245, 158, 11, .25);
+}
+.ss-shadow-section.ss-backfill {
+  background: linear-gradient(135deg, rgba(168, 85, 247, .06), rgba(0, 212, 255, .03));
+  border-color: rgba(168, 85, 247, .22);
+  margin: 8px 0 0;
+  padding: 8px 10px;
+}
+.ss-shadow-section.ss-backfill .ss-bar-row { font-size: .62rem; }
+.ss-shadow-section.ss-backfill .ss-bar-track { height: 5px; }
+
 /* [V5 정밀 3] 승격 칩 — gradeHistory 기반 (다음 단계) */
 .al-promotion-chip {
   display: inline-block;
@@ -9133,7 +9386,7 @@ async function opsDashboard() {
 // 탭 시 상세 팝업
 // ═══════════════════════════════════════════════════════════════
 
-var HTML_VERSION = 'v4.9.5+phase1-v0-r2';  // [Phase 1 v0 r2] 스캐너 메인 카드 Shadow Score 적용
+var HTML_VERSION = 'v4.9.5+phase1-v0-r3';  // [Phase 1 v0 r3] 테스트 모드 토글 + Backfill + Preview
 var _cachedBuildInfo = null;
 
 // [State Lock 2 Action fix-2c] 패치 확인용 — 페이지 로드 시 버전명 출력 (DevTools 콘솔)
@@ -11234,19 +11487,28 @@ function buildCoinCardHTML(coin, idx) {
     +'<div class="card-chevron" id="chev-'+idx+'">▼</div>'
     +'</div>'
     + (function(){
-        // [Phase 1 v0] 스캐너 메인 카드 — Shadow Score 5차원 그래프 (닫힌 카드 영역)
-        // 사용자 명시: "스캐너 (분석기 X)에 패치되어야 하는 부분"
-        // 기존 카드 정보 보존 + 별도 영역 (card-header 아래 / card-detail 위)
+        // [Phase 1 v0 r3] 테스트 모드 ON일 때만 Shadow Score 표시
+        // 사용자 명시: "테스트 버전을 키고 끌 수 있게 / 관리자코드 사용"
+        // OFF 상태 = 기존 화면 그대로 (변화 X)
+        // ON 상태 = Shadow Score 5차원 그래프 + Preview 라벨 (조건 미충족 시)
+        var testModeOn = (window.WOOS_TEST_MODE && window.WOOS_TEST_MODE.enabled);
+        if (!testModeOn) return '';
         if (!shadowScore || shadowScore.error) return '';
+        
+        // Preview 라벨 — 알람 조건 미충족 카드 식별
+        var isPreview = !rep.isEntryReady && !rep.prePump;
+        var previewLabel = isPreview ? '<span class="ss-preview-label">[Preview / 알람 X]</span>' : '';
+        
         function _bar(val, max) {
           var pct = Math.min(100, Math.max(0, (val / max) * 100));
           return '<span class="ss-bar-track"><span class="ss-bar-fill" style="width:' + pct + '%;"></span></span>';
         }
         var riskCls = shadowScore.riskLevel === 'high' ? 'ss-risk-high' : (shadowScore.riskLevel === 'mid' ? 'ss-risk-mid' : 'ss-risk-low');
-        return '<div class="ss-shadow-section">'
+        return '<div class="ss-shadow-section ' + (isPreview ? 'ss-preview' : '') + '">'
           + '<div class="ss-header">'
           +   '<span class="ss-title">💎 Shadow Score</span>'
           +   '<span class="ss-avg">' + shadowScore.avgScore + '/10</span>'
+          +   previewLabel
           +   '<span class="ss-risk-chip ' + riskCls + '">위험 ' + shadowScore.riskLabel + '</span>'
           + '</div>'
           + '<div class="ss-bars">'
@@ -19985,6 +20247,53 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
         }
       } catch(_phe) {}
       
+      // [Phase 1 v0 r3] History Backfill — 테스트 모드 ON일 때만
+      // 사용자 명시: "분석완료에도 최종 적용 / 테스트 모드 ON 켜고 끌 수 있게"
+      // 기존 분석완료 정보 보존 / 별도 영역 (요약 안)
+      var historyBackfillHtml = '';
+      try {
+        var testModeOn = (typeof window !== 'undefined' && window.WOOS_TEST_MODE && window.WOOS_TEST_MODE.enabled);
+        if (testModeOn && typeof window.WOOS_calcShadowScore === 'function') {
+          // alertSnap에서 coin/rep 재구성하여 Shadow Score 계산
+          var snap = item.alertSnap || item;
+          var pseudoCoin = { btcFilter: snap.btcFilter || null };
+          var pseudoRep = {
+            vol: snap.vol || { ratio: snap.volumeRatio || 1, accel: snap.volumeAccel || 1 },
+            obv: snap.obv || { trend: snap.obvDirection || 'flat' },
+            indicators: snap.indicators || { mfi: snap.mfi || 50, rsi: snap.rsi || 50 },
+            currentPhase: snap.currentPhase || { ratio: snap.currentPhaseRatio || 1.0 },
+            accumulationStrength: snap.accumulationStrength || { score: snap.accStrength || 0 },
+            rr: snap.rr || { value: snap.rrValue || 0 },
+            fakePump: !!snap.fakePump,
+            lateEntry: !!snap.lateEntry,
+            boxRange: snap.boxRange || null,
+            candle: snap.candle || null
+          };
+          var ssBackfill = window.WOOS_calcShadowScore(pseudoCoin, pseudoRep);
+          if (ssBackfill && !ssBackfill.error) {
+            function _bbar(val, max) {
+              var pct = Math.min(100, Math.max(0, (val / max) * 100));
+              return '<span class="ss-bar-track"><span class="ss-bar-fill" style="width:' + pct + '%;"></span></span>';
+            }
+            var bRiskCls = ssBackfill.riskLevel === 'high' ? 'ss-risk-high' : (ssBackfill.riskLevel === 'mid' ? 'ss-risk-mid' : 'ss-risk-low');
+            historyBackfillHtml = '<div class="ss-shadow-section ss-backfill">'
+              + '<div class="ss-header">'
+              +   '<span class="ss-title">💎 Shadow Score</span>'
+              +   '<span class="ss-avg">' + ssBackfill.avgScore + '/10</span>'
+              +   '<span class="ss-backfill-label">[검증용 Backfill]</span>'
+              +   '<span class="ss-risk-chip ' + bRiskCls + '">위험 ' + ssBackfill.riskLabel + '</span>'
+              + '</div>'
+              + '<div class="ss-bars">'
+              +   '<div class="ss-bar-row"><span class="ss-bar-lbl">매수세</span>' + _bbar(ssBackfill.buyPressure, 10) + '<span class="ss-bar-val">' + ssBackfill.buyPressure + '</span></div>'
+              +   '<div class="ss-bar-row"><span class="ss-bar-lbl">수급반응</span>' + _bbar(ssBackfill.liquidityReaction, 10) + '<span class="ss-bar-val">' + ssBackfill.liquidityReaction + '</span></div>'
+              +   '<div class="ss-bar-row"><span class="ss-bar-lbl">위치품질</span>' + _bbar(ssBackfill.positionQuality, 10) + '<span class="ss-bar-val">' + ssBackfill.positionQuality + '</span></div>'
+              +   '<div class="ss-bar-row"><span class="ss-bar-lbl">손익비</span>' + _bbar(ssBackfill.rrScore, 10) + '<span class="ss-bar-val">' + ssBackfill.rrScore + (ssBackfill.rrValue ? ' RR ' + ssBackfill.rrValue.toFixed(1) : '') + '</span></div>'
+              + '</div>'
+              + '</div>';
+          }
+        }
+      } catch(_bfErr) {}
+      
       var openAttr = isOpen ? ' open' : '';
       return '<details class="woos-history-card"' + openAttr + ' data-id="' + v40_escapeHtml(item.id) + '" ontoggle="window.v462HandleHistoryToggle(event, this)">'
         + '<summary class="woos-history-summary">'
@@ -20005,6 +20314,7 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
         +     (windowDays > 1 ? '<span class="hist-window7d">7d 추적</span>' : '')
         +     (pattern ? '<span class="hist-pattern">' + v40_escapeHtml(pattern) + '</span>' : '')
         +   '</div>'
+        +   historyBackfillHtml
         + '</summary>'
         + '<div class="woos-history-body" data-loaded="false" data-id="' + v40_escapeHtml(item.id) + '">'
         +   '<div class="woos-history-loading">상세 정보 로딩 중...</div>'
