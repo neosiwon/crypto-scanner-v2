@@ -1,6 +1,6 @@
 /* WOOS Shadow Kit
  * Base:    v4.9.5+phase2-v0-shadow-backfill-hotfix-r1
- * Current: v5.1.6 (ATR B 함수 외부화)
+ * Current: v5.2.0 (스캐너 정밀화 통합)
  *
  * Shadow Score / 라벨 / Backfill / ATR B / B-C 검증샘플 담당.
  *
@@ -423,9 +423,419 @@
     };
   }
 
+  /* ═══════════════════════════════════════════════════════════════
+   * v5.2.0 (스캐너 정밀화 통합 라운드) — 신규 함수 8개
+   *
+   * 1. 정밀화 라벨 5종 (매수세/수급반응/흡수/추격주의/매도압)
+   * 2. 펼친 카드 정밀화 블록 (ss-refinement-block)
+   * 3. B/C 검증샘플 안내 (bc-sample-notice)
+   * 4. 분석완료 해석 배지 (result-interp-block)
+   * 5. ATR B 예상 계산 안내 (strategy-b-expected-note)
+   *
+   * 모듈 내부 함수 직접 호출 (this 사용 X).
+   * 기존 .ss-bar-row/-lbl/-track/-fill/-val 클래스 재사용 (_bbar 헬퍼).
+   * closeReturn 실시간 라벨 미사용 (F1 금지 / F6 분석완료 사후 허용).
+   * ═══════════════════════════════════════════════════════════════ */
+
+  /* calcShadowScore 반환 정규화 (실제 필드명: rrScore/avgScore/riskLevel) */
+  function _normalizeShadowScore(score) {
+    if (!score || score.error) return null;
+    return {
+      buyPressure:       Number(score.buyPressure || 0),
+      liquidityReaction: Number(score.liquidityReaction || 0),
+      positionQuality:   Number(score.positionQuality || 0),
+      rrScore:           Number(score.rrScore || 0),
+      rrValue:           Number(score.rrValue || 0),
+      avgScore:          Number(score.avgScore || 0),
+      riskLevel:         score.riskLevel || 'low',
+      riskLabel:         score.riskLabel || '',
+      riskWeight:        Number(score.riskWeight || 0)
+    };
+  }
+
+  /* F1. 정밀화 라벨 5종 분류 (매수세/수급반응/흡수/추격주의/매도압) */
+  function classifyRefinementLabels(rep) {
+    if (!rep || !hasShadowInputData(rep)) {
+      return {
+        hasData: false,
+        reason: '데이터 부족',
+        buyPressure:       { active: false },
+        liquidityReaction: { active: false },
+        absorption:        { active: false },
+        chaseRisk:         { level: 'none' },
+        sellPressure:      { active: false }
+      };
+    }
+
+    var raw = calcShadowScore(null, rep);
+    var s = _normalizeShadowScore(raw);
+    if (!s) {
+      return { hasData: false, reason: '계산 오류',
+               buyPressure: { active: false }, liquidityReaction: { active: false },
+               absorption: { active: false }, chaseRisk: { level: 'none' },
+               sellPressure: { active: false } };
+    }
+
+    var phase    = (rep.currentPhase && rep.currentPhase.ratio) || 1.0;
+    var obvTrend = (rep.obv && rep.obv.trend) || 'flat';
+    var volRatio = (rep.vol && rep.vol.ratio) || 1.0;
+    var mfi      = (rep.indicators && rep.indicators.mfi) || (typeof rep.mfi === 'number' ? rep.mfi : 50);
+
+    /* 윗꼬리 + 종가 약함 (실시간 캔들 OHLC 기반 — closeReturn 사용 X) */
+    var upperWickStrong = false;
+    var closeWeak = false;
+    if (Array.isArray(rep.candles) && rep.candles.length > 0) {
+      var last = rep.candles[rep.candles.length - 1];
+      if (last && typeof last.high === 'number' && typeof last.low === 'number') {
+        var range = last.high - last.low;
+        if (range > 0) {
+          var upperWick = last.high - Math.max(last.open || 0, last.close || 0);
+          upperWickStrong = (upperWick / range) > 0.5;
+        }
+        if (typeof last.close === 'number') {
+          closeWeak = last.close < (last.high + last.low) / 2;
+        }
+      }
+    } else if (rep.candle && typeof rep.candle.upperWickRatio === 'number') {
+      /* fallback: rep.candle.upperWickRatio (calcShadowScore와 동일) */
+      upperWickStrong = rep.candle.upperWickRatio >= 0.4;
+    }
+
+    /* 🟡 매수세 */
+    var buyActive = s.buyPressure >= 5 && s.riskLevel !== 'high';
+    var buyStrength = s.buyPressure >= 8 ? 'strong' :
+                      s.buyPressure >= 5 ? 'mid' : 'weak';
+
+    /* 🔵 수급반응 */
+    var liqActive = s.liquidityReaction >= 6 && s.positionQuality >= 5;
+
+    /* 🟢 흡수 (추정 — 입금량 데이터 X) */
+    var changeRate = Math.abs(rep.changeRate || 0);
+    var absorbActive = (volRatio >= 1.2)
+      && (changeRate < 5)
+      && (obvTrend === 'up' || obvTrend === 'flat' || obvTrend === 'UP' || obvTrend === 'FLAT')
+      && (mfi >= 40)
+      && !upperWickStrong;
+
+    /* ⚠️ 추격주의 (phase 기반 단계) */
+    var chaseLevel = phase >= 1.25 ? 'extreme' :
+                     phase >= 1.15 ? 'high' :
+                     phase >= 1.08 ? 'mid' : 'none';
+
+    /* 🔴 매도압 (closeReturn 미사용 — 캔들 OHLC + OBV + MFI 신호 합산) */
+    var sellSignals = 0;
+    if (volRatio >= 1.3) sellSignals++;
+    if (obvTrend === 'down' || obvTrend === 'DOWN') sellSignals++;
+    if (closeWeak) sellSignals++;
+    if (upperWickStrong) sellSignals++;
+    if (mfi < 50 && volRatio >= 1.3) sellSignals++;
+
+    var sellActive = sellSignals >= 3;
+    var sellStrength = sellSignals >= 4 ? 'strong' :
+                       sellSignals >= 3 ? 'mid' : 'weak';
+
+    return {
+      hasData: true,
+      buyPressure:       { active: buyActive, strength: buyStrength, score: s.buyPressure },
+      liquidityReaction: { active: liqActive,  score: s.liquidityReaction },
+      absorption:        { active: absorbActive, note: '추정 (입금량 X)' },
+      chaseRisk:         { level: chaseLevel, phase: phase },
+      sellPressure:      { active: sellActive, strength: sellStrength, signals: sellSignals }
+    };
+  }
+
+  /* F2. 정밀화 라벨 칩 렌더 */
+  function renderRefinementLabelChips(labels, mode) {
+    if (!labels || !labels.hasData) {
+      return '<div class="rl-chips rl-chips-nodata">' +
+             '<span class="rl-nodata">정밀화 라벨 — 데이터 부족</span></div>';
+    }
+    mode = mode || 'expanded';
+    var chips = [];
+
+    if (labels.buyPressure.active) {
+      chips.push('<span class="rl-chip rl-chip-buy rl-chip-' + labels.buyPressure.strength + '">' +
+                 '🟡 매수세' + (labels.buyPressure.strength === 'strong' ? ' 강' : '') +
+                 '</span>');
+    }
+    if (labels.liquidityReaction.active) {
+      chips.push('<span class="rl-chip rl-chip-liquidity">🔵 수급반응</span>');
+    }
+    if (labels.absorption.active) {
+      chips.push('<span class="rl-chip rl-chip-absorption" title="' +
+                 _ssEscapeHtml(labels.absorption.note || '') + '">🟢 흡수</span>');
+    }
+    if (labels.chaseRisk.level !== 'none') {
+      var chaseText = labels.chaseRisk.level === 'extreme' ? '진입 부적합' :
+                      labels.chaseRisk.level === 'high'    ? '강한 추격주의' : '추격주의';
+      chips.push('<span class="rl-chip rl-chip-chase rl-chip-chase-' + labels.chaseRisk.level + '">⚠️ ' +
+                 chaseText + '</span>');
+    }
+    if (labels.sellPressure.active) {
+      chips.push('<span class="rl-chip rl-chip-sell rl-chip-' + labels.sellPressure.strength + '">' +
+                 '🔴 매도압' + (labels.sellPressure.strength === 'strong' ? ' 강' : '') + '</span>');
+    }
+
+    if (chips.length === 0) {
+      return '<div class="rl-chips rl-chips-empty">' +
+             '<span class="rl-empty">정밀화 라벨 — 활성 신호 없음</span></div>';
+    }
+    return '<div class="rl-chips rl-chips-' + mode + '">' + chips.join('') + '</div>';
+  }
+
+  /* F3. 펼친 카드 정밀화 블록 (5차원 그래프 + 라벨 칩 + 위험도) */
+  function renderRefinementExpandedBlock(rep, labels, ctx) {
+    if (!rep) return '';
+    ctx = ctx || {};
+
+    if (!hasShadowInputData(rep)) {
+      return '<div class="ss-refinement-block ss-refinement-nodata">' +
+             '<div class="ss-refinement-title">📊 정밀화 검증</div>' +
+             '<div class="ss-refinement-msg">알람 당시 raw 지표 부족 — 정밀화 표시 불가</div></div>';
+    }
+
+    if (!labels) labels = classifyRefinementLabels(rep);
+    var raw = calcShadowScore(null, rep);
+    var s = _normalizeShadowScore(raw);
+    if (!s) {
+      return '<div class="ss-refinement-block ss-refinement-nodata">' +
+             '<div class="ss-refinement-title">📊 정밀화 검증</div>' +
+             '<div class="ss-refinement-msg">계산 오류</div></div>';
+    }
+
+    var phase = (rep.currentPhase && rep.currentPhase.ratio) || 1.0;
+    var rrText = s.rrValue > 0 ? ' <span class="ss-rr">RR ' + s.rrValue.toFixed(1) + '</span>' : '';
+
+    var html = '<div class="ss-refinement-block">';
+    html += '<div class="ss-refinement-title">📊 정밀화 검증 ' +
+            '<span class="ss-refinement-version">phase1-v0</span></div>';
+
+    /* 4차원 점수 그래프 (기존 .ss-bar-* 클래스 재사용) */
+    html += '<div class="ss-refinement-scores ss-bars">';
+    html += '<div class="ss-bar-row"><span class="ss-bar-lbl">매수세</span>' +
+            _bbar(s.buyPressure, 10) +
+            '<span class="ss-bar-val">' + s.buyPressure + '/10</span></div>';
+    html += '<div class="ss-bar-row"><span class="ss-bar-lbl">수급반응</span>' +
+            _bbar(s.liquidityReaction, 10) +
+            '<span class="ss-bar-val">' + s.liquidityReaction + '/10</span></div>';
+    html += '<div class="ss-bar-row"><span class="ss-bar-lbl">위치품질</span>' +
+            _bbar(s.positionQuality, 10) +
+            '<span class="ss-bar-val">' + s.positionQuality + '/10</span></div>';
+    html += '<div class="ss-bar-row"><span class="ss-bar-lbl">손익비</span>' +
+            _bbar(s.rrScore, 10) +
+            '<span class="ss-bar-val">' + s.rrScore + '/10' + rrText + '</span></div>';
+    html += '</div>';
+
+    /* 위험도 + phase 메타 */
+    html += '<div class="ss-refinement-meta">';
+    html += '<span class="ss-risk-chip ss-risk-' + s.riskLevel + '">위험 ' + (s.riskLabel || s.riskLevel) + '</span>';
+    html += '<span class="ss-phase-chip">📍 phase ' + phase.toFixed(2) + 'x</span>';
+    html += '</div>';
+
+    /* 라벨 5종 칩 */
+    html += renderRefinementLabelChips(labels, 'expanded');
+
+    html += '</div>';
+    return html;
+  }
+
+  /* F4. B/C 검증샘플 요약 데이터 (snapshot 박제값 우선) */
+  function buildBCSampleSummary(item) {
+    if (!item) return null;
+
+    var grade = (item.gradeCode || '').toUpperCase();
+    if (grade !== 'B' && grade !== 'C') return null;
+
+    /* Shadow 평균: snapshot 박제값 우선 (gradeHistory.shadowTotal 필드 없음 — 보정 #6) */
+    var ss = item.shadowScore || (item.alertSnapshot && item.alertSnapshot.shadowScore) || null;
+    var shadowAvg  = (ss && typeof ss.avgScore === 'number' && !ss.error) ? ss.avgScore.toFixed(1) : null;
+    var riskLevel  = (ss && ss.riskLevel) || 'unknown';
+    var riskLabel  = (ss && ss.riskLabel) || '';
+
+    /* 승격 후보 판정 (gradeHistory 기반) */
+    var gradeHistory = Array.isArray(item.gradeHistory) ? item.gradeHistory : [];
+    var promotedGrades = gradeHistory.filter(function(ev) {
+      var g = (ev && ev.gradeCode || '').toUpperCase();
+      return g === 'A' || g === 'S' || g === 'SPLUS';
+    });
+
+    var promotionStatus = 'watching';
+    var promotionTo = null;
+    if (promotedGrades.length > 0) {
+      promotionStatus = 'promoted';
+      var lastG = (promotedGrades[promotedGrades.length - 1].gradeCode || '').toUpperCase();
+      promotionTo = (lastG === 'SPLUS') ? 'S+' : lastG;
+    } else if ((Number(item.sCount24) || 0) + (Number(item.aCount24) || 0) >= 2) {
+      promotionStatus = 'candidate';
+    }
+
+    return {
+      grade:      grade,
+      shadowAvg:  shadowAvg,
+      riskLevel:  riskLevel,
+      riskLabel:  riskLabel,
+      promotionStatus: promotionStatus,
+      promotionTo:     promotionTo,
+      sCount24:   Number(item.sCount24) || 0,
+      aCount24:   Number(item.aCount24) || 0,
+      mfe:        (typeof item.mfe === 'number') ? item.mfe : null,
+      mae:        (typeof item.mae === 'number') ? item.mae : null
+    };
+  }
+
+  /* F5. B/C 검증샘플 안내 HTML */
+  function renderBCSampleNotice(item, summary) {
+    if (!item || !summary) return '';
+
+    var grade = summary.grade || '?';
+    var html = '<div class="bc-sample-notice">';
+    html += '<div class="bc-sample-banner">ⓘ 검증샘플 (' + _ssEscapeHtml(grade) +
+            ') — 실전 알람 X / 추적 X / 박제만</div>';
+
+    html += '<div class="bc-sample-summary">';
+    html += '<span>등급 <b>' + _ssEscapeHtml(grade) + '</b></span>';
+    if (summary.shadowAvg !== null) {
+      html += '<span>Shadow 평균 <b>' + _ssEscapeHtml(summary.shadowAvg) + '/10</b></span>';
+    }
+    if (summary.riskLevel && summary.riskLevel !== 'unknown') {
+      var rk = summary.riskLabel || (summary.riskLevel === 'high' ? '높음' :
+                                     summary.riskLevel === 'mid'  ? '보통' : '낮음');
+      html += '<span>위험도 <b>' + _ssEscapeHtml(rk) + '</b></span>';
+    }
+    if (summary.sCount24 || summary.aCount24) {
+      html += '<span>24h 알람 S' + summary.sCount24 + ' / A' + summary.aCount24 + '</span>';
+    }
+    html += '</div>';
+
+    /* 승격 상태 */
+    var promoText = '';
+    var promoClass = '';
+    if (summary.promotionStatus === 'promoted') {
+      promoText = '✅ ' + _ssEscapeHtml(summary.promotionTo || '') + ' 등급으로 승격됨';
+      promoClass = 'bc-promotion-status-promoted';
+    } else if (summary.promotionStatus === 'candidate') {
+      promoText = '⏳ 승격 후보 (24h 누적 진행 중)';
+      promoClass = 'bc-promotion-status-candidate';
+    } else {
+      promoText = '👀 검증 중 — 승격 미발생';
+      promoClass = 'bc-promotion-status-watching';
+    }
+    html += '<div class="bc-promotion-status ' + promoClass + '">' + promoText + '</div>';
+
+    html += '</div>';
+    return html;
+  }
+
+  /* F6. 분석완료 결과 해석 (closeReturn 사후값 사용 OK) */
+  function interpretCompletedResult(item, ctx) {
+    if (!item) return null;
+    ctx = ctx || {};
+
+    var summary = item.summary || {};
+    var mfe = (typeof summary.maxRise === 'number') ? summary.maxRise :
+              (typeof item.mfe === 'number')        ? item.mfe :
+              (typeof item.maxRise === 'number')    ? item.maxRise : null;
+    var mae = (typeof summary.maxDrawdown === 'number') ? summary.maxDrawdown :
+              (typeof item.mae === 'number')             ? item.mae :
+              (typeof item.maxDrop === 'number')         ? item.maxDrop : null;
+    var closeReturn = (typeof summary.closeReturn === 'number') ? summary.closeReturn :
+                      (typeof item.closeReturn === 'number')    ? item.closeReturn : null;
+
+    var durationMin = null;
+    if (typeof item.completedAt === 'number' && typeof item.windowStart === 'number') {
+      durationMin = Math.round((item.completedAt - item.windowStart) / 60000);
+    } else if (typeof item.elapsedMs === 'number') {
+      durationMin = Math.round(item.elapsedMs / 60000);
+    }
+
+    /* 추격 진입 여부 (alert 시점 phase >= 1.08) */
+    var chaseEntry = false;
+    var alertSnap = item.alertSnap || item.alertSnapshot || null;
+    if (alertSnap && alertSnap.currentPhase) {
+      var alertPhase = (typeof alertSnap.currentPhase.ratio === 'number') ? alertSnap.currentPhase.ratio : 1.0;
+      chaseEntry = alertPhase >= 1.08;
+    }
+
+    /* Shadow 예측 vs 실제 매칭 라벨 (TP/TN/FP/FN) — Backfill 패널에서 이미 계산된 값이 있으면 그 라벨 그대로 */
+    var shadowMatch = null;
+    if (item.shadowVerification) {
+      shadowMatch = String(item.shadowVerification).toUpperCase();
+    } else if (alertSnap && alertSnap.shadowScore && typeof alertSnap.shadowScore.avgScore === 'number' && !alertSnap.shadowScore.error) {
+      var ssAvg = alertSnap.shadowScore.avgScore;
+      var ssPred = ssAvg >= 6 ? 'good' : (ssAvg >= 4 ? 'mid' : 'bad');
+      var outcome = item.outcome || ctx.outcome || '';
+      var actGood = (outcome === 'success' || outcome === 'partial');
+      var actBad  = (outcome === 'fail');
+      if (ssPred === 'good' && actGood) shadowMatch = 'TP';
+      else if (ssPred === 'bad' && actBad) shadowMatch = 'TN';
+      else if (ssPred === 'good' && actBad) shadowMatch = 'FP';
+      else if (ssPred === 'bad' && actGood) shadowMatch = 'FN';
+    }
+
+    return {
+      mfe: mfe, mae: mae, closeReturn: closeReturn,
+      durationMin: durationMin,
+      chaseEntry: chaseEntry,
+      shadowMatch: shadowMatch,
+      pattern: summary.pattern || item.pattern || null
+    };
+  }
+
+  /* F7. 분석완료 해석 배지 HTML (데이터 없으면 숨김) */
+  function renderCompletedInterpretation(item, interpretation) {
+    if (!item || !interpretation) return '';
+    var badges = [];
+
+    if (typeof interpretation.mfe === 'number') {
+      var sign = interpretation.mfe >= 0 ? '+' : '';
+      badges.push('<span class="result-interp-badge result-interp-mfe">MFE ' +
+                  sign + interpretation.mfe.toFixed(2) + '%</span>');
+    }
+    if (typeof interpretation.mae === 'number') {
+      badges.push('<span class="result-interp-badge result-interp-mae">MAE ' +
+                  interpretation.mae.toFixed(2) + '%</span>');
+    }
+    if (typeof interpretation.durationMin === 'number') {
+      var d = interpretation.durationMin;
+      var dStr = d >= 60 ? Math.floor(d / 60) + 'h ' + (d % 60) + 'm' : d + '분';
+      badges.push('<span class="result-interp-badge result-interp-time">도달 ' + _ssEscapeHtml(dStr) + '</span>');
+    }
+    if (typeof interpretation.closeReturn === 'number') {
+      var crSign = interpretation.closeReturn >= 0 ? '+' : '';
+      badges.push('<span class="result-interp-badge result-interp-rr-match">마감 ' +
+                  crSign + interpretation.closeReturn.toFixed(2) + '%</span>');
+    }
+    if (interpretation.shadowMatch) {
+      var matchClass = 'result-interp-shadow-match-' + interpretation.shadowMatch.toLowerCase();
+      badges.push('<span class="result-interp-badge ' + matchClass + '">Shadow ' +
+                  _ssEscapeHtml(interpretation.shadowMatch) + '</span>');
+    }
+    if (interpretation.chaseEntry) {
+      badges.push('<span class="result-interp-badge result-interp-chase">⚠ 추격 진입</span>');
+    }
+
+    if (badges.length === 0) return '';
+
+    var html = '<div class="result-interp-block">';
+    html += '<div class="result-interp-title">📈 결과 해석</div>';
+    html += '<div class="result-interp-badges">' + badges.join('') + '</div>';
+    html += '</div>';
+    return html;
+  }
+
+  /* F8. ATR B 예상 계산 안내 (HTML 본체 미터치 / 표기 추가만) */
+  function renderStrategyBExpectedNote(coin) {
+    if (!coin) return '';
+    return '<div class="strategy-b-expected-note">' +
+           '<div class="strategy-b-expected-note-title">ⓘ 전략 B = 예상 계산 패널 (참고용)</div>' +
+           '<div class="strategy-b-expected-note-desc">' +
+           '실전 자동전략 X / ATR×N 기반 시뮬레이션 / "손절가" 명시 표기' +
+           '</div></div>';
+  }
+
   /* ─── 모듈 노출 ─── */
   global.WOOSShadowKit = {
-    VERSION: 'v5.1.6',
+    VERSION: 'v5.2.0',
     calcShadowScore: calcShadowScore,
     hasShadowInputData: hasShadowInputData,
     renderBackfillPanel: renderBackfillPanel,
@@ -436,7 +846,16 @@
     renderPromotionChip: renderPromotionChip,
     renderHistoryPromotionChip: renderHistoryPromotionChip,
     /* v5.1.6 — ATR B 함수 외부화 */
-    buildAutoTradeStrategyB: buildAutoTradeStrategyB
+    buildAutoTradeStrategyB: buildAutoTradeStrategyB,
+    /* v5.2.0 — 스캐너 정밀화 통합 */
+    classifyRefinementLabels: classifyRefinementLabels,
+    renderRefinementLabelChips: renderRefinementLabelChips,
+    renderRefinementExpandedBlock: renderRefinementExpandedBlock,
+    buildBCSampleSummary: buildBCSampleSummary,
+    renderBCSampleNotice: renderBCSampleNotice,
+    interpretCompletedResult: interpretCompletedResult,
+    renderCompletedInterpretation: renderCompletedInterpretation,
+    renderStrategyBExpectedNote: renderStrategyBExpectedNote
   };
 
   /* ─── window alias 유지 ───
