@@ -1,9 +1,12 @@
 /* WOOS Extension Bridge
  * Base:    v4.9.5+phase2-v0-shadow-backfill-hotfix-r1
- * Current: v5.2.0 (스캐너 정밀화 통합)
+ * Current: v5.2.1 (닫힌 카드 라벨)
  *
  * 본체 ↔ shadow-kit 어댑터. hook point 단일 관리.
  *
+ * v5.2.1 변경:
+ *   - 신규 hook 1개 추가 (기존 hook 7개 시그니처 변경 없음)
+ *     · renderClosedHeaderLabelsAddon(rep, hasGroup) — 닫힌 카드 헤더 라벨 칩
  * v5.2.0 변경:
  *   - 신규 hook 4개 추가 (기존 hook 3개 시그니처 변경 없음)
  *     · renderRefinementBlock(rep, item, source) — 펼친 카드 정밀화 블록
@@ -23,7 +26,7 @@
   'use strict';
 
   global.WOOSExtensionBridge = {
-    VERSION: 'v5.2.0',
+    VERSION: 'v5.2.1',
 
     // 스캐너 결과 카드 (buildCoinCardHTML)
     renderScannerCardAddon: function (coin, rep, idx) {
@@ -87,6 +90,24 @@
         var k = global.WOOSShadowKit;
         if (!k || typeof k.renderStrategyBExpectedNote !== 'function' || !coin) return '';
         return k.renderStrategyBExpectedNote(coin) || '';
+      } catch (e) { return ''; }
+    },
+
+    /* v5.2.1 — H5. 닫힌 카드 헤더 라벨 칩 (R10 row2 안 4칩 한도)
+     * @param rep      추적 카드의 track 객체 (rep 역할 — vol/obv/mfi/currentPhase 등)
+     * @param hasGroup 그룹 배지(x{N}) 존재 여부 — true면 라벨 1개로 축소
+     */
+    renderClosedHeaderLabelsAddon: function (rep, hasGroup) {
+      try {
+        var k = global.WOOSShadowKit;
+        if (!k || typeof k.classifyRefinementLabels !== 'function' ||
+                  typeof k.selectClosedCardLabels !== 'function' ||
+                  typeof k.renderRefinementLabelChips !== 'function' || !rep) return '';
+        var labels = k.classifyRefinementLabels(rep);
+        if (!labels || !labels.hasData) return '';
+        var subset = k.selectClosedCardLabels(labels, !!hasGroup);
+        if (!subset || !subset.hasData) return '';
+        return k.renderRefinementLabelChips(subset, 'closed') || '';
       } catch (e) { return ''; }
     }
   };

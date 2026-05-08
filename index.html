@@ -153,7 +153,7 @@
 <script>
 /* [v4.7.42] 캐시 강제 리셋 — SW 완전 제거 후 리로드 */
 (function(){
-  var VER = 'v5.2.0';  // 스캐너 정밀화 통합 (Base: v4.9.5+phase2-v0-shadow-backfill-hotfix-r1)
+  var VER = 'v5.2.1';  // 닫힌 카드 라벨 (Base: v4.9.5+phase2-v0-shadow-backfill-hotfix-r1)
   try {
     var LKEY = 'woos_hard_reset_ver';
     if (localStorage.getItem(LKEY) === VER) return;
@@ -7802,10 +7802,10 @@ details.analyzer-progress-card > summary.progress-compact-summary {
 </style>
 <!-- [WOOS PWA SPLASH CSS END] -->
 
-<!-- [v5.2.0 스캐너 정밀화 통합] Base: v4.9.5+phase2-v0-shadow-backfill-hotfix-r1 -->
-<link rel="stylesheet" href="./css/woos-shadow.css?v=v5.2.0">
-<script src="./js/woos-shadow-kit.js?v=v5.2.0"></script>
-<script src="./js/woos-extension-bridge.js?v=v5.2.0"></script>
+<!-- [v5.2.1 닫힌 카드 라벨] Base: v4.9.5+phase2-v0-shadow-backfill-hotfix-r1 -->
+<link rel="stylesheet" href="./css/woos-shadow.css?v=v5.2.1">
+<script src="./js/woos-shadow-kit.js?v=v5.2.1"></script>
+<script src="./js/woos-extension-bridge.js?v=v5.2.1"></script>
 
 </head>
 <body>
@@ -8918,9 +8918,9 @@ async function opsDashboard() {
 // 탭 시 상세 팝업
 // ═══════════════════════════════════════════════════════════════
 
-var HTML_VERSION = 'v5.2.0';  // 스캐너 정밀화 통합 (Base: v4.9.5+phase2-v0-shadow-backfill-hotfix-r1)
+var HTML_VERSION = 'v5.2.1';  // 닫힌 카드 라벨 (Base: v4.9.5+phase2-v0-shadow-backfill-hotfix-r1)
 /* [v5.1.5] 한글 요약 화면 표기 — updateBuildBadge에서 한글 요약 동반 (사용자 명명법 강화) */
-var HTML_VERSION_LABEL = '스캐너 정밀화 통합';
+var HTML_VERSION_LABEL = '닫힌 카드 라벨';
 var _cachedBuildInfo = null;
 
 // [State Lock 2 Action fix-2c] 패치 확인용 — 페이지 로드 시 버전명 출력 (DevTools 콘솔)
@@ -20780,6 +20780,11 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       // [v4.7.42] 멀티 태그 — x1~x8 횟수 태그는 기존 로직/색상 그대로 유지
       var multiChip = (opts && (opts.isMultiGroup === true || Number(opts.groupCount || 0) >= 2 || Number(track.alertCount || 0) >= 2)) ? '<span class="woos-multi-chip">멀티</span>' : '';
 
+      // [v5.2.1] H5 — 닫힌 카드 헤더 라벨 칩 (R10 row2 안 4칩 한도 / 위험 우선)
+      // hasGroup = isMultiGroup || groupCount>=2 (groupBadge 차지하는 경우)
+      var v521_hasGroup = !!(opts && (opts.isMultiGroup === true || Number(opts.groupCount || 0) >= 2));
+      var closedLabelChips = ((function(){ try { var b = window.WOOSExtensionBridge; return (b && b.renderClosedHeaderLabelsAddon) ? (b.renderClosedHeaderLabelsAddon(track, v521_hasGroup) || '') : ''; } catch(e) { return ''; } })());
+
       // [State Lock 명세 7] 별표 — vm.watchState 우선 (v44_isWatchlist 직접 호출 X)
       var watchBtn;
       if (vm && vm.watchState && typeof w1_buildWatchButtonFromVM === 'function') {
@@ -20851,6 +20856,7 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
         +     nearEndLabelChip
         +     multiChip
         +     groupBadge
+        +     closedLabelChips  /* [v5.2.1] H5 — 닫힌 카드 라벨 칩 (위험 우선 / 4칩 한도) */
         +     sampleAgeLabel
         +   '</div>'
         +   '<div class="v478-row3">'

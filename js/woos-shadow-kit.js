@@ -1,6 +1,6 @@
 /* WOOS Shadow Kit
  * Base:    v4.9.5+phase2-v0-shadow-backfill-hotfix-r1
- * Current: v5.2.0 (스캐너 정밀화 통합)
+ * Current: v5.2.1 (닫힌 카드 라벨)
  *
  * Shadow Score / 라벨 / Backfill / ATR B / B-C 검증샘플 담당.
  *
@@ -833,9 +833,111 @@
            '</div></div>';
   }
 
+  /* ═══════════════════════════════════════════════════════════════
+   * v5.2.1 — F9. 닫힌 카드 라벨 우선순위 선별 (위험 라벨 우선)
+   *
+   * 닫힌 카드 4칩 한도 (메모리 #16 작업지시서):
+   *   slot 1: 등급 칩 (필수)
+   *   slot 2: 정밀/표준 칩 (필수)
+   *   slot 3: 그룹 배지(N>1) OR 라벨 1
+   *   slot 4: 라벨 1 OR 라벨 2
+   *
+   * → hasGroup=true 시 라벨 maxSlots = 1 (groupBadge 차지)
+   * → hasGroup=false 시 라벨 maxSlots = 2
+   *
+   * 우선순위 7단계 (V-Q2=A 위험 라벨 우선):
+   *   1순위: 🔴 매도압 강함 / ⚠️ 추격주의 extreme
+   *   2순위: ⚠️ 추격주의 high / 🔴 매도압 일반
+   *   3순위: 🟡 매수세 강함
+   *   4순위: 🔵 수급반응
+   *   5순위: ⚠️ 추격주의 mid
+   *   6순위: 🟡 매수세 일반
+   *   7순위: 🟢 흡수
+   *
+   * 충돌 처리:
+   *   - 매수세 + 매도압 동시 → 매도압만 (위험 우선)
+   *   - 추격주의 + 흡수 동시 → 추격주의만
+   *   - 모두 비활성/데이터 부족 → 0개
+   *
+   * 반환: F1과 동일 형식의 라벨 부분집합 → renderRefinementLabelChips와 호환
+   * ═══════════════════════════════════════════════════════════════ */
+  function selectClosedCardLabels(labels, hasGroup) {
+    /* 빈 부분집합 (모든 라벨 비활성) */
+    var subset = {
+      hasData: false,
+      buyPressure:       { active: false },
+      liquidityReaction: { active: false },
+      absorption:        { active: false },
+      chaseRisk:         { level: 'none' },
+      sellPressure:      { active: false }
+    };
+
+    if (!labels || !labels.hasData) return subset;
+    subset.hasData = true;
+
+    var maxSlots = hasGroup ? 1 : 2;
+    var picked = 0;
+
+    /* 1순위: 매도압 강 (위험 최상) */
+    if (picked < maxSlots && labels.sellPressure.active && labels.sellPressure.strength === 'strong') {
+      subset.sellPressure = labels.sellPressure;
+      picked++;
+    }
+    /* 1순위: 추격주의 extreme */
+    if (picked < maxSlots && labels.chaseRisk.level === 'extreme') {
+      subset.chaseRisk = labels.chaseRisk;
+      picked++;
+    }
+    /* 2순위: 추격주의 high */
+    if (picked < maxSlots && labels.chaseRisk.level === 'high' && subset.chaseRisk.level === 'none') {
+      subset.chaseRisk = labels.chaseRisk;
+      picked++;
+    }
+    /* 2순위: 매도압 일반 (강 아님) */
+    if (picked < maxSlots && labels.sellPressure.active && labels.sellPressure.strength !== 'strong' && !subset.sellPressure.active) {
+      subset.sellPressure = labels.sellPressure;
+      picked++;
+    }
+
+    /* 위험 라벨이 1개 이상 활성 → 긍정 라벨 노출 차단 (충돌 처리) */
+    var hasRisk = subset.sellPressure.active || subset.chaseRisk.level !== 'none';
+
+    if (!hasRisk) {
+      /* 3순위: 매수세 강 */
+      if (picked < maxSlots && labels.buyPressure.active && labels.buyPressure.strength === 'strong') {
+        subset.buyPressure = labels.buyPressure;
+        picked++;
+      }
+      /* 4순위: 수급반응 */
+      if (picked < maxSlots && labels.liquidityReaction.active) {
+        subset.liquidityReaction = labels.liquidityReaction;
+        picked++;
+      }
+      /* 5순위: 추격주의 mid (위험 라벨 mid는 긍정 라벨과 공존 X — hasRisk 체크 후이므로 여기는 스킵) */
+      /* 6순위: 매수세 일반 */
+      if (picked < maxSlots && labels.buyPressure.active && labels.buyPressure.strength !== 'strong' && !subset.buyPressure.active) {
+        subset.buyPressure = labels.buyPressure;
+        picked++;
+      }
+      /* 7순위: 흡수 */
+      if (picked < maxSlots && labels.absorption.active) {
+        subset.absorption = labels.absorption;
+        picked++;
+      }
+    } else {
+      /* 위험 라벨 활성 — 추격주의 mid는 추가 슬롯에 들어갈 수 있음 */
+      if (picked < maxSlots && labels.chaseRisk.level === 'mid' && subset.chaseRisk.level === 'none') {
+        subset.chaseRisk = labels.chaseRisk;
+        picked++;
+      }
+    }
+
+    return subset;
+  }
+
   /* ─── 모듈 노출 ─── */
   global.WOOSShadowKit = {
-    VERSION: 'v5.2.0',
+    VERSION: 'v5.2.1',
     calcShadowScore: calcShadowScore,
     hasShadowInputData: hasShadowInputData,
     renderBackfillPanel: renderBackfillPanel,
@@ -855,7 +957,9 @@
     renderBCSampleNotice: renderBCSampleNotice,
     interpretCompletedResult: interpretCompletedResult,
     renderCompletedInterpretation: renderCompletedInterpretation,
-    renderStrategyBExpectedNote: renderStrategyBExpectedNote
+    renderStrategyBExpectedNote: renderStrategyBExpectedNote,
+    /* v5.2.1 — 닫힌 카드 라벨 */
+    selectClosedCardLabels: selectClosedCardLabels
   };
 
   /* ─── window alias 유지 ───
