@@ -153,7 +153,7 @@
 <script>
 /* [v4.7.42] 캐시 강제 리셋 — SW 완전 제거 후 리로드 */
 (function(){
-  var VER = 'v4.9.5+phase2-v0-shadow-backfill-hotfix-r1';  // [Phase 2 — 분석완료 정교화] Backfill 항상 표시 + 검증 매칭 (TP/TN/FP/FN) + Export 가설 검증 통계
+  var VER = 'v5.1.1';  // 최소 브릿지 모듈화 (Base: v4.9.5+phase2-v0-shadow-backfill-hotfix-r1)
   try {
     var LKEY = 'woos_hard_reset_ver';
     if (localStorage.getItem(LKEY) === VER) return;
@@ -8329,6 +8329,11 @@ details.analyzer-progress-card > summary.progress-compact-summary {
 </style>
 <!-- [WOOS PWA SPLASH CSS END] -->
 
+<!-- [v5.1.1 최소 브릿지 모듈화] Base: v4.9.5+phase2-v0-shadow-backfill-hotfix-r1 -->
+<link rel="stylesheet" href="./css/woos-shadow.css?v=v5.1.1">
+<script src="./js/woos-shadow-kit.js?v=v5.1.1"></script>
+<script src="./js/woos-extension-bridge.js?v=v5.1.1"></script>
+
 </head>
 <body>
 
@@ -9440,7 +9445,7 @@ async function opsDashboard() {
 // 탭 시 상세 팝업
 // ═══════════════════════════════════════════════════════════════
 
-var HTML_VERSION = 'v4.9.5+phase2-v0-shadow-backfill-hotfix-r1';  // [Phase 2 — 분석완료 정교화] Backfill + 검증 매칭 + Export 통계
+var HTML_VERSION = 'v5.1.1';  // 최소 브릿지 모듈화 (Base: v4.9.5+phase2-v0-shadow-backfill-hotfix-r1)
 var _cachedBuildInfo = null;
 
 // [State Lock 2 Action fix-2c] 패치 확인용 — 페이지 로드 시 버전명 출력 (DevTools 콘솔)
@@ -11598,6 +11603,7 @@ function buildCoinCardHTML(coin, idx) {
           + '</div>'
           + '</div>';
       })()
+    + ((function(){ try { var b = window.WOOSExtensionBridge; return (b && b.renderScannerCardAddon) ? (b.renderScannerCardAddon(coin, rep, idx) || '') : ''; } catch(e) { return ''; } })()) /* [v5.1.1] scanner addon hook */
     +'<div class="card-detail" id="detail-'+idx+'"></div>'
     +'</div>';
 }
@@ -20563,6 +20569,7 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
         +     (pattern ? '<span class="hist-pattern">' + v40_escapeHtml(pattern) + '</span>' : '')
         +   '</div>'
         +   historyBackfillHtml
+        +   ((function(){ try { var b = window.WOOSExtensionBridge; return (b && b.renderHistoryAddon) ? (b.renderHistoryAddon(item) || '') : ''; } catch(e) { return ''; } })()) /* [v5.1.1] history addon hook */
         + '</summary>'
         + '<div class="woos-history-body" data-loaded="false" data-id="' + v40_escapeHtml(item.id) + '">'
         +   '<div class="woos-history-loading">상세 정보 로딩 중...</div>'
@@ -21782,7 +21789,7 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
           else if (v478_singleMode === 'deep') v478_singleClasses += ' is-deep woos-card-mode-deep';
           else v478_singleClasses += ' is-standard woos-card-mode-standard';
         }
-        return '<details class="' + v478_singleClasses + '" ' + attrs + v463_singleOpenAttr + v463_singleToggleAttr + '>' + inner.summary + singleBody + '</details>';
+        return '<details class="' + v478_singleClasses + '" ' + attrs + v463_singleOpenAttr + v463_singleToggleAttr + '>' + inner.summary + singleBody + ((function(){ try { var b = window.WOOSExtensionBridge; return (b && b.renderCardAddon) ? (b.renderCardAddon(group, vm) || '') : ''; } catch(e) { return ''; } })()) /* [v5.1.1] single card addon hook */ + '</details>';
       }
       // 그룹 카드 (size >= 2)
       // [Phase 4.2 작업 E] 그룹 dot 동기화: 대표가 아닌 그룹 전체 우선순위로
@@ -21877,6 +21884,7 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
            +   '<div class="woos-group-others">' + minisHtml + '</div>'
            +   '<div class="woos-group-rep-label">대표 (거래소 우선)</div>'
            +   repInner.body.replace('progress-rich-body woos-body', 'progress-rich-body woos-body woos-group-rep')
+           +   ((function(){ try { var b = window.WOOSExtensionBridge; return (b && b.renderCardAddon) ? (b.renderCardAddon(group, vm) || '') : ''; } catch(e) { return ''; } })()) /* [v5.1.1] group card addon hook */
            + '</details>';
     }
     
