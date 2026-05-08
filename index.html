@@ -152,7 +152,7 @@
 <script>
 /* [v4.7.42] 캐시 강제 리셋 — SW 완전 제거 후 리로드 */
 (function(){
-  var VER = 'v4.9.4+v5-prep-r2-history-fix';  // [V5 prep r2] + 분석 완료 탭 60s 자동 복원 + 더 보기 버튼 보존
+  var VER = 'v4.9.5+phase1-v0';  // [Phase 1 v0] Shadow Score 5차원 (매수세/수급반응/위치품질/손익비/위험도) + 그래프형 표시
   try {
     var LKEY = 'woos_hard_reset_ver';
     if (localStorage.getItem(LKEY) === VER) return;
@@ -5828,6 +5828,77 @@ details.progress-rich-card.woos-group[open] { border-color: rgba(124, 58, 237, 0
   margin-left: 4px;
 }
 
+/* [Phase 1 v0] Shadow Score 5차원 그래프 (분석기 스타일) */
+.al-shadow-bars {
+  margin-top: 8px;
+  padding-top: 7px;
+  border-top: 1px dashed rgba(255, 255, 255, .07);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.al-bar-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: .65rem;
+  color: #cbd5e1;
+}
+.al-bar-lbl {
+  flex: 0 0 52px;
+  font-weight: 700;
+  color: #94a3b8;
+  letter-spacing: .3px;
+}
+.al-bar-track {
+  flex: 1;
+  height: 6px;
+  background: rgba(255, 255, 255, .05);
+  border-radius: 3px;
+  overflow: hidden;
+  position: relative;
+}
+.al-bar-fill {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, #00d4ff, #a855f7);
+  border-radius: 3px;
+  transition: width .3s ease;
+  box-shadow: 0 0 4px rgba(168, 85, 247, .4);
+}
+.al-bar-val {
+  flex: 0 0 65px;
+  text-align: right;
+  font-weight: 600;
+  color: #d8b4fe;
+  font-size: .62rem;
+}
+/* 위험도 칩 (Phase 1 v0) */
+.al-risk-chip {
+  display: inline-block;
+  padding: 1px 5px;
+  font-size: .58rem;
+  font-weight: 700;
+  border-radius: 3px;
+  margin-left: 4px;
+  letter-spacing: .3px;
+}
+.al-risk-low {
+  background: rgba(34, 246, 155, .14);
+  color: #22f69b;
+  border: 1px solid rgba(34, 246, 155, .32);
+}
+.al-risk-mid {
+  background: rgba(245, 158, 11, .16);
+  color: #fbbf24;
+  border: 1px solid rgba(245, 158, 11, .38);
+}
+.al-risk-high {
+  background: rgba(239, 68, 68, .18);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, .42);
+}
+
 /* [V5 정밀 3] 승격 칩 — gradeHistory 기반 (다음 단계) */
 .al-promotion-chip {
   display: inline-block;
@@ -7444,12 +7515,6 @@ details.progress-rich-card[open] .v4721-detail-toggle {
 .tracking-more-btn {
   display: none !important;
 }
-/* [V5 v4.9.4+v5-prep-r2-history-fix] 분석 완료 탭 더 보기 버튼만 강제 표시
-   원인: .tracking-more-btn 전역 display:none → 분석 완료 탭의 더 보기 버튼도 숨김
-   해결: ID 셀렉터로 분석 완료 탭 버튼만 inline-block 강제 (다른 탭의 더 보기는 그대로 숨김 유지) */
-#woosHistoryMoreBtn.tracking-more-btn {
-  display: inline-block !important;
-}
 
 
 /* [v4.7.27] LOGO / LOADING IMAGE STRICT SEPARATION
@@ -8966,7 +9031,7 @@ async function opsDashboard() {
 // 탭 시 상세 팝업
 // ═══════════════════════════════════════════════════════════════
 
-var HTML_VERSION = 'v4.9.4+v5-prep-r2-history-fix';  // [V5 prep r2] + 분석 완료 탭 60s 자동 복원
+var HTML_VERSION = 'v4.9.5+phase1-v0';  // [Phase 1 v0] Shadow Score 5차원 + 그래프형
 var _cachedBuildInfo = null;
 
 // [State Lock 2 Action fix-2c] 패치 확인용 — 페이지 로드 시 버전명 출력 (DevTools 콘솔)
@@ -10015,26 +10080,129 @@ function buildSnapshotPayload(coin, alertType) {
     hitTarget2: null,
     hitTarget3: null,
     hitStopLoss: null,
-    // [V5 정밀 1] Shadow Score — B/C 검증샘플 정성평가
-    // 사용자 명시: "B/C + 매수세/수급반응 Shadow Score가 실제 성공률 높이는지 검증"
-    // 정의: accumulationStrength(0~10) + volRatio 가중 + obvTrend 가산
-    // 기존 정보 보존 (덮어쓰기 X) — 별도 필드로만 추가
+    // [Phase 1 v0 — 2026-05-08 사용자 결정] Shadow Score 5차원
+    // 매수세 / 수급반응 / 위치품질 / 손익비 / 위험도
+    // 기존 WOOS 점수체계 변경 X / 보조 검증 점수
     shadowScore: (function(){
       try {
+        // ── 입력 데이터 ──
+        var vol = rep.vol || {};
+        var vRatio = vol.ratio || 1.0;
+        var vAccel = vol.accel || 1.0;
+        var obvTrend = (rep.obv && rep.obv.trend) || 'flat';  // 'up'/'flat'/'down'
+        var mfi = (rep.indicators && rep.indicators.mfi) || 50;
+        var rsi = (rep.indicators && rep.indicators.rsi) || 50;
+        var phase = (rep.currentPhase && rep.currentPhase.ratio) || 1.0;
         var accSc = (rep.accumulationStrength && rep.accumulationStrength.score) || 0;
-        var vRatio = (rep.vol && rep.vol.ratio) || 1.0;
-        var vAccel = (rep.vol && rep.vol.accel) || 0;
-        var obvUp = (rep.obv && rep.obv.trend === 'UP') ? 1 : 0;
-        // 매수세 강도 (0~5점) + 매집 반영 (0~5점) = 0~10점
-        var volScore = Math.min(5, Math.max(0, (vRatio - 1) * 2 + vAccel * 0.5 + obvUp));
-        var accScore = Math.min(5, accSc * 0.5);
-        return Math.round((volScore + accScore) * 10) / 10;  // 소수 1자리
-      } catch(e) { return 0; }
+        var rr = (rep.rr && rep.rr.value) || 0;  // 손익비
+        var fakePump = !!rep.fakePump;
+        var lateEntry = !!rep.lateEntry;
+        var btcBear = (coin.btcFilter && coin.btcFilter.penalty >= 2);
+        var upperWick = (rep.candle && rep.candle.upperWickRatio >= 0.4);  // 윗꼬리 강함
+        var closeWeak = (rep.candle && rep.candle.closeStrength === 'weak');
+        
+        // ── 1. 매수세 점수 (0~10) ──
+        var bpScore = 0;
+        // vRatio: 1.2미만=0 / 1.2-1.5=1 / 1.5-2.0=2 / 2.0+=3
+        if (vRatio >= 2.0) bpScore += 3;
+        else if (vRatio >= 1.5) bpScore += 2;
+        else if (vRatio >= 1.2) bpScore += 1;
+        // vAccel: 1.05미만=0 / 1.05-1.20=1 / 1.20+=2
+        if (vAccel >= 1.20) bpScore += 2;
+        else if (vAccel >= 1.05) bpScore += 1;
+        // OBV: 상승=2 / 유지=1 / 하락=0
+        if (obvTrend === 'up' || obvTrend === 'UP') bpScore += 2;
+        else if (obvTrend === 'flat' || obvTrend === 'FLAT') bpScore += 1;
+        // MFI: 50-60=1 / 60-75=2 / 75-85=1 / 85+=0
+        if (mfi >= 85) bpScore += 0;
+        else if (mfi >= 75) bpScore += 1;
+        else if (mfi >= 60) bpScore += 2;
+        else if (mfi >= 50) bpScore += 1;
+        // currentPhase: 1.00-1.08=1 / 그 외=0
+        if (phase >= 1.00 && phase < 1.08) bpScore += 1;
+        bpScore = Math.min(10, Math.max(0, bpScore));
+        
+        // ── 2. 수급반응 점수 (0~10) ──
+        var lrScore = 0;
+        // 박스/구간 존재 추정: 0~2점 (Phase 1 = boxRange 활용)
+        if (rep.boxRange && rep.boxRange.exists) lrScore += 2;
+        else if (rep.boxRange && rep.boxRange.width) lrScore += 1;
+        // currentPhase 낮음: 0~3점
+        if (phase >= 0.98 && phase < 1.05) lrScore += 3;
+        else if (phase >= 1.05 && phase < 1.08) lrScore += 2;
+        else if (phase < 0.98) lrScore += 1;
+        // accumulationStrength 정규화 (0~10 → 0~3)
+        lrScore += Math.min(3, Math.round(accSc * 0.3));
+        // OBV 상승/유지: 0~1점
+        if (obvTrend === 'up' || obvTrend === 'UP' || obvTrend === 'flat' || obvTrend === 'FLAT') lrScore += 1;
+        // 거래량 살아있음: 0~1점
+        if (vRatio >= 1.2) lrScore += 1;
+        lrScore = Math.min(10, Math.max(0, lrScore));
+        
+        // ── 3. 위치품질 점수 (0~10) ──
+        var posScore = 0;
+        if (phase >= 0.98 && phase < 1.05) posScore = 5;
+        else if (phase >= 1.05 && phase < 1.08) posScore = 4;
+        else if (phase >= 1.08 && phase < 1.15) posScore = 2;
+        else if (phase >= 1.15 && phase < 1.25) posScore = 1;
+        else if (phase >= 1.25) posScore = 0;
+        else if (phase < 0.95) posScore = 2;  // 너무 낮음 위험
+        // 추가 보너스 (stage / 매집 강도)
+        if (accSc >= 7) posScore = Math.min(10, posScore + 3);
+        else if (accSc >= 4) posScore = Math.min(10, posScore + 1);
+        posScore = Math.min(10, Math.max(0, posScore));
+        
+        // ── 4. 손익비 점수 (0~10) + RR 숫자 별도 ──
+        var rrScore = 0;
+        if (rr >= 5.0) rrScore = 10;
+        else if (rr >= 3.0) rrScore = 8;
+        else if (rr >= 2.0) rrScore = 6;
+        else if (rr >= 1.5) rrScore = 4;
+        else if (rr > 0) rrScore = 2;
+        
+        // ── 5. 위험도 가중합 ──
+        var riskW = 0;
+        if (phase >= 1.15) riskW += 2;
+        if (obvTrend === 'down' || obvTrend === 'DOWN') riskW += 2;
+        if (fakePump) riskW += 2;
+        if (lateEntry) riskW += 2;
+        if (mfi >= 85) riskW += 1;
+        if (btcBear) riskW += 1;
+        if (upperWick) riskW += 1;
+        if (rr > 0 && rr < 1.5) riskW += 1;
+        var riskLevel = (riskW >= 4) ? 'high' : ((riskW >= 2) ? 'mid' : 'low');
+        var riskLabel = (riskLevel === 'high') ? '높음' : ((riskLevel === 'mid') ? '보통' : '낮음');
+        
+        // ── 종합 (평균 — 단순 표시용) ──
+        var avgScore = Math.round(((bpScore + lrScore + posScore + rrScore) / 4) * 10) / 10;
+        
+        return {
+          // 5차원 점수
+          buyPressure: bpScore,         // 매수세
+          liquidityReaction: lrScore,   // 수급반응
+          positionQuality: posScore,    // 위치품질
+          rrScore: rrScore,             // 손익비 점수
+          rrValue: rr,                  // RR 숫자 (별도)
+          riskLevel: riskLevel,         // low/mid/high
+          riskLabel: riskLabel,         // 낮음/보통/높음
+          riskWeight: riskW,            // 가중합 raw
+          // 종합 (단순 표시용)
+          avgScore: avgScore,
+          // 메타
+          version: 'phase1-v0',
+          calculatedAt: Date.now()
+        };
+      } catch(e) {
+        return { error: e.message, version: 'phase1-v0' };
+      }
     })(),
     shadowDetails: {
       vol: rep.vol || null,
       obv: rep.obv || null,
       accStrength: rep.accumulationStrength || null,
+      currentPhase: rep.currentPhase || null,
+      rr: rep.rr || null,
+      indicators: rep.indicators || null,
     },
     createdAt: Date.now(),
     updatedAt: Date.now()
@@ -14835,24 +15003,7 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
     var __w1_opened = (typeof w1_captureOpenCards === 'function') ? w1_captureOpenCards() : null;
     
     container.innerHTML = headerHtml + activeContainerHtml + historyContainerHtml;
-
-    // [V5 v4.9.4+v5-prep-r2-history-fix] 60초 자동 갱신 후 분석 완료 탭 콘텐츠 자동 복원
-    //   원인: container.innerHTML 교체 시 historyContainerHtml = '<div>히스토리 로딩 중...</div>' (빈 상태)
-    //         사용자가 분석 완료 탭 보고 있어도 60초마다 빈 상태로 리셋
-    //   해결: 분석 완료 탭 active이면 _historyCache 살아있으면 즉시 _renderHistoryUI, 아니면 _fetchAndRenderHistory
-    //   효과: 60초 갱신 후 재클릭 불필요. cache 재사용으로 Worker 부담 X.
-    if (savedAnalyzerTab === 'history') {
-      try {
-        if (Array.isArray(_historyCache) && _historyCache.length > 0 && typeof _renderHistoryUI === 'function') {
-          // [V5 history-fix] _historyTotal 우선 사용 (더 보기 버튼 보존)
-          var __histTotal = (typeof _historyTotal === 'number' && _historyTotal > 0) ? _historyTotal : _historyCache.length;
-          _renderHistoryUI(_historyCache, __histTotal);
-        } else if (typeof _fetchAndRenderHistory === 'function') {
-          _fetchAndRenderHistory();
-        }
-      } catch(e) { /* 분석 완료 탭 복원 실패는 무시 */ }
-    }
-
+    
     // [Week 1 — Round 1] 11355 직후 — 정확 상태 복원 (빈 배열도 호출, stale open 무효화)
     if (typeof w1_restoreOpenCards === 'function' && __w1_opened !== null) {
       w1_restoreOpenCards(__w1_opened);
@@ -14926,8 +15077,6 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
   var _historyCache = null;
   var _historyOffset = 0;
   var _historyLimit = 50;
-  // [V5 v4.9.4+v5-prep-r2-history-fix] 60s 갱신 후 재표시 시 더 보기 버튼 보존용 (total 박제)
-  var _historyTotal = 0;
   
   /* ═══════════════════════════════════════════════════════════════
      [v4.9.4+ history-export] 분석완료 데이터 export 기능
@@ -15309,13 +15458,11 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       } else {
         _historyCache = data.items;
       }
-      // [V5 v4.9.4+v5-prep-r2-history-fix] total 박제 — 60s 갱신 후 재표시 시 더 보기 버튼 보존
-      _historyTotal = data.total || data.items.length || 0;
       try {
         var histBtn = document.getElementById('woosTabHistory');
-        if (histBtn) histBtn.textContent = '분석 완료 (' + _historyTotal + ')';
+        if (histBtn) histBtn.textContent = '분석 완료 (' + (data.total || data.items.length || 0) + ')';
       } catch(e) {}
-      _renderHistoryUI(_historyCache, _historyTotal);
+      _renderHistoryUI(_historyCache, data.total || 0);
     }).catch(function(err){
       contentEl.innerHTML = '<div class="woos-history-empty">히스토리 로딩 실패: ' + (err.message || '알 수 없는 오류') + '</div>';
     });
@@ -15567,18 +15714,34 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       } catch(e) {}
     }
     
-    // [V5 정밀 1] Shadow Score 표시 — buildSnapshotPayload에서 박제된 실제 값 활용
-    // 박제 시 accumulationStrength + volRatio + obvTrend 종합 계산 (0~10점)
-    // fallback: 박제 안 된 기존 데이터는 total 점수 기반 추정
+    // [Phase 1 v0] Shadow Score 5차원 표시 — 객체 형태 (avgScore + 5차원 + 위험도)
+    // V5 prep r2 = 단일 숫자 / Phase 1 v0 = 객체
+    // 호환 처리: 둘 다 표시 가능
     var shadowChip = '';
-    var shadowVal = (item.shadowScore != null) ? item.shadowScore : null;
-    if (shadowVal != null) {
-      var shadowGood = shadowVal >= 6;
-      var shadowMid = shadowVal >= 4;
+    var shadowGraph = '';
+    var ss = item.shadowScore;
+    var ssIsObj = ss && typeof ss === 'object';
+    var ssAvg = null;
+    var ssRiskLabel = null;
+    
+    if (ssIsObj && ss.avgScore != null) {
+      // Phase 1 v0 — 5차원 객체
+      ssAvg = ss.avgScore;
+      ssRiskLabel = ss.riskLabel || null;
+      var goodAvg = ssAvg >= 6;
+      var midAvg = ssAvg >= 4;
+      var ssCls = goodAvg ? 'al-shadow-high' : (midAvg ? 'al-shadow-mid' : 'al-shadow-low');
+      var riskCls = ss.riskLevel === 'high' ? 'al-risk-high' : (ss.riskLevel === 'mid' ? 'al-risk-mid' : 'al-risk-low');
+      shadowChip = '<span class="al-shadow-chip ' + ssCls + '">💎 ' + ssAvg + '</span>'
+                 + (ssRiskLabel ? ' <span class="al-risk-chip ' + riskCls + '">위험 ' + ssRiskLabel + '</span>' : '');
+    } else if (typeof ss === 'number' && ss > 0) {
+      // V5 prep r2 (구) — 단일 숫자
+      var shadowGood = ss >= 6;
+      var shadowMid = ss >= 4;
       var shadowCls = shadowGood ? 'al-shadow-high' : (shadowMid ? 'al-shadow-mid' : 'al-shadow-low');
-      shadowChip = '<span class="al-shadow-chip ' + shadowCls + '">💎 ' + shadowVal + '</span>';
+      shadowChip = '<span class="al-shadow-chip ' + shadowCls + '">💎 ' + ss + '</span>';
     } else if (noAlert) {
-      // fallback for legacy data
+      // fallback for legacy data (점수 기반 추정)
       var totalScore = item.total != null ? item.total : 0;
       var shadowLabel = '';
       if (totalScore >= 4) shadowLabel = '강';
@@ -15615,6 +15778,21 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
     // 카드 클래스 — 검증샘플은 별도 스타일
     var cardClass = noAlert ? 'woos-alert-list-card al-sample-card' : 'woos-alert-list-card';
     
+    // [Phase 1 v0] 5차원 그래프 (객체일 때만 — pre prep 박제와 호환)
+    var shadowBarsHtml = '';
+    if (ssIsObj && ss.buyPressure != null) {
+      function _bar(val, max) {
+        var pct = Math.min(100, Math.max(0, (val / max) * 100));
+        return '<span class="al-bar-track"><span class="al-bar-fill" style="width:' + pct + '%;"></span></span>';
+      }
+      shadowBarsHtml = '<div class="al-shadow-bars">'
+        + '<div class="al-bar-row"><span class="al-bar-lbl">매수세</span>' + _bar(ss.buyPressure, 10) + '<span class="al-bar-val">' + ss.buyPressure + '/10</span></div>'
+        + '<div class="al-bar-row"><span class="al-bar-lbl">수급반응</span>' + _bar(ss.liquidityReaction, 10) + '<span class="al-bar-val">' + ss.liquidityReaction + '/10</span></div>'
+        + '<div class="al-bar-row"><span class="al-bar-lbl">위치품질</span>' + _bar(ss.positionQuality, 10) + '<span class="al-bar-val">' + ss.positionQuality + '/10</span></div>'
+        + '<div class="al-bar-row"><span class="al-bar-lbl">손익비</span>' + _bar(ss.rrScore || 0, 10) + '<span class="al-bar-val">' + (ss.rrScore || 0) + '/10' + (ss.rrValue ? ' RR ' + ss.rrValue.toFixed(1) : '') + '</span></div>'
+        + '</div>';
+    }
+    
     return '<div class="' + cardClass + '">'
       + '<div class="al-row1">'
       +   '<span class="al-grade-chip ' + gradeClass + '">' + escapeHtml(grade) + '</span>'
@@ -15629,6 +15807,7 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       +   alertLabel
       +   promotionChip
       + '</div>'
+      + shadowBarsHtml
       + '</div>';
   }
   
