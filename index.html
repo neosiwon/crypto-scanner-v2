@@ -153,7 +153,7 @@
 <script>
 /* [v4.7.42] 캐시 강제 리셋 — SW 완전 제거 후 리로드 */
 (function(){
-  var VER = 'v5.1.3';  // Shadow Score 계산 외부화 (Base: v4.9.5+phase2-v0-shadow-backfill-hotfix-r1)
+  var VER = 'v5.1.4';  // 라벨 5종 외부화 (Base: v4.9.5+phase2-v0-shadow-backfill-hotfix-r1)
   try {
     var LKEY = 'woos_hard_reset_ver';
     if (localStorage.getItem(LKEY) === VER) return;
@@ -8329,10 +8329,10 @@ details.analyzer-progress-card > summary.progress-compact-summary {
 </style>
 <!-- [WOOS PWA SPLASH CSS END] -->
 
-<!-- [v5.1.3 Shadow Score 계산 외부화] Base: v4.9.5+phase2-v0-shadow-backfill-hotfix-r1 -->
-<link rel="stylesheet" href="./css/woos-shadow.css?v=v5.1.3">
-<script src="./js/woos-shadow-kit.js?v=v5.1.3"></script>
-<script src="./js/woos-extension-bridge.js?v=v5.1.3"></script>
+<!-- [v5.1.4 라벨 5종 외부화] Base: v4.9.5+phase2-v0-shadow-backfill-hotfix-r1 -->
+<link rel="stylesheet" href="./css/woos-shadow.css?v=v5.1.4">
+<script src="./js/woos-shadow-kit.js?v=v5.1.4"></script>
+<script src="./js/woos-extension-bridge.js?v=v5.1.4"></script>
 
 </head>
 <body>
@@ -9445,7 +9445,7 @@ async function opsDashboard() {
 // 탭 시 상세 팝업
 // ═══════════════════════════════════════════════════════════════
 
-var HTML_VERSION = 'v5.1.3';  // Shadow Score 계산 외부화 (Base: v4.9.5+phase2-v0-shadow-backfill-hotfix-r1)
+var HTML_VERSION = 'v5.1.4';  // 라벨 5종 외부화 (Base: v4.9.5+phase2-v0-shadow-backfill-hotfix-r1)
 var _cachedBuildInfo = null;
 
 // [State Lock 2 Action fix-2c] 패치 확인용 — 페이지 로드 시 버전명 출력 (DevTools 콘솔)
@@ -11461,9 +11461,9 @@ function buildCoinCardHTML(coin, idx) {
         if (!testModeOn) return '';
         if (!shadowScore || shadowScore.error) return '';
         
-        // Preview 라벨 — 알람 조건 미충족 카드 식별
-        var isPreview = !rep.isEntryReady && !rep.prePump;
-        var previewLabel = isPreview ? '<span class="ss-preview-label">[Preview / 알람 X]</span>' : '';
+        // Preview 라벨 — 알람 조건 미충족 카드 식별 [v5.1.4 외부화 — WOOSShadowKit.renderPreviewLabel]
+        var isPreview = !rep.isEntryReady && !rep.prePump;  /* ss-preview 클래스 결정용 — 본체 보존 */
+        var previewLabel = (window.WOOSShadowKit && WOOSShadowKit.renderPreviewLabel) ? WOOSShadowKit.renderPreviewLabel(rep) : '';
         
         function _bar(val, max) {
           var pct = Math.min(100, Math.max(0, (val / max) * 100));
@@ -16225,39 +16225,18 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       var shadowCls = shadowGood ? 'al-shadow-high' : (shadowMid ? 'al-shadow-mid' : 'al-shadow-low');
       shadowChip = '<span class="al-shadow-chip ' + shadowCls + '">💎 ' + ss + '</span>';
     } else if (noAlert) {
-      // fallback for legacy data (점수 기반 추정)
-      var totalScore = item.total != null ? item.total : 0;
-      var shadowLabel = '';
-      if (totalScore >= 4) shadowLabel = '강';
-      else if (totalScore >= 3) shadowLabel = '중';
-      else shadowLabel = '약';
-      shadowChip = '<span class="al-shadow-chip al-shadow-' + shadowLabel + '">🔍 ' + shadowLabel + '</span>';
+      // [v5.1.4 외부화 — WOOSShadowKit.renderShadowChipFallback] legacy data 점수 기반 추정
+      shadowChip = (window.WOOSShadowKit && WOOSShadowKit.renderShadowChipFallback) ? WOOSShadowKit.renderShadowChipFallback(item) : '';
     }
     
-    // [V5 정밀 2] 검증샘플 분리 라벨
-    var sampleLabel = noAlert ? '<span class="al-sample-tag">검증샘플</span>' : '';
+    // [v5.1.4 외부화 — WOOSShadowKit.renderSampleLabel] 검증샘플 분리 라벨
+    var sampleLabel = (window.WOOSShadowKit && WOOSShadowKit.renderSampleLabel) ? WOOSShadowKit.renderSampleLabel(noAlert) : '';
     
-    // [V5 정밀 3] 승격 추적 본 구현 — 같은 base의 다른 등급 카운트
-    var promotionChip = '';
-    try {
-      if (item.base && Array.isArray(_alertListCache)) {
-        var sameBase = _alertListCache.filter(function(s){ return s.base === item.base; });
-        if (sameBase.length > 1) {
-          var gradeOrderProm = { 'SPLUS': 5, 'S': 4, 'A': 3, 'B': 2, 'C': 1 };
-          var maxG = sameBase.reduce(function(m, s){
-            var v = gradeOrderProm[s.gradeCode] || 0;
-            return v > m.v ? { v: v, g: s.gradeCode } : m;
-          }, { v: 0, g: '' });
-          var curV = gradeOrderProm[item.gradeCode] || 0;
-          if (maxG.v > curV) {
-            var maxLabel = maxG.g === 'SPLUS' ? 'S+' : maxG.g;
-            promotionChip = '<span class="al-promo">↑ ' + escapeHtml(maxLabel) + ' 승격</span>';
-          } else if (sameBase.length >= 2) {
-            promotionChip = '<span class="al-multi">×' + sameBase.length + '회</span>';
-          }
-        }
-      }
-    } catch(_promErr) {}
+    // [v5.1.4 외부화 — WOOSShadowKit.renderPromotionChip] 승격 추적 (같은 base 다른 등급 카운트)
+    // ctx로 _alertListCache 주입 (D-Q4=U1 — 전역 alias 추가 노출 X)
+    var promotionChip = (window.WOOSShadowKit && WOOSShadowKit.renderPromotionChip)
+      ? WOOSShadowKit.renderPromotionChip(item, { alertListCache: _alertListCache })
+      : '';
     
     // 카드 클래스 — 검증샘플은 별도 스타일
     var cardClass = noAlert ? 'woos-alert-list-card al-sample-card' : 'woos-alert-list-card';
@@ -20314,37 +20293,12 @@ function woosFetchWithTimeout(url, options, timeoutMs) {
       var scoreChip = '<span class="hist-score-chip ' + scoreCls + '" title="최종 직관 점수 ' + Math.round(trackingScore) + '점">' 
                     + scoreLabel + '</span>';
       
-      // [V5 정밀 4] 초기 등급 vs 최종 등급 — 승격 검증
+      // [v5.1.4 외부화 — WOOSShadowKit.renderHistoryPromotionChip] 초기 등급 vs 최종 등급 승격/강등 칩
       // 사용자 명시: "B/C → A/S 승격 여부 검증"
-      // gradeHistory가 있으면 가장 오래된 등급 = 초기 등급
-      // 최상위 원칙: 기존 등급 칩 그대로 / 신규 칩만 추가 (덮어쓰기 X)
-      var promotionChip = '';
-      try {
-        var gradeHist = item.gradeHistory;
-        if (Array.isArray(gradeHist) && gradeHist.length > 0) {
-          // 시간순 정렬하여 가장 오래된 = 초기
-          var sorted = gradeHist.slice().sort(function(a, b){ return (a.time || 0) - (b.time || 0); });
-          var initialGrade = (sorted[0].gradeCode || '').toUpperCase();
-          if (initialGrade === 'SPLUS') initialGrade = 'S+';
-          var finalGrade = grade;
-          if (finalGrade === 'SPLUS') finalGrade = 'S+';
-          
-          // 등급 강도 비교 — 승격/유지/하락
-          var gradeRank = { 'B': 1, 'C': 1, 'A': 2, 'S': 3, 'S+': 4, 'SPLUS': 4 };
-          var iRank = gradeRank[initialGrade] || 0;
-          var fRank = gradeRank[finalGrade] || 0;
-          
-          if (initialGrade && initialGrade !== finalGrade) {
-            if (fRank > iRank) {
-              // 승격
-              promotionChip = '<span class="hist-promotion-chip hist-promoted" title="초기 ' + initialGrade + ' → ' + finalGrade + ' 승격">⬆ ' + initialGrade + '→' + finalGrade + '</span>';
-            } else if (fRank < iRank) {
-              // 강등
-              promotionChip = '<span class="hist-promotion-chip hist-demoted" title="초기 ' + initialGrade + ' → ' + finalGrade + ' 강등">⬇ ' + initialGrade + '→' + finalGrade + '</span>';
-            }
-          }
-        }
-      } catch(_phe) {}
+      // currentGrade는 v462 내 grade 변수 (line 20270 — uppercase, SPLUS 가능)
+      var promotionChip = (window.WOOSShadowKit && WOOSShadowKit.renderHistoryPromotionChip)
+        ? WOOSShadowKit.renderHistoryPromotionChip(item, grade)
+        : '';
 
       /* [v5.1.2] 분석완료 Backfill 외부화 — woos-shadow-kit.js로 이전 (renderBackfillPanel) */
 
