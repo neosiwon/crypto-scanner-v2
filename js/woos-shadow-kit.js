@@ -248,19 +248,152 @@
     return html;
   }
 
+  /* ═══════════════════════════════════════════════════════════════
+   * v5.1.4 — 라벨 UI 5종 외부화
+   *
+   * 본체 index.html 5곳의 라벨 빌드 인라인을 모듈로 이전 (재작성 X).
+   * Shadow Score 자체의 매수세/수급반응/흡수/추격주의/매도압 라벨과는 별개.
+   * 5종은 UI 라벨/칩만 다룸.
+   *
+   * 라벨 클래스명 / HTML 출력 100% 동일 보존 (사용자 절대 유지 조건).
+   * ═══════════════════════════════════════════════════════════════ */
+
+  function _ssEscapeHtml(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+
+  /**
+   * ① Preview 라벨 (ss-preview-label)
+   *    이전: index.html line 11464~11466
+   *    표시 조건: rep.isEntryReady X && rep.prePump X (알람 조건 미충족)
+   */
+  function renderPreviewLabel(rep) {
+    if (!rep) return '';
+    var isPreview = !rep.isEntryReady && !rep.prePump;
+    return isPreview ? '<span class="ss-preview-label">[Preview / 알람 X]</span>' : '';
+  }
+
+  /**
+   * ② 검증샘플 라벨 (al-sample-tag)
+   *    이전: index.html line 16238
+   *    표시 조건: noAlert (B/C 박제, 알람 X)
+   */
+  function renderSampleLabel(noAlert) {
+    return noAlert ? '<span class="al-sample-tag">검증샘플</span>' : '';
+  }
+
+  /**
+   * ③ Shadow 강도 칩 — fallback 분기 (al-shadow-chip 강/중/약)
+   *    이전: index.html line 16227~16234 (legacy data, totalScore 기반)
+   *    표시 조건: noAlert + ss 객체/숫자 미보유 (legacy data)
+   *
+   *    객체/숫자 분기(line 16219, 16226)는 본체 그대로 유지.
+   */
+  function renderShadowChipFallback(item) {
+    var totalScore = (item && item.total != null) ? item.total : 0;
+    var shadowLabel = '';
+    if (totalScore >= 4) shadowLabel = '강';
+    else if (totalScore >= 3) shadowLabel = '중';
+    else shadowLabel = '약';
+    return '<span class="al-shadow-chip al-shadow-' + shadowLabel + '">🔍 ' + shadowLabel + '</span>';
+  }
+
+  /**
+   * ④ 알람목록 승격/멀티 칩 (al-promo / al-multi)
+   *    이전: index.html line 16241~16260
+   *
+   *    @param {Object} item  - 알람 item
+   *    @param {Object} ctx   - { alertListCache: _alertListCache } (D-Q4=U1 — ctx 주입)
+   *    같은 base의 다른 등급 카운트 → 승격 / N회 표시
+   */
+  function renderPromotionChip(item, ctx) {
+    ctx = ctx || {};
+    var alertListCache = ctx.alertListCache;
+    var html = '';
+    try {
+      if (item && item.base && Array.isArray(alertListCache)) {
+        var sameBase = alertListCache.filter(function (s) { return s.base === item.base; });
+        if (sameBase.length > 1) {
+          var gradeOrderProm = { 'SPLUS': 5, 'S': 4, 'A': 3, 'B': 2, 'C': 1 };
+          var maxG = sameBase.reduce(function (m, s) {
+            var v = gradeOrderProm[s.gradeCode] || 0;
+            return v > m.v ? { v: v, g: s.gradeCode } : m;
+          }, { v: 0, g: '' });
+          var curV = gradeOrderProm[item.gradeCode] || 0;
+          if (maxG.v > curV) {
+            var maxLabel = maxG.g === 'SPLUS' ? 'S+' : maxG.g;
+            html = '<span class="al-promo">↑ ' + _ssEscapeHtml(maxLabel) + ' 승격</span>';
+          } else if (sameBase.length >= 2) {
+            html = '<span class="al-multi">×' + sameBase.length + '회</span>';
+          }
+        }
+      }
+    } catch (_promErr) {}
+    return html;
+  }
+
+  /**
+   * ⑤ 분석완료 승격/강등 칩 (hist-promotion-chip.hist-promoted / hist-demoted)
+   *    이전: index.html line 20321~20347
+   *
+   *    @param {Object} item           - history item (item.gradeHistory 의존)
+   *    @param {string} currentGrade   - 현재 등급 (uppercase, 'SPLUS' 또는 'A'/'B'/'C' 등)
+   *    초기 등급 vs 최종 등급 비교 — 승격/강등 칩 반환
+   *    "B/C → A/S 승격 여부 검증" 의도 그대로 보존
+   */
+  function renderHistoryPromotionChip(item, currentGrade) {
+    var html = '';
+    try {
+      if (!item) return '';
+      var gradeHist = item.gradeHistory;
+      if (Array.isArray(gradeHist) && gradeHist.length > 0) {
+        // 시간순 정렬 — 가장 오래된 = 초기
+        var sorted = gradeHist.slice().sort(function (a, b) { return (a.time || 0) - (b.time || 0); });
+        var initialGrade = (sorted[0].gradeCode || '').toUpperCase();
+        if (initialGrade === 'SPLUS') initialGrade = 'S+';
+        var finalGrade = currentGrade || '';
+        if (finalGrade === 'SPLUS') finalGrade = 'S+';
+
+        // 등급 강도 비교 — 승격/유지/하락
+        var gradeRank = { 'B': 1, 'C': 1, 'A': 2, 'S': 3, 'S+': 4, 'SPLUS': 4 };
+        var iRank = gradeRank[initialGrade] || 0;
+        var fRank = gradeRank[finalGrade] || 0;
+
+        if (initialGrade && initialGrade !== finalGrade) {
+          if (fRank > iRank) {
+            // 승격
+            html = '<span class="hist-promotion-chip hist-promoted" title="초기 ' + initialGrade + ' → ' + finalGrade + ' 승격">⬆ ' + initialGrade + '→' + finalGrade + '</span>';
+          } else if (fRank < iRank) {
+            // 강등
+            html = '<span class="hist-promotion-chip hist-demoted" title="초기 ' + initialGrade + ' → ' + finalGrade + ' 강등">⬇ ' + initialGrade + '→' + finalGrade + '</span>';
+          }
+        }
+      }
+    } catch (_phe) {}
+    return html;
+  }
+
   /* ─── 모듈 노출 ─── */
   global.WOOSShadowKit = {
-    VERSION: 'v5.1.3',
+    VERSION: 'v5.1.4',
     calcShadowScore: calcShadowScore,
     hasShadowInputData: hasShadowInputData,
-    renderBackfillPanel: renderBackfillPanel
+    renderBackfillPanel: renderBackfillPanel,
+    /* v5.1.4 — 라벨 UI 5종 */
+    renderPreviewLabel: renderPreviewLabel,
+    renderSampleLabel: renderSampleLabel,
+    renderShadowChipFallback: renderShadowChipFallback,
+    renderPromotionChip: renderPromotionChip,
+    renderHistoryPromotionChip: renderHistoryPromotionChip
   };
 
-  /* ─── window alias 유지 (D-Q1=A) ───
+  /* ─── window alias 유지 (v5.1.3 D-Q1=A) ───
    * 본체 호출처 5곳 미터치를 위한 alias.
    * - index.html line 10500 (snapshot payload 박제)
-   * - index.html line 11512 (buildCoinCardHTML 스캐너 카드)
-   * - index.html line 15750/15760/15774 (분석완료 통계)
+   * - index.html line 11394 (buildCoinCardHTML 스캐너 카드)
+   * - index.html line 15632/15642/15656 (분석완료 통계)
    */
   global.WOOS_calcShadowScore   = calcShadowScore;
   global.WOOS_hasShadowInputData = hasShadowInputData;
