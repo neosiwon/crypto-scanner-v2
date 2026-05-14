@@ -145,23 +145,23 @@
 
   /**
    * candle 객체에서 필드값을 안전하게 추출.
-   * v3-candle-normalizer.js의 정확한 필드명을 모를 경우를 대비해
-   * 여러 후보 키 + 배열 OHLCV 형태도 지원.
+   * normalizer canonical은 `ts / tradeValue` (v3-candle-normalizer.js 기준).
+   * 외부 raw 호환을 위해 fallback 후보 키 지원 (객체/배열 OHLCV 모두 허용).
    * (작업지시서 §5: "필드명이 다르면 indicator 쪽에서 임의 변환하지 말고 helper로 안전하게 읽는다")
    */
   function readCandleField(candle, keys) {
     if (candle === null || candle === undefined) return null;
 
-    // 배열 OHLCV 형태 지원 [timestamp, open, high, low, close, volume, value?]
+    // 배열 OHLCV 형태 지원 [ts, open, high, low, close, volume, tradeValue?]
     if (Array.isArray(candle)) {
       const arrayIndexMap = {
-        timestamp: 0, t: 0, time: 0,
+        ts: 0, timestamp: 0, t: 0, time: 0,
         open: 1, o: 1,
         high: 2, h: 2,
         low: 3, l: 3,
         close: 4, c: 4,
         volume: 5, v: 5,
-        value: 6, tradeValue: 6, quoteVolume: 6
+        tradeValue: 6, value: 6, quoteVolume: 6
       };
       for (const key of keys) {
         const idx = arrayIndexMap[key];
@@ -205,7 +205,7 @@
   }
 
   function getTradeValue(candle) {
-    return readCandleField(candle, ['value', 'tradeValue', 'quoteVolume', 'tradeValueKrw', 'amount']);
+    return readCandleField(candle, ['tradeValue', 'value', 'quoteVolume', 'tradeValueKrw', 'amount']);
   }
 
   function sliceRecent(candles, length) {

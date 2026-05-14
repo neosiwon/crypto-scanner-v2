@@ -5,6 +5,39 @@
 
 ---
 
+## [v0.2.0-b-r1] — 2026-05-15
+
+Baseline Consistency Hotfix. 기능 변경 없음. 문서/주석/fallback 후보키만 정리.
+
+### Fixed
+- 기준 백서 경로/존재 여부 명시 (`/docs/ws3/WOOS_Scanner_V3_개발백서_v0_3_3.md` 미박제 상태로 baseline에 표기)
+- WS3 후속 단계 순서 정합성 정리 (signalCycle은 v0.5.0, UI는 v0.7.0, Telegram은 v0.8.0)
+- 코드 버전과 제품 Phase 표현 혼용 제거
+- V3Candle canonical을 `ts / tradeValue` 로 baseline에 통일 표기
+- V3FeaturePayload top-level field count를 명확히 13개로 표기
+- `v3-indicators.js` `readCandleField` 주석을 canonical 명시형으로 정리
+- `v3-indicators.js` array index map에 canonical `ts` key 추가 (`ts: 0, timestamp: 0, ...`)
+- `v3-indicators.js` array index map의 tradeValue를 canonical-first로 재정렬 (`tradeValue: 6, value: 6, ...`)
+- `v3-indicators.js` `getTradeValue` 후보키 우선순위를 canonical-first로 변경 (`['tradeValue', 'value', ...]`)
+- `strategyBias` enum/display 선박제와 v0.6.0 실제 로직 구현 단계를 baseline에 분리 명시
+- `isValidPayload` 정책(ts/coinMeta/newsContext key 존재 검사 여부)을 v0.2.0-c 작업지시서에서 결정하도록 baseline에 메모
+
+### Not Changed
+- indicator 계산 로직 변경 없음
+- 함수 추가/삭제 없음
+- `v3-feature-payload.js` 코드 수정 없음 (validator 결정은 v0.2.0-c 작업지시서로 이관)
+- `v3-config.js` / `v3-bithumb-client.js` / `v3-candle-normalizer.js` 수정 없음
+- scoreBreakdown / grade / signalCycle / structureBucket 판정 / strategyBias / entryPlan / exitPlan 구현 없음
+- buildFeaturePayload 본체 구현 없음
+- Telegram / UI / externalConfluence 구현 없음
+- 신규 파일 없음
+
+### Verified
+- `node --check v3/v3-indicators.js` 통과
+- 보호 파일(`v3-config.js`, `v3-feature-payload.js`, `v3-bithumb-client.js`, `v3-candle-normalizer.js`, `index.html`, `manifest.json`, `service-worker.js`) 미수정
+
+---
+
 ## [v0.2.0-b] — 2026-05-14
 
 ### Added
