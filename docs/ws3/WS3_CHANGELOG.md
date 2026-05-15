@@ -5,9 +5,78 @@
 
 ---
 
+## [v0.2.0-b-r2] — 2026-05-14 (Code Contract Freeze)
+
+### Added
+- `/docs/ws3/WS3_CODE_CONTRACT.md` — v3-feature-payload.js 등 실제 코드 계약 박제 (단일 기준 문서)
+  - top-level field 목록 박제 (13개 — identity/ts/candles/indicators/structure/volume/momentum/marketContext/buyPressure/coinMeta/newsContext/risk/raw)
+  - createEmpty() 초기값 박제 (identity.quote='KRW' / identity.exchange='BITHUMB' / coinMeta=null / newsContext=null / marketContext.state='UNKNOWN' / buyPressure.state='BUY_PRESSURE_UNKNOWN' / risk={penalty,level,flags})
+  - isValid() 검사 항목 목록 박제 (string / array / object / 미검사 항목 분리)
+  - ts canonical (V3Candle: number / V3FeaturePayload: number\|null / createEmpty: null)
+  - tradeValue canonical = "tradeValue" (close * volume 산출)
+  - v3-bithumb-client.js 사실 박제: o.market 사용, base/quote/displayName 직접 사용 X
+  - export 박제: `Object.freeze({createEmpty, build, isValid})` IIFE
+  - DECISION_PENDING (DP-1 / DP-2 / DP-3) 박제 — 본 b-r2 에서 결정 X
+- `/docs/ws3/WS3_v0_2_0_b_r2_CODE_CONTRACT_FREEZE_REPORT.md` — 완료 보고서
+
+### Changed (정정만)
+- `/docs/ws3/WS3_CHANGELOG.md` (본 파일):
+  - 이전 오기 표현 (잘못된 슬롯 수 표기) → "top-level field"
+  - v0.2.0-c 처리 (아래 엔트리 참고)
+- `/docs/ws3/WS3_CURRENT_BASELINE.md`:
+  - baseline 목록에 v0.2.0-b-r1 / v0.2.0-b-r2 추가
+  - v0.2.0-c REJECTED / NOT APPLIED 명시
+  - 다음 단계 순서 (v0.3.0~v0.8.0) 명시
+  - WS3_CODE_CONTRACT.md 가 단일 기준임을 명시
+
+### Protected (수정 0건)
+- `.js` 파일 0건 수정 / 0건 신규
+- 보호 파일 모두 무손상
+
+### 기준 commit
+- branch: `claude/heuristic-cori-7865e7`
+- 이전 baseline: WS3 v0.2.0-b-r1 (`da00e62`)
+- 본 commit: (push 후 기록)
+
+### Verified
+- b-r1 commit `da00e62` 로컬 + remote 존재 확인 ✅
+- Gate 1 grep 결과 박제 완료
+- 보호 파일 0건 변경
+- 새 .js 파일 0건 생성
+
+---
+
+## [v0.2.0-c] — 1차 수정본 — REJECTED — repo 반영 보류
+
+### Status
+```text
+REJECTED / NOT APPLIED
+적용 보류 / commit 금지
+```
+
+### 사유
+v3-feature-payload.js 코드 계약 위반 6건 (GPT 감사 결과):
+1. top-level `ts` 필드 누락 (실제는 13개 field 중 하나)
+2. `candles` 구조 다름 — builder 산출은 `{valid, data, count, totalAvailable, policy}`, 실제 계약은 `{m5, m15, h1, h4, d1}` 배열
+3. `identity` 구조 다름 — builder 산출은 `{valid, base, exchange, symbol, timeframe, detectedAt}`, 실제 계약은 `{base, quote, market, exchange, displayName}` + default 값 명시
+4. 자체 validator 가 기존 `WS3_FeaturePayload.isValid()` 와 다름
+5. 이전 오기 표현 (잘못된 슬롯 수 표기 — 실제는 13개 top-level field)
+6. b-r1 핫픽스가 v0.2.0-c 보다 먼저 와야 했음
+
+### 처리
+- repo 미반영 / rejected artifact
+- 재작성은 별도 단계 `v0.2.0-c-r1` 로 분리
+- 단일 기준: `WS3_CODE_CONTRACT.md` (b-r2 박제본)
+
+---
+
 ## [v0.2.0-b-r1] — 2026-05-15
 
 Baseline Consistency Hotfix. 기능 변경 없음. 문서/주석/fallback 후보키만 정리.
+
+### Commit
+- commit: `da00e62`
+- branch: `claude/heuristic-cori-7865e7`
 
 ### Fixed
 - 기준 백서 경로/존재 여부 명시 (`/docs/ws3/WOOS_Scanner_V3_개발백서_v0_3_3.md` 미박제 상태로 baseline에 표기)
@@ -43,35 +112,21 @@ Baseline Consistency Hotfix. 기능 변경 없음. 문서/주석/fallback 후보
 ### Added
 - `/v3/v3-indicators.js` — Indicator Function Skeleton (Config-Driven)
   - 32개 함수 (Config 유틸 12 / 이동평균 3 / RSI MFI OBV ATR 5 / 거래량 3 / 캔들구조 3 / 박스구조 5 / 통합 1)
-  - `DEFAULT_INDICATOR_CONFIG` 박제 (모든 임계값 집중 관리)
+  - `DEFAULT_INDICATOR_CONFIG` 박제
   - `mergeIndicatorConfig(config)` helper
-  - 각 함수가 `configUsed` 반환 (추적 가능)
+  - 각 함수가 `configUsed` 반환
 - `/docs/ws3/WS3_v0_2_0_b_INDICATOR_SKELETON_REPORT.md` — 완료 보고서
+
+### Commit
+- branch: `claude/heuristic-cori-7865e7`
+- commit: `c98cbd88b048c3e51571030b696a6b590e2c0030`
 
 ### Design
 - 함수 시그니처 `calculate*(candles, config = {})` 표준화
-- `calculateRSI(candles, period = 14)` 같은 고정 시그니처 폐기
 - MA/RSI/MFI/OBV/ATR/거래량/거래대금/캔들구조 기준값 = config override 가능
 - 전통 캔들패턴명 (도지/망치형/장악형 등) 미구현
 - V3에서 캔들패턴 = candleStructureFeatures 보조값
 - structureBucket 최종 판정 X (WS3 v0.4.0에서)
-
-### Missing (의도된 미포함)
-- externalConfluence / bithumbOfficial / LW / SeoulKIM
-- Telegram / news / snapshot / marketCap / sector
-- strategyBias / entryPlan / exitPlan
-- scoreBreakdown / grade / signalCycle
-- cardViewModel / renderer
-
-### Protected (수정 X)
-- index.html / manifest.json / service-worker.js / worker.js / wrangler.toml
-- /v3/v3-config.js / v3-feature-payload.js / v3-bithumb-client.js / v3-candle-normalizer.js
-- /v3/v3-index.html (생성도 X)
-
-### Verified
-- `node --check` 통과
-- 외부 API 호출 / DOM 접근 / localStorage / Telegram — 코드 0개
-- score / grade / signalCycle — 코드 0개
 
 ---
 
@@ -87,4 +142,4 @@ Baseline Consistency Hotfix. 기능 변경 없음. 문서/주석/fallback 후보
 
 ### Added
 - `/v3/v3-config.js`
-- `/v3/v3-feature-payload.js`
+- `/v3/v3-feature-payload.js` (코드 계약 정의 — WS3_CODE_CONTRACT.md 박제 대상)

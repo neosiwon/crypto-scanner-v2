@@ -1,126 +1,122 @@
 # WS3 Current Baseline
 
 > 현재 GitHub 박제 기준 (최신).  
-> 다음 단계 작업 전에 이 파일로 baseline을 확인.
+> 다음 단계 작업 전에 이 파일로 baseline 을 확인.
 
-**최종 업데이트**: 2026-05-15  
-**현재 단계**: WS3 v0.2.0-b-r1 (Baseline Consistency Hotfix)
+**최종 업데이트**: 2026-05-14  
+**현재 단계**: WS3 v0.2.0-b-r2 Code Contract Freeze 완료  
+**branch**: `claude/heuristic-cori-7865e7`
 
 ---
 
 ## 완료된 단계
 
-| 단계 | 파일 | 상태 |
-|---|---|---|
-| WS3 v0.1.0 | `/v3/v3-config.js` | ✅ 박제 |
-| WS3 v0.1.0 | `/v3/v3-feature-payload.js` | ✅ 박제 |
-| WS3 v0.2.0-a | `/v3/v3-bithumb-client.js` | ✅ 박제 |
-| WS3 v0.2.0-a | `/v3/v3-candle-normalizer.js` | ✅ 박제 |
-| WS3 v0.2.0-b | `/v3/v3-indicators.js` | ✅ 박제 |
-| **WS3 v0.2.0-b-r1** | **Baseline Consistency Hotfix (문서/주석/후보키)** | **✅ 적용 (이번 단계)** |
+| 단계 | 파일 | commit | 상태 |
+|---|---|---|---|
+| WS3 v0.1.0 | `/v3/v3-config.js` | — | ✅ 박제 |
+| WS3 v0.1.0 | `/v3/v3-feature-payload.js` | — | ✅ 박제 (코드 계약 정의) |
+| WS3 v0.2.0-a | `/v3/v3-bithumb-client.js` | — | ✅ 박제 |
+| WS3 v0.2.0-a | `/v3/v3-candle-normalizer.js` | — | ✅ 박제 |
+| WS3 v0.2.0-b | `/v3/v3-indicators.js` | `c98cbd8` | ✅ 박제 |
+| WS3 v0.2.0-b-r1 | baseline consistency (문서) | `da00e62` | ✅ 박제 |
+| **WS3 v0.2.0-b-r2** | **Code Contract Freeze (문서)** | **(push 후 기록)** | **✅ 박제 (이번 단계)** |
+
+## REJECTED — repo 반영 보류
+
+| 단계 | 사유 |
+|---|---|
+| WS3 v0.2.0-c (1차 수정본) | REJECTED / NOT APPLIED — v3-feature-payload.js 코드 계약 위반 6건. v0.2.0-c-r1 로 재작성 예정. |
 
 ---
 
 ## 기준 백서
 
 ```text
-/docs/ws3/WOOS_Scanner_V3_개발백서_v0_3_3.md   ← 미박제 상태 / 외부 파일 기준
+/docs/ws3/WOOS_Scanner_V3_개발백서_v0_3_3.md
 ```
 
-> **주의 (v0.2.0-b-r1)**:
-> 현재 repo의 `docs/ws3/`에 v0.3.3 백서 파일이 **존재하지 않음**.
-> 다음 작업자는 외부 보관본을 참조해야 하며, baseline에 박제되기 전까지는
-> "백서 원본 필요" 상태로 간주한다. 임의 생성 금지.
+> ⚠️ **백서 repo 박제 상태**: 이전 감사 시점 기준, 위 경로의 백서 파일은 실제 repo 에 박제되어 있지 않다.  
+> 백서 본문은 별도 위치 (Claude Web / 사용자 로컬) 에서 관리되고 있으며, repo 박제는 추후 별도 단계로 진행될 예정.  
+> 본 baseline 의 모든 "기준 백서" 참조는 해당 미박제 문서를 가리킨다.  
+> 코드 계약 충돌 시에는 **`WS3_CODE_CONTRACT.md` 가 우선** (백서 박제 여부와 무관).
+
+## 단일 코드 계약 기준 (필수)
+
+```text
+/docs/ws3/WS3_CODE_CONTRACT.md   ← v0.2.0-b-r2 박제본
+```
+
+**충돌 시 우선순위**:
+```text
+WS3_CODE_CONTRACT.md  >  백서  >  기타 문서
+```
 
 ---
 
 ## V3 핵심 전제
 
 ```text
-- V3는 기존 WOOS 확장이 아니라 독립 정밀 스캐너
+- V3 는 기존 WOOS 확장이 아니라 독립 정밀 스캐너
 - 기존 active/completed/history/관심/정밀/표준 의미 이식 금지
 - 기존 UI 톤과 raw → state → ViewModel → render 철학만 참고
 - Bithumb-only v0
-- featurePayload 기존 코드 계약 우선
-- 백서와 코드 계약이 충돌하면 기존 박제 코드 계약 확인 후 백서 패치
-- 외부 신호는 featurePayload에 넣지 않고 externalConfluence로 분리
+- v3-feature-payload.js 코드 계약 우선
+- 백서와 코드 계약이 충돌하면 WS3_CODE_CONTRACT.md 우선
+- 외부 신호는 featurePayload 에 넣지 않고 externalConfluence 로 분리
 - 외부 신호는 점수/등급 영향 X
+- 지표/라벨링 기준값은 항상 config override 가능
 ```
 
 ---
 
-## V3Candle canonical 계약
+## v3FeaturePayload 코드 계약 요약 (WS3_CODE_CONTRACT.md 발췌)
 
-```js
+### top-level field (13개)
+
+```text
+1.  identity         (object, isValid 검사)
+2.  ts               (number | null, isValid 미검사)
+3.  candles          (object, m5/m15/h1/h4/d1 배열 — isValid 검사)
+4.  indicators       (object, isValid 검사)
+5.  structure        (object, isValid 검사)
+6.  volume           (object, isValid 검사)
+7.  momentum         (object, isValid 검사)
+8.  marketContext    (object, isValid 검사, default {state:'UNKNOWN'})
+9.  buyPressure      (object, isValid 검사, default {state:'BUY_PRESSURE_UNKNOWN'})
+10. coinMeta         (null default, isValid 미검사)
+11. newsContext      (null default, isValid 미검사)
+12. risk             (object, isValid 검사 — flags[] / level string 포함, default {penalty:null,level:'UNKNOWN',flags:[]})
+13. raw              (object, isValid 검사)
+```
+
+### identity
+
+```text
 {
-  ts,          // canonical (number)
-  open,
-  high,
-  low,
-  close,
-  volume,
-  tradeValue   // canonical (number | null, normalizer가 close × volume으로 estimated 채움)
+  base:        null         (default, isValid 미검사)
+  quote:       'KRW'        (default, isValid string 검사)
+  market:      null         (default, isValid 미검사)
+  exchange:    'BITHUMB'    (default, isValid string 검사)
+  displayName: null         (default, isValid 미검사)
 }
 ```
 
-- 출력 canonical: `v3-candle-normalizer.js` 가 위 형태로 반환.
-- typedef: `v3-feature-payload.js` 의 `V3Candle` typedef와 일치.
-- 외부 raw 호환은 `v3-indicators.js` 의 `readCandleField()` fallback 후보 키로만 처리.
-- 다음 단계 (v0.2.0-c) `buildFeaturePayload` 에서는 반드시 **canonical `ts` / `tradeValue`** 만 사용한다.
-- `timestamp` / `value` 는 외부 raw fallback이며 canonical 아님.
-
----
-
-## V3FeaturePayload top-level field (13개)
+### candles
 
 ```text
-identity
-ts
-candles
-indicators
-structure
-volume
-momentum
-marketContext
-buyPressure
-coinMeta
-newsContext
-risk
-raw
+{ m5: [], m15: [], h1: [], h4: [], d1: [] }
+모두 배열 검사
 ```
 
-> **표현 주의**:
-> 외부 작업지시서에 "12 슬롯"으로 표기된 경우가 있으나, `createEmptyFeaturePayload()` 기준 실제 top-level field는 **13개** 이다.
-> v0.2.0-c `buildFeaturePayload` 는 13개 field를 모두 유지해야 한다.
-> - 어떤 field도 `delete` 금지
-> - `skipPlaceholders` / `omitNullSlots` 같은 옵션 추가 금지
-> - `coinMeta`, `newsContext` 가 null 이어도 key 자체는 유지
+### export
 
-### Validator 정책 결정 대기 (v0.2.0-c 진입 전 결정 필요)
+```text
+global.WS3_FeaturePayload = Object.freeze({ createEmpty, build, isValid })
+IIFE browser-global 방식
+현재 build 함수는 throw 상태 (v0.2.0-c-r1 에서 구현 예정 — DP-3 결정 후)
+```
 
-현재 `isValidPayload` 는 `ts` / `coinMeta` / `newsContext` 의 key 존재 여부를 검사하지 않는다.
-v0.2.0-c 진입 전에 아래 중 하나를 결정해야 한다.
-
-- (A) nullable field라도 key 존재를 강제하도록 validator 강화
-- (B) 현행 validator 정책 유지하고, `buildFeaturePayload` 가 항상 `createEmptyFeaturePayload` 기반으로 시작해 모든 key를 보장
-
-> 이번 핫픽스(v0.2.0-b-r1)에서는 `v3-feature-payload.js` 코드를 수정하지 않는다.
-> 결정 자체를 v0.2.0-c 작업지시서에서 확정한다.
-
----
-
-## strategyBias / display 선박제 주의
-
-`v3-config.js` 에는 아래 항목이 이미 박제되어 있다.
-
-- `WS3_STRATEGY_BIAS` enum (SCALP / SWING / SCALP_SWING / WATCH / AVOID)
-- `WS3_DISPLAY.strategyBias` 한글 라벨
-- `WS3_HEADER_SLOT_PRIORITY` 의 `strategyBias` 항목
-
-> **주의**:
-> strategyBias enum/display/header slot 은 v0.1.0 config 계약에 **선박제**된 것이다.
-> 실제 strategyBias **계산 로직 구현은 WS3 v0.6.0 단계**에서 이루어진다.
-> 현재 단계에서 strategyBias 로직이 구현된 것으로 해석하지 않는다.
+자세한 내용은 `WS3_CODE_CONTRACT.md` 참고.
 
 ---
 
@@ -132,47 +128,121 @@ manifest.json
 service-worker.js
 worker.js
 wrangler.toml
+
 /v3/v3-config.js
-/v3/v3-feature-payload.js
-/v3/v3-bithumb-client.js
-/v3/v3-candle-normalizer.js
-/v3/v3-indicators.js              ← v0.2.0-b 박제 / v0.2.0-b-r1에서 주석·후보키만 정합성 조정
-/v3/v3-index.html (생성도 X)
+/v3/v3-feature-payload.js                  ← 핵심 보호 (코드 계약)
+/v3/v3-bithumb-client.js                    ← market 문자열만 fetch 인자로 사용 (b-r2 박제)
+/v3/v3-candle-normalizer.js                 ← tradeValue = close * volume 산출 (b-r2 박제)
+/v3/v3-indicators.js                        ← v0.2.0-b 박제본
+/v3/v3-index.html                           (생성도 X)
 ```
 
 ---
 
-## 다음 단계
+## 모듈 의존성
 
 ```text
-WS3 v0.2.0-c — buildFeaturePayload 본체 작업
-
-목적:
-  normalized candles
-  + indicator snapshot
-  + meta/context
-  → v3FeaturePayload 코드 계약(13 top-level field)에 맞게 조립
-
-이번 단계 (v0.2.0-b/-b-r1)는 indicator snapshot + 정합성 정리까지만.
-featurePayload 본체 조립은 v0.2.0-c 에서.
+v3-bithumb-client.js  (o.market 문자열 fetch)
+  ↓ (raw candles)
+v3-candle-normalizer.js  (tradeValue = close * volume)
+  ↓ (normalized candles)
+v3-indicators.js  (v0.2.0-b 박제)
+  ↓ (indicator snapshot)
+[v0.2.0-c-r1 buildFeaturePayload 재작성 단계 — DP-3 결정 후]
+  ↓ (v3FeaturePayload 13 top-level field)
+[v0.3.x scoreBreakdown]
 ```
 
 ---
 
-## 아직 도래하지 않은 단계
+## 미결정 사항 (DECISION_PENDING)
+
+다음 항목은 본 baseline 시점에서 **결정되지 않았다**. 다음 단계 작업지시서에서 사용자/GPT 결정 필요:
 
 ```text
-WS3 v0.2.0-c    buildFeaturePayload 본체
-WS3 v0.3.0      scoreBreakdown
-WS3 v0.4.0      structureBucket / priceZone / referenceLow
-WS3 v0.5.0      signalCycle / persistence
-WS3 v0.6.0      strategyBias / entryPlan / exitPlan
-WS3 v0.7.0      UI / CardViewModel
-WS3 v0.8.0      Telegram / snapshot / evaluation
-WS3 v0.9.x+     externalConfluence / LW activeCycle / 사후평가 보정 분석
+DP-1: payload.ts 의 값 결정
+       Date.now() / 마지막 candle ts / 호출자 명시 / null 유지
+
+DP-2: tradeValue 외 거래대금 키의 노출 정책 (normalizer side)
+
+DP-3: v0.2.0-c-r1 builder 의 배치 방식
+       별도 파일 / 본 파일 수정 / 혼합
 ```
 
-> **순서 주의**:
-> - `signalCycle` 은 v0.5.0 이다. v0.4.0 의 structureBucket 묶음에 넣지 않는다.
-> - UI 와 Telegram 은 같은 단계가 아니다. UI 는 v0.7.0, Telegram 은 v0.8.0.
-> - 코드 버전(`v0.x`) 과 제품 Phase(Phase 4/5) 표현을 같은 라인에서 혼합하지 않는다. Phase 표기가 필요하면 별도 단락으로 분리한다.
+자세한 내용은 `WS3_CODE_CONTRACT.md` §8 참고.
+
+---
+
+## 미확인 사항 (다음 단계 추가 grep 필요)
+
+```text
+- v3-config.js 전체 (export 스타일 / buyPressure 정책값 / 키 목록)
+- v3-bithumb-client.js 의 market 문자열 형식 / 메타 채우기 호출 흐름 / export 스타일
+- v3-candle-normalizer.js 의 ts/tradeValue 외 필드 키 / export 스타일
+- indicators / structure / volume / momentum / raw 슬롯의 실제 빌더 입력 형식
+```
+
+자세한 내용은 `WS3_CODE_CONTRACT.md` §9 참고.
+
+---
+
+## 다음 단계 (확정된 순서)
+
+```text
+WS3 v0.2.0-c-r1 — buildFeaturePayload 재작성
+  기준: WS3_CODE_CONTRACT.md
+  필수 결정: DP-1 / DP-2 / DP-3
+  필수 통과: WS3_FeaturePayload.isValid() 통과 조건 (§7)
+
+WS3 v0.3.0 — scoreBreakdown 본체
+  목적: v3FeaturePayload 13 top-level field 를 읽어 100점 점수 구성요소 계산
+        - 코어 25 + 구조 20 + 거래량 20 + 모멘텀 15 + 실행 20 = 100
+        - riskPenalty 최대 15 차감
+  범위:
+        - scoreBreakdown 본체만
+        - structureBucket 최종 확정은 v0.4.0
+        - grade 산출은 score 결과 + 별도 승인 후
+
+WS3 v0.4.0 — structureBucket / priceZone / referenceLow 확정
+  - BOX_PRESSURE / BOX_BREAKOUT / OB_RECLAIM / LOW_SWEEP_RECLAIM / MA_RECLAIM
+  - priceZone 확정
+  - referenceLow 다중 timeframe (5m/15m/1h/4h)
+
+WS3 v0.5.0 — signalCycle / persistence / cooldown
+  - signalCycle 생성 / cooldown
+  - 반복신호 milestone (3/5/10회)
+  - priceZone 기준 cycle 묶음
+
+WS3 v0.6.0 — strategyBias / entryPlan / exitPlan A-F
+  - 단타/스윙/관찰/회피 분류
+  - LONG 30/30/40 entryPlan
+  - exitPlan A~F
+
+WS3 v0.7.0 — UI / CardViewModel
+  - 카드헤더 슬롯 / 카드바디 18 섹션
+  - selectionReason 표시
+  - V3 renderer
+
+WS3 v0.8.0 — Telegram / snapshot / evaluation
+  - Telegram 메시지 템플릿
+  - snapshot URL/저장
+  - 사후평가 15m/1h/4h/24h/3d/7d
+
+WS3 v0.9.0+ — Phase 4-5 (백서 §21)
+  - 빗썸 공식 externalConfluence
+  - LW activeCycle tracker
+  - 사후평가 보정 분석
+```
+
+---
+
+## v0.2.0-b-r2 핵심 메모
+
+```text
+- .js 파일 0건 수정 / 0건 신규
+- 실제 코드 계약을 grep 으로 박제 → WS3_CODE_CONTRACT.md
+- top-level field 13개 확정 + createEmpty 초기값 사실 그대로 박제
+- DP-1 / DP-2 / DP-3 미결정 → v0.2.0-c-r1 에서 결정
+- 미확인 항목 다수 → v0.2.0-c-r1 작업지시서 사전 조사 시 추가 grep
+- v0.2.0-c 1차 수정본은 REJECTED / NOT APPLIED → v0.2.0-c-r1 로 재작성
+```
