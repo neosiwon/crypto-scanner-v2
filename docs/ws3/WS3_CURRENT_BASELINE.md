@@ -4,7 +4,8 @@
 > 다음 단계 작업 전에 이 파일로 baseline 을 확인.
 
 **최종 업데이트**: 2026-05-16  
-**현재 단계**: WS3 v0.3.0 scoreBreakdown 본체 완료  
+**기능 단계 (current functional baseline)**: WS3 v0.3.0 scoreBreakdown core (`b7e0ea3`)  
+**운영 문서**: WS3 Workflow Template v0.1 박제 (`v0.3.0-docs`, 본 단계 — 기능 버전 변동 없음)  
 **branch**: `claude/heuristic-cori-7865e7`
 
 ---
@@ -52,6 +53,27 @@
 ```text
 WS3_CODE_CONTRACT.md  >  백서  >  기타 문서
 ```
+
+---
+
+## 운영 문서 (워크플로우 표준)
+
+```text
+/docs/ws3/WS3_WORKFLOW_TEMPLATE.md   ← v0.1 박제본 (v0.3.0-docs 단계, 2026-05-16)
+```
+
+**용도**:
+- GPT 작업지시서 초안 → Claude Web 피드백 → GPT 최종 전문 → Claude Code 실행 흐름의 단일 표준
+- 14단계 흐름 / 4 Gate (Gate 1 사전조사 / Gate 2 코드 작성 / Gate 3 commit / Gate 4 push) / PR-main merge 별도 승인 (Gate 5/6)
+- commit 메시지 한 줄 원칙
+- DP prefix 명명 규칙 (DP-1~7 / DP-S* / DP-STR* / DP-CYC* / DP-STG*)
+
+**역할 분담** (§0.1):
+- **GPT** = 작업지시서 초안 전문 작성 + 최종 전문 작성 + commit 메시지 작성
+- **Claude Web** = 작업지시서 피드백만
+- **Claude Code** = repo 실제 코드 작성 / 검증 / diff / commit / push
+
+**변경 정책** (§15): 즉흥 수정 금지. 변경 필요 시 별도 단계 (v0.2 등) 로 박제.
 
 ---
 

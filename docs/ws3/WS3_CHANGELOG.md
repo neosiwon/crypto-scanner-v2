@@ -5,6 +5,54 @@
 
 ---
 
+## [v0.3.0-docs] — 2026-05-16 (Workflow Template v0.1)
+
+문서 박제 단계. 기능 코드 변경 없음. 운영 워크플로우 표준 템플릿을 repo 운영 문서로 박제.
+
+### Added
+- `/docs/ws3/WS3_WORKFLOW_TEMPLATE.md` — WS3 Workflow Template v0.1 (신규)
+  - GPT 작업지시서 초안 → Claude Web 피드백 → GPT 최종 전문 → Claude Code 실행 흐름 박제
+  - **Claude Web 역할 = 작업지시서 피드백만** (§0.1 / §0.3 / §8 / §14.3 재확인)
+  - **Claude Code 역할 = repo 실제 코드 작성 / 검증 / diff / commit / push** (§0.1 / §0.4)
+  - **GPT 역할 = 작업지시서 초안 전문 작성 + 최종 전문 작성 + commit 메시지 작성** (§0.1 / §0.5)
+  - **14단계 흐름** (§0.2) — Gate 1 (사전 조사) → Gate 2 (코드 작성) → Gate 3 (commit) → Gate 4 (push) + Gate 5/6 (PR/main merge 별도 승인)
+  - **4 Gate** 승인 게이트 (§12.1)
+  - **commit 한 줄 원칙** (§12.2) — 기본 한 줄 subject. multi-line body는 사용자 별도 요청 시에만
+  - **PR / main merge 별도 승인 원칙** (§13) — feature branch push까지는 Gate 4까지, main merge는 항상 Gate 5/6 별도
+  - DP prefix 명명 규칙 (§6) — DP-1~7 (c-r1) / DP-S1~7 (v0.3.0 score) / DP-STR* (v0.4.0 structure) / DP-CYC* / DP-STG* 등
+  - 변수 치환 체크리스트 (§16) — `{{...}}` 34종
+  - v0 → v0.1 개정 사항 (§17) — GPT 검토 6건 반영
+- 원본 파일: `C:\Users\neosi\Desktop\WOOS_V3\Output\WS3_Workflow_Template_v0_1.md` (24,261 B, SHA256 무결성 검증)
+
+### Changed
+- `/docs/ws3/WS3_CHANGELOG.md` (본 파일): `[v0.3.0-docs]` 엔트리 상단 추가
+- `/docs/ws3/WS3_CURRENT_BASELINE.md`: 운영 문서 섹션에 `WS3_WORKFLOW_TEMPLATE.md` 추가
+
+### Functional Baseline (변경 없음)
+- 기능 baseline: **WS3 v0.3.0 scoreBreakdown core** (`b7e0ea3`) — 본 단계는 문서 박제이므로 기능 버전 상승 X
+- 다음 기능 단계: **WS3 v0.4.0 structureBucket / priceZone / referenceLow 확정**
+
+### Protected (수정 0건)
+- `v3-config.js` / `v3-feature-payload.js` / `v3-bithumb-client.js` / `v3-candle-normalizer.js` / `v3-indicators.js` / `v3-feature-payload-builder.js` / `v3-score-breakdown.js`
+- `docs/ws3/WS3_CODE_CONTRACT.md` (b-r2 박제본 그대로)
+- `index.html` / `manifest.json` / `service-worker.js` / `worker.js` / `wrangler.toml`
+
+### Code change
+- **0건** (문서 박제 전용 단계)
+
+### Verified
+- 원본 파일 SHA256 == 복사본 SHA256 (`FC9E66F9...8FCF0D`)
+- 보호 파일 `git diff` 빈 출력 = 0건
+- 구버전 표현 grep 0건 (`Claude Web 산출물 생성` / `사용자 산출물 다운로드` / `Claude Web 작업지시서 생성`)
+- 역할 분담 grep 매치 확인 (§0.1)
+
+### 기준 commit
+- branch: `claude/heuristic-cori-7865e7`
+- 이전 baseline: WS3 v0.3.0 scoreBreakdown core (`b7e0ea3`)
+- 본 commit: (push 후 기록)
+
+---
+
 ## [v0.3.0] — 2026-05-16 (scoreBreakdown 본체)
 
 ### Added
