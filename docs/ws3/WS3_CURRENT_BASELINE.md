@@ -4,7 +4,7 @@
 > 다음 단계 작업 전에 이 파일로 baseline 을 확인.
 
 **최종 업데이트**: 2026-05-16  
-**현재 단계**: WS3 v0.2.0-c-r1 buildFeaturePayload Builder 완료  
+**현재 단계**: WS3 v0.3.0 scoreBreakdown 본체 완료  
 **branch**: `claude/heuristic-cori-7865e7`
 
 ---
@@ -20,7 +20,8 @@
 | WS3 v0.2.0-b | `/v3/v3-indicators.js` | `c98cbd8` | ✅ 박제 |
 | WS3 v0.2.0-b-r1 | baseline consistency (문서) | `da00e62` | ✅ 박제 |
 | WS3 v0.2.0-b-r2 | Code Contract Freeze (문서) | `04eac43` | ✅ 박제 |
-| **WS3 v0.2.0-c-r1** | **`/v3/v3-feature-payload-builder.js`** | **(push 후 기록)** | **✅ 박제 (이번 단계)** |
+| WS3 v0.2.0-c-r1 | `/v3/v3-feature-payload-builder.js` | `51e510d` | ✅ 박제 |
+| **WS3 v0.3.0** | **`/v3/v3-score-breakdown.js`** | **(push 후 기록)** | **✅ 박제 (이번 단계)** |
 
 ## REJECTED — repo 반영 보류
 
@@ -191,11 +192,12 @@ wrangler.toml
 /v3/v3-bithumb-client.js                    ← market 문자열만 fetch 인자로 사용
 /v3/v3-candle-normalizer.js                 ← tradeValue = close * volume 산출
 /v3/v3-indicators.js                        ← v0.2.0-b 박제본
-/v3/v3-feature-payload-builder.js           ← v0.2.0-c-r1 박제본 (이번 단계 신규)
+/v3/v3-feature-payload-builder.js           ← v0.2.0-c-r1 박제본
+/v3/v3-score-breakdown.js                   ← v0.3.0 박제본 (이번 단계 신규)
 /v3/v3-index.html                           (생성도 X)
 ```
 
-> 다음 단계 (v0.3.0 scoreBreakdown) 진입 후 builder 인자 / 매핑 정책 갱신이 필요해지면 별도 r1.x 단계로 분리하여 별도 승인 후에만 수정.
+> 다음 단계 (v0.4.0 structureBucket / priceZone / referenceLow) 진입 후 builder/score 인자 / 매핑 정책 갱신이 필요해지면 별도 r1.x 단계로 분리하여 별도 승인 후에만 수정.
 
 ---
 
@@ -210,7 +212,9 @@ v3-indicators.js  (v0.2.0-b 박제 — buildIndicatorSnapshot)
   ↓ (indicator snapshot)
 v3-feature-payload-builder.js  (v0.2.0-c-r1 박제 — V3FeaturePayload 13 top-level field 조립)
   ↓ (V3FeaturePayload, isValid 통과)
-[v0.3.0 scoreBreakdown]
+v3-score-breakdown.js  (v0.3.0 박제 — 5 component + riskPenalty → totalScore)
+  ↓ (standalone scoreBreakdown 객체, payload mutate 0건)
+[v0.4.0 structureBucket / priceZone / referenceLow 확정]
 ```
 
 ---
@@ -237,17 +241,6 @@ v3-feature-payload-builder.js  (v0.2.0-c-r1 박제 — V3FeaturePayload 13 top-l
 ## 다음 단계 (확정된 순서)
 
 ```text
-WS3 v0.3.0 — scoreBreakdown 본체
-  목적: v3FeaturePayload 13 top-level field 입력
-        → 100점 점수 구성요소 계산
-        - 코어 25 + 구조 20 + 거래량 20 + 모멘텀 15 + 실행 20 = 100
-        - riskPenalty 최대 15 차감
-  범위:
-        - scoreBreakdown 본체만
-        - structureBucket 최종 확정은 v0.4.0
-        - grade 산출은 score 결과 + 별도 승인 후
-        - buyPressure 라벨링 정책 결정 별도 진행
-
 WS3 v0.4.0 — structureBucket / priceZone / referenceLow 확정
   - BOX_PRESSURE / BOX_BREAKOUT / OB_RECLAIM / LOW_SWEEP_RECLAIM / MA_RECLAIM
   - priceZone 확정
@@ -281,16 +274,20 @@ WS3 v0.9.0+ — Phase 4-5 (백서 §21)
 
 ---
 
-## v0.2.0-c-r1 핵심 메모
+## v0.3.0 핵심 메모
 
 ```text
-- v3/v3-feature-payload-builder.js 신규 생성 1건
-- v3-feature-payload.js 미수정 (보호 파일 9종 모두 무손상)
+- v3/v3-score-breakdown.js 신규 생성 1건 (~880 lines)
+- v3-feature-payload-builder.js / v3-feature-payload.js 등 보호 파일 10종 모두 무손상
 - WS3_CODE_CONTRACT.md 미수정 (b-r2 박제본 그대로)
-- DP-1 ~ DP-7 + U-1/U-2 모두 적용 / 미해결 항목 0건
-- isValid(payload) === true 보장 / 13 top-level field 보존
-- buyPressure 계산은 의도된 제외 (createEmpty default 유지) → v0.3 이후
-- marketContext 라벨링도 의도된 제외 (createEmpty default 유지) → v0.3 이후
-- 외부 호출 (fetch / DOM / localStorage / KV) 0건
-- Date.now() 사용 0건
+- DP-S1 ~ DP-S9 + N-1 ~ N-5 모두 적용 / 미해결 항목 0건
+- payload mutation 0건 (DP-S1, smoke test 검증)
+- 100점 만점: core 25 + structure 20 + volume 20 + momentum 15 + execution 20
+- riskPenalty 최대 15 (default risk이면 penalty 0 — DP-S4)
+- grade / tier / label / P-S/A/B 미산출 (DP-S5)
+- buyPressure / marketContext 점수 미반영 (DP-S6 / N-2 / N-3, core에서 object 존재만)
+- indicator state 라벨 활용 (RSI/MFI/OBV/MA/volumeState) — 별도 임계값 하드코딩 0건
+- valid (계산 가능 여부) vs totalScore (신호 강도) 분리 (DP-S9)
+- 외부 호출 / DOM / 브라우저 storage / KV 0건
+- 런타임 clock API 사용 0건
 ```

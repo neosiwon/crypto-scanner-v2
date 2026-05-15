@@ -5,6 +5,83 @@
 
 ---
 
+## [v0.3.0] — 2026-05-16 (scoreBreakdown 본체)
+
+### Added
+- `/v3/v3-score-breakdown.js` — scoreBreakdown 본체 (신규)
+  - `WS3_ScoreBreakdown.build(payload, config)` → standalone scoreBreakdown 객체 (13 top-level field payload mutate 0건)
+  - 5 component (core 25 / structure 20 / volume 20 / momentum 15 / execution 20 = 100)
+  - riskPenalty 최대 15
+  - `grossScore = sum(components)`, `totalScore = clamp(grossScore - riskPenalty, 0, maxScore)`
+  - 이중 환경 export: `global.WS3_ScoreBreakdown` + `module.exports`
+- `/docs/ws3/WS3_v0_3_0_SCORE_BREAKDOWN_REPORT.md` — 완료 보고서 (신규)
+
+### Adopted DP Policy
+- **DP-S1** payload mutate 금지. standalone 객체 반환.
+- **DP-S2** weight 25/20/20/15/20 = 100. config override 가능.
+- **DP-S3** unavailable component → valid=false + score=0. sub-signal 부분 누락 → 부분점 + warning.
+- **DP-S4** payload.risk 기본값(penalty=null, level='UNKNOWN', flags=[])이면 penalty 0.
+- **DP-S5** grade / tier / label / P-S/A/B 미산출.
+- **DP-S6** buyPressure 점수 미반영. core에서 object 존재만 검사.
+- **DP-S7** DEFAULT_SCORE_CONFIG 본 파일 내부 보관. v3-config.js 미수정.
+- **DP-S8** core(존재성/구조) vs execution(양적 충분성) 평가 범위 분리. 중복 점수화 금지.
+- **DP-S9** valid(계산 가능 여부) vs totalScore(신호 강도) 분리.
+- **N-1** 빈 객체 component → valid=false + score=0 + `NO_*_SIGNALS` warning.
+- **N-2** buyPressure 점수 미반영 (DP-S6 정합).
+- **N-3** marketContext 점수 미반영. core에서 object 존재만.
+- **N-4** tradeValue 통계 키 (`currentTradeValueKrw` 등) v3-indicators 출력 그대로 사용.
+- **N-5** indicator warnings → execution 감점 + 경미한 riskPenalty. 중복 감점 X (builderWarnCap=4 / indicatorWarnCap=2).
+
+### Indicator state 라벨 활용 (별도 임계값 하드코딩 0건)
+- RSI state: STRONG=4 / OVERBOUGHT=2 / NEUTRAL=1 / OVERSOLD=1 / OVERHEATED=0
+- MFI state: STRONG_BUY_PRESSURE=4 / BUY_PRESSURE=3 / NEUTRAL=1 / LOW=1 / OVERHEATED=0
+- OBV trend: UP=3 / FLAT=1 / DOWN=0
+- MA trendLabel: MA_BULLISH=4 / MA_ABOVE_MIXED=2 / MA_FLAT=1 / MA_MIXED=1 / 나머지=0
+- volumeState: EXTREME=8 / SURGE=6 / RISING=4 / NORMAL=2 / LOW=0
+
+### Changed
+- `/docs/ws3/WS3_CHANGELOG.md` (본 파일): `[v0.3.0]` 엔트리 상단 추가
+- `/docs/ws3/WS3_CURRENT_BASELINE.md`: 완료된 단계 표 + 보호 파일 목록 + 모듈 의존성 + 다음 단계 갱신
+
+### Protected (수정 0건)
+- `v3-config.js` / `v3-feature-payload.js` / `v3-bithumb-client.js` / `v3-candle-normalizer.js` / `v3-indicators.js` / `v3-feature-payload-builder.js`
+- `docs/ws3/WS3_CODE_CONTRACT.md` (b-r2 박제본 그대로)
+- `index.html` / `manifest.json` / `service-worker.js`
+
+### 의도된 미구현 (이번 단계 제외)
+- `grade` 산출 / `tier` / `label` / `P-S/A/B`
+- `signalCycle` / `structureBucket` 최종 판정
+- `strategyBias` / `entryPlan` / `exitPlan`
+- `renderer` / `cardViewModel` / `UI`
+- `externalConfluence` / `Telegram`
+- `buyPressure` 계산 / `marketContext` 라벨링 (createEmpty default 유지)
+- 외부 호출 (외부 API / DOM / 브라우저 storage / KV) 0건
+- 런타임 clock API 사용 0건
+
+### Verified
+- `node --check v3/v3-score-breakdown.js` 통과
+- smoke test (h1 60개 synthetic candle) 통과:
+  - `valid: true / grossScore: 84 / riskPenalty: 0 / totalScore: 84`
+  - components 5개 / max 합계 100
+  - grade/signalCycle/entryPlan/exitPlan/tier/label 모두 부재
+  - **payload mutated: false** (DP-S1)
+- edge null: `valid=false / grossScore=0 / totalScore=0` + components shape 유지
+- edge empty signals (createEmpty + identity 채움): `valid=true / totalScore=31` (DP-S9 — momentum/volume/structure valid=false, core/execution valid=true)
+- 금지 패턴 grep (identifier 기반):
+  - `(grade|signalCycle|entryPlan|exitPlan)\s*[:=]` 0건
+  - `\.(grade|signalCycle|entryPlan|exitPlan)` 0건
+  - `delete payload.` 0건
+  - `fetch(` / `document.` / `localStorage` / `sessionStorage` / `XMLHttpRequest` / `Date.now(` 0건 (주석에도 literal 0건)
+  - `payload.<x> = mutation` 0건 (line 563 `===` 비교문 false-positive 검토 완료)
+- 보호 파일 `git diff` 빈 출력 = 0건
+
+### 기준 commit
+- branch: `claude/heuristic-cori-7865e7`
+- 이전 baseline: WS3 v0.2.0-c-r1 (`51e510d`)
+- 본 commit: (push 후 기록)
+
+---
+
 ## [v0.2.0-c-r1] — 2026-05-16 (buildFeaturePayload Builder)
 
 ### Added
