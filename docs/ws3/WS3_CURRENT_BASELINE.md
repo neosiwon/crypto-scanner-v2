@@ -4,8 +4,9 @@
 > 다음 단계 작업 전에 이 파일로 baseline 을 확인.
 
 **최종 업데이트**: 2026-05-16  
-**기능 단계 (current functional baseline)**: WS3 v0.3.0 scoreBreakdown core (`b7e0ea3`)  
-**운영 문서**: WS3 Workflow Template v0.1 박제 (`v0.3.0-docs`, 본 단계 — 기능 버전 변동 없음)  
+**기능 단계 (current functional baseline)**: WS3 v0.4.0 structureBucket / priceZone / referenceLow (본 단계)  
+**이전 기능 baseline**: WS3 v0.3.0 scoreBreakdown core (`b7e0ea3`)  
+**운영 문서**: WS3 Workflow Template v0.1 박제 (`d8bebc2`, v0.3.0-docs)  
 **branch**: `claude/heuristic-cori-7865e7`
 
 ---
@@ -22,7 +23,9 @@
 | WS3 v0.2.0-b-r1 | baseline consistency (문서) | `da00e62` | ✅ 박제 |
 | WS3 v0.2.0-b-r2 | Code Contract Freeze (문서) | `04eac43` | ✅ 박제 |
 | WS3 v0.2.0-c-r1 | `/v3/v3-feature-payload-builder.js` | `51e510d` | ✅ 박제 |
-| **WS3 v0.3.0** | **`/v3/v3-score-breakdown.js`** | **(push 후 기록)** | **✅ 박제 (이번 단계)** |
+| WS3 v0.3.0 | `/v3/v3-score-breakdown.js` | `b7e0ea3` | ✅ 박제 |
+| WS3 v0.3.0-docs | `/docs/ws3/WS3_WORKFLOW_TEMPLATE.md` | `d8bebc2` | ✅ 박제 (운영 문서) |
+| **WS3 v0.4.0** | **`/v3/v3-structure-bucket.js`** | **(push 후 기록)** | **✅ 박제 (이번 단계)** |
 
 ## REJECTED — repo 반영 보류
 
@@ -215,11 +218,12 @@ wrangler.toml
 /v3/v3-candle-normalizer.js                 ← tradeValue = close * volume 산출
 /v3/v3-indicators.js                        ← v0.2.0-b 박제본
 /v3/v3-feature-payload-builder.js           ← v0.2.0-c-r1 박제본
-/v3/v3-score-breakdown.js                   ← v0.3.0 박제본 (이번 단계 신규)
+/v3/v3-score-breakdown.js                   ← v0.3.0 박제본
+/v3/v3-structure-bucket.js                  ← v0.4.0 박제본 (이번 단계 신규)
 /v3/v3-index.html                           (생성도 X)
 ```
 
-> 다음 단계 (v0.4.0 structureBucket / priceZone / referenceLow) 진입 후 builder/score 인자 / 매핑 정책 갱신이 필요해지면 별도 r1.x 단계로 분리하여 별도 승인 후에만 수정.
+> 다음 단계 (v0.5.0 signalCycle / persistence / cooldown) 진입 후 builder/score/structure 인자 / 매핑 정책 갱신이 필요해지면 별도 r1.x 단계로 분리하여 별도 승인 후에만 수정.
 
 ---
 
@@ -236,7 +240,9 @@ v3-feature-payload-builder.js  (v0.2.0-c-r1 박제 — V3FeaturePayload 13 top-l
   ↓ (V3FeaturePayload, isValid 통과)
 v3-score-breakdown.js  (v0.3.0 박제 — 5 component + riskPenalty → totalScore)
   ↓ (standalone scoreBreakdown 객체, payload mutate 0건)
-[v0.4.0 structureBucket / priceZone / referenceLow 확정]
+v3-structure-bucket.js  (v0.4.0 박제 — 13 structureBucket + confidence 0~100)
+  ↓ (standalone structureDecision 객체, payload·scoreBreakdown mutate 0건)
+[v0.5.0 signalCycle / persistence / cooldown]
 ```
 
 ---
@@ -263,11 +269,6 @@ v3-score-breakdown.js  (v0.3.0 박제 — 5 component + riskPenalty → totalSco
 ## 다음 단계 (확정된 순서)
 
 ```text
-WS3 v0.4.0 — structureBucket / priceZone / referenceLow 확정
-  - BOX_PRESSURE / BOX_BREAKOUT / OB_RECLAIM / LOW_SWEEP_RECLAIM / MA_RECLAIM
-  - priceZone 확정
-  - referenceLow 다중 timeframe (5m/15m/1h/4h)
-
 WS3 v0.5.0 — signalCycle / persistence / cooldown
   - signalCycle 생성 / cooldown
   - 반복신호 milestone (3/5/10회)
@@ -296,20 +297,32 @@ WS3 v0.9.0+ — Phase 4-5 (백서 §21)
 
 ---
 
-## v0.3.0 핵심 메모
+## v0.4.0 핵심 메모
 
 ```text
-- v3/v3-score-breakdown.js 신규 생성 1건 (~880 lines)
-- v3-feature-payload-builder.js / v3-feature-payload.js 등 보호 파일 10종 모두 무손상
+- v3/v3-structure-bucket.js 신규 생성 1건
+- 보호 파일 12종 모두 무손상 (v3 *.js 7종 + index/manifest/sw 3종 + CODE_CONTRACT + WORKFLOW_TEMPLATE)
 - WS3_CODE_CONTRACT.md 미수정 (b-r2 박제본 그대로)
-- DP-S1 ~ DP-S9 + N-1 ~ N-5 모두 적용 / 미해결 항목 0건
-- payload mutation 0건 (DP-S1, smoke test 검증)
-- 100점 만점: core 25 + structure 20 + volume 20 + momentum 15 + execution 20
-- riskPenalty 최대 15 (default risk이면 penalty 0 — DP-S4)
-- grade / tier / label / P-S/A/B 미산출 (DP-S5)
-- buyPressure / marketContext 점수 미반영 (DP-S6 / N-2 / N-3, core에서 object 존재만)
-- indicator state 라벨 활용 (RSI/MFI/OBV/MA/volumeState) — 별도 임계값 하드코딩 0건
-- valid (계산 가능 여부) vs totalScore (신호 강도) 분리 (DP-S9)
+- WS3_WORKFLOW_TEMPLATE.md 미수정 (v0.1 박제본 그대로)
+- DP-STR1 ~ DP-STR10 + N-STR-1 ~ N-STR-5 모두 적용 / 미해결 항목 0건
+- payload mutation 0건 + scoreBreakdown mutation 0건 (DP-STR1, smoke test 검증)
+- 13 structureBucket 분류 + confidence 0~100 (등급 미사용)
+- 분류 우선순위: sweep/reclaim → box 외부 → box pressure/risk → priceZone → fallback (DP-STR10)
+- payload.structure.structure (CASE B 이중 nesting) + components.structure 보조값
+- touch count는 v3-indicators 출력 재사용 (재계산 0건, DP-STR5)
+- riskPenalty 미반영 (DP-STR8 — 후속 strategyBias 단계)
+- grade / tier / 등급 코드 미산출
+- signalCycle / strategyBias / entryPlan / exitPlan 미구현
 - 외부 호출 / DOM / 브라우저 storage / KV 0건
 - 런타임 clock API 사용 0건
+
+## v0.3.0 핵심 메모 (이전 단계)
+
+```text
+- v3/v3-score-breakdown.js 신규 생성
+- 100점 만점: core 25 + structure 20 + volume 20 + momentum 15 + execution 20
+- riskPenalty 최대 15 (default risk이면 penalty 0 — DP-S4)
+- payload mutation 0건 (DP-S1)
+- grade / tier / label / 등급 코드 미산출 (DP-S5)
+- indicator state 라벨 활용
 ```

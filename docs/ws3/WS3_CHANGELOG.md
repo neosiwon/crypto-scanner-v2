@@ -5,6 +5,91 @@
 
 ---
 
+## [v0.4.0] — 2026-05-16 (structureBucket / priceZone / referenceLow)
+
+### Added
+- `/v3/v3-structure-bucket.js` — structureBucket 본체 (신규)
+  - `WS3_StructureBucket.build(payload, scoreBreakdown, config)` → standalone structureDecision 객체 (payload / scoreBreakdown mutate 0건)
+  - **13 structureBucket 후보** — UNKNOWN / NO_STRUCTURE / BOX_MIDDLE / BOX_TOP_PRESSURE / BOX_BOTTOM_RISK / ABOVE_BOX_CONFIRMED_CANDIDATE / BELOW_BOX_CONFIRMED_CANDIDATE / LOW_SWEEP_PENDING / LOW_SWEEP_RECLAIM_CANDIDATE / HIGH_SWEEP_REJECT_CANDIDATE / RECLAIM_READY / BREAKOUT_PRESSURE_CANDIDATE / BREAKDOWN_RISK_CANDIDATE
+  - **confidence 0~100** (등급 미사용. 가산식: box+25 / priceZone+20 / refLow+20 / sweep/reclaim+20 / structureScore≥15 +15)
+  - **이중 환경 export**: `global.WS3_StructureBucket` + `module.exports`
+- `/docs/ws3/WS3_v0_4_0_STRUCTURE_BUCKET_REPORT.md` — 완료 보고서 (신규)
+
+### Confirmed paths (Gate 1 결과 — CASE B 이중 nesting)
+- structure root: `payload.structure.structure`
+- box: `payload.structure.structure.box`
+- referenceLows (복수형 's'): `payload.structure.structure.referenceLows`
+- priceZone: `payload.structure.structure.priceZone`
+- sweepReclaim: `payload.structure.structure.sweepReclaim`
+- touch count: `payload.structure.structure.box.touchesHigh / touchesLow` (v3-indicators.js 출력 재사용, 재계산 0건)
+- distance: `payload.structure.structure.box.distanceToTopPct / distanceToBottomPct`
+- currentClose: `payload.candles[primaryTimeframe]` last `.close`
+- primaryTimeframe: `payload.raw.builderDebug.primaryTimeframe || 'h1'`
+
+### Adopted DP Policy
+- **DP-STR1** standalone structureDecision. payload / scoreBreakdown mutate 금지.
+- **DP-STR2** 13 structureBucket 후보 사용.
+- **DP-STR3** priceZone source 우선순위 (structureRoot.priceZone → box distance 보조 → UNKNOWN).
+- **DP-STR4** referenceLow 선택 (sweep/reclaim 관련 low → 최근 valid → null). `distancePct = (currentClose - refLow.value) / currentClose * 100`.
+- **DP-STR5** 4-touch 기준 (`breakoutTouchCount=4`, `breakdownTouchCount=4`). touch count 재계산 0건.
+- **DP-STR6** confidence 0~100. 등급 미사용.
+- **DP-STR7** scoreBreakdown.components.structure.score만 confidence 보조값. totalScore 미사용.
+- **DP-STR8** riskPenalty 미반영 (후속 strategyBias / entryPlan 단계).
+- **DP-STR9** ABOVE_BOX → ABOVE_BOX_CONFIRMED_CANDIDATE / BELOW_BOX → BELOW_BOX_CONFIRMED_CANDIDATE.
+- **DP-STR10** 분류 우선순위 (sweep/reclaim → box 외부 → box pressure/risk → priceZone → fallback).
+- **N-STR-1** referenceLows 복수형 's' 사용.
+- **N-STR-2** 각 sub-component (box / priceZone / referenceLow / sweepReclaim) valid 개별 점검.
+- **N-STR-3** currentClose = primary timeframe (default 'h1') 마지막 candle.close.
+- **N-STR-4** confidence 가산은 `components.structure.valid === true && score >= 15` 조건만.
+- **N-STR-5** structureBucket === UNKNOWN || NO_STRUCTURE → confidence = 0.
+
+### Changed
+- `/docs/ws3/WS3_CHANGELOG.md` (본 파일): `[v0.4.0]` 엔트리 상단 추가
+- `/docs/ws3/WS3_CURRENT_BASELINE.md`: 완료된 단계 표 + 보호 파일 목록 + 모듈 의존성 + 다음 단계 갱신
+
+### Protected (수정 0건)
+- `v3-config.js` / `v3-feature-payload.js` / `v3-bithumb-client.js` / `v3-candle-normalizer.js` / `v3-indicators.js` / `v3-feature-payload-builder.js` / `v3-score-breakdown.js`
+- `docs/ws3/WS3_CODE_CONTRACT.md` (b-r2 박제본 그대로)
+- `docs/ws3/WS3_WORKFLOW_TEMPLATE.md` (v0.1 박제본 그대로)
+- `index.html` / `manifest.json` / `service-worker.js`
+
+### 의도된 미구현 (이번 단계 제외)
+- `grade` 산출 / `tier` / 등급 코드
+- `signalCycle` / `persistence` / `cooldown` — v0.5.0
+- `strategyBias` / `entryPlan` / `exitPlan` — v0.6.0
+- `renderer` / `cardViewModel` / `UI` — v0.7.0
+- 알림 연동 / `snapshot` / `evaluation` — v0.8.0
+- 외부 신호 / `LW activeCycle` — v0.9.x+
+- `riskPenalty` 반영 (DP-STR8)
+- 새 캔들 fetch / 새 지표 계산 / touch count 재계산 — 0건
+- 외부 호출 (외부 API / DOM / 브라우저 storage / KV) 0건
+- 런타임 clock API 사용 0건
+
+### Verified
+- `node --check v3/v3-structure-bucket.js` 통과
+- smoke test 4 시나리오 모두 통과:
+  - **consolidation box** (h1 60개) → `RECLAIM_READY` (DP-STR10 우선순위 1번 적용), confidence 100, payload/scoreBreakdown mutation 0건
+  - **low sweep + reclaim** → `LOW_SWEEP_RECLAIM_CANDIDATE`, confidence 100
+  - **empty / createEmpty payload** → `NO_STRUCTURE`, confidence 0 (N-STR-5)
+  - **null payload** → `NO_STRUCTURE`, confidence 0, components shape 유지, warnings `['PAYLOAD_NOT_OBJECT']`
+- 금지 패턴 grep (identifier 기반): 모두 0건
+  - `(grade|signalCycle|entryPlan|exitPlan)\s*[:=]` 0건
+  - `\.(grade|signalCycle|entryPlan|exitPlan)` 0건
+  - `payload.<x> = mutation` 0건 (이전 단계 false-positive조차 없음)
+  - `scoreBreakdown.<x> = mutation` 0건
+  - `delete payload.` / `delete scoreBreakdown.` 0건
+  - `fetch(` / `document.` / `localStorage` / `sessionStorage` / `XMLHttpRequest` / `Date.now(` 0건 (주석 literal도 0건)
+  - refined `P-S/A/B` / `Telegram` / `externalConfluence` / 렌더/UI 식별자 0건
+- 보호 파일 `git diff` 빈 출력 = 0건
+
+### 기준 commit
+- branch: `claude/heuristic-cori-7865e7`
+- 이전 functional baseline: WS3 v0.3.0 scoreBreakdown core (`b7e0ea3`)
+- 이전 commit (직전): WS3 v0.3.0-docs Workflow Template v0.1 (`d8bebc2`)
+- 본 commit: (push 후 기록)
+
+---
+
 ## [v0.3.0-docs] — 2026-05-16 (Workflow Template v0.1)
 
 문서 박제 단계. 기능 코드 변경 없음. 운영 워크플로우 표준 템플릿을 repo 운영 문서로 박제.
