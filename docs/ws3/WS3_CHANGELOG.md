@@ -5,6 +5,82 @@
 
 ---
 
+## [v0.5.0] — 2026-05-16 (signalCycle / persistence / cooldown)
+
+### Added
+- `/v3/v3-signal-cycle.js` — signalCycle 본체 (신규)
+  - `WS3_SignalCycle.build(payload, scoreBreakdown, structureDecision, previousSignalState, config)` → standalone signalCycle 객체 (모든 입력 mutate 0건)
+  - **8 cycleState** — UNKNOWN / NO_SIGNAL / NEW_CANDIDATE / PERSISTING / STRENGTHENING / WEAKENING / COOLDOWN / EXPIRED
+  - **5 cyclePhase** — UNKNOWN / SEED / ACTIVE / COOLING / ENDED
+  - **7 bucketFamily** — TOP_FAMILY / BOTTOM_FAMILY / LOW_SWEEP_FAMILY / RECLAIM_FAMILY / HIGH_SWEEP_FAMILY / NEUTRAL_FAMILY / NONE
+  - **candidateKey** = `exchange:market:timeframe:bucketFamily`
+  - **이중 환경 export**: `global.WS3_SignalCycle` + `module.exports`
+- `/docs/ws3/WS3_v0_5_0_SIGNAL_CYCLE_REPORT.md` — 완료 보고서 (신규)
+
+### Adopted DP Policy
+- **DP-CYC1** standalone signalCycle 반환. payload/scoreBreakdown/structureDecision/previousSignalState mutate 금지.
+- **DP-CYC2** previousSignalState optional input. Case A full / Case B minimal 두 형식만 허용. 저장소 read/write 0건.
+- **DP-CYC3** candidateKey = exchange + market + timeframe + bucketFamily (`mode: 'bucketFamily'`).
+- **DP-CYC4** 8 cycleState 후보.
+- **DP-CYC5** cyclePhase 5 후보 (NEW_CANDIDATE → SEED / PERSISTING·STRENGTHENING·WEAKENING → ACTIVE / COOLDOWN → COOLING / EXPIRED·NO_SIGNAL → ENDED).
+- **DP-CYC6** ageBars = 실행 횟수 카운터 (실제 candle gap 아님).
+- **DP-CYC7** cooldown.bars=3 (임시 기본값, backtest 후 조정).
+- **DP-CYC8** ready threshold: minConfidence=40, minTotalScore=30 (임시 기본값). ready != 전략 진입 가능.
+- **DP-CYC9** strengthen/weaken delta ±5/±10 (OR). 동시 충족 → PERSISTING + MIXED_DELTA warning. 한 축만 충족 + 반대 축 작은 변동 → 단순 분류.
+- **DP-CYC10** 런타임 clock API 사용 금지. `payload.ts` → `payload.candles[primaryTimeframe]` 마지막 candle.ts → null 우선순위 (U-CYC-1 Option A 확정).
+- **DP-CYC11** EXPIRED 1-turn 전환 (cooldown 소진 또는 ageBars >= maxAgeBars=20).
+- **U-CYC-1 Option A** — `payload.raw.builderDebug.sourceTs` 부재 확인. 우선순위 2번을 primary candle.ts로 흡수. 보호 파일 무손상.
+
+### Changed
+- `/docs/ws3/WS3_CHANGELOG.md` (본 파일): `[v0.5.0]` 엔트리 상단 추가
+- `/docs/ws3/WS3_CURRENT_BASELINE.md`: 완료된 단계 표 + 보호 파일 목록 + 모듈 의존성 + 다음 단계 갱신
+
+### Protected (수정 0건)
+- `v3-config.js` / `v3-feature-payload.js` / `v3-bithumb-client.js` / `v3-candle-normalizer.js` / `v3-indicators.js` / `v3-feature-payload-builder.js` / `v3-score-breakdown.js` / `v3-structure-bucket.js`
+- `docs/ws3/WS3_CODE_CONTRACT.md` (b-r2 박제본 그대로)
+- `docs/ws3/WS3_WORKFLOW_TEMPLATE.md` (v0.1 박제본 그대로)
+- `index.html` / `manifest.json` / `service-worker.js`
+
+### 의도된 미구현 (이번 단계 제외)
+- `grade` / `tier` / 등급 코드
+- `strategyBias` / `entryPlan` / `exitPlan` — v0.6.0
+- `renderer` / `cardViewModel` / `UI` — v0.7.0
+- 알림 연동 / `snapshot` / `evaluation` — v0.8.0
+- 외부 신호 / `LW activeCycle` — v0.9.x+
+- 저장소 read/write (KV / 브라우저 storage / DB / snapshot) 0건
+- 외부 호출 (외부 API / DOM / 브라우저 storage / KV) 0건
+- 런타임 clock API 사용 0건
+
+### Verified
+- `node --check v3/v3-signal-cycle.js` 통과
+- smoke test 7 시나리오 + 2 추가 시나리오 모두 통과:
+  - **NEW_CANDIDATE** (no previous state) → SEED, streak=1
+  - **PERSISTING** (same candidate, delta neutral) → ACTIVE, streak=3
+  - **STRENGTHENING** (delta +10/+20) → ACTIVE, isStrengthening=true
+  - **WEAKENING** (delta -20/-30) → ACTIVE, isWeakening=true
+  - **COOLDOWN** (prev active + current not ready) → COOLING, barsRemaining=3
+  - **EXPIRED via cooldown** (barsRemaining 1→0) → ENDED, barsRemaining=0
+  - **EXPIRED via maxAge** (ageBars 19+1=20=maxAgeBars) → ENDED, MAX_AGE_REACHED:20
+  - + invalid previous state → NEW_CANDIDATE + `PREVIOUS_STATE_INVALID` warning
+  - + null payload → NO_SIGNAL, candidateKey=null, ready=false
+- 모든 시나리오 **payload/scoreBreakdown/structureDecision/previousSignalState mutation 0건** (DP-CYC1, smoke 검증)
+- 금지 패턴 grep (identifier 기반):
+  - `(grade|strategyBias|entryPlan|exitPlan)\s*[:=]` 0건
+  - `\.(grade|strategyBias|entryPlan|exitPlan)` 0건
+  - `payload.<x> = mutation` 0건 (line 276 `===` 비교 false-positive)
+  - `scoreBreakdown.<x>= / structureDecision.<x>= / previousSignalState.<x>= mutation` 0건 (line 325/342 `===` 비교 false-positive)
+  - `delete payload./scoreBreakdown./structureDecision./previousSignalState.` 0건
+  - `fetch(` / `document.` / `localStorage` / `sessionStorage` / `XMLHttpRequest` / `Date.now(` 0건 (주석 literal도 0건)
+  - refined: `P-S/A/B` / `Telegram` / `externalConfluence` / 렌더 식별자 / UI 모델 식별자 0건
+- 보호 파일 `git diff` 빈 출력 = 0건
+
+### 기준 commit
+- branch: `claude/heuristic-cori-7865e7`
+- 이전 functional baseline: WS3 v0.4.0 structureBucket decision (`9e94b4d`)
+- 본 commit: (push 후 기록)
+
+---
+
 ## [v0.4.0] — 2026-05-16 (structureBucket / priceZone / referenceLow)
 
 ### Added
