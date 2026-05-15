@@ -5,6 +5,73 @@
 
 ---
 
+## [v0.2.0-c-r1] — 2026-05-16 (buildFeaturePayload Builder)
+
+### Added
+- `/v3/v3-feature-payload-builder.js` — WS3 v0.2.0-c-r1 builder 본체 (신규)
+  - `WS3_FeaturePayload.createEmpty()` 기반 13 top-level field 조립
+  - `WS3_FeaturePayload.isValid(payload) === true` 통과 보장
+  - 이중 환경 export: `global.WS3_FeaturePayload_Builder` + `module.exports`
+- `/docs/ws3/WS3_v0_2_0_c_r1_BUILD_REPORT.md` — 완료 보고서 (신규)
+
+### Adopted DP Policy
+- **DP-1** ts 우선순위: `marketCtx.ts` > primary candle.ts > `null`. `Date.now()` 금지.
+- **DP-2** canonical `tradeValue`만 외부 노출. `value/amount/quoteVolume` alias 금지. indicators 내부 통계 키(`currentTradeValueKrw` 등)는 v3-indicators.js 결과 그대로 보존 (U-1).
+- **DP-3** 별도 파일 신규. `v3-feature-payload.js` 미수정 (build 함수 throw 유지).
+- **DP-4** validator 현행 유지. builder가 `createEmpty` 기반으로 13 key 보장.
+- **DP-5** `normalizeIdentity(identity, input, builderDebug)` helper. `'KRW-BTC'` → `quote='KRW'` / `base='BTC'` 분해. 분해 실패 시 throw 없이 createEmpty default + warning.
+- **DP-6** `V3BuildMarketCtx` typedef. 안전 정규화 (throw 없이 fallback).
+- **DP-7** `raw.builderDebug` 디버그 보조 구조 (builderVersion / warnings / primaryTimeframe / resolvedTsSource / candleCounts / identityInput).
+- **U-2** `V3BuildCandlesInput` typedef. `{ m5, m15, h1, h4, d1 }` 객체 입력. 단일 배열 X.
+
+### Indicator Snapshot Mapping
+- `payload.momentum` ← `rsi` / `mfi` / `obv` / `ma`
+- `payload.volume` ← `volume` / `volumeAcceleration` / `tradeValue` (indicators 내부 통계 키 그대로)
+- `payload.structure` ← `candleShape` / `candleStructure` / `structure`
+- `payload.indicators` ← `atr` / `snapshotValid` / `warnings` / `debug` / `indicatorVersion`
+
+### Changed
+- `/docs/ws3/WS3_CHANGELOG.md` (본 파일): `[v0.2.0-c-r1]` 엔트리 상단 추가
+- `/docs/ws3/WS3_CURRENT_BASELINE.md`: 완료된 단계 표 + 보호 파일 목록 + 다음 단계 갱신
+
+### Protected (수정 0건)
+- `v3-feature-payload.js` (build 함수 throw 유지 — DP-3-A 정합)
+- `v3-config.js` / `v3-bithumb-client.js` / `v3-candle-normalizer.js` / `v3-indicators.js`
+- `index.html` / `manifest.json` / `service-worker.js`
+- `docs/ws3/WS3_CODE_CONTRACT.md` (b-r2 박제본 그대로)
+
+### 의도된 미구현 (이번 단계 제외)
+- `buyPressure` 계산/라벨링 (createEmpty default `BUY_PRESSURE_UNKNOWN` 유지)
+- `marketContext` 라벨링 (createEmpty default `UNKNOWN` 유지)
+- `scoreBreakdown` / `grade` / `signalCycle` / `structureBucket` 최종 판정
+- `strategyBias` / `entryPlan` / `exitPlan`
+- `renderer` / `cardViewModel` / `UI`
+- `externalConfluence` / `Telegram`
+- `fetch` / `document` / `localStorage` / `KV` 직접 호출 0건
+- `Date.now()` 사용 0건
+
+### Verified
+- `node --check v3/v3-feature-payload-builder.js` 통과
+- smoke test (h1 60개 synthetic candle) 11항목 모두 통과:
+  - `Object.keys(payload).length === 13`
+  - `WS3_FeaturePayload.isValid(payload) === true`
+  - 5 timeframe 모두 Array
+  - `identity.quote` / `identity.exchange` 모두 string
+  - `payload.ts === sampleCandles.h1[last].ts` (DP-1 우선순위 2 적용)
+  - `payload.buyPressure.state === 'BUY_PRESSURE_UNKNOWN'`
+- 안전성 검증: `build(null, null)` → isValid true + warnings `['INVALID_CANDLES_SHAPE', 'MISSING_MARKET', 'EMPTY_PRIMARY_CANDLES']`
+- 금지 패턴 grep:
+  - `Date.now(` 코드 침범 0건 (주석 3건만)
+  - `fetch(` / `delete payload.` / `skipPlaceholders` / `omitNullSlots` / alias 노출 / DOM·localStorage 코드 침범 0건
+- 보호 파일 `git diff` 빈 출력 = 0건
+
+### 기준 commit
+- branch: `claude/heuristic-cori-7865e7`
+- 이전 baseline: WS3 v0.2.0-b-r2 (`04eac43`)
+- 본 commit: (push 후 기록)
+
+---
+
 ## [v0.2.0-b-r2] — 2026-05-14 (Code Contract Freeze)
 
 ### Added
