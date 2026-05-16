@@ -5,6 +5,101 @@
 
 ---
 
+## [v0.8.0] — 2026-05-16 (OperationPacket · notification/snapshot/evaluation 후보 패킷)
+
+### Added
+- `/v3/v3-operation-packet.js` — operationPacket 본체 (신규)
+  - `WS3_OperationPacket.build(payload, scoreBreakdown, structureDecision, signalCycle, strategyPlan, cardViewModel, config)` → standalone operationPacket 객체 (6종 입력 mutate 0건)
+  - **출력 7대 영역**: `identity` (6-field) / `candidateKey` / `routing` / `notificationPacket` / `snapshotPacket` / `evaluationSeed` / `displaySummary` + reasons / warnings / debug / configUsed
+  - **3가지 분류 type** — notificationType (6) / snapshotType (6) / evaluationType (5) 우선순위 분류
+  - **routing 3-flag** — shouldNotify / shouldSnapshot / shouldEvaluate (boolean, config 게이트)
+  - **safeHints 4 라벨** — REFERENCE_ZONE / INVALIDATION_LEVEL / TARGET_HINT / RISK_REWARD_HINT (HINT_LABEL ko/en)
+  - **이중 환경 export**: `global.WS3_OperationPacket` + `module.exports`
+- `/docs/ws3/WS3_v0_8_0_OPERATION_PACKET_REPORT.md` — 완료 보고서 (신규)
+
+### Adopted DP Policy
+- **DP-OP1** standalone 반환. 6종 입력 (payload/scoreBreakdown/structureDecision/signalCycle/strategyPlan/cardViewModel) mutate/delete 금지.
+- **DP-OP2** side-effect 금지 (외부 전송 / 영속 저장 / network / DOM / browser storage).
+- **DP-OP3** 출력: routing + notificationPacket + snapshotPacket + evaluationSeed + displaySummary 구조.
+- **DP-OP4** shouldNotify 기본 false. enable && valid && type != NONE 일 때만 true.
+- **DP-OP5** shouldSnapshot 기본 true (config 활성화). invalid/NONE 시 false.
+- **DP-OP6** shouldEvaluate 기본 true (config 활성화). invalid/NONE 시 false.
+- **DP-OP7** evaluationSeed 포함 (seed-only). 실제 평가는 후속 계층.
+- **DP-OP8** baselinePrice numeric only. object/range/string entryZone skip. isNumericPrice() fallback chain.
+- **DP-OP9** safeHints numeric hint 허용. 매수가/손절가/익절가 라벨 금지. 안전 라벨 4종만.
+- **DP-OP10** raw payload / payload.raw / builderDebug 전체 / identityInput / candle raw array 직접 노출 금지.
+- **DP-OP11** 등급 코드 외부 노출 금지.
+- **DP-OP12** candidateKey 재계산 금지. signalCycle.candidateKey 그대로 복사.
+
+### U-OP 처리 (Gate 1 unclear 해소)
+- **U-OP-1 Option A** identity merge — field-by-field fallback (6-field 풀-set):
+  - exchange: payload.identity.exchange → null
+  - market: cardViewModel.identity.market → payload.identity.market → null
+  - base: payload.identity.base → cardViewModel.identity.symbol → null
+  - quote: payload.identity.quote → null
+  - displayName: payload.identity.displayName → cardViewModel.header.title → cardViewModel.identity.symbol → null
+  - timeframe: cardViewModel.identity.timeframe → payload.raw.builderDebug.primaryTimeframe → 'h1'
+- **U-OP-2 Option A** timestamp/startTs/snapshotKey ts 기준 — `payload.ts` 단일 기준. primary candle ts 재해석 금지.
+- **U-OP-3** isSameCandidate 방어 — `persistence && persistence.isSameCandidate === false` defensive check.
+
+### Changed
+- `/docs/ws3/WS3_CHANGELOG.md` (본 파일): `[v0.8.0]` 엔트리 상단 추가
+- `/docs/ws3/WS3_CURRENT_BASELINE.md`: 완료된 단계 표 + 보호 파일 목록 + 모듈 의존성 + 다음 단계 갱신
+
+### Protected (수정 0건 — 16종)
+- `v3-config.js` / `v3-feature-payload.js` / `v3-bithumb-client.js` / `v3-candle-normalizer.js` / `v3-indicators.js` / `v3-feature-payload-builder.js` / `v3-score-breakdown.js` / `v3-structure-bucket.js` / `v3-signal-cycle.js` / `v3-strategy-plan.js` / `v3-card-view-model.js`
+- `docs/ws3/WS3_CODE_CONTRACT.md` (b-r2 박제본 그대로)
+- `docs/ws3/WS3_WORKFLOW_TEMPLATE.md` (v0.1 박제본 그대로)
+- `index.html` / `manifest.json` / `service-worker.js`
+
+### 의도된 미구현 (이번 단계 제외)
+- 실제 외부 전송 / 알림 발송 (별도 transport 단계)
+- KV / DB / 파일 IO / 브라우저 storage 저장
+- network 호출 / XHR / 외부 fetch
+- 평가 결과 계산 (returnPct / maxDrawdownPct / reachedTarget / invalidated)
+- 24h / 7d outcome 산출
+- DOM / 렌더 / HTML 생성 (별도 renderer 단계)
+- 등급 코드 / tier 산출
+- 런타임 clock API 사용
+- bot 식별 시크릿 / 채널 식별자 / API 키
+
+### Verified
+- `node --check v3/v3-operation-packet.js` 통과
+- smoke test **14 시나리오** (9 핵심 + 5 Extra) 모두 통과:
+  - S1 ready notification candidate → notification READY / shouldNotify default false / candidateKey 복사
+  - S2 watch candidate → notification WATCH / evaluation WATCH_24H
+  - S3 blocked risk → notification BLOCKED / evaluation NONE
+  - S4 cooldown → notification COOLDOWN / snapshot COOLDOWN / evaluation COOLDOWN_REVIEW
+  - S5 expired → notification EXPIRED / snapshot EXPIRED / evaluation EXPIRED_REVIEW
+  - S6 snapshot candidate → snapshot CANDIDATE / shouldSnapshot true / snapshotKey 에 payload.ts 포함
+  - S7 state change → STATE_CHANGE 3 패턴 (strengthening / isSameCandidate=false / bucketTransition)
+  - S8 evaluation seed → PLAN_24H / horizon 24H / baselinePrice 112 (referencePrice)
+  - S9 null inputs → 모두 NONE / shouldX 모두 false / identity.timeframe default 'h1'
+  - Extra-A baselinePrice numeric only — object entryZone skip → last close fallback
+  - Extra-B identity field-by-field fallback — 6-field 정확히 채워짐
+  - Extra-C shouldNotify default false — enable 시 true
+  - Extra-D snapshotKey null when ts missing
+  - Extra-E frozen-input safety
+- 모든 시나리오 **6종 입력 mutation 0건** (DP-OP1, smoke 검증)
+- 금지 패턴 grep (identifier 기반):
+  - `Date.now(` / `performance.now(` / `new Date(` / `setTimeout` / `setInterval` 0건
+  - `document.` / `window.` / `localStorage` / `sessionStorage` / `XMLHttpRequest` / `fetch(` / `addEventListener` / `innerHTML` 0건
+  - `Telegram` / `sendTelegram` / `telegramFetch` / `botToken` / `chatId` / `apiKey` / `secret` / `token` 0건
+  - `payload.X = / scoreBreakdown.X = / structureDecision.X = / signalCycle.X = / strategyPlan.X = / cardViewModel.X = mutation` 0건
+  - `delete <input>.` 0건
+  - `매수하세요 / 매도하세요 / buy now / sell now / take profit / stop loss` 0건 (comment 외)
+  - `buySignal / sellSignal / orderSignal / realEntryPrice / realStopLoss / realTakeProfit / stopLossHint / takeProfitHint / planGradeHint` 0건
+  - `payload.raw / identityInput / raw.builderDebug` — raw 객체 전체 / identityInput 객체 노출 0건. `payload.raw.builderDebug.primaryTimeframe` scalar read 만 허용 (v0.7.0 정합)
+  - refined: `(^|[^A-Za-z0-9_])P-(S|A|B)([^A-Za-z0-9_]|$)` (word-boundary) 0건
+- 보호 파일 `git diff` 빈 출력 = 0건 (16종)
+
+### 기준 commit
+- branch: `claude/heuristic-cori-7865e7`
+- 이전 functional baseline: WS3 v0.7.0 cardViewModel (`7e2ef36`)
+- 본 commit: (push 후 기록)
+
+---
+
 ## [v0.7.0] — 2026-05-16 (CardViewModel · hotfix 반영)
 
 ### Added

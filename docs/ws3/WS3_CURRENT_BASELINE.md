@@ -4,8 +4,8 @@
 > 다음 단계 작업 전에 이 파일로 baseline 을 확인.
 
 **최종 업데이트**: 2026-05-16  
-**기능 단계 (current functional baseline)**: WS3 v0.7.0 CardViewModel (본 단계)  
-**이전 기능 baseline**: WS3 v0.6.0 strategyPlan (`8ebba40`)  
+**기능 단계 (current functional baseline)**: WS3 v0.8.0 OperationPacket (본 단계)  
+**이전 기능 baseline**: WS3 v0.7.0 cardViewModel (`7e2ef36`)  
 **운영 문서**: WS3 Workflow Template v0.1 박제 (`d8bebc2`, v0.3.0-docs)  
 **branch**: `claude/heuristic-cori-7865e7`
 
@@ -28,7 +28,8 @@
 | WS3 v0.4.0 | `/v3/v3-structure-bucket.js` | `9e94b4d` | ✅ 박제 |
 | WS3 v0.5.0 | `/v3/v3-signal-cycle.js` | `59c8b78` | ✅ 박제 |
 | WS3 v0.6.0 | `/v3/v3-strategy-plan.js` | `8ebba40` | ✅ 박제 |
-| **WS3 v0.7.0** | **`/v3/v3-card-view-model.js`** | **(push 후 기록)** | **✅ 박제 (이번 단계)** |
+| WS3 v0.7.0 | `/v3/v3-card-view-model.js` | `7e2ef36` | ✅ 박제 |
+| **WS3 v0.8.0** | **`/v3/v3-operation-packet.js`** | **(push 후 기록)** | **✅ 박제 (이번 단계)** |
 
 ## REJECTED — repo 반영 보류
 
@@ -225,11 +226,12 @@ wrangler.toml
 /v3/v3-structure-bucket.js                  ← v0.4.0 박제본
 /v3/v3-signal-cycle.js                      ← v0.5.0 박제본
 /v3/v3-strategy-plan.js                     ← v0.6.0 박제본
-/v3/v3-card-view-model.js                   ← v0.7.0 박제본 (이번 단계 신규)
+/v3/v3-card-view-model.js                   ← v0.7.0 박제본
+/v3/v3-operation-packet.js                  ← v0.8.0 박제본 (이번 단계 신규)
 /v3/v3-index.html                           (생성도 X)
 ```
 
-> 다음 단계 (v0.8.0 Telegram / snapshot / evaluation) 진입 후 builder/score/structure/cycle/plan/viewmodel 인자 / 매핑 정책 갱신이 필요해지면 별도 r1.x 단계로 분리하여 별도 승인 후에만 수정.
+> 다음 단계 (v0.9.0+ Phase 4-5 / externalConfluence / LW activeCycle) 진입 후 builder/score/structure/cycle/plan/viewmodel/operationPacket 인자 / 매핑 정책 갱신이 필요해지면 별도 r1.x 단계로 분리하여 별도 승인 후에만 수정.
 
 ---
 
@@ -254,7 +256,9 @@ v3-strategy-plan.js  (v0.6.0 박제 — 10 strategyBias + 4축 분류 + entryPla
   ↓ (standalone strategyPlan 객체, 4종 입력 mutate 0건)
 v3-card-view-model.js  (v0.7.0 박제 — identity/header/chips/metrics/sections/displayFlags/tone)
   ↓ (standalone cardViewModel 객체, 5종 입력 mutate 0건, UI-ready, 비-렌더)
-[v0.8.0 Telegram / snapshot / evaluation]
+v3-operation-packet.js  (v0.8.0 박제 — routing/notificationPacket/snapshotPacket/evaluationSeed/displaySummary)
+  ↓ (standalone operationPacket 객체, 6종 입력 mutate 0건, transport-ready, side-effect free)
+[v0.9.0+ Phase 4-5 / externalConfluence / LW activeCycle / 실제 transport]
 ```
 
 ---
@@ -281,22 +285,49 @@ v3-card-view-model.js  (v0.7.0 박제 — identity/header/chips/metrics/sections
 ## 다음 단계 (확정된 순서)
 
 ```text
-WS3 v0.8.0 — Telegram / snapshot / evaluation
-  - Telegram 메시지 템플릿
-  - snapshot URL/저장
-  - 사후평가 15m/1h/4h/24h/3d/7d
-
 WS3 v0.9.0+ — Phase 4-5 (백서 §21)
   - 빗썸 공식 externalConfluence
   - LW activeCycle tracker
   - 사후평가 보정 분석
 
-(별도) v0.7.x renderer 단계 — DOM/실제 HTML 렌더는 별도 단계로 분리 (CardViewModel 자체는 데이터 객체)
+(별도) v0.8.x transport 단계 — 실제 외부 전송 / KV 저장 / 평가 실행은 별도 단계 (OperationPacket 자체는 transport-ready 데이터)
+(별도) v0.7.x renderer 단계 — DOM/실제 HTML 렌더는 별도 단계
 ```
 
 ---
 
-## v0.7.0 핵심 메모 (hotfix 반영)
+## v0.8.0 핵심 메모
+
+```text
+- v3/v3-operation-packet.js 신규 생성 1건
+- 보호 파일 16종 모두 무손상 (v3 *.js 11종 + index/manifest/sw 3종 + CODE_CONTRACT + WORKFLOW_TEMPLATE)
+- WS3_CODE_CONTRACT.md 미수정 (b-r2 박제본 그대로)
+- WS3_WORKFLOW_TEMPLATE.md 미수정 (v0.1 박제본 그대로)
+- DP-OP1 ~ DP-OP12 모두 적용 / 미해결 항목 0건
+- 6종 입력 (payload / scoreBreakdown / structureDecision / signalCycle / strategyPlan / cardViewModel) mutation 모두 0건 (DP-OP1, smoke 검증)
+- DP-OP3 출력 7대 영역 (identity / candidateKey / routing / notificationPacket / snapshotPacket / evaluationSeed / displaySummary)
+- DP-OP4 shouldNotify 기본 false (enableNotificationCandidate=false default, Extra-C 검증)
+- DP-OP5/6 shouldSnapshot/shouldEvaluate 기본 true (config enable). invalid/NONE 시 false
+- DP-OP8 baselinePrice numeric only fallback chain (referencePrice → entryZone numeric → last close → null. Extra-A 검증)
+- DP-OP9 safeHints 안전 라벨 4종만 (REFERENCE_ZONE / INVALIDATION_LEVEL / TARGET_HINT / RISK_REWARD_HINT)
+- DP-OP10 raw payload / identityInput / candle raw array 직접 노출 0건. primaryTimeframe scalar read 만 허용
+- DP-OP11 등급 코드 산출 0건
+- DP-OP12 candidateKey 재계산 0건 (signalCycle.candidateKey 그대로 복사. S1 검증)
+- U-OP-1 Option A: 6-field field-by-field fallback (Extra-B 검증)
+- U-OP-2 Option A: payload.ts only (Extra-D 검증)
+- U-OP-3: persistence && persistence.isSameCandidate === false defensive check (S7 검증)
+- notificationType 6 후보 (NONE / WATCH / READY / BLOCKED / COOLDOWN / EXPIRED)
+- snapshotType 6 후보 (NONE / CANDIDATE / STATE_CHANGE / COOLDOWN / EXPIRED / DEBUG)
+- evaluationType 5 후보 (NONE / WATCH_24H / PLAN_24H / COOLDOWN_REVIEW / EXPIRED_REVIEW)
+- notificationChannel 2 후보 (NONE / TELEGRAM_CANDIDATE)
+- snapshotBucket 4 후보 (NONE / CANDIDATE_SNAPSHOT / STATE_SNAPSHOT / DEBUG_SNAPSHOT)
+- evaluationWindow 3 후보 (NONE / 24H / 7D)
+- severity 5 후보 (none / info / notice / warning / critical)
+- 외부 전송 / 영속 저장 / network fetch / DOM / storage / clock API / bot secret / chatId / apiKey 0건
+- 실거래 / 주문 / 알림 / 렌더 / 외부 신호 / 등급 코드 0건
+- frozen input 안전성 검증 (Extra-E)
+
+## v0.7.0 핵심 메모 (이전 단계, hotfix 반영)
 
 ```text
 - v3/v3-card-view-model.js 신규 생성 1건 (hotfix 반영본)
