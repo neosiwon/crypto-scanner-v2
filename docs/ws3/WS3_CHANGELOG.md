@@ -5,6 +5,100 @@
 
 ---
 
+## [v0.12.0] — 2026-05-17 (Adapter Output Contract Pack)
+
+### Added
+- `/v3/v3-transport-plan.js` — TransportPlan (신규, 740 라인)
+  - `WS3_TransportPlan.build(input, config)` → standalone dry-run plan 객체 (입력 5종 mutate 0건)
+  - **출력 top-level**: valid/version/dryRun/telegramPlan/snapshotPlan/evaluationPlan/auditPlan + reasons/warnings/debug/configUsed
+  - **telegramPlan.shouldSend = 4단계 AND**: `op.shouldNotify && ac.allowNotify && !ac.suppressNotify && ac.canNotify`
+  - **snapshotPlan.shouldStore = 3단계 AND** (signal snapshot timing — outcome timing 제외)
+  - **evaluationPlan.shouldStore = 4단계 AND** (outcome.shouldStoreOutcome 포함)
+  - **auditPlan 7 후보** 우선순위: ROUTING_CONFLICT > DATA_AMBIGUOUS > DATA_INSUFFICIENT > REVIEW_REQUIRED > SUPPRESSED_NOTIFY > WARNING_PRESENT > NONE
+  - **warningAuditMode = 'critical'** default (7 critical warning 만 audit trigger). 'all' / 'off' 옵션
+  - **detectRoutingConflict() 분리**: ROUTING_CONFLICT_NOTIFY / ROUTING_CONFLICT_SNAPSHOT / ROUTING_CONFLICT_EVALUATION 각각 별도 reason
+  - **dry-run 어휘 강제**: '발송됨/저장됨/sent/delivered/completed transmission' 코드 0건. '발송 후보/dry-run/저장 계획' 만 허용
+  - **이중 환경 export**: `global.WS3_TransportPlan` + `module.exports`
+- `/v3/v3-renderer-binding.js` — RendererBinding (신규, 834 라인)
+  - `WS3_RendererBinding.build(input, config)` → standalone UI binding 객체 (DOM-free, 입력 mutate 0건)
+  - **출력 top-level**: valid/version/displayMode/header/chips/metrics/sections/flags + reasons/warnings/debug/configUsed
+  - **U-APO-1 Option B**: `sections.{strategy/lifecycle/evaluation/confluence/transport}` 모두 array
+  - **U-APO-2 Option A**: `displayMode 7 후보` 우선순위 (BLOCKED→COOLDOWN→CLOSED→REVIEW→ALERT→DEFAULT→UNKNOWN)
+  - **U-APO-3 Option C**: `flags` namespace 분리 (`flags.binding` + `flags.card`) — cardViewModel.displayFlags 10 boolean 보존
+  - **cardViewModel superset** (header/chips/metrics) — mutation 없이 추가 정보 적층
+  - **sections.strategy** cardViewModel.sections.strategy (object) → display item array 변환 (입력 mutate 0건)
+  - **이중 환경 export**: `global.WS3_RendererBinding` + `module.exports`
+- `/docs/ws3/WS3_v0_12_0_ADAPTER_OUTPUT_CONTRACT_PACK_REPORT.md` — 완료 보고서 (신규, 297 라인)
+
+### Adopted DP Policy
+- **DP-APO1** 출력 adapter contract 만. 실제 transport / renderer 구현 X. dry-run plan / binding 객체만 산출.
+- **DP-APO2** v0.12.0 출력 layer (TransportPlan + RendererBinding). 입력 layer 는 v0.11.0 에서 완료.
+- **DP-APO3** side-effect 금지 (fetch / Telegram 전송 / KV write / DB / DOM / storage / runtime clock / persist).
+- **DP-APO4** snapshotPlan = **signal snapshot timing** (evaluationOutcome.shouldStoreOutcome 제외). evaluationPlan = **outcome timing**. timing 혼동 금지.
+- **DP-APO5** TransportPlan 의 모든 routing 결정은 v0.8/v0.9/v0.10 출력의 boolean AND 집계. 재해석 / 재산출 금지.
+- **DP-APO6** RendererBinding 은 cardViewModel superset. 기존 header/chips/metrics 보존하면서 추가 layer 적층. 기존 시각화 손상 0건.
+- **DP-APO7** Config-driven (DEFAULT_*_CONFIG + mergeXxxConfig).
+- **DP-APO8** 입력 객체 mutation / delete / Object.assign mutation 금지.
+- **DP-APO9** 신규 파일 2개 + 문서 갱신만. 기존 v3 엔진 파일 (21종) 수정 금지.
+- **DP-APO10** dry-run 어휘 강제 — '발송됨 / 저장됨 / 전송 완료 / sent / delivered / completed transmission' 코드 0건. '발송 후보 / dry-run / 저장 계획' 어휘만 사용.
+
+### U-APO / N-APO-OBS 처리
+- **U-APO-1 Option B** RendererBinding.sections.{strategy/lifecycle/evaluation/confluence/transport} 5종 모두 array. cardViewModel.sections.strategy (object) 는 display item array 로 변환 (입력 mutate 0건).
+- **U-APO-2 Option A** displayMode 7 후보 (BLOCKED / COOLDOWN / CLOSED / REVIEW / ALERT / DEFAULT / UNKNOWN) 우선순위 first-match-wins. cardViewModel.tone / activeCycle.lifecycleState / evaluationOutcome.status 종합.
+- **U-APO-3 Option C** flags namespace 분리 — `flags.binding` (RendererBinding 신규 boolean) + `flags.card` (cardViewModel.displayFlags 10 boolean preserved verbatim). 충돌 없이 양쪽 layer 보존.
+- **N-APO-OBS-1** TransportPlan 의 auditPlan 은 reviewQueue 후보. 실제 reviewQueue write 0건 (v0.12.x 분리).
+- **N-APO-OBS-2** dry-run 어휘 강제 (DP-APO10) — '전송 완료/sent' 표현 코드 침범 0건.
+
+### Changed
+- `/docs/ws3/WS3_CHANGELOG.md` (본 파일): `[v0.12.0]` 엔트리 상단 추가
+- `/docs/ws3/WS3_CURRENT_BASELINE.md`: 완료된 단계 표 + 보호 파일 목록 (21종) + 모듈 의존성 + 다음 단계 갱신
+
+### Protected (수정 0건 — 21종)
+- v3 *.js 16종 (config / feature-payload / bithumb-client / candle-normalizer / indicators / feature-payload-builder / score-breakdown / structure-bucket / signal-cycle / strategy-plan / card-view-model / operation-packet / active-cycle / evaluation-outcome / evaluation-observation-adapter / external-confluence)
+- `docs/ws3/WS3_CODE_CONTRACT.md` (b-r2 박제본 그대로)
+- `docs/ws3/WS3_WORKFLOW_TEMPLATE.md` (v0.1 박제본 그대로)
+- `index.html` / `manifest.json` / `service-worker.js`
+
+### 의도된 미구현 (이번 단계 제외)
+- 실제 Telegram bot API 호출 / chatId / botToken
+- 실제 KV write / DB persist / 파일 IO / 브라우저 storage
+- 실제 reviewQueue write (auditPlan 은 후보 산출 까지)
+- 실제 DOM 렌더 / HTML attach / addEventListener
+- 입력 객체 mutation
+- 런타임 clock API (Date.now / new Date / performance.now)
+- bot 식별 시크릿 / 채널 식별자 / API 키
+
+### Verified
+- `node --check v3/v3-transport-plan.js` 통과 (SYNTAX_OK)
+- `node --check v3/v3-renderer-binding.js` 통과 (SYNTAX_OK)
+- smoke test **22 시나리오** (20 핵심 + 2 Extra) 모두 통과:
+  - S1 telegramPlan AND 4단계 / S2 shouldNotify false → block / S3 allowNotify false → block / S4 suppressNotify true → block / S5 canNotify false → block
+  - S6 snapshotPlan 3단계 AND / S7 evaluationPlan 4단계 AND (outcome.shouldStoreOutcome 포함)
+  - S8 auditPlan ROUTING_CONFLICT 우선 / S9 DATA_AMBIGUOUS / S10 DATA_INSUFFICIENT / S11 REVIEW_REQUIRED / S12 SUPPRESSED_NOTIFY / S13 WARNING_PRESENT critical-only / S14 NONE
+  - S15 RendererBinding cardViewModel superset (header/chips/metrics preserved)
+  - S16 sections 5종 모두 array (U-APO-1 B)
+  - S17 displayMode 7 후보 우선순위 (BLOCKED win)
+  - S18 flags namespace 분리 (binding + card 10 boolean preserved)
+  - S19 mutation 0건 (양쪽 모듈 — frozen input)
+  - S20 dry-run 어휘 / forbidden patterns 0건
+  - Extra-A flags.card.* 10 key 보존 / Extra-B warningAuditMode='all'/'off' 분기
+- 모든 시나리오 **입력 mutation 0건** (DP-APO8, S19 검증)
+- 금지 패턴 grep (코드 침범 0건, 매치는 모두 정책 명시 JSDoc comment):
+  - `fetch( / XMLHttpRequest / Telegram bot 호출 / sendMessage 실호출 / KV.put / KV.get / DB / localStorage / sessionStorage / Date.now( / new Date / performance.now` 코드 0건
+  - `document. / innerHTML / addEventListener / DOMContentLoaded` 코드 0건
+  - `발송됨 / 저장됨 / 전송 완료 / sent / delivered / completed transmission` 코드 0건 (dry-run 어휘 강제, DP-APO10)
+  - `매수 성공 / 손절 / 익절 / 수익 확정 / 손실 확정 / profit / loss / take profit / stop loss / 매수하세요 / 매도하세요` 코드 0건
+  - `chatId / botToken / apiKey / secret / token` 코드 0건
+  - 입력 mutation (`input.X = / op.X = / ac.X = / ob.X = / oc.X = / cv.X = / delete <input>.X`) 0건
+- 보호 파일 `git diff --stat HEAD --` 빈 출력 = 0건 (21종)
+
+### 기준 commit
+- branch: `claude/heuristic-cori-7865e7`
+- 이전 functional baseline: WS3 v0.11.0 adapterInputContractPack (`4c94875`)
+- 본 commit: (push 후 기록)
+
+---
+
 ## [v0.11.0] — 2026-05-16 (Adapter Input Contract Pack)
 
 ### Added

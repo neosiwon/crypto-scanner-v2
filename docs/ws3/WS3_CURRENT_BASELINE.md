@@ -3,9 +3,9 @@
 > 현재 GitHub 박제 기준 (최신).  
 > 다음 단계 작업 전에 이 파일로 baseline 을 확인.
 
-**최종 업데이트**: 2026-05-16  
-**기능 단계 (current functional baseline)**: WS3 v0.11.0 Adapter Input Contract Pack (본 단계)  
-**이전 기능 baseline**: WS3 v0.10.0 evaluationOutcome (`887123a`)  
+**최종 업데이트**: 2026-05-17  
+**기능 단계 (current functional baseline)**: WS3 v0.12.0 Adapter Output Contract Pack (본 단계)  
+**이전 기능 baseline**: WS3 v0.11.0 adapterInputContractPack (`4c94875`)  
 **운영 문서**: WS3 Workflow Template v0.1 박제 (`d8bebc2`, v0.3.0-docs)  
 **branch**: `claude/heuristic-cori-7865e7`
 
@@ -32,7 +32,8 @@
 | WS3 v0.8.0 | `/v3/v3-operation-packet.js` | `2fb95cf` | ✅ 박제 |
 | WS3 v0.9.0 | `/v3/v3-active-cycle.js` | `00831af` | ✅ 박제 |
 | WS3 v0.10.0 | `/v3/v3-evaluation-outcome.js` | `887123a` | ✅ 박제 |
-| **WS3 v0.11.0** | **`/v3/v3-evaluation-observation-adapter.js` + `/v3/v3-external-confluence.js`** | **(push 후 기록)** | **✅ 박제 (이번 단계, 2종 입력 adapter)** |
+| WS3 v0.11.0 | `/v3/v3-evaluation-observation-adapter.js` + `/v3/v3-external-confluence.js` | `4c94875` | ✅ 박제 |
+| **WS3 v0.12.0** | **`/v3/v3-transport-plan.js` + `/v3/v3-renderer-binding.js`** | **(push 후 기록)** | **✅ 박제 (이번 단계, 2종 출력 adapter)** |
 
 ## REJECTED — repo 반영 보류
 
@@ -233,12 +234,14 @@ wrangler.toml
 /v3/v3-operation-packet.js                  ← v0.8.0 박제본
 /v3/v3-active-cycle.js                      ← v0.9.0 박제본
 /v3/v3-evaluation-outcome.js                ← v0.10.0 박제본
-/v3/v3-evaluation-observation-adapter.js    ← v0.11.0 박제본 (이번 단계 신규, 입력 adapter)
-/v3/v3-external-confluence.js               ← v0.11.0 박제본 (이번 단계 신규, 보조 context)
+/v3/v3-evaluation-observation-adapter.js    ← v0.11.0 박제본 (입력 adapter)
+/v3/v3-external-confluence.js               ← v0.11.0 박제본 (보조 context)
+/v3/v3-transport-plan.js                    ← v0.12.0 박제본 (이번 단계 신규, 출력 dry-run plan)
+/v3/v3-renderer-binding.js                  ← v0.12.0 박제본 (이번 단계 신규, UI binding)
 /v3/v3-index.html                           (생성도 X)
 ```
 
-> 다음 단계 (v0.12.0 출력 adapter — TransportPlan / RendererBinding) 진입 후 builder/score/structure/cycle/plan/viewmodel/operationPacket/activeCycle/evaluationOutcome/observationAdapter/externalConfluence 인자 / 매핑 정책 갱신이 필요해지면 별도 r1.x 단계로 분리하여 별도 승인 후에만 수정.
+> 다음 단계 (v0.12.x / v0.13.x — 실제 transport / renderer / persistence) 진입 후 builder/score/structure/cycle/plan/viewmodel/operationPacket/activeCycle/evaluationOutcome/observationAdapter/externalConfluence/transportPlan/rendererBinding 인자 / 매핑 정책 갱신이 필요해지면 별도 r1.x 단계로 분리하여 별도 승인 후에만 수정.
 
 ---
 
@@ -272,7 +275,11 @@ v3-evaluation-outcome.js  (v0.10.0 박제 — evaluation/priceBasis/movement/tar
 v3-evaluation-observation-adapter.js  (v0.11.0 박제 — 외부 관측 요약 → v0.10.0 evaluationObservation 호환)
 v3-external-confluence.js  (v0.11.0 박제 — 보조 context: market/sector/exchange/schedule/news/confluenceScore)
   ↓ (standalone adapter outputs, 입력 mutate 0건, side-effect free, v0.10.0 호환)
-[v0.12.0 출력 adapter — TransportPlan / RendererBinding]
+v3-transport-plan.js  (v0.12.0 박제 — dry-run plan: telegramPlan/snapshotPlan/evaluationPlan/auditPlan)
+  ↓ (standalone TransportPlan 객체, 5종 입력 mutate 0건, side-effect free, dry-run only)
+v3-renderer-binding.js  (v0.12.0 박제 — UI binding: header/chips/metrics/sections/flags + displayMode)
+  ↓ (standalone RendererBinding 객체, 입력 mutate 0건, DOM-free, cardViewModel superset)
+[v0.12.x / v0.13.x — 실제 transport / renderer / persistence 분리 단계]
 ```
 
 ---
@@ -299,10 +306,8 @@ v3-external-confluence.js  (v0.11.0 박제 — 보조 context: market/sector/exc
 ## 다음 단계 (확정된 순서)
 
 ```text
-WS3 v0.12.0 — Adapter Output Contract Pack
-  - TransportPlan (기존 routing boolean AND 집계)
-  - RendererBinding (v0.7 cardViewModel superset)
-
+(별도) v0.12.x — 실제 Telegram 전송 / KV write / reviewQueue write (TransportPlan 출력을 받아 실행)
+(별도) v0.12.x renderer — DOM/HTML attach (RendererBinding 출력을 받아 렌더)
 (별도) v0.11.x — 실제 외부 데이터 수집 adapter (EvaluationObservationAdapter 출력을 받아 실제 fetch)
 (별도) v0.10.x evaluation adapter — 실제 24h/7d 캔들 fetch + outcome 영속화
 (별도) v0.9.x transport adapter — 실제 외부 전송 / KV 저장
@@ -311,6 +316,36 @@ WS3 v0.12.0 — Adapter Output Contract Pack
 ```
 
 ---
+
+## v0.12.0 핵심 메모
+
+```text
+- v3/v3-transport-plan.js 신규 (740 라인)
+- v3/v3-renderer-binding.js 신규 (834 라인)
+- 보호 파일 21종 모두 무손상 (v3 *.js 16종 + index/manifest/sw 3종 + CODE_CONTRACT + WORKFLOW_TEMPLATE)
+- DP-APO1 ~ DP-APO10 모두 적용 / 미해결 항목 0건
+- U-APO-1 Option B: sections.{strategy/lifecycle/evaluation/confluence/transport} 5종 모두 array
+- U-APO-2 Option A: displayMode 7 후보 (BLOCKED→COOLDOWN→CLOSED→REVIEW→ALERT→DEFAULT→UNKNOWN) 우선순위
+- U-APO-3 Option C: flags namespace 분리 (flags.binding + flags.card 10 boolean 보존)
+- N-APO-OBS-1: auditPlan = reviewQueue 후보만. 실제 reviewQueue write 0건
+- N-APO-OBS-2: dry-run 어휘 강제 (DP-APO10) — '전송 완료/sent/delivered' 0건
+- TransportPlan:
+  - telegramPlan.shouldSend = 4단계 AND (op.shouldNotify && ac.allowNotify && !ac.suppressNotify && ac.canNotify)
+  - snapshotPlan.shouldStore = 3단계 AND (signal snapshot timing — outcome timing 제외, DP-APO4)
+  - evaluationPlan.shouldStore = 4단계 AND (outcome.shouldStoreOutcome 포함)
+  - auditPlan 7 후보 우선순위: ROUTING_CONFLICT > DATA_AMBIGUOUS > DATA_INSUFFICIENT > REVIEW_REQUIRED > SUPPRESSED_NOTIFY > WARNING_PRESENT > NONE
+  - warningAuditMode = 'critical' default (7 critical warning 만)
+  - detectRoutingConflict() 분리 — NOTIFY/SNAPSHOT/EVALUATION 각각 별도 reason
+- RendererBinding:
+  - cardViewModel superset (header/chips/metrics) — mutation 없이 적층
+  - sections 5종 array, displayMode 7 후보 first-match-wins
+  - flags.binding (RendererBinding 신규) + flags.card (cardViewModel.displayFlags verbatim 10 boolean)
+- smoke test 22 시나리오 (20 핵심 + 2 Extra) 통과
+- 입력 mutation 0건 (DP-APO8, S19 검증)
+- fetch / Telegram 실호출 / KV / DB / DOM / storage / clock API / chatId / botToken / apiKey 코드 0건
+- '발송됨 / 저장됨 / 전송 완료 / sent / delivered / completed transmission' 코드 0건 (dry-run 어휘 강제)
+- 매수 권고 / 매도 권고 / 손절 / 익절 / 수익 확정 / take profit / stop loss 코드 0건
+```
 
 ## v0.11.0 핵심 메모
 
