@@ -5,6 +5,90 @@
 
 ---
 
+## [v0.6.0] — 2026-05-16 (strategyBias / entryPlan / exitPlan)
+
+### Added
+- `/v3/v3-strategy-plan.js` — strategyPlan 본체 (신규)
+  - `WS3_StrategyPlan.build(payload, scoreBreakdown, structureDecision, signalCycle, config)` → standalone strategyPlan 객체 (모든 입력 mutate 0건)
+  - **4축 분류**: strategyBias (10) / planType (7) / actionability (5) / planQualityTier (7) 독립 산출
+  - **entryPlan + exitPlan + riskControls** 후보 산출 (실제 주문 지시 아님)
+  - **이중 환경 export**: `global.WS3_StrategyPlan` + `module.exports`
+- `/docs/ws3/WS3_v0_6_0_STRATEGY_PLAN_REPORT.md` — 완료 보고서 (신규)
+
+### U-STRAT-1 처리 방침 (Option B 확정)
+작업지시서의 priceZone 라벨을 실제 v0.4.0 산출 라벨로 매핑:
+- `BOX_TOP` → `priceZone.zone === 'TOP_NEAR'`
+- `BOX_BOTTOM` → `priceZone.zone === 'BOTTOM_NEAR'`
+- `BOX_MIDDLE` → `priceZone.zone === 'MIDDLE'`
+- `ABOVE_BOX` → `structureDecision.structureBucket === 'ABOVE_BOX_CONFIRMED_CANDIDATE'`
+- `BELOW_BOX` → `structureDecision.structureBucket === 'BELOW_BOX_CONFIRMED_CANDIDATE'`
+
+### Adopted DP Policy
+- **DP-STRAT1** standalone strategyPlan. payload/scoreBreakdown/structureDecision/signalCycle mutate 금지.
+- **DP-STRAT2** 10 strategyBias 후보 (UNKNOWN/NO_TRADE/WATCH_ONLY/PULLBACK_WAIT/BREAKOUT_READY/RECLAIM_READY/MOMENTUM_FOLLOW/RISK_OFF/COOLDOWN_WAIT/EXPIRED_IGNORE).
+- **DP-STRAT3** planType 7 후보 (NONE/WATCH/PULLBACK/BREAKOUT/RECLAIM/MOMENTUM/RISK_OFF).
+- **DP-STRAT4** actionability 5 후보 (NONE/LOW/MEDIUM/HIGH/BLOCKED). HIGH ≠ "매수하라".
+- **DP-STRAT5** planQualityTier 7 후보 (PLAN_PREMIUM/PLAN_STRONG/PLAN_STANDARD/PLAN_WATCH/PLAN_WEAK/PLAN_AVOID/NONE). 알림 등급 아님. 등급 코드 매핑 X.
+- **DP-STRAT6** numeric hint 허용. 실제 주문가 아님.
+- **DP-STRAT7** invalidationHint / targetHint 사용 (구버전 손절·익절 힌트 라벨 사용 금지).
+- **DP-STRAT8** ABOVE_BOX 추격: cfg.risk.allowChaseAboveBox 기본 false. requirePullback.
+- **DP-STRAT9** WEAKENING → RISK_OFF/BLOCKED. COOLDOWN → COOLDOWN_WAIT/BLOCKED. EXPIRED → EXPIRED_IGNORE/BLOCKED.
+- **DP-STRAT10** strategyBias 분류 우선순위 11단계 (risk/cooldown/expired → reclaim/breakout → BOX_TOP_PRESSURE 분기 → momentum → fallback).
+- **DP-STRAT11** 4축 용도 분리 (strategyBias / planType / actionability / planQualityTier).
+
+### Changed
+- `/docs/ws3/WS3_CHANGELOG.md` (본 파일): `[v0.6.0]` 엔트리 상단 추가
+- `/docs/ws3/WS3_CURRENT_BASELINE.md`: 완료된 단계 표 + 보호 파일 목록 + 모듈 의존성 + 다음 단계 갱신
+
+### Protected (수정 0건 — 14종)
+- `v3-config.js` / `v3-feature-payload.js` / `v3-bithumb-client.js` / `v3-candle-normalizer.js` / `v3-indicators.js` / `v3-feature-payload-builder.js` / `v3-score-breakdown.js` / `v3-structure-bucket.js` / `v3-signal-cycle.js`
+- `docs/ws3/WS3_CODE_CONTRACT.md` (b-r2 박제본 그대로)
+- `docs/ws3/WS3_WORKFLOW_TEMPLATE.md` (v0.1 박제본 그대로)
+- `index.html` / `manifest.json` / `service-worker.js`
+
+### 의도된 미구현 (이번 단계 제외)
+- 실제 매수/매도 주문
+- 알림 발송 (v0.8.0)
+- 화면 모델 / 렌더 계층 / UI (v0.7.0)
+- 외부 신호 / LW activeCycle (v0.9.x+)
+- 등급 코드 매핑 / 알림 등급 산출
+- 저장소 read/write
+- 외부 호출 / DOM / 브라우저 storage / KV
+- 런타임 clock API 사용
+
+### Verified
+- `node --check v3/v3-strategy-plan.js` 통과
+- smoke test **12 시나리오** 모두 통과:
+  - RECLAIM (LOW_SWEEP_RECLAIM_CANDIDATE / NEW_CANDIDATE) → RECLAIM_READY / RECLAIM / HIGH / PLAN_PREMIUM
+  - EXPIRED → EXPIRED_IGNORE / BLOCKED / PLAN_AVOID
+  - COOLDOWN → COOLDOWN_WAIT / BLOCKED / PLAN_AVOID
+  - WEAKENING → RISK_OFF / BLOCKED / PLAN_AVOID
+  - NOT_READY → NO_TRADE / BLOCKED / PLAN_AVOID
+  - ABOVE_BOX (default allowChase=false) → BREAKOUT_READY / MEDIUM + requirePullback / PULLBACK_ENTRY / INVALIDATION_ONLY
+  - ABOVE_BOX + STRENGTHENING → exitPlan.type = TRAILING_HINT
+  - ABOVE_BOX + allowChase=true override → BREAKOUT_READY / HIGH (완화 없음)
+  - BOX_TOP_PRESSURE + TOP_NEAR + conf=80 → BREAKOUT_READY / BREAKOUT_TRIGGER
+  - BOX_TOP_PRESSURE + low conf → PULLBACK_WAIT
+  - BOX_MIDDLE → WATCH_ONLY
+  - null inputs → UNKNOWN / NONE×4 / valid=false
+- 모든 시나리오 **payload/scoreBreakdown/structureDecision/signalCycle mutation 0건** (DP-STRAT1, smoke 검증)
+- 금지 패턴 grep (identifier 기반):
+  - `grade` literal 0건 (entryPlan/exitPlan/signalCycle은 v0.6.0 허용 식별자)
+  - `payload.<x>= mutation` 0건 (line 19/20 헤더 주석의 매핑 표 `===` false-positive)
+  - `scoreBreakdown.<x>= / structureDecision.<x>= / signalCycle.<x>= mutation` 0건
+  - `delete <input>.` 0건
+  - `fetch(` / `document.` / `localStorage` / `sessionStorage` / `XMLHttpRequest` / `Date.now(` 0건
+  - **`stopLossHint` / `takeProfitHint` / `planGradeHint` 잔존 0건** (구버전 라벨)
+  - refined: `P-S/A/B` / `Telegram` / `externalConfluence` / 렌더 / UI 모델 식별자 0건
+- 보호 파일 `git diff` 빈 출력 = 0건
+
+### 기준 commit
+- branch: `claude/heuristic-cori-7865e7`
+- 이전 functional baseline: WS3 v0.5.0 signalCycle (`59c8b78`)
+- 본 commit: (push 후 기록)
+
+---
+
 ## [v0.5.0] — 2026-05-16 (signalCycle / persistence / cooldown)
 
 ### Added

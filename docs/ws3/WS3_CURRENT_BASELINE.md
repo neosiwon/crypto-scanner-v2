@@ -4,8 +4,8 @@
 > 다음 단계 작업 전에 이 파일로 baseline 을 확인.
 
 **최종 업데이트**: 2026-05-16  
-**기능 단계 (current functional baseline)**: WS3 v0.5.0 signalCycle / persistence / cooldown (본 단계)  
-**이전 기능 baseline**: WS3 v0.4.0 structureBucket decision (`9e94b4d`)  
+**기능 단계 (current functional baseline)**: WS3 v0.6.0 strategyBias / entryPlan / exitPlan (본 단계)  
+**이전 기능 baseline**: WS3 v0.5.0 signalCycle (`59c8b78`)  
 **운영 문서**: WS3 Workflow Template v0.1 박제 (`d8bebc2`, v0.3.0-docs)  
 **branch**: `claude/heuristic-cori-7865e7`
 
@@ -26,7 +26,8 @@
 | WS3 v0.3.0 | `/v3/v3-score-breakdown.js` | `b7e0ea3` | ✅ 박제 |
 | WS3 v0.3.0-docs | `/docs/ws3/WS3_WORKFLOW_TEMPLATE.md` | `d8bebc2` | ✅ 박제 (운영 문서) |
 | WS3 v0.4.0 | `/v3/v3-structure-bucket.js` | `9e94b4d` | ✅ 박제 |
-| **WS3 v0.5.0** | **`/v3/v3-signal-cycle.js`** | **(push 후 기록)** | **✅ 박제 (이번 단계)** |
+| WS3 v0.5.0 | `/v3/v3-signal-cycle.js` | `59c8b78` | ✅ 박제 |
+| **WS3 v0.6.0** | **`/v3/v3-strategy-plan.js`** | **(push 후 기록)** | **✅ 박제 (이번 단계)** |
 
 ## REJECTED — repo 반영 보류
 
@@ -221,11 +222,12 @@ wrangler.toml
 /v3/v3-feature-payload-builder.js           ← v0.2.0-c-r1 박제본
 /v3/v3-score-breakdown.js                   ← v0.3.0 박제본
 /v3/v3-structure-bucket.js                  ← v0.4.0 박제본
-/v3/v3-signal-cycle.js                      ← v0.5.0 박제본 (이번 단계 신규)
+/v3/v3-signal-cycle.js                      ← v0.5.0 박제본
+/v3/v3-strategy-plan.js                     ← v0.6.0 박제본 (이번 단계 신규)
 /v3/v3-index.html                           (생성도 X)
 ```
 
-> 다음 단계 (v0.6.0 strategyBias / entryPlan / exitPlan) 진입 후 builder/score/structure/cycle 인자 / 매핑 정책 갱신이 필요해지면 별도 r1.x 단계로 분리하여 별도 승인 후에만 수정.
+> 다음 단계 (v0.7.0 UI / CardViewModel) 진입 후 builder/score/structure/cycle/plan 인자 / 매핑 정책 갱신이 필요해지면 별도 r1.x 단계로 분리하여 별도 승인 후에만 수정.
 
 ---
 
@@ -246,7 +248,9 @@ v3-structure-bucket.js  (v0.4.0 박제 — 13 structureBucket + confidence 0~100
   ↓ (standalone structureDecision 객체, payload·scoreBreakdown mutate 0건)
 v3-signal-cycle.js  (v0.5.0 박제 — 8 cycleState + 5 cyclePhase + 7 bucketFamily + cooldown/EXPIRED)
   ↓ (standalone signalCycle 객체, 모든 입력 mutate 0건)
-[v0.6.0 strategyBias / entryPlan / exitPlan A-F]
+v3-strategy-plan.js  (v0.6.0 박제 — 10 strategyBias + 4축 분류 + entryPlan/exitPlan/riskControls)
+  ↓ (standalone strategyPlan 객체, 4종 입력 mutate 0건)
+[v0.7.0 UI / CardViewModel]
 ```
 
 ---
@@ -273,11 +277,6 @@ v3-signal-cycle.js  (v0.5.0 박제 — 8 cycleState + 5 cyclePhase + 7 bucketFam
 ## 다음 단계 (확정된 순서)
 
 ```text
-WS3 v0.6.0 — strategyBias / entryPlan / exitPlan A-F
-  - 단타/스윙/관찰/회피 분류
-  - LONG 30/30/40 entryPlan
-  - exitPlan A~F
-
 WS3 v0.7.0 — UI / CardViewModel
   - 카드헤더 슬롯 / 카드바디 18 섹션
   - selectionReason 표시
@@ -296,7 +295,26 @@ WS3 v0.9.0+ — Phase 4-5 (백서 §21)
 
 ---
 
-## v0.5.0 핵심 메모
+## v0.6.0 핵심 메모
+
+```text
+- v3/v3-strategy-plan.js 신규 생성 1건
+- 보호 파일 14종 모두 무손상 (v3 *.js 9종 + index/manifest/sw 3종 + CODE_CONTRACT + WORKFLOW_TEMPLATE)
+- WS3_CODE_CONTRACT.md 미수정 (b-r2 박제본 그대로)
+- WS3_WORKFLOW_TEMPLATE.md 미수정 (v0.1 박제본 그대로)
+- DP-STRAT1 ~ DP-STRAT11 + U-STRAT-1 Option B 모두 적용 / 미해결 항목 0건
+- payload / scoreBreakdown / structureDecision / signalCycle mutation 모두 0건 (DP-STRAT1, smoke 12 시나리오 검증)
+- 4축 분류: 10 strategyBias + 7 planType + 5 actionability + 7 planQualityTier (독립 산출)
+- entryPlan/exitPlan/riskControls 후보 산출 (실제 주문 지시 아님)
+- U-STRAT-1 Option B: 'TOP_NEAR' (priceZone.zone) / 'ABOVE_BOX_CONFIRMED_CANDIDATE' (structureBucket) 매핑 적용
+- ABOVE_BOX 추격 default false (cfg.risk.allowChaseAboveBox)
+- 구버전 손절·익절 라벨 잔존 0건 (invalidationHint/targetHint 표준화)
+- 등급 코드 산출 0건 (planQualityTier는 backtest 통계용)
+- 외부 호출 / DOM / 브라우저 storage / KV 0건
+- 런타임 clock API 사용 0건
+- 실거래 / 주문 / 알림 / UI / 외부 신호 0건
+
+## v0.5.0 핵심 메모 (이전 단계)
 
 ```text
 - v3/v3-signal-cycle.js 신규 생성 1건
