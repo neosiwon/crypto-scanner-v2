@@ -5,6 +5,86 @@
 
 ---
 
+## [v0.13.0] — 2026-05-17 (Transport Execution Envelope)
+
+### Added
+- `/v3/v3-transport-execution-adapter.js` — TransportExecutionAdapter (신규, ~1400 라인)
+  - `WS3_TransportExecutionAdapter.build(input, config)` → standalone dry-run safe envelope (입력 6종 mutate 0건)
+  - **출력 top-level**: valid/version/dryRun(true)/envelopeMode('DRY_RUN')/envelopeStatus/telegramEnvelope/snapshotEnvelope/evaluationEnvelope/auditEnvelope/envelopeSummary + reasons/warnings/debug/configUsed
+  - **envelopeStatus 6 후보** first-match-wins 우선순위: `ENVELOPE_INVALID > ENVELOPE_BLOCKED > ENVELOPE_PARTIAL > ENVELOPE_READY > ENVELOPE_SKIPPED > ENVELOPE_UNKNOWN`
+  - **telegramEnvelope.eligible = 3-stage AND**: `tp.telegramPlan.shouldSend && cfg.execution.allowTelegram && envelopeMode==='DRY_RUN'`
+  - **snapshotEnvelope.eligible = 3-stage AND**: `tp.snapshotPlan.shouldStore && cfg.execution.allowSnapshot && envelopeMode==='DRY_RUN'`
+  - **evaluationEnvelope.eligible**: `(shouldStore || shouldUpdate || shouldClose || shouldReview) && cfg.execution.allowEvaluation && envelopeMode==='DRY_RUN'`
+  - **auditEnvelope.eligible = 3-stage AND**: `tp.auditPlan.shouldAudit && cfg.execution.allowAudit && envelopeMode==='DRY_RUN'`
+  - **credential 9키 recursive 차단** (DP-TX4): `secret/token/chatid/bottoken/apikey/authorization/password/credential/webhookurl` — case-insensitive + partial match + depth limit 5 + value output 0 노출
+  - **payloadSummary 14 whitelist scalar only** (DP-TX5): candidateKey/base/quote/market/exchange/timeframe/messageType/snapshotType/evaluationType/resultType/auditType/displayMode/confluenceLabel/confluenceScore. Object.assign/spread/clone/for-in 코드 0건
+  - **sanitizeMessageLines 3 모드** (U-TX-2): `REJECT` (기본, 안전 우선) / `REPLACE` / `WARN_ONLY`. 15 금지 어휘 (발송됨/sent/delivered/손절/익절/take profit 등) 차단
+  - **v0.14.0+ real executor 와 credential 비전달 보장** — envelope 만 인계
+  - **이중 환경 export**: `global.WS3_TransportExecutionAdapter` + `module.exports`
+- `/docs/ws3/WS3_v0_13_0_TRANSPORT_EXECUTION_ADAPTER_REPORT.md` — 완료 보고서 (신규, 15 sections)
+
+### Adopted DP Policy
+- **DP-TX1** Dry-run envelope builder 만. 실제 발송/저장/호출 X. `dryRun=true` 강제.
+- **DP-TX2** TransportPlan override 금지. 6 should* flag boolean AND 집계만.
+- **DP-TX3** envelopeMode DRY_RUN only. LIVE/REAL/SEND 시도 시 ENVELOPE_BLOCKED.
+- **DP-TX4** credential 9키 input/config 전체 nested object 재귀 검사 차단. case-insensitive + partial + depth 5.
+- **DP-TX5** payloadSummary whitelist scalar only. 원본 객체 전체 spread / Object.assign / deep clone / for-in 금지.
+- **DP-TX6** dry-run wording only. 발송됨/저장됨/전송 완료/sent/delivered/매수 성공/손절/익절/수익 확정/손실 확정/buy now/sell now/take profit/stop loss 금지.
+- **DP-TX7** side-effect 금지 — fetch / Telegram / KV / DB / DOM / storage / runtime clock 모두 0건.
+- **DP-TX8** 6종 입력 (transportPlan / rendererBinding / operationPacket / activeCycleDecision / evaluationOutcome / externalConfluence) read-only.
+- **DP-TX9** rendererBinding 은 message preview 보강용. decision source = transportPlan.
+- **DP-TX10** 신규 파일 1개 + 문서 갱신만. 보호 파일 23종 수정 금지.
+
+### U-TX / N-TX-OBS 처리
+- **U-TX-1** credential partial match 안전 우선 차단. `cfg.safety.credentialAllowList` 기본 빈 배열. allowList 에 명시된 key 이름만 차단 제외 가능.
+- **U-TX-2** `cfg.wording.sanitizeMode = 'REJECT'` 기본값. REJECT (line 제거) / REPLACE (safe wording 치환) / WARN_ONLY (line 유지) 3 모드.
+- **N-TX-OBS-1** dryRunOnly namespace 중복 (기존 `wording.dryRunOnly` vs v0.13.0 top-level/envelope-level `dryRunOnly`) — namespace 분리로 구조적 충돌 없음. JSDoc 으로 layer 출처 명시.
+- **N-TX-OBS-2** 보호 baseline false-positive — v3-bithumb-client / v3-candle-normalizer / v3-indicators / v3-feature-payload-builder 의 fetch / Date.now / spread / Object.assign 사용은 보호 baseline 책임. 본 모듈은 0건 보장.
+
+### Changed
+- `/docs/ws3/WS3_CHANGELOG.md` (본 파일): `[v0.13.0]` 엔트리 상단 추가
+- `/docs/ws3/WS3_CURRENT_BASELINE.md`: 완료된 단계 표 + 보호 파일 목록 (23종) + 모듈 의존성 + 다음 단계 갱신
+
+### Protected (수정 0건 — 23종)
+- v3 *.js 18종 (config / feature-payload / bithumb-client / candle-normalizer / indicators / feature-payload-builder / score-breakdown / structure-bucket / signal-cycle / strategy-plan / card-view-model / operation-packet / active-cycle / evaluation-outcome / evaluation-observation-adapter / external-confluence / transport-plan / renderer-binding)
+- `docs/ws3/WS3_CODE_CONTRACT.md` (b-r2 박제본 그대로)
+- `docs/ws3/WS3_WORKFLOW_TEMPLATE.md` (v0.1 박제본 그대로)
+- `index.html` / `manifest.json` / `service-worker.js`
+
+### 의도된 미구현 (이번 단계 제외)
+- 실제 Telegram bot API 호출 / chatId / botToken / webhookUrl 노출
+- 실제 KV write / DB persist / 파일 IO / 브라우저 storage
+- 실제 reviewQueue write / audit log 영속화
+- 실제 DOM 렌더 / HTML attach / addEventListener
+- 입력 객체 mutation
+- 런타임 clock API (Date.now / new Date / performance.now)
+- raw payload / payload.raw / identityInput / raw.builderDebug 노출
+- bot 식별 시크릿 / 채널 식별자 / API 키 / authorization header
+
+### Verified
+- `node --check v3/v3-transport-execution-adapter.js` 통과 (SYNTAX_OK)
+- smoke test **21 시나리오 / 59 assertion 전부 PASS**:
+  - S1 all eligible dry-run / S2 all skipped / S3 partial envelope / S4 invalid plan / S5 LIVE BLOCKED
+  - S6 credential top-level / S7 credential nested / S8 case-insensitive / S9 partial match
+  - S10~S13 4 envelope request shape / S14 safe payload summary / S15 no spread leak / S16 metadata whitelist
+  - S17 wording sanitize REJECT / S18 rendererBinding reference only (decision 미override) / S19 mutation 0
+  - S20 no exception under load / S21 raw/secret value leak prevention
+- 모든 시나리오 **입력 mutation 0건** (DP-TX8, S19 검증 frozen input)
+- 금지 패턴 grep (실제 코드 침범 0건, 매치는 모두 JSDoc 정책 + literal 차단 list + 변수/함수명):
+  - `fetch( / KV. / DB / Telegram 실호출 / XMLHttpRequest / innerHTML / document. / addEventListener / localStorage / sessionStorage / Date.now( / new Date / performance.now` 코드 0건
+  - `transportPlan.X = / rendererBinding.X = / operationPacket.X = / activeCycleDecision.X = / evaluationOutcome.X = / externalConfluence.X =` **0건** ✅
+  - `Object.assign / ... spread / JSON.parse(JSON.stringify) / for-in` **실제 사용 0건** (4 매치 모두 JSDoc 정책)
+  - `발송됨 / 저장됨 / 전송 완료 / sent / delivered / 매수 성공 / 손절 / 익절 / take profit / stop loss` 실제 출력 어휘 사용 0건 (literal 은 FORBIDDEN_WORDS 차단 list 정의)
+  - credential value `payload.raw / identityInput / raw.builderDebug / chatId 값 / botToken 값 / apiKey 값` output 노출 0건
+- 보호 파일 `git diff --stat HEAD -- <23종>` 빈 출력 = 0건
+
+### 기준 commit
+- branch: `claude/heuristic-cori-7865e7`
+- 이전 functional baseline: WS3 v0.12.0 adapterOutputContractPack (`8fd0551`)
+- 본 commit: (push 후 기록)
+
+---
+
 ## [v0.12.0] — 2026-05-17 (Adapter Output Contract Pack)
 
 ### Added

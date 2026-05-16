@@ -4,8 +4,8 @@
 > 다음 단계 작업 전에 이 파일로 baseline 을 확인.
 
 **최종 업데이트**: 2026-05-17  
-**기능 단계 (current functional baseline)**: WS3 v0.12.0 Adapter Output Contract Pack (본 단계)  
-**이전 기능 baseline**: WS3 v0.11.0 adapterInputContractPack (`4c94875`)  
+**기능 단계 (current functional baseline)**: WS3 v0.13.0 Transport Execution Envelope (본 단계)  
+**이전 기능 baseline**: WS3 v0.12.0 adapterOutputContractPack (`8fd0551`)  
 **운영 문서**: WS3 Workflow Template v0.1 박제 (`d8bebc2`, v0.3.0-docs)  
 **branch**: `claude/heuristic-cori-7865e7`
 
@@ -33,7 +33,8 @@
 | WS3 v0.9.0 | `/v3/v3-active-cycle.js` | `00831af` | ✅ 박제 |
 | WS3 v0.10.0 | `/v3/v3-evaluation-outcome.js` | `887123a` | ✅ 박제 |
 | WS3 v0.11.0 | `/v3/v3-evaluation-observation-adapter.js` + `/v3/v3-external-confluence.js` | `4c94875` | ✅ 박제 |
-| **WS3 v0.12.0** | **`/v3/v3-transport-plan.js` + `/v3/v3-renderer-binding.js`** | **(push 후 기록)** | **✅ 박제 (이번 단계, 2종 출력 adapter)** |
+| WS3 v0.12.0 | `/v3/v3-transport-plan.js` + `/v3/v3-renderer-binding.js` | `8fd0551` | ✅ 박제 |
+| **WS3 v0.13.0** | **`/v3/v3-transport-execution-adapter.js`** | **(push 후 기록)** | **✅ 박제 (이번 단계, dry-run safe envelope)** |
 
 ## REJECTED — repo 반영 보류
 
@@ -236,12 +237,13 @@ wrangler.toml
 /v3/v3-evaluation-outcome.js                ← v0.10.0 박제본
 /v3/v3-evaluation-observation-adapter.js    ← v0.11.0 박제본 (입력 adapter)
 /v3/v3-external-confluence.js               ← v0.11.0 박제본 (보조 context)
-/v3/v3-transport-plan.js                    ← v0.12.0 박제본 (이번 단계 신규, 출력 dry-run plan)
-/v3/v3-renderer-binding.js                  ← v0.12.0 박제본 (이번 단계 신규, UI binding)
+/v3/v3-transport-plan.js                    ← v0.12.0 박제본 (출력 dry-run plan)
+/v3/v3-renderer-binding.js                  ← v0.12.0 박제본 (UI binding)
+/v3/v3-transport-execution-adapter.js       ← v0.13.0 박제본 (이번 단계 신규, dry-run safe envelope)
 /v3/v3-index.html                           (생성도 X)
 ```
 
-> 다음 단계 (v0.12.x / v0.13.x — 실제 transport / renderer / persistence) 진입 후 builder/score/structure/cycle/plan/viewmodel/operationPacket/activeCycle/evaluationOutcome/observationAdapter/externalConfluence/transportPlan/rendererBinding 인자 / 매핑 정책 갱신이 필요해지면 별도 r1.x 단계로 분리하여 별도 승인 후에만 수정.
+> 다음 단계 (v0.13.x / v0.14.x — 실제 transport executor / renderer / persistence) 진입 후 builder/score/structure/cycle/plan/viewmodel/operationPacket/activeCycle/evaluationOutcome/observationAdapter/externalConfluence/transportPlan/rendererBinding/transportExecutionAdapter 인자 / 매핑 정책 갱신이 필요해지면 별도 r1.x 단계로 분리하여 별도 승인 후에만 수정.
 
 ---
 
@@ -279,7 +281,9 @@ v3-transport-plan.js  (v0.12.0 박제 — dry-run plan: telegramPlan/snapshotPla
   ↓ (standalone TransportPlan 객체, 5종 입력 mutate 0건, side-effect free, dry-run only)
 v3-renderer-binding.js  (v0.12.0 박제 — UI binding: header/chips/metrics/sections/flags + displayMode)
   ↓ (standalone RendererBinding 객체, 입력 mutate 0건, DOM-free, cardViewModel superset)
-[v0.12.x / v0.13.x — 실제 transport / renderer / persistence 분리 단계]
+v3-transport-execution-adapter.js  (v0.13.0 박제 — dry-run safe envelope: telegramEnvelope/snapshotEnvelope/evaluationEnvelope/auditEnvelope)
+  ↓ (standalone TransportExecutionEnvelope 객체, 6종 입력 mutate 0건, side-effect free, dryRun=true 강제, credential recursive 차단, whitelist scalar only)
+[v0.13.x / v0.14.x — 실제 transport executor / renderer / persistence 분리 단계]
 ```
 
 ---
@@ -306,7 +310,8 @@ v3-renderer-binding.js  (v0.12.0 박제 — UI binding: header/chips/metrics/sec
 ## 다음 단계 (확정된 순서)
 
 ```text
-(별도) v0.12.x — 실제 Telegram 전송 / KV write / reviewQueue write (TransportPlan 출력을 받아 실행)
+(별도) v0.14.x — 실제 transport executor (TransportExecutionEnvelope 출력을 받아 실제 Telegram bot API / KV write / reviewQueue write)
+                  credential 은 secure binding / env / secure store 에서 별도 처리 — v0.13.0 envelope 에는 절대 포함 X
 (별도) v0.12.x renderer — DOM/HTML attach (RendererBinding 출력을 받아 렌더)
 (별도) v0.11.x — 실제 외부 데이터 수집 adapter (EvaluationObservationAdapter 출력을 받아 실제 fetch)
 (별도) v0.10.x evaluation adapter — 실제 24h/7d 캔들 fetch + outcome 영속화
@@ -316,6 +321,45 @@ v3-renderer-binding.js  (v0.12.0 박제 — UI binding: header/chips/metrics/sec
 ```
 
 ---
+
+## v0.13.0 핵심 메모
+
+```text
+- v3/v3-transport-execution-adapter.js 신규 (~1400 라인)
+- 보호 파일 23종 모두 무손상 (v3 *.js 18종 + index/manifest/sw 3종 + CODE_CONTRACT + WORKFLOW_TEMPLATE)
+- DP-TX1 ~ DP-TX10 + U-TX-1 + U-TX-2 + N-TX-OBS-1 + N-TX-OBS-2 모두 적용 / 미해결 항목 0건
+- U-TX-1: cfg.safety.credentialAllowList 기본 빈 배열. partial match 안전 우선 차단
+- U-TX-2: cfg.wording.sanitizeMode='REJECT' 기본. REJECT/REPLACE/WARN_ONLY 3 모드
+- N-TX-OBS-1: dryRunOnly namespace 중복 (기존 wording vs v0.13.0 top-level/envelope) — namespace 분리로 구조적 충돌 없음
+- N-TX-OBS-2: 보호 baseline false-positive — 본 모듈 fetch/Date.now/spread/Object.assign 0건
+- TransportExecutionAdapter:
+  - 입력 6종 (transportPlan + rendererBinding + operationPacket + activeCycleDecision + evaluationOutcome + externalConfluence) read-only
+  - 출력: TransportExecutionEnvelope (dry-run safe envelope)
+  - envelopeMode='DRY_RUN' 강제 (LIVE/REAL/SEND → BLOCKED)
+  - envelopeStatus 6 후보 first-match-wins: ENVELOPE_INVALID > BLOCKED > PARTIAL > READY > SKIPPED > UNKNOWN
+  - 4 envelope: telegramEnvelope / snapshotEnvelope / evaluationEnvelope / auditEnvelope
+  - eligible 3-stage AND (plan boolean && cfg.execution.allow* && envelopeMode==='DRY_RUN')
+  - DP-TX2 — TransportPlan false 결정 절대 true override 안 함 (S18 검증)
+- credential 차단 (DP-TX4):
+  - 9 금지 키: secret/token/chatid/bottoken/apikey/authorization/password/credential/webhookurl
+  - case-insensitive + partial match + depth limit 5
+  - cfg.safety.credentialAllowList 로 차단 제외 가능 (기본 빈 배열)
+  - 발견 시 모든 envelope BLOCKED + warnings SECRET_FIELD_BLOCKED:<path>
+  - path 에는 key 이름 + 위치만, value 절대 노출 0건 (S6/S7/S8/S9/S15/S21 검증)
+- payloadSummary (DP-TX5):
+  - 14 whitelist scalar only (candidateKey/base/quote/market/exchange/timeframe/messageType/snapshotType/evaluationType/resultType/auditType/displayMode/confluenceLabel/confluenceScore)
+  - Object.assign / spread / JSON.parse(JSON.stringify) / for-in 코드 0건
+  - metadata 기본 {}, metadataAllowedFields 기본 빈 배열
+- sanitizeMessageLines (DP-TX6 / U-TX-2):
+  - 15 금지 어휘: 발송됨/저장됨/전송 완료/sent/delivered/completed transmission/매수 성공/손절/익절/수익 확정/손실 확정/buy now/sell now/take profit/stop loss
+  - REJECT 기본 — line 제거 + warning FORBIDDEN_WORD_LINE_REJECTED
+  - REPLACE — safe wording 치환 (예: '발송됨' → '발송 후보')
+  - WARN_ONLY — line 유지 + warning (운영 사용 금지 권장)
+- smoke test 21 시나리오 / 59 assertion 전부 PASS
+- 입력 mutation 0건 (DP-TX8, S19 frozen-input 검증)
+- fetch / Telegram 실호출 / KV / DB / DOM / storage / clock API / chatId / botToken / apiKey 코드 0건
+- v0.14.0+ real executor 와 credential 인계 0건 (envelope 만 인계 보장)
+```
 
 ## v0.12.0 핵심 메모
 
