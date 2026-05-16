@@ -5,6 +5,95 @@
 
 ---
 
+## [v0.10.0] — 2026-05-16 (EvaluationOutcome / Result Classifier)
+
+### Added
+- `/v3/v3-evaluation-outcome.js` — evaluationOutcome 본체 (신규, 1407 라인)
+  - `WS3_EvaluationOutcome.build(operationPacket, activeCycleDecision, evaluationObservation, previousEvaluationState, config)` → standalone evaluationOutcome 객체 (4종 입력 mutate 0건)
+  - **출력 top-level 15-field**: `valid` / `version` / `candidateKey` / `identity` / `evaluation` / `priceBasis` / `movement` / `targetCheck` / `invalidationCheck` / `pathOrder` / `quality` / `routingDecision` / `nextEvaluationState` / `reasons` / `warnings` / `debug` / `configUsed`
+  - **status 6 후보** (UNKNOWN/PENDING/IN_PROGRESS/COMPLETED/CLOSED/INVALID)
+  - **resultType 11 후보** (NONE/IN_PROGRESS/TARGET_HIT/INVALIDATED/WATCH_CONFIRMED/WATCH_FAILED/NEUTRAL/EXPIRED_REVIEW/COOLDOWN_REVIEW/DATA_INSUFFICIENT/DATA_AMBIGUOUS) — 매수 성공/손절/익절 어휘 0건
+  - **resultPhase 6 후보** (NONE/EARLY/MID/LATE/DONE/REVIEW)
+  - **outcomeQuality 4 후보** (UNKNOWN/LOW/MEDIUM/HIGH)
+  - **movement 누적** (DP-EO14): max(prev.maxFav, cur.highMove) / min(prev.maxAdv, cur.lowMove)
+  - **target/invalidation source priority chain** (U-EO-2)
+  - **unit 분리** (DP-EO6 + U-EO-1 Option A): hint.unit 부재 → default 'price'. cfg fallback 만 pct. UNIT_AMBIGUOUS 검사 (0<v<1 + baseline≥10)
+  - **path order** (U-EO-3): DATA_AMBIGUOUS 는 pathOrderKnown=false 일 때만. highTs/lowTs numeric 시 firstEvent 결정
+  - **nextEvaluationState 후보 산출** (DP-EO10) — 실제 저장 0건
+  - **이중 환경 export**: `global.WS3_EvaluationOutcome` + `module.exports`
+- `/docs/ws3/WS3_v0_10_0_EVALUATION_OUTCOME_REPORT.md` — 완료 보고서 (신규)
+
+### Adopted DP Policy
+- **DP-EO1** standalone 반환. operationPacket / activeCycleDecision / evaluationObservation / previousEvaluationState mutate 금지.
+- **DP-EO2** side-effect 금지 (외부 전송 / 영속 저장 / network / DOM / 브라우저 storage).
+- **DP-EO3** evaluationObservation caller 주입. v0.10.0 직접 수집 X.
+- **DP-EO4** raw candles array 직접 저장/노출 금지.
+- **DP-EO5** baselinePrice: evaluationSeed.baselinePrice → observation.baselinePrice → null (DATA_INSUFFICIENT).
+- **DP-EO6** target/invalidation numeric only + value/pct 단위 분리. unit 부재 → default 'price'.
+- **DP-EO7** DATA_AMBIGUOUS 최후 fallback. highTs/lowTs 비교로 선후 판단 우선.
+- **DP-EO8** thresholds config-driven (planTargetPct=5 / watchConfirmPct=3 / invalidationPct=-5 등).
+- **DP-EO9** 안전 결과 라벨. 매수 성공/손절/익절/수익·손실 확정 금지.
+- **DP-EO10** nextEvaluationState 포함. 실제 저장은 후속 adapter.
+- **DP-EO11** status (진행 상태) vs resultType (결과 분류) 분리.
+- **DP-EO12** changePct/movementPct 만. profit/loss 표현 금지.
+- **DP-EO13** previousEvaluationState caller 주입. null/invalid → base empty state.
+- **DP-EO14** movement 누적: max(prev.maxFavorablePct, cur.highMovePct) / min(prev.maxAdversePct, cur.lowMovePct).
+
+### U-EO / N-EO-OBS 처리
+- **U-EO-1 Option A** hint.unit 부재 → default 'price'. pct 는 hint.unit==='pct' 또는 cfg fallback 만. UNIT_AMBIGUOUS detection (0<v<1 + baseline≥10).
+- **U-EO-2** target: targetHints[0] → safeHints TARGET → cfg.planTargetPct. invalidation: type='INVALIDATION' 우선 → 'SETUP_INVALIDATION' → safeHints INVALIDATION → cfg.invalidationPct.
+- **U-EO-3** DATA_AMBIGUOUS 는 pathOrderKnown !== true 일 때만. pathOrderKnown=true 면 firstEvent 로 TARGET_HIT/INVALIDATED 분기.
+- **N-EO-OBS-1** timestamp 정책: pickStartTs (evaluationSeed.startTs → observation.startTs → prev.startTs → null). pickLastObservedTs (endTs → closeTs → prev → null). Date.now 사용 0건.
+- **N-EO-OBS-2** v0.2.0-a baseline 보호 파일의 Date.now/fetch 책임 분리. 본 모듈 코드 침범 0건.
+
+### Changed
+- `/docs/ws3/WS3_CHANGELOG.md` (본 파일): `[v0.10.0]` 엔트리 상단 추가
+- `/docs/ws3/WS3_CURRENT_BASELINE.md`: 완료된 단계 표 + 보호 파일 목록 + 모듈 의존성 + 다음 단계 갱신
+
+### Protected (수정 0건 — 18종)
+- v3 *.js 13종 (config / feature-payload / bithumb-client / candle-normalizer / indicators / feature-payload-builder / score-breakdown / structure-bucket / signal-cycle / strategy-plan / card-view-model / operation-packet / active-cycle)
+- `docs/ws3/WS3_CODE_CONTRACT.md` (b-r2 박제본 그대로)
+- `docs/ws3/WS3_WORKFLOW_TEMPLATE.md` (v0.1 박제본 그대로)
+- `index.html` / `manifest.json` / `service-worker.js`
+
+### 의도된 미구현 (이번 단계 제외)
+- 24h/7d 캔들 실제 fetch / 외부 API 호출
+- KV / DB / 파일 IO / 브라우저 storage read/write
+- 알림 발송 / snapshot 저장 / outcome 영속화
+- DOM 렌더 / UI 이벤트 연결
+- 입력 4종 mutation
+- 런타임 clock API (Date.now / new Date / performance.now)
+- 매매 권고 / 매수·매도 어휘 / 수익·손실 확정
+
+### Verified
+- `node --check v3/v3-evaluation-outcome.js` 통과
+- smoke test **21 시나리오** (15 핵심 + 6 Extra) 모두 통과:
+  - S1 in progress / S2 target hit by value / S3 target hit by pct (cfg fallback) / S4 hint value > cfg pct (priority chain)
+  - S5 invalidated by value / S6 invalidated by pct (cfg fallback) / S7 hint value > cfg pct (invalidation priority chain)
+  - S8 watch confirmed / S9 watch failed / S10 data insufficient
+  - S11 path target first / S12 path invalidation first / S13 path ambiguous
+  - S14 movement cumulative / S15 invalid inputs
+  - Extra-A status CLOSED via evaluationMode=CLOSE / Extra-B COOLDOWN_REVIEW
+  - Extra-C U-EO-2 INVALIDATION priority (95 wins over SETUP_INVALIDATION 50)
+  - Extra-D U-EO-1 hint w/o unit → default 'price'
+  - Extra-E UNIT_AMBIGUOUS detection (0.05 + baseline 100 → 워닝)
+  - Extra-F frozen-input safety
+- 모든 시나리오 **4종 입력 mutation 0건** (DP-EO1, smoke 검증)
+- 금지 패턴 grep (코드 침범 0건, 매치는 모두 정책 명시 comment):
+  - `fetch( / KV. / DB / Telegram / sendTelegram / XMLHttpRequest / innerHTML / document. / addEventListener / localStorage / sessionStorage / Date.now( / new Date / performance.now` 코드 0건
+  - `operationPacket.X = / activeCycleDecision.X = / evaluationObservation.X = / previousEvaluationState.X = mutation` 0건
+  - `delete <input>.` 0건
+  - `payload.raw / identityInput / raw.builderDebug / secret / token / chatId / botToken / apiKey / raw candles / full API response` 코드 0건
+  - `매수 성공 / 손절 / 익절 / 수익 확정 / 손실 확정 / profit / loss / 매수하세요 / 매도하세요 / buy now / sell now / take profit / stop loss` 코드 0건
+- 보호 파일 `git diff` 빈 출력 = 0건 (18종)
+
+### 기준 commit
+- branch: `claude/heuristic-cori-7865e7`
+- 이전 functional baseline: WS3 v0.9.0 activeCycle (`00831af`)
+- 본 commit: (push 후 기록)
+
+---
+
 ## [v0.9.0] — 2026-05-16 (ActiveCycle / Packet Lifecycle)
 
 ### Added

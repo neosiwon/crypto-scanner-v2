@@ -4,8 +4,8 @@
 > 다음 단계 작업 전에 이 파일로 baseline 을 확인.
 
 **최종 업데이트**: 2026-05-16  
-**기능 단계 (current functional baseline)**: WS3 v0.9.0 ActiveCycle (본 단계)  
-**이전 기능 baseline**: WS3 v0.8.0 operationPacket (`2fb95cf`)  
+**기능 단계 (current functional baseline)**: WS3 v0.10.0 EvaluationOutcome (본 단계)  
+**이전 기능 baseline**: WS3 v0.9.0 activeCycle (`00831af`)  
 **운영 문서**: WS3 Workflow Template v0.1 박제 (`d8bebc2`, v0.3.0-docs)  
 **branch**: `claude/heuristic-cori-7865e7`
 
@@ -30,7 +30,8 @@
 | WS3 v0.6.0 | `/v3/v3-strategy-plan.js` | `8ebba40` | ✅ 박제 |
 | WS3 v0.7.0 | `/v3/v3-card-view-model.js` | `7e2ef36` | ✅ 박제 |
 | WS3 v0.8.0 | `/v3/v3-operation-packet.js` | `2fb95cf` | ✅ 박제 |
-| **WS3 v0.9.0** | **`/v3/v3-active-cycle.js`** | **(push 후 기록)** | **✅ 박제 (이번 단계)** |
+| WS3 v0.9.0 | `/v3/v3-active-cycle.js` | `00831af` | ✅ 박제 |
+| **WS3 v0.10.0** | **`/v3/v3-evaluation-outcome.js`** | **(push 후 기록)** | **✅ 박제 (이번 단계)** |
 
 ## REJECTED — repo 반영 보류
 
@@ -229,11 +230,12 @@ wrangler.toml
 /v3/v3-strategy-plan.js                     ← v0.6.0 박제본
 /v3/v3-card-view-model.js                   ← v0.7.0 박제본
 /v3/v3-operation-packet.js                  ← v0.8.0 박제본
-/v3/v3-active-cycle.js                      ← v0.9.0 박제본 (이번 단계 신규)
+/v3/v3-active-cycle.js                      ← v0.9.0 박제본
+/v3/v3-evaluation-outcome.js                ← v0.10.0 박제본 (이번 단계 신규)
 /v3/v3-index.html                           (생성도 X)
 ```
 
-> 다음 단계 (v0.9.x+ externalConfluence / 사후평가 보정 / 실제 transport adapter) 진입 후 builder/score/structure/cycle/plan/viewmodel/operationPacket/activeCycle 인자 / 매핑 정책 갱신이 필요해지면 별도 r1.x 단계로 분리하여 별도 승인 후에만 수정.
+> 다음 단계 (v0.10.x+ externalConfluence / 사후평가 보정 / 실제 transport adapter / evaluation adapter) 진입 후 builder/score/structure/cycle/plan/viewmodel/operationPacket/activeCycle/evaluationOutcome 인자 / 매핑 정책 갱신이 필요해지면 별도 r1.x 단계로 분리하여 별도 승인 후에만 수정.
 
 ---
 
@@ -262,7 +264,9 @@ v3-operation-packet.js  (v0.8.0 박제 — routing/notificationPacket/snapshotPa
   ↓ (standalone operationPacket 객체, 6종 입력 mutate 0건, transport-ready, side-effect free)
 v3-active-cycle.js  (v0.9.0 박제 — lifecycle/transition/routingDecision/notifyPolicy/snapshotPolicy/evaluationPolicy/nextState)
   ↓ (standalone activeCycleDecision 객체, 2종 입력 mutate 0건, lifecycle decision data, side-effect free)
-[v0.9.x+ externalConfluence / 사후평가 보정 / 실제 transport adapter]
+v3-evaluation-outcome.js  (v0.10.0 박제 — evaluation/priceBasis/movement/targetCheck/invalidationCheck/pathOrder/quality/routingDecision/nextEvaluationState)
+  ↓ (standalone evaluationOutcome 객체, 4종 입력 mutate 0건, result classifier data, side-effect free)
+[v0.10.x+ externalConfluence / 사후평가 보정 / 실제 transport adapter / evaluation adapter]
 ```
 
 ---
@@ -289,18 +293,44 @@ v3-active-cycle.js  (v0.9.0 박제 — lifecycle/transition/routingDecision/noti
 ## 다음 단계 (확정된 순서)
 
 ```text
-WS3 v0.9.x+ — externalConfluence / 사후평가 보정 (백서 §21)
+WS3 v0.10.x+ — externalConfluence / 사후평가 보정 (백서 §21)
   - 빗썸 공식 externalConfluence
   - 사후평가 보정 분석
 
-(별도) v0.9.x transport adapter — 실제 외부 전송 / KV 저장 / 평가 실행 (ActiveCycle 자체는 lifecycle decision data)
-(별도) v0.8.x transport 단계 — OperationPacket transport-ready 데이터의 실제 전송
-(별도) v0.7.x renderer 단계 — DOM/실제 HTML 렌더는 별도 단계
+(별도) v0.10.x evaluation adapter — 실제 24h/7d 캔들 fetch + outcome 영속화 (EvaluationOutcome 자체는 result classifier data)
+(별도) v0.9.x transport adapter — 실제 외부 전송 / KV 저장 (ActiveCycle 자체는 lifecycle decision data)
+(별도) v0.8.x transport — OperationPacket transport-ready 데이터의 실제 전송
+(별도) v0.7.x renderer — DOM/실제 HTML 렌더
 ```
 
 ---
 
-## v0.9.0 핵심 메모
+## v0.10.0 핵심 메모
+
+```text
+- v3/v3-evaluation-outcome.js 신규 생성 1건 (1407 라인)
+- 보호 파일 18종 모두 무손상 (v3 *.js 13종 + index/manifest/sw 3종 + CODE_CONTRACT + WORKFLOW_TEMPLATE)
+- WS3_CODE_CONTRACT.md 미수정 (b-r2 박제본 그대로)
+- WS3_WORKFLOW_TEMPLATE.md 미수정 (v0.1 박제본 그대로)
+- DP-EO1 ~ DP-EO14 모두 적용 / 미해결 항목 0건
+- 입력 4종 (operationPacket + activeCycleDecision + evaluationObservation + previousEvaluationState) mutation 0건 (DP-EO1, smoke 검증)
+- status 6 후보 (UNKNOWN/PENDING/IN_PROGRESS/COMPLETED/CLOSED/INVALID) - DP-EO11
+- resultType 11 후보 — 매수 성공/손절/익절/수익 확정 어휘 0건 (DP-EO9)
+- resultPhase 6 후보 / outcomeQuality 4 후보
+- movement 누적 (DP-EO14): max(prev.maxFav, cur.highMove) / min(prev.maxAdv, cur.lowMove). S14 검증
+- baselinePrice 2-step fallback (DP-EO5): evaluationSeed → observation → DATA_INSUFFICIENT
+- target source: targetHints[0] → safeHints TARGET → cfg.planTargetPct (priority chain first-match-wins)
+- invalidation source: type='INVALIDATION' 우선 → 'SETUP_INVALIDATION' → safeHints INVALIDATION → cfg.invalidationPct (U-EO-2)
+- unit 분리 (DP-EO6 + U-EO-1): hint.unit 부재 → default 'price'. pct 는 unit==='pct' 또는 cfg fallback. UNIT_AMBIGUOUS 검사 (0<v<1 + baseline≥10)
+- path order (U-EO-3): DATA_AMBIGUOUS 는 pathOrderKnown !== true 일 때만. true 면 firstEvent 로 TARGET_HIT/INVALIDATED 분기. S11/S12/S13 검증
+- nextEvaluationState 산출 only (DP-EO10). 실제 저장 0건
+- 런타임 clock API (Date.now/new Date/performance.now) 0건
+- 외부 호출 (fetch/XMLHttpRequest) 0건
+- raw candles / payload.raw / identityInput / secret/token/chatId/botToken/apiKey 0건
+- 매매 권고 / 매수·매도 어조 / 수익·손실 확정 코드 0건
+- frozen input 안전성 검증 (Extra-F)
+
+## v0.9.0 핵심 메모 (이전 단계)
 
 ```text
 - v3/v3-active-cycle.js 신규 생성 1건 (1279 라인)
