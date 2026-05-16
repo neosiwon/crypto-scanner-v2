@@ -5,6 +5,106 @@
 
 ---
 
+## [v0.7.0] — 2026-05-16 (CardViewModel · hotfix 반영)
+
+### Added
+- `/v3/v3-card-view-model.js` — cardViewModel 본체 (신규, hotfix 반영본)
+  - `WS3_CardViewModel.build(payload, scoreBreakdown, structureDecision, signalCycle, strategyPlan, config)` → standalone cardViewModel 객체 (5종 입력 mutate 0건)
+  - **출력 7대 영역** (DP-UI3): `identity` / `header` / `chips` / `metrics` / `sections` / `displayFlags` / `tone` + reasons / warnings / debug / configUsed
+  - **sections 7개** (DP-UI9): overview / score / structure / cycle / strategy / risk / debug
+  - **metrics 는 array** (DP-UI4) — 각 item = { id, labelKey, labelKo, labelEn, value, kind, tone, sortKey }
+  - **라벨 패턴** (DP-UI5): labelKey + labelKo + labelEn 직접 포함 — badge / chip / metric 동일
+  - **tone semantic token 8종** (DP-UI6): positive/neutral/caution/warning/muted/info/critical/unknown — 색상 코드 X
+  - **displayFlags 정확히 10 boolean** (DP-UI7 / r0.2-final): isReady / isBlocked / isCooldown / isExpired / isWeakening / isHighActionability / showEntryPlan / showExitPlan / showRiskWarning / showDebug
+  - **debug 기본 숨김 + allowedFields whitelist 기본 빈 배열** (DP-UI8): identityInput / candles / rawCandles / candleArrays / raw / builderDebug 영구 차단 (BLOCKED_FIELDS). primitive 값만 통과
+  - **8개 라벨 사전** — STRATEGY_BIAS_LABEL (10) / CYCLE_STATE_LABEL (8) / CYCLE_PHASE_LABEL (5) / ACTIONABILITY_LABEL (5) / PLAN_QUALITY_LABEL (7) / STRUCTURE_BUCKET_LABEL (13) / PRICE_ZONE_LABEL (4) / RISK_LEVEL_LABEL (4)
+  - **이중 환경 export**: `global.WS3_CardViewModel` + `module.exports`
+- `/docs/ws3/WS3_v0_7_0_CARD_VIEW_MODEL_REPORT.md` — 완료 보고서 (신규, hotfix 반영본)
+
+### Adopted DP Policy (r0.2-final 매핑)
+- **DP-UI1** standalone cardViewModel. 입력 5종 (payload/scoreBreakdown/structureDecision/signalCycle/strategyPlan) mutate/delete 금지.
+- **DP-UI2** DOM / HTML / renderer 작성 금지. 데이터 객체만 산출.
+- **DP-UI3** 출력 7대 영역: identity + header + chips + metrics + sections + displayFlags + tone.
+- **DP-UI4** metrics 는 array. object 형태 metrics 금지.
+- **DP-UI5** 라벨은 labelKey + labelKo + labelEn 직접 포함.
+- **DP-UI6** tone semantic token 사용 (positive/neutral/caution/warning/muted/info/critical/unknown). 색상 코드 / hex / inline style 금지.
+- **DP-UI7** showEntryPlan / showExitPlan boolean. displayFlags 에 위치.
+- **DP-UI8** debug 기본 숨김. raw payload / payload.raw / payload.raw.builderDebug 전체 직접 노출 금지. identityInput / candle raw array 직접 노출 영구 차단. cfg.debug.allowedFields whitelist 방식. 기본값 빈 배열.
+- **DP-UI9** sections 7개 생성 (overview / score / structure / cycle / strategy / risk / debug).
+- **DP-UI10** P-S / P-A / P-B 최종 알림 등급 표시 금지.
+- **DP-UI11** numeric hint (entryZone/invalidationHint/targetHint/penalty) 는 sections.strategy / sections.risk 만.
+
+### 부가 정책 (코드 헤더 명시)
+- header.primaryBadge 는 strategyBias 우선 (cycleState override 금지). cycleState 는 chips.
+- reasons / warnings 는 4종 산출 객체로부터 dedupe 누적.
+- "매수하세요" / "매도하세요" 명령 어조 금지.
+- stopLossHint / takeProfitHint / buySignal / sellSignal / planGradeHint 등 구버전 라벨 금지.
+
+### N-UI-OBS 처리 (Gate 1)
+- **N-UI-OBS-1** `index.html` 의 `w1_buildCardViewModel` 은 WOOS v5.x 운영 스코프. 본 단계 `WS3_CardViewModel` 과 prefix 분리. 충돌 0건.
+- **N-UI-OBS-2** `v3-candle-normalizer.js:30` `Date.now()` 는 v0.2.0-a 박제본. 본 단계 비대상. 미수정.
+- **N-UI-OBS-3** `payload.raw.builderDebug.identityInput` 은 payload 내부에 존재하지만, **CardViewModel debug section 에서는 직접 노출 금지**. cfg.debug.allowedFields 기본값은 빈 배열이며, identityInput / payload.raw / raw.builderDebug blanket 노출은 BLOCKED_FIELDS 로 영구 차단. Extra-B smoke 에서 identityInput / SECRET_DO_NOT_LEAK 노출 0건 확인.
+
+### Changed
+- `/docs/ws3/WS3_CHANGELOG.md` (본 파일): `[v0.7.0]` 엔트리 상단 추가
+- `/docs/ws3/WS3_CURRENT_BASELINE.md`: 완료된 단계 표 + 보호 파일 목록 + 모듈 의존성 + 다음 단계 갱신
+
+### Protected (수정 0건 — 15종)
+- `v3-config.js` / `v3-feature-payload.js` / `v3-bithumb-client.js` / `v3-candle-normalizer.js` / `v3-indicators.js` / `v3-feature-payload-builder.js` / `v3-score-breakdown.js` / `v3-structure-bucket.js` / `v3-signal-cycle.js` / `v3-strategy-plan.js`
+- `docs/ws3/WS3_CODE_CONTRACT.md` (b-r2 박제본 그대로)
+- `docs/ws3/WS3_WORKFLOW_TEMPLATE.md` (v0.1 박제본 그대로)
+- `index.html` / `manifest.json` / `service-worker.js`
+
+### 의도된 미구현 (이번 단계 제외)
+- 실제 매수/매도 주문
+- Telegram / 알림 발송 (v0.8.0)
+- DOM 렌더 계층 / 실제 HTML 출력 (별도 renderer 단계)
+- snapshot URL / 저장 / 사후평가 (v0.8.0)
+- 외부 신호 / LW activeCycle (v0.9.x+)
+- 등급 코드 매핑 / 알림 등급 산출
+- 저장소 read/write
+- 외부 호출 / 브라우저 storage / KV
+- 런타임 clock API 사용
+
+### Verified
+- `node --check v3/v3-card-view-model.js` 통과
+- smoke test **12 시나리오** (8 핵심 + 4 Extra) 모두 통과 (10-key displayFlags + labelKey + allowedFields whitelist):
+  - S1 reclaim ready → isReady / isHighActionability / showEntryPlan / showExitPlan / labelKey 존재 / primaryBadge=BIAS / tone=positive
+  - S2 breakout ready → isReady + isHighActionability / tone=positive
+  - S3 pullback wait → not high / not blocked / showEntryPlan=false / tone=neutral
+  - S4 risk off → isBlocked / isWeakening / showRiskWarning / tone=warning
+  - S5 cooldown → isCooldown + isBlocked / primaryBadge=BIAS_COOLDOWN_WAIT
+  - S6 expired → isExpired / tone=critical
+  - S7 numeric hint exposure → entryZone/invalidationHint/targetHint 는 sections.strategy 만. header/chips/metrics 0건
+  - S8 null inputs → valid=false / labelKey='UNKNOWN' / tone=unknown / NOT_OBJECT warning
+  - **Extra-A** debug default null (showDebug=false → sections.debug === null)
+  - **Extra-B** identityInput / raw / builderDebug / candles / rawCandles / candleArrays / LEAK_OBJECT 하드 블록 (allowedFields 통과해도 차단)
+  - **Extra-C** allowedFields scalar passthrough (primaryTimeframe/resolvedTsSource/builderVersion)
+  - **Extra-D** allowedFields 기본 빈 배열 → builderDebug 필드 추가 노출 0건
+  - **Extra-E** frozen-input safety (deepFreeze 5종 입력에 대해 throw 0)
+- 모든 시나리오에서 **displayFlags 10 keys 모두 boolean** 검증
+- 모든 시나리오에서 **5종 입력 mutation 0건** (DP-UI1, S1~S6 smoke 검증)
+- 금지 패턴 grep (identifier 기반):
+  - `Date.now(` / `performance.now(` / `new Date(` / `setTimeout` / `setInterval` 0건
+  - `document.` / `window.` / `localStorage` / `sessionStorage` / `XMLHttpRequest` / `fetch(` / `addEventListener` 0건 (comment 외)
+  - `Telegram` / `externalConfluence` / `renderer` / `innerHTML` / `outerHTML` / `appendChild` 0건 (comment 외)
+  - `payload.<x>= / scoreBreakdown.<x>= / structureDecision.<x>= / signalCycle.<x>= / strategyPlan.<x>= mutation` 0건
+  - `delete <input>.` 0건
+  - **`stopLossHint` / `takeProfitHint` / `buySignal` / `sellSignal` / `planGradeHint` 잔존 0건** (comment 외)
+  - **`매수하세요` / `매도하세요` 등 명령 어조 0건** (comment 외)
+  - **`metrics:\s*\{` 2건 모두 config.metrics object** (mergeConfig/makeConfigUsed). output cardViewModel.metrics 는 array (smoke 검증)
+  - `primaryBadge.*cycleState/CYCLE_/COOLDOWN/EXPIRED/WEAKENING` override 0건
+  - `payload.raw` / `identityInput` / `raw.builderDebug` 매치는 모두 (a) 정책 주석, (b) BLOCKED_FIELDS 배열 리터럴, (c) buildIdentity 의 primaryTimeframe scalar read, (d) buildDebugSection 가드 — **raw 객체 전체 노출 0건. identityInput 노출 0건** (Extra-B smoke 검증)
+  - refined: `P-S/A/B` (word-boundary) 1건 — DP-UI10 정책 주석 line 40 (false-positive, 코드 사용 0건)
+- 보호 파일 `git diff` 빈 출력 = 0건 (15종)
+
+### 기준 commit
+- branch: `claude/heuristic-cori-7865e7`
+- 이전 functional baseline: WS3 v0.6.0 strategyPlan (`8ebba40`)
+- 본 commit: (push 후 기록)
+
+---
+
 ## [v0.6.0] — 2026-05-16 (strategyBias / entryPlan / exitPlan)
 
 ### Added

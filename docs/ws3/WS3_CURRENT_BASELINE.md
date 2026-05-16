@@ -4,8 +4,8 @@
 > 다음 단계 작업 전에 이 파일로 baseline 을 확인.
 
 **최종 업데이트**: 2026-05-16  
-**기능 단계 (current functional baseline)**: WS3 v0.6.0 strategyBias / entryPlan / exitPlan (본 단계)  
-**이전 기능 baseline**: WS3 v0.5.0 signalCycle (`59c8b78`)  
+**기능 단계 (current functional baseline)**: WS3 v0.7.0 CardViewModel (본 단계)  
+**이전 기능 baseline**: WS3 v0.6.0 strategyPlan (`8ebba40`)  
 **운영 문서**: WS3 Workflow Template v0.1 박제 (`d8bebc2`, v0.3.0-docs)  
 **branch**: `claude/heuristic-cori-7865e7`
 
@@ -27,7 +27,8 @@
 | WS3 v0.3.0-docs | `/docs/ws3/WS3_WORKFLOW_TEMPLATE.md` | `d8bebc2` | ✅ 박제 (운영 문서) |
 | WS3 v0.4.0 | `/v3/v3-structure-bucket.js` | `9e94b4d` | ✅ 박제 |
 | WS3 v0.5.0 | `/v3/v3-signal-cycle.js` | `59c8b78` | ✅ 박제 |
-| **WS3 v0.6.0** | **`/v3/v3-strategy-plan.js`** | **(push 후 기록)** | **✅ 박제 (이번 단계)** |
+| WS3 v0.6.0 | `/v3/v3-strategy-plan.js` | `8ebba40` | ✅ 박제 |
+| **WS3 v0.7.0** | **`/v3/v3-card-view-model.js`** | **(push 후 기록)** | **✅ 박제 (이번 단계)** |
 
 ## REJECTED — repo 반영 보류
 
@@ -223,11 +224,12 @@ wrangler.toml
 /v3/v3-score-breakdown.js                   ← v0.3.0 박제본
 /v3/v3-structure-bucket.js                  ← v0.4.0 박제본
 /v3/v3-signal-cycle.js                      ← v0.5.0 박제본
-/v3/v3-strategy-plan.js                     ← v0.6.0 박제본 (이번 단계 신규)
+/v3/v3-strategy-plan.js                     ← v0.6.0 박제본
+/v3/v3-card-view-model.js                   ← v0.7.0 박제본 (이번 단계 신규)
 /v3/v3-index.html                           (생성도 X)
 ```
 
-> 다음 단계 (v0.7.0 UI / CardViewModel) 진입 후 builder/score/structure/cycle/plan 인자 / 매핑 정책 갱신이 필요해지면 별도 r1.x 단계로 분리하여 별도 승인 후에만 수정.
+> 다음 단계 (v0.8.0 Telegram / snapshot / evaluation) 진입 후 builder/score/structure/cycle/plan/viewmodel 인자 / 매핑 정책 갱신이 필요해지면 별도 r1.x 단계로 분리하여 별도 승인 후에만 수정.
 
 ---
 
@@ -250,7 +252,9 @@ v3-signal-cycle.js  (v0.5.0 박제 — 8 cycleState + 5 cyclePhase + 7 bucketFam
   ↓ (standalone signalCycle 객체, 모든 입력 mutate 0건)
 v3-strategy-plan.js  (v0.6.0 박제 — 10 strategyBias + 4축 분류 + entryPlan/exitPlan/riskControls)
   ↓ (standalone strategyPlan 객체, 4종 입력 mutate 0건)
-[v0.7.0 UI / CardViewModel]
+v3-card-view-model.js  (v0.7.0 박제 — identity/header/chips/metrics/sections/displayFlags/tone)
+  ↓ (standalone cardViewModel 객체, 5종 입력 mutate 0건, UI-ready, 비-렌더)
+[v0.8.0 Telegram / snapshot / evaluation]
 ```
 
 ---
@@ -277,11 +281,6 @@ v3-strategy-plan.js  (v0.6.0 박제 — 10 strategyBias + 4축 분류 + entryPla
 ## 다음 단계 (확정된 순서)
 
 ```text
-WS3 v0.7.0 — UI / CardViewModel
-  - 카드헤더 슬롯 / 카드바디 18 섹션
-  - selectionReason 표시
-  - V3 renderer
-
 WS3 v0.8.0 — Telegram / snapshot / evaluation
   - Telegram 메시지 템플릿
   - snapshot URL/저장
@@ -291,14 +290,43 @@ WS3 v0.9.0+ — Phase 4-5 (백서 §21)
   - 빗썸 공식 externalConfluence
   - LW activeCycle tracker
   - 사후평가 보정 분석
+
+(별도) v0.7.x renderer 단계 — DOM/실제 HTML 렌더는 별도 단계로 분리 (CardViewModel 자체는 데이터 객체)
 ```
 
 ---
 
-## v0.6.0 핵심 메모
+## v0.7.0 핵심 메모 (hotfix 반영)
 
 ```text
-- v3/v3-strategy-plan.js 신규 생성 1건
+- v3/v3-card-view-model.js 신규 생성 1건 (hotfix 반영본)
+- 보호 파일 15종 모두 무손상 (v3 *.js 10종 + index/manifest/sw 3종 + CODE_CONTRACT + WORKFLOW_TEMPLATE)
+- WS3_CODE_CONTRACT.md 미수정 (b-r2 박제본 그대로)
+- WS3_WORKFLOW_TEMPLATE.md 미수정 (v0.1 박제본 그대로)
+- DP-UI1 ~ DP-UI11 r0.2-final 매핑 모두 적용 / 미해결 항목 0건
+- 5종 입력 (payload / scoreBreakdown / structureDecision / signalCycle / strategyPlan) mutation 모두 0건 (DP-UI1, smoke 6 시나리오 검증)
+- DP-UI3 출력 7대 영역 (identity / header / chips / metrics / sections / displayFlags / tone)
+- DP-UI4 metrics 는 array (S1~S8 smoke 검증)
+- DP-UI5 라벨은 labelKey + labelKo + labelEn (badge/chip/metric 동일, smoke 검증)
+- DP-UI6 tone semantic token 8종만 (positive/neutral/caution/warning/muted/info/critical/unknown). 색상 코드 0건
+- DP-UI7 displayFlags 정확히 10 boolean (isReady/isBlocked/isCooldown/isExpired/isWeakening/isHighActionability/showEntryPlan/showExitPlan/showRiskWarning/showDebug)
+- DP-UI8 debug 기본 숨김. allowedFields 기본 빈 배열. identityInput / candles / rawCandles / candleArrays / raw / builderDebug 영구 차단 (BLOCKED_FIELDS, Extra-B smoke 검증)
+- DP-UI9 sections 7개 (overview / score / structure / cycle / strategy / risk / debug)
+- DP-UI10 P-S / P-A / P-B 최종 알림 등급 표시 0건
+- DP-UI11 numeric hint 는 sections.strategy / sections.risk 만 (S7 smoke 검증)
+- header.primaryBadge 는 strategyBias 우선 (S5 cooldown smoke 검증)
+- 8개 라벨 사전 (STRATEGY_BIAS/CYCLE_STATE/CYCLE_PHASE/ACTIONABILITY/PLAN_QUALITY/STRUCTURE_BUCKET/PRICE_ZONE/RISK_LEVEL)
+- 명령 어조 / 구버전 라벨 (buySignal/stopLossHint/takeProfitHint/planGradeHint/매수하세요/매도하세요) 잔존 0건
+- 외부 호출 / DOM / 브라우저 storage / KV / network fetch 0건
+- 런타임 clock API 사용 0건
+- 실거래 / 주문 / 알림 / 렌더 / 외부 신호 0건
+- frozen input 안전성 검증 (Extra-E)
+- N-UI-OBS-3 정정: identityInput 영구 차단 (whitelist 와 무관, Extra-B 검증)
+
+## v0.6.0 핵심 메모 (이전 단계)
+
+```text
+- v3/v3-strategy-plan.js 신규 생성 1건 (commit 8ebba40)
 - 보호 파일 14종 모두 무손상 (v3 *.js 9종 + index/manifest/sw 3종 + CODE_CONTRACT + WORKFLOW_TEMPLATE)
 - WS3_CODE_CONTRACT.md 미수정 (b-r2 박제본 그대로)
 - WS3_WORKFLOW_TEMPLATE.md 미수정 (v0.1 박제본 그대로)
