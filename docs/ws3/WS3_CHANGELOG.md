@@ -5,6 +5,93 @@
 
 ---
 
+## [v0.11.0] — 2026-05-16 (Adapter Input Contract Pack)
+
+### Added
+- `/v3/v3-evaluation-observation-adapter.js` — EvaluationObservationAdapter (신규, 497 라인)
+  - `WS3_EvaluationObservationAdapter.build(input, config)` → standalone evaluationObservation 객체 (v0.10.0 buildEvaluationOutcome 입력 호환)
+  - **출력 17-field**: valid/version/candidateKey/window/startTs/endTs/baselinePrice/currentPrice/highPrice/lowPrice/closePrice/highTs/lowTs/closeTs/observedBars/complete/source + reasons/warnings
+  - **field mapping 13종** (windowLabel/startMs/endMs/pricePoints×5/priceTimestamps×3/barsObserved/isComplete/sourceTag)
+  - **U-ACP-1 Option A**: `source='adapter-normalized'` + `reasons[]='ADAPTER_NORMALIZED'`
+  - **DP-ACP6 raw 차단**: `candles/rawCandles/candleArrays/raw/rawResponse/apiResponse` 입력 감지 시 `RAW_INPUT_STRIPPED` 워닝 + 출력 제외
+  - **v0.10.0 호환 보장**: S11 smoke 에서 buildEvaluationOutcome 정상 처리 검증
+  - **이중 환경 export**: `global.WS3_EvaluationObservationAdapter` + `module.exports`
+- `/v3/v3-external-confluence.js` — ExternalConfluence (신규, 736 라인)
+  - `WS3_ExternalConfluence.build(input, config)` → standalone externalConfluence 객체 (post-evaluation 보조 context layer)
+  - **출력 top-level**: valid/version/market/sector/exchange/schedule/news/confluenceScore/confluenceLabel + reasons/warnings/debug/configUsed
+  - **5종 sub-context 정규화**: market (btcMarketState/altMarketState/marketRisk) / sector (sectorState/sectorStrength) / exchange (exchangeContext/liquidityContext) / schedule (hasKnownEvent/eventType/eventRisk) / news (hasNews/newsTone)
+  - **6 confluenceLabel 후보** (UNKNOWN/FAVORABLE/NEUTRAL/ADVERSE/MIXED)
+  - **U-ACP-2**: `confluenceScore` number\|null, 기본 null, -100~100 범위. `enableScore` 기본 false → null. true 시 contribution 합산 + clamp
+  - **DP-ACP5 보조 context**: scoreBreakdown/strategyPlan/totalScore/planQualityTier/strategyBias 필드 부재 (S7 검증)
+  - **N-ACP-OBS-1**: payload.newsContext 직접 read 0건. caller-provided input.newsContext 만 처리
+  - **이중 환경 export**: `global.WS3_ExternalConfluence` + `module.exports`
+- `/docs/ws3/WS3_v0_11_0_ADAPTER_INPUT_CONTRACT_PACK_REPORT.md` — 완료 보고서 (신규)
+
+### Adopted DP Policy
+- **DP-ACP1** 입력 adapter contract 만. 실제 fetch / transport / renderer 구현 X.
+- **DP-ACP2** v0.11.0 입력 layer (EvaluationObservationAdapter + ExternalConfluence). 출력 layer (TransportPlan / RendererBinding) 는 v0.12.0.
+- **DP-ACP3** side-effect 금지 (fetch / Telegram / KV / DB / DOM / storage / runtime clock).
+- **DP-ACP4** EvaluationObservation v0.10.0 호환: version='external-observation-v0', source='adapter-normalized', reasons[]에 ADAPTER_NORMALIZED 추가.
+- **DP-ACP5** ExternalConfluence 보조 context. scoreBreakdown / strategyPlan 판단 대체 금지.
+- **DP-ACP6** raw candles / full API response / payload.raw / identityInput 저장/노출 금지.
+- **DP-ACP7** Config-driven (DEFAULT_*_CONFIG).
+- **DP-ACP8** 입력 객체 mutation / delete 금지.
+- **DP-ACP9** 신규 파일 2개 + 문서 갱신만. 기존 v3 엔진 파일 수정 금지.
+- **DP-ACP10** TransportPlan / RendererBinding 미생성. v0.12.0 으로 분리.
+
+### U-ACP / N-ACP-OBS 처리
+- **U-ACP-1 Option A** EvaluationObservation.source = 'adapter-normalized'. reasons[]에 ADAPTER_NORMALIZED 추가. version='external-observation-v0' 유지. v0.10.0 호환 우선.
+- **U-ACP-2** confluenceScore number\|null, 기본 null, 범위 -100~100. config `enableScore` 기본 false. true 시 contribution 합산 후 min/max clamp. 정량화 불충분 시 null 유지. confluenceLabel 기본 'UNKNOWN'.
+- **N-ACP-OBS-1** payload.newsContext (v0.1.0) 와 input.newsContext (v0.11.0) 별도 layer. ExternalConfluence 는 caller 가 주입한 input.newsContext 만 처리. payload 직접 read 0건.
+- **N-ACP-OBS-2** v0.2.0-a baseline 보호 파일의 Date.now / fetch 책임 분리. 본 2종 모듈 코드 침범 0건.
+
+### Changed
+- `/docs/ws3/WS3_CHANGELOG.md` (본 파일): `[v0.11.0]` 엔트리 상단 추가
+- `/docs/ws3/WS3_CURRENT_BASELINE.md`: 완료된 단계 표 + 보호 파일 목록 + 모듈 의존성 + 다음 단계 갱신
+
+### Protected (수정 0건 — 19종)
+- v3 *.js 14종 (config / feature-payload / bithumb-client / candle-normalizer / indicators / feature-payload-builder / score-breakdown / structure-bucket / signal-cycle / strategy-plan / card-view-model / operation-packet / active-cycle / evaluation-outcome)
+- `docs/ws3/WS3_CODE_CONTRACT.md` (b-r2 박제본 그대로)
+- `docs/ws3/WS3_WORKFLOW_TEMPLATE.md` (v0.1 박제본 그대로)
+- `index.html` / `manifest.json` / `service-worker.js`
+
+### 의도된 미구현 (이번 단계 제외)
+- 실제 Bithumb / Upbit / Binance / 외부 API fetch
+- 실제 뉴스 fetch / 일정 API
+- 실제 Telegram 발송 / KV / DB / 파일 IO / 브라우저 storage
+- DOM 렌더 / UI 이벤트 연결
+- 입력 객체 mutation
+- 런타임 clock API (Date.now / new Date / performance.now)
+- **TransportPlan / RendererBinding / AdapterContractPack / buildAdapterContractPack** (v0.12.0 으로 분리)
+- bot 식별 시크릿 / 채널 식별자 / API 키
+
+### Verified
+- `node --check v3/v3-evaluation-observation-adapter.js` 통과
+- `node --check v3/v3-external-confluence.js` 통과
+- smoke test **15 시나리오** (12 핵심 + 3 Extra) 모두 통과:
+  - S1 evaluationObservation normalize / S2 invalid price / S3 window normalize / S4 no raw candles
+  - S5 externalConfluence normalize / S6 unknown defaults / S7 does NOT replace score
+  - S8 score disabled by default / S9 score enabled (favorable 70 / adverse clamp)
+  - S10 mutation check (양쪽 adapter) / S11 v0.10.0 compatibility / S12 forbidden patterns (runtime)
+  - Extra-A frozen-input safety / Extra-B candidateKey missing / Extra-C marketRisk derivation
+- 모든 시나리오 **입력 mutation 0건** (DP-ACP8, smoke 검증)
+- **v0.10.0 buildEvaluationOutcome 호환 보장** (S11 — adapter 출력을 EO 가 정상 처리)
+- 금지 패턴 grep (코드 침범 0건, 매치는 모두 정책 명시 comment):
+  - `fetch( / KV. / DB / Telegram / sendTelegram / XMLHttpRequest / innerHTML / document. / addEventListener / localStorage / sessionStorage / Date.now( / new Date / performance.now` 코드 0건
+  - `evaluationObservation.X = / externalConfluence.X = mutation` 0건
+  - `delete <input>.X` 0건
+  - `payload.raw / identityInput / raw.builderDebug / secret / chatId / botToken / apiKey / raw candles / full API response` 코드 0건
+  - `매수 성공 / 손절 / 익절 / 수익 확정 / 손실 확정 / profit / loss / 매수하세요 / 매도하세요 / buy now / sell now / take profit / stop loss` 코드 0건 (양쪽 모듈)
+  - `TransportPlan / RendererBinding / AdapterContractPack / buildAdapterContractPack / telegramPlan / snapshotPlan / evaluationPlan / rendererBinding` 정의 0건 (정책 comment 만)
+- 보호 파일 `git diff` 빈 출력 = 0건 (19종)
+
+### 기준 commit
+- branch: `claude/heuristic-cori-7865e7`
+- 이전 functional baseline: WS3 v0.10.0 evaluationOutcome (`887123a`)
+- 본 commit: (push 후 기록)
+
+---
+
 ## [v0.10.0] — 2026-05-16 (EvaluationOutcome / Result Classifier)
 
 ### Added
