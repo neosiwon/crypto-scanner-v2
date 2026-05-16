@@ -4,8 +4,8 @@
 > 다음 단계 작업 전에 이 파일로 baseline 을 확인.
 
 **최종 업데이트**: 2026-05-17  
-**기능 단계 (current functional baseline)**: WS3 v0.13.0 Transport Execution Envelope (본 단계)  
-**이전 기능 baseline**: WS3 v0.12.0 adapterOutputContractPack (`8fd0551`)  
+**기능 단계 (current functional baseline)**: WS3 v0.14.0 Secure Transport Executor Contract (본 단계)  
+**이전 기능 baseline**: WS3 v0.13.0 transportExecutionEnvelope (`5d05836`)  
 **운영 문서**: WS3 Workflow Template v0.1 박제 (`d8bebc2`, v0.3.0-docs)  
 **branch**: `claude/heuristic-cori-7865e7`
 
@@ -34,7 +34,8 @@
 | WS3 v0.10.0 | `/v3/v3-evaluation-outcome.js` | `887123a` | ✅ 박제 |
 | WS3 v0.11.0 | `/v3/v3-evaluation-observation-adapter.js` + `/v3/v3-external-confluence.js` | `4c94875` | ✅ 박제 |
 | WS3 v0.12.0 | `/v3/v3-transport-plan.js` + `/v3/v3-renderer-binding.js` | `8fd0551` | ✅ 박제 |
-| **WS3 v0.13.0** | **`/v3/v3-transport-execution-adapter.js`** | **(push 후 기록)** | **✅ 박제 (이번 단계, dry-run safe envelope)** |
+| WS3 v0.13.0 | `/v3/v3-transport-execution-adapter.js` | `5d05836` | ✅ 박제 |
+| **WS3 v0.14.0** | **`/v3/v3-secure-transport-executor-contract.js`** | **(push 후 기록)** | **✅ 박제 (이번 단계, CONTRACT_ONLY secure executor contract)** |
 
 ## REJECTED — repo 반영 보류
 
@@ -239,11 +240,12 @@ wrangler.toml
 /v3/v3-external-confluence.js               ← v0.11.0 박제본 (보조 context)
 /v3/v3-transport-plan.js                    ← v0.12.0 박제본 (출력 dry-run plan)
 /v3/v3-renderer-binding.js                  ← v0.12.0 박제본 (UI binding)
-/v3/v3-transport-execution-adapter.js       ← v0.13.0 박제본 (이번 단계 신규, dry-run safe envelope)
+/v3/v3-transport-execution-adapter.js       ← v0.13.0 박제본 (dry-run safe envelope)
+/v3/v3-secure-transport-executor-contract.js ← v0.14.0 박제본 (이번 단계 신규, CONTRACT_ONLY secure executor contract)
 /v3/v3-index.html                           (생성도 X)
 ```
 
-> 다음 단계 (v0.13.x / v0.14.x — 실제 transport executor / renderer / persistence) 진입 후 builder/score/structure/cycle/plan/viewmodel/operationPacket/activeCycle/evaluationOutcome/observationAdapter/externalConfluence/transportPlan/rendererBinding/transportExecutionAdapter 인자 / 매핑 정책 갱신이 필요해지면 별도 r1.x 단계로 분리하여 별도 승인 후에만 수정.
+> 다음 단계 (v0.14.x / v0.15.x — 실제 transport executor / renderer / persistence) 진입 후 builder/score/structure/cycle/plan/viewmodel/operationPacket/activeCycle/evaluationOutcome/observationAdapter/externalConfluence/transportPlan/rendererBinding/transportExecutionAdapter/secureTransportExecutorContract 인자 / 매핑 정책 갱신이 필요해지면 별도 r1.x 단계로 분리하여 별도 승인 후에만 수정.
 
 ---
 
@@ -283,7 +285,9 @@ v3-renderer-binding.js  (v0.12.0 박제 — UI binding: header/chips/metrics/sec
   ↓ (standalone RendererBinding 객체, 입력 mutate 0건, DOM-free, cardViewModel superset)
 v3-transport-execution-adapter.js  (v0.13.0 박제 — dry-run safe envelope: telegramEnvelope/snapshotEnvelope/evaluationEnvelope/auditEnvelope)
   ↓ (standalone TransportExecutionEnvelope 객체, 6종 입력 mutate 0건, side-effect free, dryRun=true 강제, credential recursive 차단, whitelist scalar only)
-[v0.13.x / v0.14.x — 실제 transport executor / renderer / persistence 분리 단계]
+v3-secure-transport-executor-contract.js  (v0.14.0 박제 — CONTRACT_ONLY secure executor contract: telegramContract/snapshotContract/evaluationContract/auditContract)
+  ↓ (standalone SecureTransportExecutorContract 객체, 7종 입력 mutate 0건, side-effect free, contractMode='CONTRACT_ONLY' 강제, liveExecutionAllowed=false 강제, credential recursive + env-like + depth + bindingRef 검증, bindingRef logical reference only, v0.13 envelope 재검증, secureBindingPolicy 박제, v0.15+ real executor 와 credential 비전달 보장)
+[v0.14.x / v0.15.x — 실제 transport executor / renderer / persistence 분리 단계]
 ```
 
 ---
@@ -310,8 +314,9 @@ v3-transport-execution-adapter.js  (v0.13.0 박제 — dry-run safe envelope: te
 ## 다음 단계 (확정된 순서)
 
 ```text
-(별도) v0.14.x — 실제 transport executor (TransportExecutionEnvelope 출력을 받아 실제 Telegram bot API / KV write / reviewQueue write)
-                  credential 은 secure binding / env / secure store 에서 별도 처리 — v0.13.0 envelope 에는 절대 포함 X
+(별도) v0.15.x — 실제 transport executor (SecureTransportExecutorContract 출력을 받아 실제 Telegram bot API / KV write / reviewQueue write)
+                  bindingRef → secure binding lookup (Cloudflare env / KMS / secret store) — v0.14.0 contract 에는 credential value 0 포함
+                  LIVE_EXECUTION explicit gate 별도 정의
 (별도) v0.12.x renderer — DOM/HTML attach (RendererBinding 출력을 받아 렌더)
 (별도) v0.11.x — 실제 외부 데이터 수집 adapter (EvaluationObservationAdapter 출력을 받아 실제 fetch)
 (별도) v0.10.x evaluation adapter — 실제 24h/7d 캔들 fetch + outcome 영속화
@@ -321,6 +326,30 @@ v3-transport-execution-adapter.js  (v0.13.0 박제 — dry-run safe envelope: te
 ```
 
 ---
+
+## v0.14.0 핵심 메모
+
+```text
+- v3/v3-secure-transport-executor-contract.js 신규 (1595 라인)
+- 보호 파일 24종 모두 무손상 (v3 *.js 19종 + index/manifest/sw 3종 + CODE_CONTRACT + WORKFLOW_TEMPLATE)
+- DP-SEC1 ~ DP-SEC10 + N-SEC-OBS-1 ~ N-SEC-OBS-4 모두 적용 / 미해결 항목 0건
+- contractMode='CONTRACT_ONLY' 강제, liveExecutionAllowed=false 강제 (LIVE/REAL/EXECUTE → CONTRACT_BLOCKED)
+- contractStatus 6 후보 first-match-wins: CONTRACT_INVALID > BLOCKED > PARTIAL > READY > SKIPPED > UNKNOWN
+- 4 target contract (5-stage AND ready): telegram / snapshot / evaluation / audit
+- credential 9키 재귀 차단 (case-insensitive + partial + depth 5 + scalar leaf 안전)
+- RESERVED 프레임워크 metadata 16종 자동 차단 제외 (N-SEC-OBS-4 — credentialMaxDepth / credentialAllowList / allowWebhookUrl / bindingRefAllowList 등)
+- env-like 11키 exact match + value object 차단 (r0.2 §6.2 false-positive 완화)
+- validateBindingRef: ^[A-Z][A-Z0-9_]*$ + 13 금지 substring (http/https/sk-/xoxb-/eyJ 등) + bot[0-9]+ + digit-only + credential partial match + bindingRefAllowList 기본 []
+- payloadSummary 14 whitelist scalar only + metadata 기본 빈 배열
+- v0.13 envelope 재검증 (payloadSummary / metadata 그대로 신뢰 X)
+- secureBindingPolicy 박제 (credentialSource='SECURE_BINDING_ONLY', envReadAllowed=false, liveExecutionRequiresExplicitGate=true)
+- Object.assign / spread / JSON.parse(JSON.stringify) / for-in 코드 0건
+- sanitizeMode='REJECT' 기본 (15 금지 어휘 line 제거)
+- smoke test 26 시나리오 / 82 assertion 전부 PASS
+- 입력 mutation 0건 (DP-SEC9, S24 frozen-input 검증)
+- fetch / Telegram 실호출 / KV / DB / DOM / storage / clock API / process.env / globalThis / chatId / botToken / apiKey 코드 0건
+- v0.15+ real executor 와 credential 인계 0건 (bindingRef logical reference + requestShape scalar 만 인계)
+```
 
 ## v0.13.0 핵심 메모
 

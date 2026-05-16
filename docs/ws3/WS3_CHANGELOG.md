@@ -5,6 +5,90 @@
 
 ---
 
+## [v0.14.0] — 2026-05-17 (Secure Transport Executor Contract)
+
+### Added
+- `/v3/v3-secure-transport-executor-contract.js` — SecureTransportExecutorContract (신규, 1595 라인)
+  - `WS3_SecureTransportExecutorContract.build(input, config)` → standalone CONTRACT_ONLY contract object (입력 7종 mutate 0건)
+  - **출력 top-level**: valid/version/contractMode('CONTRACT_ONLY')/liveExecutionAllowed(false)/contractStatus/sourceEnvelopeStatus/secureBindingPolicy/telegramContract/snapshotContract/evaluationContract/auditContract/contractSummary + reasons/warnings/debug/configUsed
+  - **contractStatus 6 후보** first-match-wins 우선순위: `CONTRACT_INVALID > CONTRACT_BLOCKED > CONTRACT_PARTIAL > CONTRACT_READY > CONTRACT_SKIPPED > CONTRACT_UNKNOWN`
+  - **4 target contract** (5-stage AND ready): telegramContract / snapshotContract / evaluationContract / auditContract
+  - **credential 9키 recursive 차단** (DP-SEC4): case-insensitive + partial match + depth limit 5 + scalar leaf 안전. RESERVED 프레임워크 metadata 16종 자동 차단 제외 (N-SEC-OBS-4)
+  - **env-like 11키 exact match + value object 차단** (DP-SEC4): env/ENV/environment/bindings/cfEnv/cloudflareEnv/secrets/kvNamespace/kv/KV/process — false-positive 완화 (r0.2 §6.2 spec)
+  - **validateBindingRef** (DP-SEC5): `^[A-Z][A-Z0-9_]*$` UPPER_SNAKE_CASE + 13 금지 substring (http/https/://, sk-, xoxb-, xoxp-, eyJ 등) + bot[0-9]+ 정규식 + digit-only 차단 + credential partial match + `bindingRefAllowList` 기본 []
+  - **payloadSummary 14 whitelist scalar only** + metadata 기본 빈 배열. Object.assign / spread / clone / for-in 0건
+  - **secureBindingPolicy 박제**: credentialSource='SECURE_BINDING_ONLY', credentialInPayloadAllowed=false, credentialInEnvelopeAllowed=false, envReadAllowed=false, directSecretAccessAllowed=false, liveExecutionRequiresExplicitGate=true
+  - **v0.13 envelope 재검증** (DP-SEC6): payloadSummary / metadata 그대로 신뢰 X. v0.14 whitelist 로 재검증
+  - **v0.14 ↔ v0.15 인터페이스 분리**: bindingRef logical reference + requestShape scalar 만 인계. credential value / URL endpoint / env object / raw payload 0건
+  - **이중 환경 export**: `global.WS3_SecureTransportExecutorContract` + `module.exports`
+- `/docs/ws3/WS3_v0_14_0_SECURE_TRANSPORT_EXECUTOR_CONTRACT_REPORT.md` — 완료 보고서 (신규, 17 sections)
+
+### Adopted DP Policy
+- **DP-SEC1** secure executor contract 만. 실제 발송/저장/호출 X. `contractMode='CONTRACT_ONLY'` + `liveExecutionAllowed=false` 강제.
+- **DP-SEC2** transportExecutionEnvelope eligible/status override 금지. boolean AND 집계만.
+- **DP-SEC3** CONTRACT_ONLY 외 mode → CONTRACT_BLOCKED. LIVE/REAL/EXECUTE 금지. liveExecutionAllowed=true 도 BLOCKED.
+- **DP-SEC4** credential 9키 + env-like 11키 input/config 전체 nested object 재귀 검사 차단. case-insensitive + partial + depth 5. process.env / globalThis.env 코드 0건.
+- **DP-SEC5** bindingRef logical reference only. validateBindingRef 형식 / 금지 substring / credential pattern 검증.
+- **DP-SEC6** requestShape / payloadSummary / metadata whitelist scalar 만. 원본 객체 spread / Object.assign / deep clone / for-in 금지. v0.13 envelope 재검증.
+- **DP-SEC7** dry-run wording only. 15 금지 어휘 sanitize ('REJECT' 기본).
+- **DP-SEC8** side-effect 금지 — fetch / Telegram / KV / DB / DOM / storage / runtime clock 모두 0건.
+- **DP-SEC9** 7종 입력 (transportExecutionEnvelope + transportPlan + rendererBinding + operationPacket + activeCycleDecision + evaluationOutcome + externalConfluence) read-only.
+- **DP-SEC10** 신규 파일 1개 + 문서 갱신만. 보호 파일 24종 수정 금지.
+
+### N-SEC-OBS 처리
+- **N-SEC-OBS-1** 보호 baseline false-positive — 본 모듈 fetch / Date.now / new Date / performance.now / Object.assign / spread / deep clone / for-in 0건.
+- **N-SEC-OBS-2** `payloadSummaryAllowedFields` namespace — v0.13 (`cfg.payloadSummary.allowedFields`) vs v0.14 (`cfg.requestShape.payloadSummaryAllowedFields`) namespace 분리. 구조적 충돌 없음.
+- **N-SEC-OBS-3** `buildSafePayloadSummary` 동명 함수 — IIFE module-private. global export 미포함. v0.13 과 파일 scope 분리로 충돌 없음.
+- **N-SEC-OBS-4** RESERVED 프레임워크 metadata 키 자동 차단 제외 — v0.13/v0.14 정책 metadata field 명 16종 (credentialMaxDepth / credentialAllowList / allowWebhookUrl / bindingRefAllowList 등) `isCredentialKey` exact match 사전 검사 통해 차단 회피. 사용자 입력의 동명 키도 detection 만 회피 (실제 credential value 검증은 다른 layer 책임).
+
+### Changed
+- `/docs/ws3/WS3_CHANGELOG.md` (본 파일): `[v0.14.0]` 엔트리 상단 추가
+- `/docs/ws3/WS3_CURRENT_BASELINE.md`: 완료된 단계 표 + 보호 파일 목록 (24종) + 모듈 의존성 + 다음 단계 갱신
+
+### Protected (수정 0건 — 24종)
+- v3 *.js 19종 (config / feature-payload / bithumb-client / candle-normalizer / indicators / feature-payload-builder / score-breakdown / structure-bucket / signal-cycle / strategy-plan / card-view-model / operation-packet / active-cycle / evaluation-outcome / evaluation-observation-adapter / external-confluence / transport-plan / renderer-binding / transport-execution-adapter)
+- `docs/ws3/WS3_CODE_CONTRACT.md` (b-r2 박제본 그대로)
+- `docs/ws3/WS3_WORKFLOW_TEMPLATE.md` (v0.1 박제본 그대로)
+- `index.html` / `manifest.json` / `service-worker.js`
+- `worker.js` / `wrangler.toml`
+
+### 의도된 미구현 (이번 단계 제외)
+- 실제 Telegram bot API 호출 / chatId / botToken / webhookUrl 노출
+- 실제 KV write / DB persist / 파일 IO / 브라우저 storage
+- 실제 reviewQueue write / audit log 영속화
+- 실제 DOM 렌더 / HTML attach / addEventListener
+- 실제 env 접근 / process.env / Cloudflare env 객체 / secret binding 값 읽기
+- 입력 객체 mutation
+- 런타임 clock API (Date.now / new Date / performance.now)
+- raw payload / payload.raw / identityInput / raw.builderDebug 노출
+
+### Verified
+- `node --check v3/v3-secure-transport-executor-contract.js` 통과 (SYNTAX_OK)
+- smoke test **26 시나리오 / 82 assertion 전부 PASS**:
+  - S1 ready all targets / S2 skipped / S3 invalid / S4 source BLOCKED / S5 LIVE BLOCKED / S6 liveExecutionAllowed=true BLOCKED
+  - S7 credential top-level / S8 credential nested / S9 bindingRef safe / S10 URL/dot/colon / S11 token-like / S12 credential pattern
+  - S13 env-like object (input.env / config.bindings / config.cloudflareEnv) / S14 object too deep
+  - S15~S18 4 target contract shape (channelRef / bucketRef / evaluationType / auditType + bindingRef logical)
+  - S19 payloadSummary revalidation / S20 metadata revalidation / S21 wording sanitize REJECT
+  - S22 no env access / S23 no side-effect / S24 mutation 0 / S25 raw/secret value leak prevention
+  - S26 v0.15 interface separation (process.env / api.telegram.org / sk-/xoxb-/eyJ 0 노출 + secureBindingPolicy 5 boolean 검증)
+- 모든 시나리오 **입력 mutation 0건** (DP-SEC9, S24 frozen-input 검증)
+- 금지 패턴 grep (실제 코드 침범 0건, 매치는 JSDoc 정책 + literal 차단 list + 변수/함수명):
+  - `fetch( / KV. / DB / Telegram 실호출 / XMLHttpRequest / innerHTML / document. / addEventListener / localStorage / sessionStorage / Date.now( / new Date / performance.now` 코드 0건
+  - `transportExecutionEnvelope.X = / transportPlan.X = / rendererBinding.X = / operationPacket.X = / activeCycleDecision.X = / evaluationOutcome.X = / externalConfluence.X =` **0건** ✅
+  - `process.env / globalThis.env / globalThis.bindings / globalThis.secrets / typeof process !== / typeof globalThis ===` **0건** ✅ (2 JSDoc 정책 매치만)
+  - `Object.assign / ...spread / JSON.parse(JSON.stringify) / for-in` 실제 사용 **0건** (3 JSDoc 정책)
+  - `발송됨 / 저장됨 / 전송 완료 / sent / delivered / 매수 성공 / 손절 / 익절 / take profit / stop loss` 실제 출력 어휘 사용 0건 (FORBIDDEN_WORDS literal 차단 list 정의만)
+  - env-like 키 매치 = JSDoc + `ENV_LIKE_KEYS_EXACT` literal array + `KV_SNAPSHOT_BINDING` constant + local var `env` (v0.13 envelope variable). 실제 env 접근 0건
+- 보호 파일 `git diff --stat HEAD -- <24 protected files>` 빈 출력 = 0건
+
+### 기준 commit
+- branch: `claude/heuristic-cori-7865e7`
+- 이전 functional baseline: WS3 v0.13.0 transportExecutionEnvelope (`5d05836`)
+- 본 commit: (push 후 기록)
+
+---
+
 ## [v0.13.0] — 2026-05-17 (Transport Execution Envelope)
 
 ### Added
