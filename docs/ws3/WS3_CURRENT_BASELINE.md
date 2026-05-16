@@ -4,8 +4,8 @@
 > 다음 단계 작업 전에 이 파일로 baseline 을 확인.
 
 **최종 업데이트**: 2026-05-16  
-**기능 단계 (current functional baseline)**: WS3 v0.8.0 OperationPacket (본 단계)  
-**이전 기능 baseline**: WS3 v0.7.0 cardViewModel (`7e2ef36`)  
+**기능 단계 (current functional baseline)**: WS3 v0.9.0 ActiveCycle (본 단계)  
+**이전 기능 baseline**: WS3 v0.8.0 operationPacket (`2fb95cf`)  
 **운영 문서**: WS3 Workflow Template v0.1 박제 (`d8bebc2`, v0.3.0-docs)  
 **branch**: `claude/heuristic-cori-7865e7`
 
@@ -29,7 +29,8 @@
 | WS3 v0.5.0 | `/v3/v3-signal-cycle.js` | `59c8b78` | ✅ 박제 |
 | WS3 v0.6.0 | `/v3/v3-strategy-plan.js` | `8ebba40` | ✅ 박제 |
 | WS3 v0.7.0 | `/v3/v3-card-view-model.js` | `7e2ef36` | ✅ 박제 |
-| **WS3 v0.8.0** | **`/v3/v3-operation-packet.js`** | **(push 후 기록)** | **✅ 박제 (이번 단계)** |
+| WS3 v0.8.0 | `/v3/v3-operation-packet.js` | `2fb95cf` | ✅ 박제 |
+| **WS3 v0.9.0** | **`/v3/v3-active-cycle.js`** | **(push 후 기록)** | **✅ 박제 (이번 단계)** |
 
 ## REJECTED — repo 반영 보류
 
@@ -227,11 +228,12 @@ wrangler.toml
 /v3/v3-signal-cycle.js                      ← v0.5.0 박제본
 /v3/v3-strategy-plan.js                     ← v0.6.0 박제본
 /v3/v3-card-view-model.js                   ← v0.7.0 박제본
-/v3/v3-operation-packet.js                  ← v0.8.0 박제본 (이번 단계 신규)
+/v3/v3-operation-packet.js                  ← v0.8.0 박제본
+/v3/v3-active-cycle.js                      ← v0.9.0 박제본 (이번 단계 신규)
 /v3/v3-index.html                           (생성도 X)
 ```
 
-> 다음 단계 (v0.9.0+ Phase 4-5 / externalConfluence / LW activeCycle) 진입 후 builder/score/structure/cycle/plan/viewmodel/operationPacket 인자 / 매핑 정책 갱신이 필요해지면 별도 r1.x 단계로 분리하여 별도 승인 후에만 수정.
+> 다음 단계 (v0.9.x+ externalConfluence / 사후평가 보정 / 실제 transport adapter) 진입 후 builder/score/structure/cycle/plan/viewmodel/operationPacket/activeCycle 인자 / 매핑 정책 갱신이 필요해지면 별도 r1.x 단계로 분리하여 별도 승인 후에만 수정.
 
 ---
 
@@ -258,7 +260,9 @@ v3-card-view-model.js  (v0.7.0 박제 — identity/header/chips/metrics/sections
   ↓ (standalone cardViewModel 객체, 5종 입력 mutate 0건, UI-ready, 비-렌더)
 v3-operation-packet.js  (v0.8.0 박제 — routing/notificationPacket/snapshotPacket/evaluationSeed/displaySummary)
   ↓ (standalone operationPacket 객체, 6종 입력 mutate 0건, transport-ready, side-effect free)
-[v0.9.0+ Phase 4-5 / externalConfluence / LW activeCycle / 실제 transport]
+v3-active-cycle.js  (v0.9.0 박제 — lifecycle/transition/routingDecision/notifyPolicy/snapshotPolicy/evaluationPolicy/nextState)
+  ↓ (standalone activeCycleDecision 객체, 2종 입력 mutate 0건, lifecycle decision data, side-effect free)
+[v0.9.x+ externalConfluence / 사후평가 보정 / 실제 transport adapter]
 ```
 
 ---
@@ -285,18 +289,44 @@ v3-operation-packet.js  (v0.8.0 박제 — routing/notificationPacket/snapshotPa
 ## 다음 단계 (확정된 순서)
 
 ```text
-WS3 v0.9.0+ — Phase 4-5 (백서 §21)
+WS3 v0.9.x+ — externalConfluence / 사후평가 보정 (백서 §21)
   - 빗썸 공식 externalConfluence
-  - LW activeCycle tracker
   - 사후평가 보정 분석
 
-(별도) v0.8.x transport 단계 — 실제 외부 전송 / KV 저장 / 평가 실행은 별도 단계 (OperationPacket 자체는 transport-ready 데이터)
+(별도) v0.9.x transport adapter — 실제 외부 전송 / KV 저장 / 평가 실행 (ActiveCycle 자체는 lifecycle decision data)
+(별도) v0.8.x transport 단계 — OperationPacket transport-ready 데이터의 실제 전송
 (별도) v0.7.x renderer 단계 — DOM/실제 HTML 렌더는 별도 단계
 ```
 
 ---
 
-## v0.8.0 핵심 메모
+## v0.9.0 핵심 메모
+
+```text
+- v3/v3-active-cycle.js 신규 생성 1건 (1279 라인)
+- 보호 파일 17종 모두 무손상 (v3 *.js 12종 + index/manifest/sw 3종 + CODE_CONTRACT + WORKFLOW_TEMPLATE)
+- WS3_CODE_CONTRACT.md 미수정 (b-r2 박제본 그대로)
+- WS3_WORKFLOW_TEMPLATE.md 미수정 (v0.1 박제본 그대로)
+- DP-AC1 ~ DP-AC14 모두 적용 / 미해결 항목 0건
+- 입력 2종 (operationPacket + previousOperationState) mutation 0건 (DP-AC1, smoke 검증)
+- lifecycleState 8 후보 (NONE/NEW/ACTIVE/PERSISTING/STRENGTHENING/WEAKENING/COOLDOWN/EXPIRED). DUPLICATE/SUPPRESSED 0건 (DP-AC12)
+- lifecyclePhase 7 후보 (NONE/NEW/EARLY/ACTIVE/MATURE/LATE/CLOSED) (DP-AC13)
+- transition 11 후보 (NONE/NEW_CANDIDATE/SAME_CANDIDATE/CANDIDATE_CHANGED/STATE_CHANGED/STRENGTHENED/WEAKENED/COOLDOWN_ENTERED/COOLDOWN_CONTINUED/EXPIRED/DUPLICATE_SUPPRESSED)
+- candidateKey verbatim 복사 (DP-AC4)
+- timestamp 기준: snapshotPacket.timestamp → evaluationSeed.startTs → null (DP-AC5)
+- signalCooldown vs notifyCooldown 분리 (DP-AC14, Extra-C smoke 검증)
+- state strength max() (DP-AC9 / U-AC-1, Extra-A 검증). 합산/평균 0건
+- U-AC-1 Option A: snapshotPacket.state.cycleState / cycle.cycleState ranking source 추가. STRENGTHENING(70) / WEAKENING(-10) 활성화
+- U-AC-2 Option A: previous null = base zero state. 첫 관측 seenCount=1
+- U-AC-3: Gate 2 spec top-level 15-field shape 그대로
+- N-AC-OBS-1: isActiveCycleState 회피 → isActiveLifecycleState 사용
+- N-AC-OBS-2: 보호 파일 책임. 본 모듈 Date.now / new Date / performance.now / fetch 코드 0건
+- 외부 호출 / DOM / 브라우저 storage / KV / persistence 0건
+- 런타임 clock API 사용 0건
+- 실거래 / 주문 / 알림 / 렌더 / 등급 코드 / secret 0건
+- frozen input 안전성 검증 (Extra-D)
+
+## v0.8.0 핵심 메모 (이전 단계)
 
 ```text
 - v3/v3-operation-packet.js 신규 생성 1건

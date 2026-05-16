@@ -5,6 +5,101 @@
 
 ---
 
+## [v0.9.0] — 2026-05-16 (ActiveCycle / Packet Lifecycle)
+
+### Added
+- `/v3/v3-active-cycle.js` — activeCycleDecision 본체 (신규, 1279 라인)
+  - `WS3_ActiveCycle.build(operationPacket, previousOperationState, config)` → standalone activeCycleDecision 객체 (2종 입력 mutate 0건)
+  - **출력 top-level 15-field**: `valid` / `version` / `candidateKey` / `identity` / `lifecycle` / `transition` / `routingDecision` / `notifyPolicy` / `snapshotPolicy` / `evaluationPolicy` / `nextState` / `reasons` / `warnings` / `debug` / `configUsed` (U-AC-3)
+  - **lifecycleState 8 후보** (NONE/NEW/ACTIVE/PERSISTING/STRENGTHENING/WEAKENING/COOLDOWN/EXPIRED). DUPLICATE/SUPPRESSED 금지 (DP-AC12)
+  - **lifecyclePhase 7 후보** (NONE/NEW/EARLY/ACTIVE/MATURE/LATE/CLOSED). seenCount 우선 + ageMs 보조 (DP-AC13)
+  - **transition 11 후보** (NONE/NEW_CANDIDATE/SAME_CANDIDATE/CANDIDATE_CHANGED/STATE_CHANGED/STRENGTHENED/WEAKENED/COOLDOWN_ENTERED/COOLDOWN_CONTINUED/EXPIRED/DUPLICATE_SUPPRESSED). DUPLICATE_SUPPRESSED 는 transition 에만 허용
+  - **cooldown 2종 분리** (DP-AC14): signalCooldown (operationPacket COOLDOWN) vs notifyCooldown (lastNotifyTs + minIntervalMs)
+  - **state strength ranking** (DP-AC9 + U-AC-1 Option A): EXPIRED -100 / COOLDOWN -50 / BLOCKED -30 / WEAKENING -10 / NONE 0 / WATCH 10 / WATCH_24H 15 / READY 30 / PLAN_24H 40 / STATE_CHANGE 45 / PLAN_WEAK 45 / PLAN_STRONG 55 / PLAN_PREMIUM 65 / STRENGTHENING 70. max() 사용 (합산/평균 X)
+  - **이중 환경 export**: `global.WS3_ActiveCycle` + `module.exports`
+- `/docs/ws3/WS3_v0_9_0_ACTIVE_CYCLE_REPORT.md` — 완료 보고서 (신규)
+
+### Adopted DP Policy
+- **DP-AC1** standalone 반환. operationPacket / previousOperationState mutate 금지.
+- **DP-AC2** side-effect 금지 (외부 전송 / 영속 저장 / network / DOM / 브라우저 storage).
+- **DP-AC3** previousOperationState caller 주입. v0.9.0 직접 읽지 않음.
+- **DP-AC4** operationPacket.candidateKey 만 사용. 재계산 금지.
+- **DP-AC5** timestamp 기준: snapshotPacket.timestamp → evaluationSeed.startTs → null. 런타임 clock API 금지.
+- **DP-AC6** same candidate + no state change + suppressDuplicate → suppressNotify. currentTs 시 minIntervalMs 적용.
+- **DP-AC7** canSnapshot / canEvaluate boolean 만. 실제 저장/평가는 후속 adapter.
+- **DP-AC8** nextState 포함. 저장은 후속 adapter.
+- **DP-AC9** ranking helper. max() 사용. 합산 / 평균 X. 매매 점수 / 알림 등급 아님.
+- **DP-AC10** safe summary 만. raw / secret / identityInput / candle raw 저장 금지.
+- **DP-AC11** operationPacket EXPIRED 1순위. expireAfterMs 보조. currentTs/firstSeenTs null 시 시간 기반 생략.
+- **DP-AC12** lifecycleState 에 DUPLICATE / SUPPRESSED 금지. 중복/억제는 transition / notifyPolicy / routingDecision 에서.
+- **DP-AC13** lifecyclePhase 7 후보. seenCount 우선 + ageMs 보조 (currentTs 있을 때만).
+- **DP-AC14** signalCooldown vs notifyCooldown 분리.
+
+### U-AC / N-AC-OBS 처리
+- **U-AC-1 Option A** STRENGTHENING ranking source 확장 — `snapshotPacket.state.cycleState` / `snapshotPacket.cycle.cycleState` 추가. STRENGTHENING(70) / WEAKENING(-10) ranking 활성화.
+- **U-AC-2 Option A** previous null/invalid → base zero state (seenCount=0). 첫 관측 seenCount=1.
+- **U-AC-3** Gate 2 spec top-level shape 그대로 구현 (15-field).
+- **N-AC-OBS-1** v3-signal-cycle.js `isActiveCycleState` helper 와 충돌 회피 — 본 모듈은 `isActiveLifecycleState` 사용.
+- **N-AC-OBS-2** v0.2.0-a baseline 보호 파일의 Date.now / fetch literal 책임. 본 모듈 코드 침범 0건.
+
+### Changed
+- `/docs/ws3/WS3_CHANGELOG.md` (본 파일): `[v0.9.0]` 엔트리 상단 추가
+- `/docs/ws3/WS3_CURRENT_BASELINE.md`: 완료된 단계 표 + 보호 파일 목록 + 모듈 의존성 + 다음 단계 갱신
+
+### Protected (수정 0건 — 17종)
+- `v3-config.js` / `v3-feature-payload.js` / `v3-bithumb-client.js` / `v3-candle-normalizer.js` / `v3-indicators.js` / `v3-feature-payload-builder.js` / `v3-score-breakdown.js` / `v3-structure-bucket.js` / `v3-signal-cycle.js` / `v3-strategy-plan.js` / `v3-card-view-model.js` / `v3-operation-packet.js`
+- `docs/ws3/WS3_CODE_CONTRACT.md` (b-r2 박제본 그대로)
+- `docs/ws3/WS3_WORKFLOW_TEMPLATE.md` (v0.1 박제본 그대로)
+- `index.html` / `manifest.json` / `service-worker.js`
+
+### 의도된 미구현 (이번 단계 제외)
+- KV / DB / 파일 IO / 브라우저 storage read/write
+- 외부 전송 / 알림 발송 (별도 transport adapter)
+- snapshot 실제 저장
+- evaluation 실제 실행 / 24h / 7d outcome 계산
+- DOM / 렌더 / UI 이벤트 연결
+- 입력 2종 mutation
+- 런타임 clock API 사용
+- 등급 코드 / 매매 점수 / 매매 권고
+- bot 식별 시크릿 / 채널 식별자 / API 키
+
+### Verified
+- `node --check v3/v3-active-cycle.js` 통과
+- smoke test **16 시나리오** (12 핵심 + 4 Extra) 모두 통과:
+  - S1 new candidate → lifecycleState=NEW / transition=NEW_CANDIDATE / seenCount=1 (U-AC-2)
+  - S2 same candidate persisting → lifecycleState=PERSISTING / seenCount += 1
+  - S3 duplicate suppressed → duplicateSuppressed=true / suppressNotify=true / suppressReason=DUPLICATE
+  - S4 candidate changed → CANDIDATE_CHANGED transition
+  - S5 strengthening → STRENGTHENING / STRENGTHENED transition
+  - S6 weakening / risk change → WEAKENING / WEAKENED transition
+  - S7 signal cooldown → signalCooldownActive=true / notifyCooldownActive=false / suppressReason=SIGNAL_COOLDOWN
+  - S8 notify cooldown → notifyCooldownActive=true / signalCooldownActive=false / suppressReason=NOTIFY_COOLDOWN
+  - S9 expired by packet → lifecycleState=EXPIRED / lifecyclePhase=CLOSED
+  - S10 expired by age → lifecycleState=EXPIRED (시간 기반)
+  - S11 no timestamp → ageMs=null / notifyCooldownActive=false / seenCount 증가. throw 0
+  - S12 invalid inputs → valid=false / OPERATION_PACKET_NOT_OBJECT 워닝
+  - Extra-A state ranking max() — 합산/평균 불일치, max 일치
+  - Extra-B lifecycleState DUPLICATE/SUPPRESSED 미사용 (4 케이스)
+  - Extra-C cooldown 분리 — signal/notify 독립 동작
+  - Extra-D frozen-input safety
+- 모든 시나리오 **2종 입력 mutation 0건** (DP-AC1, smoke 검증)
+- 금지 패턴 grep (코드 침범 0건, 매치는 모두 정책 명시 comment):
+  - `KV. / DB / Telegram / sendTelegram / fetch( / XMLHttpRequest / innerHTML / document. / addEventListener / localStorage / sessionStorage / Date.now( / new Date / performance.now` 코드 0건
+  - `operationPacket.X = / previousOperationState.X = mutation` 0건
+  - `delete <input>.` 0건
+  - `payload.raw / identityInput / raw.builderDebug / secret / token / chatId / botToken / apiKey` 코드 0건
+  - `매수하세요 / 매도하세요 / buy now / sell now / take profit / stop loss` 코드 0건
+  - `lifecycleState DUPLICATE / SUPPRESSED` 사용 0건 (LIFECYCLE_STATE enum 부재)
+  - `isActiveCycleState` v3-active-cycle.js 본 모듈 사용 0건 (정책 comment 만)
+- 보호 파일 `git diff` 빈 출력 = 0건 (17종)
+
+### 기준 commit
+- branch: `claude/heuristic-cori-7865e7`
+- 이전 functional baseline: WS3 v0.8.0 operationPacket (`2fb95cf`)
+- 본 commit: (push 후 기록)
+
+---
+
 ## [v0.8.0] — 2026-05-16 (OperationPacket · notification/snapshot/evaluation 후보 패킷)
 
 ### Added
