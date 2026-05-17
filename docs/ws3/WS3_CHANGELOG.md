@@ -5,6 +5,70 @@
 
 ---
 
+## [v0.20.0] — 2026-05-17 (Secure Runtime State Adapter)
+
+### Added
+- `/v3/v3-secure-runtime-state-adapter.js` — SecureRuntimeStateAdapter (신규, 961 라인)
+  - `WS3_SecureRuntimeStateAdapter.build(input, config)` → standalone CANARY_PREP_ONLY runtime state contract (side-effect 0건, 100% sync)
+  - **출력 top-level**: valid/version/runtimeMode('CANARY_PREP_ONLY')/canaryOnly=true/liveSignalEnabled=false/runtimeStatus/sourcePreflightStatus/runtimePolicy/killSwitchRuntimeState/rollbackRuntimeState/disableRuntimeState/telegramRuntimeEligibility/canaryRuntimePolicy/safeDiagnostics + reasons/warnings/debug/configUsed
+  - **runtimeStatus 4 후보** first-match-wins: `RUNTIME_INVALID > RUNTIME_BLOCKED > RUNTIME_READY > RUNTIME_UNKNOWN`
+  - **6 runtime state contract**:
+    - `killSwitchRuntimeState`: `{evaluated:true, state:'CANARY_ALLOWED', source:'explicit_config_only', mutationAllowed:false}` — 금지 state: ON/OFF/UNKNOWN/ERROR/BYPASSED
+    - `rollbackRuntimeState`: `{evaluated:true, rollbackAvailable:false, rollbackExecutionAllowed:false}` — 실제 rollback executor 참조 0건
+    - `disableRuntimeState`: `{evaluated:true, disabled:false, disableExecutionAllowed:false}` — 실제 disable executor 참조 0건
+    - `telegramRuntimeEligibility`: `{target:'TELEGRAM', eligibleForCanary:true, eligibleForLiveSignal:false, reason:'CANARY_ONLY'}`
+    - `canaryRuntimePolicy`: `{canaryOnly:true, fixedMessageOnly:true, candidatePayloadAllowed:false, snapshotAllowed:false, evaluationAllowed:false, auditAllowed:false, kvWriteAllowed:false, dbWriteAllowed:false}` — 8 boolean 박제
+    - `safeDiagnostics`: `{tokenValueExposed:false, chatIdValueExposed:false, rawTelegramResponseExposed:false}` — 3 boolean false 강제
+  - **6 validate 함수** 본문 규칙 박제 (DP-RUNTIME4): plain object only / Array/function/Promise/thenable 차단 / depth limit 1 / whitelist key / enum/boolean 강제 / `INVALID_<TYPE>:<sub-reason>` reason. 6 INVALID_* reason code 신규
+  - **v0.19 read-only consume**: liveExecutionPreflightGate ready/status/policy override 0건 (smoke test 9 mutation 검증)
+  - **v0.20 별도 객체 정책 박제** (N-PREFLIGHT-OBS-5 박제): v0.19 의 killSwitchPlan/rollbackPlan/disablePlan 은 read-only contract, v0.20 은 별도 runtime state 객체 신규 생성
+  - **RESERVED framework metadata 37종** (v0.19 31 + v0.20 신규 6: tokenValueExposed/chatIdValueExposed/rawTelegramResponseExposed + tokenPresent/chatIdPresent/canaryEnabled 사전 등재)
+  - **runtimePolicy 박제**: preflightOnly=true + 17 boolean false + liveExecutionRequiresExplicitGate=true
+  - **이중 환경 export**: `global.WS3_SecureRuntimeStateAdapter` + `module.exports`
+- `/docs/ws3/WS3_v0_20_0_SECURE_RUNTIME_STATE_ADAPTER_REPORT.md` — 완료 보고서 (신규, 12 sections)
+
+### Adopted DP Policy
+- **DP-RUNTIME1** side-effect 0건. 실제 LIVE / fetch / KV / DB / credential read / env access 0건. async / await / Promise / thenable / setTimeout / setInterval 0건. Date.now / new Date / performance.now 0건.
+- **DP-RUNTIME2** liveExecutionPreflightGate ready/status/policy override 0건. read-only consume.
+- **DP-RUNTIME3** runtimeMode CANARY_PREP_ONLY only. LIVE / EXECUTE → RUNTIME_BLOCKED.
+- **DP-RUNTIME4** 6 validate 함수 본문 규칙 박제.
+- **DP-RUNTIME5** 신규 파일 1개 + 문서 갱신만. 보호 파일 31종 수정 금지.
+
+### Changed
+- `/docs/ws3/WS3_CHANGELOG.md` (본 파일): `[v0.20.0]` 엔트리 상단 추가
+- `/docs/ws3/WS3_CURRENT_BASELINE.md`: 완료 단계 표 + 보호 파일 목록 (32종) + 모듈 의존성 + v0.20.0 핵심 메모 추가
+
+### Protected (수정 0건 — 31종)
+- v3 *.js 25종 (config ~ live-execution-preflight-gate)
+- `docs/ws3/WS3_CODE_CONTRACT.md` / `docs/ws3/WS3_WORKFLOW_TEMPLATE.md`
+- `index.html` / `manifest.json` / `service-worker.js` / `worker.js` / `wrangler.toml`
+
+### 의도된 미구현 (이번 단계 제외)
+- 실제 Telegram 발송 / fetch / KV write / DB write / credential 값 출력 / token/chatId 로그 출력
+- 실제 코인 후보 연결 / worker.js 본선 수정 / index.html 수정
+- async / await / Promise / timer 사용
+- process.env / globalThis.env 접근
+- Date.now / new Date / performance.now 사용
+
+### Verified
+- `node --check v3/v3-secure-runtime-state-adapter.js` 통과 (SYNTAX_OK)
+- smoke test **18 시나리오 전부 PASS** (TOTAL=18 PASS=18 FAIL=0)
+- 금지 패턴 grep (비-comment 라인 기준):
+  - `async function / await / thenable / setTimeout / setInterval / fetch( / AbortController` **0건**
+  - `Promise` **0건 실제 코드** (`hasFunctionOrPromiseInPlainObject` 식별자 substring 7건만)
+  - `Date.now / new Date / performance.now` **0건**
+  - `process.env / globalThis.env / globalThis.bindings / globalThis.secrets` **0건**
+  - `Object.assign / spread `...` / JSON.parse(JSON.stringify) / for-in` **0건**
+- v0.19 결과 mutation **0건** (smoke S9 검증: pre.telegramPreflight JSON.stringify before/after 동일)
+- 보호 파일 `git diff --stat HEAD -- <31 protected files>` 빈 출력 = 0건
+
+### 기준 commit
+- branch: `claude/heuristic-cori-7865e7`
+- 이전 functional baseline: WS3 v0.19.0 liveExecutionPreflightGate (`7f2de04`)
+- 본 commit: (push 후 기록)
+
+---
+
 ## [v0.19.0] — 2026-05-17 (LIVE Execution Preflight Gate)
 
 ### Added

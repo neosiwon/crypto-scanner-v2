@@ -4,8 +4,8 @@
 > 다음 단계 작업 전에 이 파일로 baseline 을 확인.
 
 **최종 업데이트**: 2026-05-17  
-**기능 단계 (current functional baseline)**: WS3 v0.19.0 LIVE Execution Preflight Gate (본 단계)  
-**이전 기능 baseline**: WS3 v0.18.0 secureBindingGatewayContract (`32cbc1d`)  
+**기능 단계 (current functional baseline)**: WS3 v0.20.0 Secure Runtime State Adapter (본 단계)  
+**이전 기능 baseline**: WS3 v0.19.0 liveExecutionPreflightGate (`7f2de04`)  
 **운영 문서**: WS3 Workflow Template v0.1 박제 (`d8bebc2`, v0.3.0-docs)  
 **branch**: `claude/heuristic-cori-7865e7`
 
@@ -40,7 +40,8 @@
 | WS3 v0.16.0 | `/v3/v3-transport-executor-interface-adapter.js` | `9eaffe5` | ✅ 박제 |
 | WS3 v0.17.0 | `/v3/v3-transport-executor-sandbox-runner.js` | `0ddbe85` | ✅ 박제 |
 | WS3 v0.18.0 | `/v3/v3-secure-binding-gateway-contract.js` | `32cbc1d` | ✅ 박제 |
-| **WS3 v0.19.0** | **`/v3/v3-live-execution-preflight-gate.js`** | **(push 후 기록)** | **✅ 박제 (이번 단계, PREFLIGHT_ONLY LIVE execution preflight gate)** |
+| WS3 v0.19.0 | `/v3/v3-live-execution-preflight-gate.js` | `7f2de04` | ✅ 박제 |
+| **WS3 v0.20.0** | **`/v3/v3-secure-runtime-state-adapter.js`** | **(push 후 기록)** | **✅ 박제 (이번 단계, CANARY_PREP_ONLY secure runtime state adapter — Gate 2 동시 작성, commit 분리)** |
 
 ## REJECTED — repo 반영 보류
 
@@ -251,7 +252,8 @@ wrangler.toml
 /v3/v3-transport-executor-interface-adapter.js ← v0.16.0 박제본 (INTERFACE_ONLY transport executor interface adapter)
 /v3/v3-transport-executor-sandbox-runner.js ← v0.17.0 박제본 (SANDBOX_ONLY transport executor sandbox runner)
 /v3/v3-secure-binding-gateway-contract.js   ← v0.18.0 박제본 (CONTRACT_ONLY secure binding gateway contract)
-/v3/v3-live-execution-preflight-gate.js     ← v0.19.0 박제본 (이번 단계 신규, PREFLIGHT_ONLY LIVE execution preflight gate)
+/v3/v3-live-execution-preflight-gate.js     ← v0.19.0 박제본 (PREFLIGHT_ONLY LIVE execution preflight gate)
+/v3/v3-secure-runtime-state-adapter.js      ← v0.20.0 박제본 (이번 단계 신규, CANARY_PREP_ONLY secure runtime state adapter)
 /v3/v3-index.html                           (생성도 X)
 ```
 
@@ -306,8 +308,10 @@ v3-transport-executor-sandbox-runner.js  (v0.17.0 박제 — SANDBOX_ONLY: teleg
 v3-secure-binding-gateway-contract.js  (v0.18.0 박제 — CONTRACT_ONLY: telegramGateway/snapshotGateway/evaluationGateway/auditGateway + 5종 Contract field (credentialHandleRef/bindingScope/lookupPlan/bindingPolicy/sandboxResultRef))
   ↓ (standalone SecureBindingGatewayContract 객체, 11종 입력 mutate 0건, side-effect free, sync only, gatewayMode='CONTRACT_ONLY' 강제, 11 boolean hard block (v0.17 9 + lookupAllowed + envAccessAllowed 신규), 5 safe sandboxResultRef fields (target/action/resultType/simulated/status), framework logical term 우회 알고리즘 (CREDENTIAL_HANDLE / CREDENTIAL_HANDLE_REF substring), v0.17 pass-through 재검증, masked credential preview 출력 0건)
 v3-live-execution-preflight-gate.js  (v0.19.0 박제 — PREFLIGHT_ONLY: telegramPreflight/snapshotPreflight/evaluationPreflight/auditPreflight + 7종 Contract field (gatewayRef/executionIntent/bindingRequirementSnapshot/liveReadinessPolicy/killSwitchPlan/rollbackPlan/disablePlan) + riskSummary)
-  ↓ (standalone LiveExecutionPreflightGate 객체, 12종 입력 mutate 0건, side-effect free, sync only, preflightMode='PREFLIGHT_ONLY' 강제, 11 boolean hard block (liveExecution/credentialLookup/bindingLookup/driverCall/fetch/write/retry/timer/envAccess/rollbackExecution/killSwitchMutation), 4 target 동일 13-key shape (빈 객체 0건), 8 validate 본문 규칙 박제, killSwitchPlan.currentState='NOT_EVALUATED' 강제, rollback/disable executor 호출 0건, v0.20 별도 runtimeState 객체 분리 정책 (killSwitchRuntimeState/rollbackRuntimeState/disableRuntimeState))
-[v0.20.x — 실제 LIVE executor / secure runtime adapter / runtime state 객체 분리 단계]
+  ↓ (standalone LiveExecutionPreflightGate 객체, 12종 입력 mutate 0건, side-effect free, sync only, preflightMode='PREFLIGHT_ONLY' 강제, 11 boolean hard block, 4 target 동일 13-key shape, 8 validate 본문 규칙, killSwitchPlan.currentState='NOT_EVALUATED' 강제, v0.20 별도 runtimeState 객체 분리 정책)
+v3-secure-runtime-state-adapter.js  (v0.20.0 박제 — CANARY_PREP_ONLY: killSwitchRuntimeState/rollbackRuntimeState/disableRuntimeState/telegramRuntimeEligibility/canaryRuntimePolicy/safeDiagnostics)
+  ↓ (standalone SecureRuntimeStateAdapter 객체, v0.19 결과 mutate 0건, side-effect free, sync only, runtimeMode='CANARY_PREP_ONLY' 강제, 6 runtime state contract (killSwitchRuntimeState.state='CANARY_ALLOWED' 박제 + rollback/disable executor 0건 + telegramRuntimeEligibility (Canary only) + canaryRuntimePolicy 8 boolean (fixedMessageOnly=true, KV/DB/snapshot/evaluation/audit/candidatePayload 0건) + safeDiagnostics 3 false 강제), 6 validate 본문 규칙, async/Promise/timer/Date.now/process.env/globalThis.env 0건)
+[v0.21.x — Telegram canary sender (실제 첫 LIVE side-effect 모듈) — Gate 2 동시 작성, 별도 commit 단계]
 ```
 
 ---
@@ -346,6 +350,34 @@ v3-live-execution-preflight-gate.js  (v0.19.0 박제 — PREFLIGHT_ONLY: telegra
 ```
 
 ---
+
+## v0.20.0 핵심 메모
+
+```text
+- v3/v3-secure-runtime-state-adapter.js 신규 (961 라인) — side-effect 0건 계층
+- 보호 파일 31종 모두 무손상 (v0.19 v3-live-execution-preflight-gate.js 추가)
+- DP-RUNTIME1 ~ DP-RUNTIME5 모두 적용 / 미해결 0건
+- runtimeStatus 4 후보 first-match-wins (INVALID > BLOCKED > READY > UNKNOWN)
+- runtimeMode='CANARY_PREP_ONLY' 강제, canaryOnly=true 강제, liveSignalEnabled=false 강제
+- 6 runtime state contract:
+  - killSwitchRuntimeState (4 keys: evaluated/state='CANARY_ALLOWED'/source='explicit_config_only'/mutationAllowed=false, 금지 state ON/OFF/UNKNOWN/ERROR/BYPASSED)
+  - rollbackRuntimeState (3 keys: evaluated/rollbackAvailable=false/rollbackExecutionAllowed=false)
+  - disableRuntimeState (3 keys: evaluated/disabled=false/disableExecutionAllowed=false)
+  - telegramRuntimeEligibility (4 keys: target='TELEGRAM'/eligibleForCanary=true/eligibleForLiveSignal=false/reason='CANARY_ONLY')
+  - canaryRuntimePolicy (8 keys: canaryOnly=true/fixedMessageOnly=true/candidatePayloadAllowed/snapshotAllowed/evaluationAllowed/auditAllowed/kvWriteAllowed/dbWriteAllowed=false)
+  - safeDiagnostics (3 keys: tokenValueExposed/chatIdValueExposed/rawTelegramResponseExposed=false 강제)
+- 6 validate 본문 규칙 박제 (plain object only / depth limit 1 / Array/function/Promise/thenable 차단 / whitelist key / enum/boolean 강제 / INVALID_<TYPE>:<sub-reason> reason)
+- 6 INVALID_* reason code 신규 (INVALID_KILL_SWITCH_RUNTIME_STATE / INVALID_ROLLBACK_RUNTIME_STATE / INVALID_DISABLE_RUNTIME_STATE / INVALID_TELEGRAM_RUNTIME_ELIGIBILITY / INVALID_CANARY_RUNTIME_POLICY / INVALID_SAFE_DIAGNOSTICS)
+- runtimePolicy 박제 (preflightOnly=true + 17 boolean false + liveExecutionRequiresExplicitGate=true)
+- v0.19 결과 read-only consume: liveExecutionPreflightGate ready/status/policy override 0건 (smoke S9 mutation 검증)
+- v0.20 별도 객체 정책 (N-PREFLIGHT-OBS-5 박제): v0.19 plan 객체와 별도 runtime state 객체 신규 생성
+- RESERVED framework metadata 37종 (v0.19 31 + v0.20 신규 6 safeDiagnostics presence flags)
+- async function / await / Promise / thenable / setTimeout / setInterval / fetch / AbortController 0건 (sync only)
+- Date.now / new Date / performance.now / process.env / globalThis.env / globalThis.bindings / globalThis.secrets 0건
+- Object.assign / spread / JSON.parse(JSON.stringify) / for-in 0건
+- smoke test 18 시나리오 전부 PASS (TOTAL=18 PASS=18 FAIL=0)
+- v0.21 의 hard precondition source (20 AND 의 16 조건은 v0.20 결과)
+```
 
 ## v0.19.0 핵심 메모
 
