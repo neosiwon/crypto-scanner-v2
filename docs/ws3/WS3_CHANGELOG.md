@@ -5,6 +5,100 @@
 
 ---
 
+## [v0.17.0] — 2026-05-17 (Transport Executor Sandbox Runner)
+
+### Added
+- `/v3/v3-transport-executor-sandbox-runner.js` — TransportExecutorSandboxRunner (신규, 1995 라인)
+  - `WS3_TransportExecutorSandboxRunner.build(input, config)` → standalone SANDBOX_ONLY fixture-based simulated result (입력 10종 mutate 0건)
+  - **출력 top-level**: valid/version/sandboxMode('SANDBOX_ONLY')/liveExecutionAllowed(false)/sandboxStatus/sourceAdapterStatus/sandboxPolicy/bindingResolverPreview/telegramSandbox/snapshotSandbox/evaluationSandbox/auditSandbox/sandboxSummary + reasons/warnings/debug/configUsed
+  - **sandboxStatus 6 후보** first-match-wins 우선순위: `SANDBOX_INVALID > SANDBOX_BLOCKED > SANDBOX_PARTIAL > SANDBOX_READY > SANDBOX_SKIPPED > SANDBOX_UNKNOWN`
+  - **4 target sandbox** (17-stage AND ready): telegramSandbox / snapshotSandbox / evaluationSandbox / auditSandbox
+  - **9 boolean hard block** (DP-SANDBOX4, N-SANDBOX-OBS-7): `liveExecutionAllowed / sideEffectAllowed / fetchAllowed / writeAllowed / credentialLookupAllowed / bindingLookupAllowed / driverCallAllowed / retryAllowed / timerAllowed` (v0.16 의 8 + `timerAllowed` 신규) 중 하나라도 true → SANDBOX_BLOCKED
+  - **5종 Preview** (DP-SANDBOX2): bindingResolverPreview (top-level) / driverCallPreview / resultAdapterPreview / errorAdapterPreview / retryPreview — 모두 INTERFACE→SANDBOX_PREVIEW 안전 변환, callAllowed/lookupAllowed/wouldCall/retryAllowed/rawResponseAllowed/rawErrorAllowed/stackAllowed/responseBodyAllowed 모두 false 강제
+  - **sandboxFixture 9-step validation** (DP-SANDBOX5): plain object only / 허용 키 6종 (target/action/ok/status/errorType/reasonCode) / extra key 차단 / credential key partial match 차단 / nested object 차단 / target enum + target match / action enum + target ↔ action 매핑 / ok boolean|null / status SIMULATED_OK/ERROR/SKIPPED / errorType null 또는 9 enum / reasonCode safe string + credential/function pattern 차단
+  - **sandboxResult whitelist scalar only** (DP-SANDBOX7): simulated/resultType/target/action/ok/status/errorType/reasonCode 8종 only. rawResponse/rawError/stack/responseBody/headers/body/credential/timestamp 금지
+  - **sandboxResult.ok 와 target.ready 분리** (N-SANDBOX-OBS-8): sandboxResult.ok=true 는 LIVE 실행 결정 source 아님. SIMULATED_OK/ERROR/SKIPPED 모두 audit/canary 자료. SIMULATED_ERROR 도 정상 에러 경로 시뮬레이션 가능. target.ready=true 라도 sandboxResult.ok=false 가능
+  - **target ↔ action 매핑 1:1** (TELEGRAM→TELEGRAM_SEND, SNAPSHOT_STORE→SNAPSHOT_WRITE, EVALUATION_STORE→EVALUATION_WRITE, AUDIT_STORE→AUDIT_WRITE) — fixture/result 양쪽 검증
+  - **v0.16 pass-through 재검증**: rateLimitContract (key=target match) / circuitBreakerContract (state='OPEN_IN_DRY_RUN' 강제, CLOSED/HALF_OPEN 금지)
+  - **detectFunctionInputs 재귀 차단** (DP-SANDBOX5): function / async / Promise / thenable input → SANDBOX_BLOCKED
+  - **validateLogicalRef 6단계** (v0.16 동일): 형식 + allowList + credential pattern 우선 + 금지 substring + bot/digit-only + function pattern (token-level)
+  - **RESERVED 프레임워크 metadata 24종 자동 차단 제외** (N-SANDBOX-OBS-6): v0.16 `credentialHandleRef` (bindingResolverContract field) 신규 포함 + v0.17 sandbox metadata 3종 (sandboxFixtureCredentialPatternBlocked / sandboxFixturePatternBlocked / sandboxFixtureFunctionPatternBlocked)
+  - **sandboxFixtureRef logical handle**: TELEGRAM_SANDBOX_FIXTURE / SNAPSHOT_SANDBOX_FIXTURE / EVALUATION_SANDBOX_FIXTURE / AUDIT_SANDBOX_FIXTURE
+  - **이중 환경 export**: `global.WS3_TransportExecutorSandboxRunner` + `module.exports`
+- `/docs/ws3/WS3_v0_17_0_TRANSPORT_EXECUTOR_SANDBOX_RUNNER_REPORT.md` — 완료 보고서 (신규, 16 sections)
+
+### Adopted DP Policy
+- **DP-SANDBOX1** sandbox runner only. 실제 발송/저장/호출/binding lookup/retry/timer X.
+- **DP-SANDBOX2** transportExecutorInterfaceAdapter ready/status/contract override 금지. 5종 Contract preview 변환만.
+- **DP-SANDBOX3** SANDBOX_ONLY only. LIVE/REAL/EXECUTE → SANDBOX_BLOCKED.
+- **DP-SANDBOX4** 9 boolean hard block (liveExecution/sideEffect/fetch/write/credentialLookup/bindingLookup/driverCall/retry/timer).
+- **DP-SANDBOX5** function/async/Promise/thenable/resolver/driver/retry/timer input 차단.
+- **DP-SANDBOX6** credential / env / process / secure binding 값 읽기 0건. env-like object → 즉시 SANDBOX_BLOCKED.
+- **DP-SANDBOX7** sandboxResult whitelist scalar. raw response/raw error/stack/body/credential/timestamp 금지.
+- **DP-SANDBOX8** dry-run / sandbox wording only.
+- **DP-SANDBOX9** 10종 입력 read-only.
+- **DP-SANDBOX10** 신규 파일 1개 + 문서 갱신만. 보호 파일 29종 수정 금지.
+
+### N-SANDBOX-OBS 처리
+- **N-SANDBOX-OBS-1** 신규 식별자 fresh (Sandbox/SANDBOX_*/buildXxxSandbox/WS3_TransportExecutorSandboxRunner).
+- **N-SANDBOX-OBS-2** v0.16 interface adapter shape 정합. override 0건.
+- **N-SANDBOX-OBS-3** sandbox fixture/result 식별자 fresh.
+- **N-SANDBOX-OBS-4** preview 계열 fresh (bindingResolverPreview/driverCallPreview/resultAdapterPreview/errorAdapterPreview/retryPreview).
+- **N-SANDBOX-OBS-5** 보호 baseline false-positive — async/Promise/setTimeout/fetch 등 본 모듈 0건.
+- **N-SANDBOX-OBS-6** RESERVED 24종 자동 차단 제외 (`credentialHandleRef` v0.16 field 포함 + v0.17 sandbox 3종 신규).
+- **N-SANDBOX-OBS-7** timerAllowed 신규 hard block (v0.16 8 + 1 → 9).
+- **N-SANDBOX-OBS-8** sandboxResult.ok ≠ target.ready 분리. SIMULATED_ERROR/SKIPPED 도 ready=true 가능.
+- **N-SANDBOX-OBS-9** 보호 파일 29종 무손상.
+
+### Changed
+- `/docs/ws3/WS3_CHANGELOG.md` (본 파일): `[v0.17.0]` 엔트리 상단 추가
+- `/docs/ws3/WS3_CURRENT_BASELINE.md`: 완료된 단계 표 + 보호 파일 목록 (29종) + 모듈 의존성 + 다음 단계 갱신
+
+### Protected (수정 0건 — 29종)
+- v3 *.js 22종 (config ~ transport-executor-interface-adapter)
+- `docs/ws3/WS3_CODE_CONTRACT.md` (b-r2 박제본 그대로)
+- `docs/ws3/WS3_WORKFLOW_TEMPLATE.md` (v0.1 박제본 그대로)
+- `index.html` / `manifest.json` / `service-worker.js`
+- `worker.js` / `wrangler.toml`
+
+### 의도된 미구현 (이번 단계 제외)
+- 실제 Telegram bot API / KV / DB / fetch / binding lookup / env 접근
+- 실제 driver call / retry 실행 / circuit breaker 상태 변경 / rate limit 카운터 증가
+- timer (setTimeout / setInterval) / Promise / thenable
+- raw payload / payload.raw / identityInput / raw.builderDebug / rawResponse / rawError / stack 노출
+- sandboxResult 를 LIVE 실행 결정 source 로 사용
+
+### Verified
+- `node --check v3/v3-transport-executor-sandbox-runner.js` 통과 (SYNTAX_OK)
+- smoke test **60 시나리오 / 134 assertion 전부 PASS**:
+  - S1 ready / S2 skipped / S3 invalid / S4 source BLOCKED / S5 LIVE / S6~S14 9 hard block boolean
+  - S15 function input / S16 thenable / S17 credential / S18 env-like
+  - S19~S22 4 target sandbox shape (sandboxResult.action target 매핑 + sandboxFixtureRef)
+  - S23 default fixture / S24 default ok / S25 SIMULATED_ERROR / S26 SIMULATED_SKIPPED
+  - S27 ACTION_TARGET_MISMATCH / S28 extra key / S29 nested object / S30 credential key / S31 invalid errorType / S32 reasonCode credential
+  - S33 simulated only / S34 no rawResponse / S35 no rawError-stack / S36 no credential leak / S37 sandboxResult.ok ≠ target.ready
+  - S38~S42 5 Preview shape / S43 rateLimit pass-through / S44 invalid rate limit / S45 CB pass-through / S46 CLOSED blocked / S47 requestShape revalidation / S48 metadata revalidation
+  - S49 wording sanitize / S50~S51 no env / no side-effect / S52 mutation 0 / S53 raw/secret leak
+  - S54 v0.18 interface separation / S55 sandboxResult is not LIVE / S56~S59 preview boolean false maintained / S60 simulatedOkCount/ErrorCount/SkippedCount
+- 모든 시나리오 **입력 mutation 0건** (DP-SANDBOX9, S52 frozen-input)
+- 금지 패턴 grep:
+  - async / Promise / setTimeout / setInterval / fetch / Date.now / new Date / performance.now **실제 사용 0건** (150 매치는 JSDoc 정책 + literal + 변수명)
+  - 9종 입력 mutation **0건** ✅
+  - process.env / globalThis.env / api.telegram.org **0건** (실제 접근)
+  - Object.assign / spread / clone / for-in **0건** (실제 사용)
+  - credential / URL / token **0건** (외부 노출)
+  - lookupAllowed/callAllowed/wouldCall/retryAllowed/rawResponseAllowed/rawErrorAllowed/stackAllowed/responseBodyAllowed/timerAllowed `: true` **0건** ✅
+  - CLOSED / HALF_OPEN / OPEN[^_] **0건** (실제 사용, 1 JSDoc 매치만)
+  - 발송됨 / sent / 손절 / 익절 출력 어휘 사용 **0건**
+- 보호 파일 `git diff --stat HEAD -- <29 protected files>` 빈 출력 = 0건
+
+### 기준 commit
+- branch: `claude/heuristic-cori-7865e7`
+- 이전 functional baseline: WS3 v0.16.0 transportExecutorInterfaceAdapter (`9eaffe5`)
+- 본 commit: (push 후 기록)
+
+---
+
 ## [v0.16.0] — 2026-05-17 (Transport Executor Interface Adapter)
 
 ### Added

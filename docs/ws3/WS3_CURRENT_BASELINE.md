@@ -4,8 +4,8 @@
 > 다음 단계 작업 전에 이 파일로 baseline 을 확인.
 
 **최종 업데이트**: 2026-05-17  
-**기능 단계 (current functional baseline)**: WS3 v0.16.0 Transport Executor Interface Adapter (본 단계)  
-**이전 기능 baseline**: WS3 v0.15.0 transportExecutorHarness (`4a2baa6`)  
+**기능 단계 (current functional baseline)**: WS3 v0.17.0 Transport Executor Sandbox Runner (본 단계)  
+**이전 기능 baseline**: WS3 v0.16.0 transportExecutorInterfaceAdapter (`9eaffe5`)  
 **운영 문서**: WS3 Workflow Template v0.1 박제 (`d8bebc2`, v0.3.0-docs)  
 **branch**: `claude/heuristic-cori-7865e7`
 
@@ -37,7 +37,8 @@
 | WS3 v0.13.0 | `/v3/v3-transport-execution-adapter.js` | `5d05836` | ✅ 박제 |
 | WS3 v0.14.0 | `/v3/v3-secure-transport-executor-contract.js` | `644c525` | ✅ 박제 |
 | WS3 v0.15.0 | `/v3/v3-transport-executor-harness.js` | `4a2baa6` | ✅ 박제 |
-| **WS3 v0.16.0** | **`/v3/v3-transport-executor-interface-adapter.js`** | **(push 후 기록)** | **✅ 박제 (이번 단계, INTERFACE_ONLY transport executor interface adapter)** |
+| WS3 v0.16.0 | `/v3/v3-transport-executor-interface-adapter.js` | `9eaffe5` | ✅ 박제 |
+| **WS3 v0.17.0** | **`/v3/v3-transport-executor-sandbox-runner.js`** | **(push 후 기록)** | **✅ 박제 (이번 단계, SANDBOX_ONLY transport executor sandbox runner)** |
 
 ## REJECTED — repo 반영 보류
 
@@ -245,7 +246,8 @@ wrangler.toml
 /v3/v3-transport-execution-adapter.js       ← v0.13.0 박제본 (dry-run safe envelope)
 /v3/v3-secure-transport-executor-contract.js ← v0.14.0 박제본 (CONTRACT_ONLY secure executor contract)
 /v3/v3-transport-executor-harness.js        ← v0.15.0 박제본 (DRY_RUN_HARNESS transport executor harness)
-/v3/v3-transport-executor-interface-adapter.js ← v0.16.0 박제본 (이번 단계 신규, INTERFACE_ONLY transport executor interface adapter)
+/v3/v3-transport-executor-interface-adapter.js ← v0.16.0 박제본 (INTERFACE_ONLY transport executor interface adapter)
+/v3/v3-transport-executor-sandbox-runner.js ← v0.17.0 박제본 (이번 단계 신규, SANDBOX_ONLY transport executor sandbox runner)
 /v3/v3-index.html                           (생성도 X)
 ```
 
@@ -294,8 +296,10 @@ v3-secure-transport-executor-contract.js  (v0.14.0 박제 — CONTRACT_ONLY secu
 v3-transport-executor-harness.js  (v0.15.0 박제 — DRY_RUN_HARNESS: telegramHarness/snapshotHarness/evaluationHarness/auditHarness + rateLimitContract + circuitBreakerContract + dryRunResult)
   ↓ (standalone TransportExecutorHarness 객체, 8종 입력 mutate 0건, side-effect free, harnessMode='DRY_RUN_HARNESS' 강제, 5 boolean hard block, perTargetGate.allow=false 강제, dryRunResult.wouldExecute=false 강제, circuitBreaker.state='OPEN_IN_DRY_RUN' 강제, v0.14 contract.requestShape 재검증)
 v3-transport-executor-interface-adapter.js  (v0.16.0 박제 — INTERFACE_ONLY: telegramInterface/snapshotInterface/evaluationInterface/auditInterface + 5종 Contract (bindingResolver/driverCall/resultAdapter/errorAdapter/retryAdapter))
-  ↓ (standalone TransportExecutorInterfaceAdapter 객체, 9종 입력 mutate 0건, side-effect free, sync only, adapterMode='INTERFACE_ONLY' 강제, 8 boolean hard block (liveExecution/sideEffect/fetch/write/credentialLookup/bindingLookup/driverCall/retry), driverCallContract.callAllowed=false 강제, bindingResolverContract.lookupAllowed=false 강제, retryAdapterContract.retryAllowed=false 강제, target↔action 매핑 1:1, validateLogicalRef 6단계 (credential pattern 우선 + function token 차단), detectFunctionInputs 재귀 차단, v0.15 pass-through 재검증, v0.17+ real executor 와 credential 비전달 보장)
-[v0.16.x / v0.17.x — 실제 transport executor / renderer / persistence 분리 단계]
+  ↓ (standalone TransportExecutorInterfaceAdapter 객체, 9종 입력 mutate 0건, side-effect free, sync only, adapterMode='INTERFACE_ONLY' 강제, 8 boolean hard block, target↔action 매핑 1:1, validateLogicalRef 6단계, v0.15 pass-through 재검증)
+v3-transport-executor-sandbox-runner.js  (v0.17.0 박제 — SANDBOX_ONLY: telegramSandbox/snapshotSandbox/evaluationSandbox/auditSandbox + sandboxFixture/sandboxResult + 5종 Preview)
+  ↓ (standalone TransportExecutorSandboxRunner 객체, 10종 입력 mutate 0건, side-effect free, sync only, sandboxMode='SANDBOX_ONLY' 강제, 9 boolean hard block (v0.16 8 + timerAllowed 신규), 5종 Preview (callAllowed/lookupAllowed/wouldCall/retryAllowed=false 강제), sandboxFixture 9-step 검증, sandboxResult whitelist scalar only, sandboxResult.ok ≠ target.ready 분리, v0.16 pass-through 재검증, v0.18+ real executor 와 credential 비전달 보장)
+[v0.17.x / v0.18.x — 실제 transport executor / renderer / persistence 분리 단계]
 ```
 
 ---
@@ -334,6 +338,38 @@ v3-transport-executor-interface-adapter.js  (v0.16.0 박제 — INTERFACE_ONLY: 
 ```
 
 ---
+
+## v0.17.0 핵심 메모
+
+```text
+- v3/v3-transport-executor-sandbox-runner.js 신규 (1995 라인)
+- 보호 파일 29종 모두 무손상
+- DP-SANDBOX1 ~ DP-SANDBOX10 + N-SANDBOX-OBS-1 ~ N-SANDBOX-OBS-9 모두 적용 / 미해결 0건
+- sandboxStatus 6 후보 first-match-wins (INVALID > BLOCKED > PARTIAL > READY > SKIPPED > UNKNOWN)
+- 4 target sandbox: telegram / snapshot / evaluation / audit (각 17-stage AND ready)
+- sandboxMode='SANDBOX_ONLY' 강제, liveExecutionAllowed=false 강제
+- 9 boolean hard block (v0.16 의 8 + timerAllowed 신규)
+- 5종 Preview (bindingResolverPreview/driverCallPreview/resultAdapterPreview/errorAdapterPreview/retryPreview): 모두 SANDBOX_PREVIEW boolean false 강제
+- sandboxFixture 허용 키 6종 (target/action/ok/status/errorType/reasonCode), 9-step 검증
+- sandboxResult 허용 필드 8종 (simulated/resultType/target/action/ok/status/errorType/reasonCode)
+- sandboxResult.ok 와 target.ready 분리 (N-SANDBOX-OBS-8) — SIMULATED_ERROR/SKIPPED 도 ready=true 가능
+- target ↔ action 매핑 1:1 (TELEGRAM→TELEGRAM_SEND 등) + ACTION_TARGET_MISMATCH 차단
+- v0.16 pass-through 재검증: rateLimitContract (key=target match) / circuitBreakerContract (state=OPEN_IN_DRY_RUN 강제) / dryRunResult
+- CLOSED / HALF_OPEN 절대 금지
+- credential 9키 + env-like 11키 + function input 통합 차단
+- RESERVED 프레임워크 metadata 24종 자동 차단 제외 (`credentialHandleRef` v0.16 field 포함 + v0.17 sandbox metadata 3종 신규)
+- validateLogicalRef v0.16 동일 (credential pattern 우선, EVAL 차단 / EVALUATION 허용)
+- validateSandboxFixture 9-step (source 직접 검증, extra key / nested object / function value 차단)
+- 14 whitelist payloadSummary + metadata 기본 빈 배열, v0.16 재검증
+- Object.assign / spread / JSON.parse(JSON.stringify) / for-in 코드 0건
+- async / await / Promise / thenable / setTimeout / setInterval 코드 0건 (sync only)
+- fetch / Telegram 실호출 / KV / DB / DOM / storage / clock API / process.env / globalThis 코드 0건
+- sanitizeMode='REJECT' 기본 (15 금지 어휘 exact phrase substring match) + CREDENTIAL_IN_LINE_REJECTED
+- smoke test 60 시나리오 / 134 assertion 전부 PASS
+- 입력 mutation 0건 (DP-SANDBOX9, S52 frozen-input 검증)
+- v0.18+ real executor 와 credential 인계 0건 (logical handle ref + sandboxPolicy 만 인계)
+- sandboxResult.ok=true 를 LIVE 실행 결정 source 로 사용 금지 (audit/canary 자료)
+```
 
 ## v0.16.0 핵심 메모
 
