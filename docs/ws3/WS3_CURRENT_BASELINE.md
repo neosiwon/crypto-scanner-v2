@@ -4,8 +4,8 @@
 > 다음 단계 작업 전에 이 파일로 baseline 을 확인.
 
 **최종 업데이트**: 2026-05-17  
-**기능 단계 (current functional baseline)**: WS3 v0.14.0 Secure Transport Executor Contract (본 단계)  
-**이전 기능 baseline**: WS3 v0.13.0 transportExecutionEnvelope (`5d05836`)  
+**기능 단계 (current functional baseline)**: WS3 v0.15.0 Transport Executor Harness — Dry-Run (본 단계)  
+**이전 기능 baseline**: WS3 v0.14.0 secureTransportExecutorContract (`644c525`)  
 **운영 문서**: WS3 Workflow Template v0.1 박제 (`d8bebc2`, v0.3.0-docs)  
 **branch**: `claude/heuristic-cori-7865e7`
 
@@ -35,7 +35,8 @@
 | WS3 v0.11.0 | `/v3/v3-evaluation-observation-adapter.js` + `/v3/v3-external-confluence.js` | `4c94875` | ✅ 박제 |
 | WS3 v0.12.0 | `/v3/v3-transport-plan.js` + `/v3/v3-renderer-binding.js` | `8fd0551` | ✅ 박제 |
 | WS3 v0.13.0 | `/v3/v3-transport-execution-adapter.js` | `5d05836` | ✅ 박제 |
-| **WS3 v0.14.0** | **`/v3/v3-secure-transport-executor-contract.js`** | **(push 후 기록)** | **✅ 박제 (이번 단계, CONTRACT_ONLY secure executor contract)** |
+| WS3 v0.14.0 | `/v3/v3-secure-transport-executor-contract.js` | `644c525` | ✅ 박제 |
+| **WS3 v0.15.0** | **`/v3/v3-transport-executor-harness.js`** | **(push 후 기록)** | **✅ 박제 (이번 단계, DRY_RUN_HARNESS transport executor harness)** |
 
 ## REJECTED — repo 반영 보류
 
@@ -241,11 +242,12 @@ wrangler.toml
 /v3/v3-transport-plan.js                    ← v0.12.0 박제본 (출력 dry-run plan)
 /v3/v3-renderer-binding.js                  ← v0.12.0 박제본 (UI binding)
 /v3/v3-transport-execution-adapter.js       ← v0.13.0 박제본 (dry-run safe envelope)
-/v3/v3-secure-transport-executor-contract.js ← v0.14.0 박제본 (이번 단계 신규, CONTRACT_ONLY secure executor contract)
+/v3/v3-secure-transport-executor-contract.js ← v0.14.0 박제본 (CONTRACT_ONLY secure executor contract)
+/v3/v3-transport-executor-harness.js        ← v0.15.0 박제본 (이번 단계 신규, DRY_RUN_HARNESS transport executor harness)
 /v3/v3-index.html                           (생성도 X)
 ```
 
-> 다음 단계 (v0.14.x / v0.15.x — 실제 transport executor / renderer / persistence) 진입 후 builder/score/structure/cycle/plan/viewmodel/operationPacket/activeCycle/evaluationOutcome/observationAdapter/externalConfluence/transportPlan/rendererBinding/transportExecutionAdapter/secureTransportExecutorContract 인자 / 매핑 정책 갱신이 필요해지면 별도 r1.x 단계로 분리하여 별도 승인 후에만 수정.
+> 다음 단계 (v0.15.x / v0.16.x — 실제 transport executor / renderer / persistence) 진입 후 builder/score/structure/cycle/plan/viewmodel/operationPacket/activeCycle/evaluationOutcome/observationAdapter/externalConfluence/transportPlan/rendererBinding/transportExecutionAdapter/secureTransportExecutorContract/transportExecutorHarness 인자 / 매핑 정책 갱신이 필요해지면 별도 r1.x 단계로 분리하여 별도 승인 후에만 수정.
 
 ---
 
@@ -287,7 +289,9 @@ v3-transport-execution-adapter.js  (v0.13.0 박제 — dry-run safe envelope: te
   ↓ (standalone TransportExecutionEnvelope 객체, 6종 입력 mutate 0건, side-effect free, dryRun=true 강제, credential recursive 차단, whitelist scalar only)
 v3-secure-transport-executor-contract.js  (v0.14.0 박제 — CONTRACT_ONLY secure executor contract: telegramContract/snapshotContract/evaluationContract/auditContract)
   ↓ (standalone SecureTransportExecutorContract 객체, 7종 입력 mutate 0건, side-effect free, contractMode='CONTRACT_ONLY' 강제, liveExecutionAllowed=false 강제, credential recursive + env-like + depth + bindingRef 검증, bindingRef logical reference only, v0.13 envelope 재검증, secureBindingPolicy 박제, v0.15+ real executor 와 credential 비전달 보장)
-[v0.14.x / v0.15.x — 실제 transport executor / renderer / persistence 분리 단계]
+v3-transport-executor-harness.js  (v0.15.0 박제 — DRY_RUN_HARNESS: telegramHarness/snapshotHarness/evaluationHarness/auditHarness + rateLimitContract + circuitBreakerContract + dryRunResult)
+  ↓ (standalone TransportExecutorHarness 객체, 8종 입력 mutate 0건, side-effect free, harnessMode='DRY_RUN_HARNESS' 강제, 5 boolean hard block (liveExecution/sideEffect/fetch/write/credentialLookup), perTargetGate.allow=false 강제, dryRunResult.wouldExecute=false 강제, circuitBreaker.state='OPEN_IN_DRY_RUN' 강제, v0.14 contract.requestShape 재검증, v0.16+ real executor 와 credential 비전달 보장)
+[v0.15.x / v0.16.x — 실제 transport executor / renderer / persistence 분리 단계]
 ```
 
 ---
@@ -326,6 +330,34 @@ v3-secure-transport-executor-contract.js  (v0.14.0 박제 — CONTRACT_ONLY secu
 ```
 
 ---
+
+## v0.15.0 핵심 메모
+
+```text
+- v3/v3-transport-executor-harness.js 신규 (1603 라인)
+- 보호 파일 25종 모두 무손상 (v3 *.js 20종 + index/manifest/sw 3종 + CODE_CONTRACT + WORKFLOW_TEMPLATE)
+- DP-HARNESS1 ~ DP-HARNESS10 + N-HARNESS-OBS-1 ~ N-HARNESS-OBS-6 모두 적용 / 미해결 항목 0건
+- harnessStatus 6 후보 first-match-wins (INVALID > BLOCKED > PARTIAL > READY > SKIPPED > UNKNOWN)
+- 4 target harness: telegram / snapshot / evaluation / audit (각 9-stage AND ready)
+- harnessMode='DRY_RUN_HARNESS' 강제, liveExecutionAllowed=false 강제
+- 5 boolean hard block: liveExecution / sideEffect / fetch / write / credentialLookup
+- perTargetGate.allow 항상 false 강제 (DP-HARNESS5)
+- rateLimitContract per-target key 자동 + per-target override (per-target > top-level > default)
+- circuitBreakerContract.state='OPEN_IN_DRY_RUN' 강제
+- dryRunResult.wouldExecute=false 강제, resultType=DRY_RUN_ONLY, action enum target 매핑
+- credential 9키 재귀 차단 + RESERVED 프레임워크 metadata 18종 자동 차단 제외 (`directSecretAccessAllowed` 등 v0.14 자체 metadata 포함, N-HARNESS-OBS-4 확장)
+- env-like 11키 exact match + value object 조건 차단 (r0.2 §6.2 false-positive 완화)
+- bindingRef logical reference only — IIFE 내부 private 재정의 (N-HARNESS-OBS-5)
+- payloadSummary 14 whitelist scalar + metadata 기본 빈 배열, v0.14 contract 재검증
+- Object.assign / spread / JSON.parse(JSON.stringify) / for-in 코드 0건
+- sanitizeMode='REJECT' 기본 (15 금지 어휘 exact phrase substring match)
+- CREDENTIAL_IN_LINE_REJECTED 추가 (line 내 credential pattern 차단)
+- r0.1 폐기 naming residue 0건 (RealTransportExecutor* / *Execution / EXECUTOR_* / classifyExecutorStatus)
+- smoke test 30 시나리오 / 95 assertion 전부 PASS
+- 입력 mutation 0건 (DP-HARNESS9, S26 frozen-input 검증)
+- fetch / Telegram 실호출 / KV / DB / DOM / storage / clock API / process.env / globalThis 코드 0건
+- v0.16+ real executor 와 credential 인계 0건 (bindingRef logical + harnessPolicy 만 인계)
+```
 
 ## v0.14.0 핵심 메모
 

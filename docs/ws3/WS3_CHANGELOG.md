@@ -5,6 +5,102 @@
 
 ---
 
+## [v0.15.0] — 2026-05-17 (Transport Executor Harness — Dry-Run)
+
+### Added
+- `/v3/v3-transport-executor-harness.js` — TransportExecutorHarness (신규, 1603 라인)
+  - `WS3_TransportExecutorHarness.build(input, config)` → standalone DRY_RUN_HARNESS object (입력 8종 mutate 0건)
+  - **출력 top-level**: valid/version/harnessMode('DRY_RUN_HARNESS')/liveExecutionAllowed(false)/harnessStatus/sourceContractStatus/harnessPolicy/telegramHarness/snapshotHarness/evaluationHarness/auditHarness/harnessSummary + reasons/warnings/debug/configUsed
+  - **harnessStatus 6 후보** first-match-wins 우선순위: `HARNESS_INVALID > HARNESS_BLOCKED > HARNESS_PARTIAL > HARNESS_READY > HARNESS_SKIPPED > HARNESS_UNKNOWN`
+  - **4 target harness** (9-stage AND ready): telegramHarness / snapshotHarness / evaluationHarness / auditHarness
+  - **5 boolean hard block** (DP-HARNESS4): `liveExecutionAllowed / sideEffectAllowed / fetchAllowed / writeAllowed / credentialLookupAllowed` 중 하나라도 true → HARNESS_BLOCKED
+  - **perTargetGate.allow=false 강제** (DP-HARNESS5): allow=true 시도 시 HARNESS_BLOCKED
+  - **rateLimitContract / circuitBreakerContract per-target override** (§8): top-level → per-target merge 우선순위. key field 자동 설정 (TELEGRAM/SNAPSHOT_STORE/EVALUATION_STORE/AUDIT_STORE)
+  - **circuitBreakerContract.state='OPEN_IN_DRY_RUN' 강제** (DP-HARNESS1): 실제 호출 불가능. CLOSED/HALF_OPEN 는 v0.16+ 만
+  - **dryRunResult v0.16 정책**: `wouldExecute=false` 강제, `resultType='DRY_RUN_ONLY'`, action enum target 매핑 (TELEGRAM_SEND/SNAPSHOT_WRITE/EVALUATION_WRITE/AUDIT_WRITE). LIVE 실행 결정 source 아님
+  - **credential 9키 + env-like 11키 + depth 5 재귀 차단** (DP-HARNESS6): scalar leaf 안전. RESERVED 프레임워크 metadata 18종 자동 차단 제외 (`directSecretAccessAllowed` 등 v0.14 자체 metadata 포함 — N-HARNESS-OBS-4 확장)
+  - **validateBindingRef** (N-HARNESS-OBS-5): v0.15 IIFE 내부 private 함수로 재정의. `^[A-Z][A-Z0-9_]*$` + 13 금지 substring + bot[0-9]+ + digit-only + credential partial match + `bindingRefAllowList`
+  - **requestShape 재검증** (DP-HARNESS7): v0.14 contract.requestShape 그대로 신뢰 X. whitelist scalar only. Object.assign/spread/clone/for-in 0건
+  - **harnessPolicy 박제**: dryRunOnly=true, sideEffectAllowed=false, credentialLookupAllowed=false, fetchAllowed=false, writeAllowed=false, liveExecutionRequiresExplicitGate=true
+  - **sanitizeMessageLines 매칭 방식** (r0.2 §6.2): exact phrase substring match (case-insensitive). "전송 완료" 차단 / "전송" 단독 비차단 / "전송 후보" 허용. 추가: CREDENTIAL_IN_LINE_REJECTED (line 내 credential pattern 차단)
+  - **r0.1 폐기 naming residue 0건** (N-HARNESS-OBS-2): RealTransportExecutor* / *Execution / EXECUTOR_* / classifyExecutorStatus 등 폐기 명명 미사용
+  - **v0.15 ↔ v0.16 인터페이스 분리**: bindingRef logical reference + requestShape scalar + harnessPolicy 만 인계. credential value / URL endpoint / env object / raw payload 0건
+  - **이중 환경 export**: `global.WS3_TransportExecutorHarness` + `module.exports`
+- `/docs/ws3/WS3_v0_15_0_TRANSPORT_EXECUTOR_HARNESS_REPORT.md` — 완료 보고서 (신규, 19 sections)
+
+### Adopted DP Policy
+- **DP-HARNESS1** dry-run harness 만. 실제 발송/저장/호출 X. `harnessMode='DRY_RUN_HARNESS'` + `liveExecutionAllowed=false` + `circuitBreaker.state='OPEN_IN_DRY_RUN'` + `dryRunResult.wouldExecute=false` 강제.
+- **DP-HARNESS2** secureTransportExecutorContract ready/status override 금지. boolean AND 집계만.
+- **DP-HARNESS3** DRY_RUN_HARNESS 외 mode → HARNESS_BLOCKED. LIVE/REAL/EXECUTE 금지.
+- **DP-HARNESS4** 5 boolean (liveExecutionAllowed / sideEffectAllowed / fetchAllowed / writeAllowed / credentialLookupAllowed) hard block.
+- **DP-HARNESS5** perTargetGate.allow 항상 false. allow=true 시도 → HARNESS_BLOCKED.
+- **DP-HARNESS6** credential 9키 + env-like 11키 input/config 전체 nested object 재귀 검사 차단. depth 5 + case-insensitive + partial. process.env / globalThis.env 코드 0건.
+- **DP-HARNESS7** requestShape / payloadSummary / metadata whitelist scalar 만. 원본 객체 spread / Object.assign / deep clone / for-in 금지. v0.14 contract 재검증.
+- **DP-HARNESS8** dry-run wording only. exact phrase substring match. sanitizeMode='REJECT' 기본. CREDENTIAL_IN_LINE_REJECTED 추가.
+- **DP-HARNESS9** 8종 입력 (secureTransportExecutorContract + transportExecutionEnvelope + transportPlan + rendererBinding + operationPacket + activeCycleDecision + evaluationOutcome + externalConfluence) read-only.
+- **DP-HARNESS10** 신규 파일 1개 + 문서 갱신만. 보호 파일 25종 수정 금지.
+
+### N-HARNESS-OBS 처리
+- **N-HARNESS-OBS-1** 보호 baseline false-positive — 본 모듈 fetch / Date.now / new Date / performance.now / Object.assign / spread / deep clone / for-in 0건.
+- **N-HARNESS-OBS-2** r0.1 폐기 naming residue 0건 — RealTransportExecutor* / *Execution / EXECUTOR_* / classifyExecutorStatus 폐기 명명 미사용.
+- **N-HARNESS-OBS-3** v0.14 contract shape 정합 — telegramContract/snapshotContract/evaluationContract/auditContract.ready / contractStatus 참조. override 0건.
+- **N-HARNESS-OBS-4** buildSafePayloadSummary / buildSafeMetadata 동명 함수 — IIFE module-private, global export 미포함. RESERVED 18종 framework metadata exact match 사전 제외 (`directSecretAccessAllowed` 등 v0.14 자체 metadata 식별자 확장).
+- **N-HARNESS-OBS-5** validateBindingRef 동명 함수 — v0.15 IIFE 내부 private 함수로 재정의. global namespace 는 `WS3_TransportExecutorHarness` 만 노출.
+- **N-HARNESS-OBS-6** 보호 파일 25종 — v0.14 commit 이후 `v3-secure-transport-executor-contract.js` 추가. 본 단계 25종 무손상.
+
+### Changed
+- `/docs/ws3/WS3_CHANGELOG.md` (본 파일): `[v0.15.0]` 엔트리 상단 추가
+- `/docs/ws3/WS3_CURRENT_BASELINE.md`: 완료된 단계 표 + 보호 파일 목록 (25종) + 모듈 의존성 + 다음 단계 갱신
+
+### Protected (수정 0건 — 25종)
+- v3 *.js 20종 (config / feature-payload / bithumb-client / candle-normalizer / indicators / feature-payload-builder / score-breakdown / structure-bucket / signal-cycle / strategy-plan / card-view-model / operation-packet / active-cycle / evaluation-outcome / evaluation-observation-adapter / external-confluence / transport-plan / renderer-binding / transport-execution-adapter / secure-transport-executor-contract)
+- `docs/ws3/WS3_CODE_CONTRACT.md` (b-r2 박제본 그대로)
+- `docs/ws3/WS3_WORKFLOW_TEMPLATE.md` (v0.1 박제본 그대로)
+- `index.html` / `manifest.json` / `service-worker.js`
+- `worker.js` / `wrangler.toml`
+
+### 의도된 미구현 (이번 단계 제외)
+- 실제 Telegram bot API 호출 / chatId / botToken / webhookUrl 노출
+- 실제 KV write / DB persist / 파일 IO / 브라우저 storage
+- 실제 fetch / 외부 호출 / endpoint URL
+- 실제 rate limit / circuit breaker 실행 (contract object only)
+- 실제 DOM 렌더 / HTML attach / addEventListener
+- 실제 env 접근 / process.env / Cloudflare env 객체 / secret binding 값 읽기
+- 입력 객체 mutation
+- 런타임 clock API (Date.now / new Date / performance.now)
+- raw payload / payload.raw / identityInput / raw.builderDebug 노출
+- `dryRunResult.wouldExecute=true`
+
+### Verified
+- `node --check v3/v3-transport-executor-harness.js` 통과 (SYNTAX_OK)
+- smoke test **30 시나리오 / 95 assertion 전부 PASS**:
+  - S1 ready all targets / S2 skipped / S3 invalid / S4 source BLOCKED / S5 LIVE / S6~S10 5 hard block boolean / S11 perTargetGate.allow=true
+  - S12 credential top-level / S13 env-like object
+  - S14~S17 4 target harness shape (dryRunResult.action enum + wouldExecute=false + bindingRef logical)
+  - S18 rateLimitContract shape / S19 circuitBreakerContract.state=OPEN_IN_DRY_RUN / S20 per-target override (telegram 30 / snapshot 1 fallback)
+  - S21 requestShape revalidation / S22 metadata revalidation / S23 wording sanitize REJECT (exact phrase, "전송 후보" 허용)
+  - S24 no env access / S25 no side-effect / S26 mutation 0 / S27 raw/secret value leak prevention
+  - S28 v0.16 interface separation (process.env / api.telegram.org / sk-/xoxb-/eyJ 0 노출 + harnessPolicy 6 boolean) / S29 dryRunResult v0.16 policy (4 target wouldExecute=false / action enum match) / S30 r0.1 naming residue 0
+- 모든 시나리오 **입력 mutation 0건** (DP-HARNESS9, S26 frozen-input 검증)
+- 금지 패턴 grep (실제 코드 침범 0건):
+  - `fetch( / KV. / DB / Telegram 실호출 / XMLHttpRequest / innerHTML / document. / addEventListener / localStorage / sessionStorage / Date.now( / new Date / performance.now` 코드 0건
+  - `secureTransportExecutorContract.X = / transportExecutionEnvelope.X = / transportPlan.X = / rendererBinding.X = / operationPacket.X = / activeCycleDecision.X = / evaluationOutcome.X = / externalConfluence.X =` **0건** ✅
+  - r0.1 폐기 naming (`RealTransportExecutor / *Execution / EXECUTOR_* / classifyExecutorStatus` 등) **0건** ✅
+  - `rateLimitPlan / circuitBreakerPlan` (r0.1 Plan 명명) **0건** ✅
+  - `process.env / globalThis.env / globalThis.bindings / globalThis.secrets / typeof process / typeof globalThis` **0건** ✅
+  - `Object.assign / ...spread / JSON.parse(JSON.stringify) / for-in` 실제 사용 **0건**
+  - credential value 매치 = JSDoc 정책 + literal 차단 list + 변수/함수명 (`isCredentialKey`, `bindingRefAllowList` 등). 실제 외부 노출 0건
+  - env-like 매치 = JSDoc + ENV_LIKE_KEYS_EXACT literal + KV_SNAPSHOT_BINDING constant + local var `env`. 실제 env 접근 0건
+  - 발송됨 / sent / 손절 / 익절 등 출력 어휘 사용 0건 (FORBIDDEN_WORDS literal 차단 list 정의만)
+- 보호 파일 `git diff --stat HEAD -- <25 protected files>` 빈 출력 = 0건
+
+### 기준 commit
+- branch: `claude/heuristic-cori-7865e7`
+- 이전 functional baseline: WS3 v0.14.0 secureTransportExecutorContract (`644c525`)
+- 본 commit: (push 후 기록)
+
+---
+
 ## [v0.14.0] — 2026-05-17 (Secure Transport Executor Contract)
 
 ### Added
