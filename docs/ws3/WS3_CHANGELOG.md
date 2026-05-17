@@ -5,6 +5,77 @@
 
 ---
 
+## [v0.21.0] — 2026-05-17 (Telegram Canary Sender)
+
+### Added
+- `/v3/v3-telegram-canary-sender.js` — TelegramCanarySender (신규, 608 라인)
+  - `WS3_TelegramCanarySender.build(input, deps)` → standalone sync canary plan (precondition / gate / fixed message / safe diagnostics) — fetch/async/timer 0건
+  - `WS3_TelegramCanarySender.dispatchCanary(input, deps)` → async — Telegram 1 target 한정 첫 LIVE side-effect. fetch via `deps.fetchImpl` 만. AbortController via `deps.AbortControllerImpl`. setTimeout/clearTimeout via `deps.setTimeoutImpl/deps.clearTimeoutImpl`. nowMs via `deps.nowMs / deps.nowFn`. process.env / globalThis.env / Date.now / new Date 직접 사용 0건.
+  - **CANARY_FIXED_MESSAGE** 5줄 byte-for-byte exact: `[WOOS WS3 CANARY]\nTelegram route connected.\nmode: CANARY_ONLY\nlive signal: disabled\nsnapshot/evaluation/audit: disabled`. timestamp/version/env name/error reason/coin symbol/candidate payload/price/percent/score 추가 차단.
+  - **20 hard precondition AND** (DP-CANARY1): v0.20 valid + runtimeMode='CANARY_PREP_ONLY' + canaryOnly=true + liveSignalEnabled=false + telegramRuntimeEligibility.eligibleForCanary=true + eligibleForLiveSignal=false + killSwitchRuntimeState.state='CANARY_ALLOWED' + disableRuntimeState.disabled=false + canaryRuntimePolicy (canaryOnly/fixedMessageOnly true, 6 *Allowed false) + WS3_TELEGRAM_CANARY_ENABLED='true' + WS3_TELEGRAM_BOT_TOKEN/CHAT_ID 존재 + messageType='CANARY_TEST_ONLY'
+  - **4 explicit gate** (DP-CANARY2): Gate1 env enabled / Gate2 authorized + 24h expire / Gate3 X-WS3-Canary-Token == WS3_CANARY_INVOKE_TOKEN exact / Gate4 manualTrigger=true. env flag 단독 trigger 차단.
+  - **fetch safety** (DP-CANARY3~5): hard 5000ms timeout + AbortController / retry=0 / per-process 60s rate limit / 3 연속 실패 후 24h circuit breaker
+  - **safe response whitelist 6 fields** (DP-CANARY7): ok/httpStatus/messageId/sentAt/messageType/fixedMessageUsed
+  - **safe error whitelist 4 fields + 7 errorCode enum** (DP-CANARY8): ok/httpStatus/errorCode/errorAt — CANARY_BLOCKED:`<reason>`/CANARY_TIMEOUT/CANARY_RATE_LIMITED/CANARY_CIRCUIT_OPEN/CANARY_AUTH_ERROR/CANARY_NOT_FOUND/CANARY_NETWORK_ERROR
+  - **safe diagnostics 6 fields** (DP-CANARY9): tokenValueExposed/chatIdValueExposed/rawTelegramResponseExposed 3 boolean false 강제 + tokenPresent/chatIdPresent/canaryEnabled presence flags
+  - **raw response 차단** (DP-CANARY10): description / from.* / chat.* / bot_token / response headers / Set-Cookie / X-* / Server / Date 0건 (extractSafeBody whitelist 만)
+  - **token/chatId 출력 0건** (DP-CANARY11): masked / first-4 / last-4 / redacted preview 0건
+  - **endpoint 0건** (DP-CANARY12): worker.js / index.html / manifest.json / service-worker.js / wrangler.toml 수정 0건. workers/ / .github/ 신규 0건
+  - **이중 환경 export**: `global.WS3_TelegramCanarySender` + `module.exports`
+- `/docs/ws3/WS3_v0_21_0_TELEGRAM_CANARY_SENDER_REPORT.md` — 완료 보고서 (신규, 14 sections)
+
+### Adopted DP Policy
+- **DP-CANARY1** v0.20 secureRuntimeStateAdapter 20 hard precondition AND.
+- **DP-CANARY2** fetch 4-Gate explicit trigger. env flag 단독 trigger 금지.
+- **DP-CANARY3** 5s hard timeout + AbortController. retry=0.
+- **DP-CANARY4** per-process 1회/60초 rate limit.
+- **DP-CANARY5** 3 fail / 24h circuit breaker.
+- **DP-CANARY6** CANARY_FIXED_MESSAGE 5줄 byte-for-byte exact.
+- **DP-CANARY7** safe result whitelist 6 fields.
+- **DP-CANARY8** safe error whitelist 4 fields + 7 errorCode enum.
+- **DP-CANARY9** safe diagnostics 6 fields. tokenValueExposed/chatIdValueExposed/rawTelegramResponseExposed=false 강제.
+- **DP-CANARY10** raw Telegram response 차단 (description/from.*/chat.*/bot_token/headers/Set-Cookie/X-*/Server/Date).
+- **DP-CANARY11** token/chatId 코드/문서/로그 출력 0건. masked preview 0건.
+- **DP-CANARY12** worker.js/endpoint/inbound/canary worker 0건. module 만 생성.
+
+### Changed
+- `/docs/ws3/WS3_CHANGELOG.md` (본 파일): `[v0.21.0]` 엔트리 상단 추가
+- `/docs/ws3/WS3_CURRENT_BASELINE.md`: 완료 단계 표 + 보호 파일 목록 (33종) + 모듈 의존성 + v0.21.0 핵심 메모 추가
+
+### Protected (수정 0건 — 32종 + 본 단계 신규 1 = 33종 baseline)
+- v3 *.js 25종 (config ~ secure-runtime-state-adapter) — v0.20 신규 포함, v0.21 추가 후 baseline 33종
+- `docs/ws3/WS3_CODE_CONTRACT.md` / `docs/ws3/WS3_WORKFLOW_TEMPLATE.md` (b-r2 / v0.1 박제본)
+- `index.html` / `manifest.json` / `service-worker.js` / `worker.js` / `wrangler.toml`
+
+### 의도된 미구현 (이번 단계 제외)
+- 실제 Telegram API 1회 발송 (별도 staging test 승인 후 별도 단계)
+- canary endpoint / inbound /canary-test / GitHub Actions workflow_dispatch — v0.22+
+- 별도 canary worker (workers/) — v0.22+
+- 실제 코인 후보 알림 연결 / Snapshot / Evaluation / Audit / KV / DB write — v0.22+ 별도 정책
+- credential 값 / token / chatId 코드/문서/로그 출력 — 영구 금지
+
+### Verified
+- `node --check v3/v3-telegram-canary-sender.js` 통과 (SYNTAX_OK)
+- smoke test **47 records (46 spec + 1 circuit threshold 검증 분리) 전부 PASS** (TOTAL=47 PASS=47 FAIL=0)
+- 실제 Telegram API 호출 **0건** (mock fetchImpl 만 사용)
+- 금지/제한 패턴 grep (비-comment 라인 기준):
+  - `async function / await ` **3 매치** (line 439 dispatchCanary, line 523 deps.fetchImpl await, line 549 resp.json await) — 정책 허용 ✅
+  - `fetch(` 직접 호출 **0건** (`deps.fetchImpl(` 만 사용)
+  - `AbortController / setTimeout / clearTimeout` 직접 사용 **0건** (`deps.*Impl` 만)
+  - `Date.now / new Date / performance.now` **0건** (`deps.nowMs / deps.nowFn` 만)
+  - `process.env / globalThis.env / globalThis.bindings / globalThis.secrets` **0건** (`input.runtimeEnv` 인자만)
+  - `Object.assign / spread `...` / JSON.parse(JSON.stringify) / for-in` **0건**
+  - `first-4 / last-4 / masked / redacted` 출력 **0건**
+  - `chat.id / chat.title / chat.username / from.username / from.first_name / description / Set-Cookie / response headers / full response body` 실제 출력 **0건** (line 109 FORBIDDEN_RESPONSE_FIELDS 리스트 1 매치 — detection only)
+- 보호 파일 `git diff --stat HEAD -- <31+1 protected files>` 빈 출력 = 0건
+
+### 기준 commit
+- branch: `claude/heuristic-cori-7865e7`
+- 이전 functional baseline: WS3 v0.20.0 secureRuntimeStateAdapter (직전 단계 — 동일 Gate 2, 별도 commit)
+- 본 commit: (push 후 기록)
+
+---
+
 ## [v0.20.0] — 2026-05-17 (Secure Runtime State Adapter)
 
 ### Added
