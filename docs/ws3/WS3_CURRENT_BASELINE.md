@@ -4,8 +4,8 @@
 > 다음 단계 작업 전에 이 파일로 baseline 을 확인.
 
 **최종 업데이트**: 2026-05-17  
-**기능 단계 (current functional baseline)**: WS3 v0.17.0 Transport Executor Sandbox Runner (본 단계)  
-**이전 기능 baseline**: WS3 v0.16.0 transportExecutorInterfaceAdapter (`9eaffe5`)  
+**기능 단계 (current functional baseline)**: WS3 v0.18.0 Secure Binding Gateway Contract (본 단계)  
+**이전 기능 baseline**: WS3 v0.17.0 transportExecutorSandboxRunner  
 **운영 문서**: WS3 Workflow Template v0.1 박제 (`d8bebc2`, v0.3.0-docs)  
 **branch**: `claude/heuristic-cori-7865e7`
 
@@ -38,7 +38,8 @@
 | WS3 v0.14.0 | `/v3/v3-secure-transport-executor-contract.js` | `644c525` | ✅ 박제 |
 | WS3 v0.15.0 | `/v3/v3-transport-executor-harness.js` | `4a2baa6` | ✅ 박제 |
 | WS3 v0.16.0 | `/v3/v3-transport-executor-interface-adapter.js` | `9eaffe5` | ✅ 박제 |
-| **WS3 v0.17.0** | **`/v3/v3-transport-executor-sandbox-runner.js`** | **(push 후 기록)** | **✅ 박제 (이번 단계, SANDBOX_ONLY transport executor sandbox runner)** |
+| WS3 v0.17.0 | `/v3/v3-transport-executor-sandbox-runner.js` | `0ddbe85` | ✅ 박제 |
+| **WS3 v0.18.0** | **`/v3/v3-secure-binding-gateway-contract.js`** | **(push 후 기록)** | **✅ 박제 (이번 단계, CONTRACT_ONLY secure binding gateway contract)** |
 
 ## REJECTED — repo 반영 보류
 
@@ -247,7 +248,8 @@ wrangler.toml
 /v3/v3-secure-transport-executor-contract.js ← v0.14.0 박제본 (CONTRACT_ONLY secure executor contract)
 /v3/v3-transport-executor-harness.js        ← v0.15.0 박제본 (DRY_RUN_HARNESS transport executor harness)
 /v3/v3-transport-executor-interface-adapter.js ← v0.16.0 박제본 (INTERFACE_ONLY transport executor interface adapter)
-/v3/v3-transport-executor-sandbox-runner.js ← v0.17.0 박제본 (이번 단계 신규, SANDBOX_ONLY transport executor sandbox runner)
+/v3/v3-transport-executor-sandbox-runner.js ← v0.17.0 박제본 (SANDBOX_ONLY transport executor sandbox runner)
+/v3/v3-secure-binding-gateway-contract.js   ← v0.18.0 박제본 (이번 단계 신규, CONTRACT_ONLY secure binding gateway contract)
 /v3/v3-index.html                           (생성도 X)
 ```
 
@@ -299,7 +301,9 @@ v3-transport-executor-interface-adapter.js  (v0.16.0 박제 — INTERFACE_ONLY: 
   ↓ (standalone TransportExecutorInterfaceAdapter 객체, 9종 입력 mutate 0건, side-effect free, sync only, adapterMode='INTERFACE_ONLY' 강제, 8 boolean hard block, target↔action 매핑 1:1, validateLogicalRef 6단계, v0.15 pass-through 재검증)
 v3-transport-executor-sandbox-runner.js  (v0.17.0 박제 — SANDBOX_ONLY: telegramSandbox/snapshotSandbox/evaluationSandbox/auditSandbox + sandboxFixture/sandboxResult + 5종 Preview)
   ↓ (standalone TransportExecutorSandboxRunner 객체, 10종 입력 mutate 0건, side-effect free, sync only, sandboxMode='SANDBOX_ONLY' 강제, 9 boolean hard block (v0.16 8 + timerAllowed 신규), 5종 Preview (callAllowed/lookupAllowed/wouldCall/retryAllowed=false 강제), sandboxFixture 9-step 검증, sandboxResult whitelist scalar only, sandboxResult.ok ≠ target.ready 분리, v0.16 pass-through 재검증, v0.18+ real executor 와 credential 비전달 보장)
-[v0.17.x / v0.18.x — 실제 transport executor / renderer / persistence 분리 단계]
+v3-secure-binding-gateway-contract.js  (v0.18.0 박제 — CONTRACT_ONLY: telegramGateway/snapshotGateway/evaluationGateway/auditGateway + 5종 Contract field (credentialHandleRef/bindingScope/lookupPlan/bindingPolicy/sandboxResultRef))
+  ↓ (standalone SecureBindingGatewayContract 객체, 11종 입력 mutate 0건, side-effect free, sync only, gatewayMode='CONTRACT_ONLY' 강제, 11 boolean hard block (v0.17 9 + lookupAllowed + envAccessAllowed 신규), 5 safe sandboxResultRef fields (target/action/resultType/simulated/status), framework logical term 우회 알고리즘 (CREDENTIAL_HANDLE / CREDENTIAL_HANDLE_REF substring), v0.17 pass-through 재검증, masked credential preview 출력 0건)
+[v0.19.x — 실제 transport executor / renderer / persistence 분리 단계]
 ```
 
 ---
@@ -338,6 +342,38 @@ v3-transport-executor-sandbox-runner.js  (v0.17.0 박제 — SANDBOX_ONLY: teleg
 ```
 
 ---
+
+## v0.18.0 핵심 메모
+
+```text
+- v3/v3-secure-binding-gateway-contract.js 신규 (1667 라인)
+- 보호 파일 30종 모두 무손상 (v0.17 v3-transport-executor-sandbox-runner.js 신규 추가)
+- DP-GATEWAY1 ~ DP-GATEWAY10 + N-GATEWAY-OBS-1 ~ N-GATEWAY-OBS-8 모두 적용 / 미해결 0건
+- gatewayStatus 6 후보 first-match-wins (INVALID > BLOCKED > PARTIAL > READY > SKIPPED > UNKNOWN)
+- 4 target gateway: telegram / snapshot / evaluation / audit (각 17-stage AND ready)
+- gatewayMode='CONTRACT_ONLY' 강제, liveExecutionAllowed=false 강제, lookupAllowed=false 강제 (top-level + gatewayPolicy)
+- 11 boolean hard block (v0.17 9 + lookupAllowed + envAccessAllowed 신규)
+- 5종 Contract field (per-gateway): credentialHandleRef (logical) / bindingScope (logical) / lookupPlan (4 key whitelist) / bindingPolicy (6 key whitelist) / sandboxResultRef (5 safe scalar)
+- sandboxResultRef 5 safe fields (target/action/resultType='SANDBOX_ONLY'/simulated=true/status) — ok / errorType / reasonCode / rawResponse / rawError / stack / body / headers / responseBody 전부 제외
+- 10 framework refs 기본 logicalRefAllowList (TELEGRAM_CREDENTIAL_HANDLE … FUTURE_SECURE_BINDING_RESOLVER)
+- framework 우회 알고리즘 (N-GATEWAY-OBS-4): allowList exact → 형식 → CREDENTIAL_HANDLE / CREDENTIAL_HANDLE_REF substring → keyword 차단. HANDLE 단독 / CREDENTIAL 단독 / SCOPE 단독은 우회 자격 없음
+- target ↔ action 매핑 1:1 (TELEGRAM→TELEGRAM_SEND 등)
+- 20 forbidden wording (v0.17 15 + v0.18 신규 5: lookup 완료, resolved credential, credential loaded, secret loaded, token loaded)
+- v0.17 pass-through 재검증: rateLimitContract (key=target match) / circuitBreakerContract (state='OPEN_IN_DRY_RUN' 강제)
+- CLOSED / HALF_OPEN 절대 금지
+- credential 9키 + env-like 11키 + function input 통합 차단
+- RESERVED 프레임워크 metadata 24종 자동 차단 제외 (credentialHandleRef / directSecretAccessAllowed / logicalRefAllowList 등)
+- validateLogicalRef 6단계 (credential pattern + framework bypass + token-level function pattern, EVAL 차단 / EVALUATION 허용)
+- gatewayPolicy 박제: 12 boolean 모두 false + liveExecutionRequiresExplicitGate=true
+- Object.assign / spread / JSON.parse(JSON.stringify) / for-in 코드 0건
+- async / await / Promise / thenable / setTimeout / setInterval 코드 0건 (sync only)
+- fetch / Telegram 실호출 / KV / DB / DOM / storage / clock API / process.env / globalThis 코드 0건
+- sanitizeMode='REJECT' 기본 (20 금지 어휘 substring match + credential pattern + masked preview term 우선 차단)
+- smoke test 66 시나리오 전부 PASS (TOTAL=66 PASS=66 FAIL=0)
+- 입력 mutation 0건 (DP-GATEWAY9)
+- v0.19+ real executor 와 credential 인계 0건 (logical handle ref + gatewayPolicy 만 인계)
+- sandboxResultRef 5 safe scalar 만 LIVE source 오해 위험 차단
+```
 
 ## v0.17.0 핵심 메모
 

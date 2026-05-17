@@ -5,6 +5,105 @@
 
 ---
 
+## [v0.18.0] — 2026-05-17 (Secure Binding Gateway Contract)
+
+### Added
+- `/v3/v3-secure-binding-gateway-contract.js` — SecureBindingGatewayContract (신규, 1667 라인)
+  - `WS3_SecureBindingGatewayContract.build(input, config)` → standalone CONTRACT_ONLY secure binding gateway boundary (입력 11종 mutate 0건)
+  - **출력 top-level**: valid/version/gatewayMode('CONTRACT_ONLY')/liveExecutionAllowed(false)/lookupAllowed(false)/gatewayStatus/sourceSandboxStatus/gatewayPolicy/telegramGateway/snapshotGateway/evaluationGateway/auditGateway/gatewaySummary + reasons/warnings/debug/configUsed
+  - **gatewayStatus 6 후보** first-match-wins 우선순위: `GATEWAY_INVALID > GATEWAY_BLOCKED > GATEWAY_PARTIAL > GATEWAY_READY > GATEWAY_SKIPPED > GATEWAY_UNKNOWN`
+  - **4 target gateway** (17-stage AND ready): telegramGateway / snapshotGateway / evaluationGateway / auditGateway
+  - **11 boolean hard block** (DP-GATEWAY4, N-GATEWAY-OBS-5): `liveExecutionAllowed / lookupAllowed / sideEffectAllowed / fetchAllowed / writeAllowed / credentialLookupAllowed / bindingLookupAllowed / driverCallAllowed / retryAllowed / timerAllowed / envAccessAllowed` (v0.17 9 + `lookupAllowed` + `envAccessAllowed` 신규) 중 하나라도 true → GATEWAY_BLOCKED
+  - **5종 Contract field** (per-gateway boundary): `credentialHandleRef` (logical only), `bindingScope` (logical only), `lookupPlan` (4 key whitelist: lookupMode='FUTURE_RUNTIME_LOOKUP', lookupAllowed=false, resolverRef='FUTURE_SECURE_BINDING_RESOLVER', resolved=false), `bindingPolicy` (6 key whitelist: required=true, valueExposed=false, valueMasked=false, valueLogged=false, valueStored=false, valuePreviewAllowed=false), `sandboxResultRef` (5 safe scalar)
+  - **5 safe sandboxResultRef fields** (DP-GATEWAY8, N-GATEWAY-OBS-7): `target/action/resultType('SANDBOX_ONLY')/simulated(true)/status` only. `ok/errorType/reasonCode/rawResponse/rawError/stack/body/headers/responseBody` 전부 제외 (raw error 누출 / LIVE source 오해 위험 회피)
+  - **framework logical term 우회 알고리즘** (N-GATEWAY-OBS-4 / DP-GATEWAY7): 1) allowList exact match → 통과, 2) 형식 / forbidden substring / function token 검사, 3) `CREDENTIAL_HANDLE` / `CREDENTIAL_HANDLE_REF` 연속 substring → credential keyword 우회 허용, 4) 그 외 credential keyword partial match → 차단. `HANDLE` 단독 / `CREDENTIAL` 단독 / `SCOPE` 단독은 우회 자격 없음.
+  - **10 framework refs 기본 logicalRefAllowList** (N-GATEWAY-OBS-3): TELEGRAM_CREDENTIAL_HANDLE / SNAPSHOT_STORE_CREDENTIAL_HANDLE / EVALUATION_STORE_CREDENTIAL_HANDLE / AUDIT_STORE_CREDENTIAL_HANDLE / TELEGRAM_SEND_SCOPE / SNAPSHOT_WRITE_SCOPE / EVALUATION_WRITE_SCOPE / AUDIT_WRITE_SCOPE / SECURE_CREDENTIAL_HANDLE_REF / FUTURE_SECURE_BINDING_RESOLVER
+  - **target ↔ action 매핑 1:1**: TELEGRAM→TELEGRAM_SEND, SNAPSHOT_STORE→SNAPSHOT_WRITE, EVALUATION_STORE→EVALUATION_WRITE, AUDIT_STORE→AUDIT_WRITE. mismatch → `INVALID_SANDBOX_RESULT_REF:ACTION_TARGET_MISMATCH`
+  - **20 forbidden wording** (DP-GATEWAY5): v0.17 inherited 15 + v0.18 신규 5 (`lookup 완료`, `resolved credential`, `credential loaded`, `secret loaded`, `token loaded`). credential pattern / masked preview term 우선 검사
+  - **detectCredentialFields / detectEnvLikeObjects / detectFunctionInputs** (재귀, depth ≤5): function / async / Promise / thenable / env-like 11 keys / credential 9 keys 통합 차단
+  - **validateLogicalRef 6단계**: 형식 + allowList + function pattern (token-level, EVAL 차단 / EVALUATION 허용) + 금지 substring + bot[0-9]+/digit-only + credential pattern (framework bypass 후)
+  - **v0.17 pass-through 재검증**: rateLimitContract (key=target match) / circuitBreakerContract (state='OPEN_IN_DRY_RUN' 강제, CLOSED/HALF_OPEN 금지)
+  - **RESERVED 프레임워크 metadata 24종 자동 차단 제외** (N-GATEWAY-OBS-3): v0.14~v0.18 모듈 자체 metadata 식별자 (credentialHandleRef / directSecretAccessAllowed / logicalRefAllowList 등) 충돌 회피
+  - **gatewayPolicy 박제**: contractOnly=true, lookupAllowed=false, sideEffectAllowed=false, credentialLookupAllowed=false, bindingLookupAllowed=false, fetchAllowed=false, writeAllowed=false, driverCallAllowed=false, retryAllowed=false, timerAllowed=false, envAccessAllowed=false, allowMaskedCredentialPreview=false, liveExecutionRequiresExplicitGate=true
+  - **이중 환경 export**: `global.WS3_SecureBindingGatewayContract` + `module.exports`
+- `/docs/ws3/WS3_v0_18_0_SECURE_BINDING_GATEWAY_CONTRACT_REPORT.md` — 완료 보고서 (신규, 16 sections)
+
+### Adopted DP Policy
+- **DP-GATEWAY1** secure binding gateway contract only. 실제 credential lookup / env 접근 / binding resolver 호출 X.
+- **DP-GATEWAY2** transportExecutorSandboxRunner ready/status/preview/sandboxResult override 0건.
+- **DP-GATEWAY3** gatewayMode CONTRACT_ONLY only. LIVE/REAL/EXECUTE → GATEWAY_BLOCKED.
+- **DP-GATEWAY4** 11 boolean hard block.
+- **DP-GATEWAY5** credential value / masked / first-4 / last-4 / preview / redacted credential preview 전부 output 금지.
+- **DP-GATEWAY6** process.env / env 객체 / Cloudflare binding / KV namespace / DB connection 읽기 0건.
+- **DP-GATEWAY7** bindingRef / credentialHandleRef / bindingScope / resolverRef logical only. CREDENTIAL_HANDLE / CREDENTIAL_HANDLE_REF framework 우회만 허용.
+- **DP-GATEWAY8** sandboxResultRef 5 safe scalar. ok / errorType / reasonCode 제외.
+- **DP-GATEWAY9** 11종 입력 read-only.
+- **DP-GATEWAY10** 신규 파일 1개 + 문서 갱신만. 보호 파일 30종 수정 금지.
+
+### N-GATEWAY-OBS 처리
+- **N-GATEWAY-OBS-1** 신규 식별자 fresh (Gateway / GATEWAY_xxx / buildXxxGateway / credentialHandleRef / bindingScope / lookupPlan / bindingPolicy / sandboxResultRef).
+- **N-GATEWAY-OBS-2** v0.17 sandbox runner shape 정합. ready/status/preview/sandboxResult override 0건.
+- **N-GATEWAY-OBS-3** 5종 contract field 박제 + RESERVED 24종 + 기본 logicalRefAllowList 10종.
+- **N-GATEWAY-OBS-4** framework logical term 우회 알고리즘 4단계 (allowList → 형식 → CREDENTIAL_HANDLE substring → keyword 차단).
+- **N-GATEWAY-OBS-5** 11 boolean hard block (v0.17 9 + lookupAllowed + envAccessAllowed).
+- **N-GATEWAY-OBS-6** masked credential preview 금지 (masked / redacted / first-4 / last-4 / credential preview 0건).
+- **N-GATEWAY-OBS-7** sandboxResultRef safe summary 5 fields. ok/errorType/reasonCode 제외.
+- **N-GATEWAY-OBS-8** 보호 파일 30종 무손상 (v0.17 v3-transport-executor-sandbox-runner.js 신규 추가).
+
+### Changed
+- `/docs/ws3/WS3_CHANGELOG.md` (본 파일): `[v0.18.0]` 엔트리 상단 추가
+- `/docs/ws3/WS3_CURRENT_BASELINE.md`: 완료된 단계 표 + 보호 파일 목록 (30종) + 모듈 의존성 + v0.18.0 핵심 메모 갱신
+
+### Protected (수정 0건 — 30종)
+- v3 *.js 23종 (config ~ transport-executor-sandbox-runner)
+- `docs/ws3/WS3_CODE_CONTRACT.md` (b-r2 박제본 그대로)
+- `docs/ws3/WS3_WORKFLOW_TEMPLATE.md` (v0.1 박제본 그대로)
+- `index.html` / `manifest.json` / `service-worker.js`
+- `worker.js` / `wrangler.toml`
+
+### 의도된 미구현 (이번 단계 제외)
+- 실제 credential lookup / process.env / Cloudflare env / globalThis.env / KV namespace / DB connection / Telegram bot token / chatId / webhookUrl / secret binding value 읽기
+- 실제 fetch / Telegram 발송 / KV write / DB write / binding resolver function 호출
+- 실제 driver call / retry / timer
+- credential value 저장 / logging / preview / masked preview
+- async function / await / Promise / setTimeout / setInterval (sync only)
+
+### Verified
+- `node --check v3/v3-secure-binding-gateway-contract.js` 통과 (SYNTAX_OK)
+- smoke test **66 시나리오 전부 PASS** (TOTAL=66 PASS=66 FAIL=0):
+  - S1~S5 gateway READY/SKIPPED/INVALID(no runner)/INVALID(valid=false)/BLOCKED(source SANDBOX_BLOCKED)
+  - S6~S13 credential botToken/secret/apiKey/env/bindings/kv/function input/promise input → BLOCKED
+  - S14~S16 gatewayMode LIVE/REAL/EXECUTE → BLOCKED
+  - S17~S27 11 boolean hard block (liveExec/lookup/sideEffect/fetch/write/credLookup/bindLookup/driverCall/retry/timer/envAccess) → BLOCKED
+  - S28~S29 PARTIAL + invalid sandbox valid=false
+  - S30~S35 credentialHandleRef + bindingScope 4 target 매핑
+  - S36~S40 lookupPlan / bindingPolicy / sandboxResultRef / target↔action / gatewayPolicy fixed values
+  - S41~S43 top-level lookupAllowed=false / liveExecutionAllowed=false / gatewayMode='CONTRACT_ONLY'
+  - S44~S47 bindingRef invalid (url / lowercase / bot[0-9]+ / digit-only)
+  - S48~S53 framework bypass + credential keyword 차단 + EVAL vs EVALUATION (token-level)
+  - S54~S57 rateLimit / circuit breaker 무효 + target disable
+  - S58~S61 configUsed scalar / debug counters / RESERVED 정합 / framework allowList 정합
+  - S62~S64 sanitizeMessageLines — credential / masked / lookup 완료 / credential loaded
+  - S65 framework bypass substring 통과 (CUSTOM_CREDENTIAL_HANDLE_BINDING)
+  - S66 sandboxResultRef raw 누출 0건 (rawResponse / body / headers 미반영)
+- 모든 시나리오 **입력 mutation 0건** (DP-GATEWAY9)
+- 금지 패턴 grep:
+  - async / await / Promise / setTimeout / setInterval / fetch / Date.now / new Date 실제 사용 **0건** (JSDoc 정책 설명만 3건 매치)
+  - process.env / globalThis.env / api.telegram.org **0건**
+  - Object.assign / spread / clone / for-in **0건**
+  - credential / URL / token 외부 노출 **0건**
+  - liveExecutionAllowed/lookupAllowed/sideEffectAllowed/... `: true` 코드 경로 **0건**
+  - CLOSED / HALF_OPEN / OPEN[^_] 실제 사용 **0건**
+  - 발송됨 / sent / 손절 / 익절 / lookup 완료 / credential loaded 출력 어휘 **0건**
+- 보호 파일 `git diff --stat HEAD -- <30 protected files>` 빈 출력 = 0건
+
+### 기준 commit
+- branch: `claude/heuristic-cori-7865e7`
+- 이전 functional baseline: WS3 v0.17.0 transportExecutorSandboxRunner (`0ddbe85`)
+- 본 commit: (push 후 기록)
+
+---
+
 ## [v0.17.0] — 2026-05-17 (Transport Executor Sandbox Runner)
 
 ### Added
