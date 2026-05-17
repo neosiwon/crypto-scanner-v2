@@ -5,6 +5,101 @@
 
 ---
 
+## [v0.16.0] — 2026-05-17 (Transport Executor Interface Adapter)
+
+### Added
+- `/v3/v3-transport-executor-interface-adapter.js` — TransportExecutorInterfaceAdapter (신규, 1788 라인)
+  - `WS3_TransportExecutorInterfaceAdapter.build(input, config)` → standalone INTERFACE_ONLY interface boundary spec (입력 9종 mutate 0건)
+  - **출력 top-level**: valid/version/adapterMode('INTERFACE_ONLY')/liveExecutionAllowed(false)/adapterStatus/sourceHarnessStatus/adapterPolicy/bindingResolverContract/telegramInterface/snapshotInterface/evaluationInterface/auditInterface/adapterSummary + reasons/warnings/debug/configUsed
+  - **adapterStatus 6 후보** first-match-wins 우선순위: `ADAPTER_INVALID > ADAPTER_BLOCKED > ADAPTER_PARTIAL > ADAPTER_READY > ADAPTER_SKIPPED > ADAPTER_UNKNOWN`
+  - **4 target interface** (16-stage AND ready): telegramInterface / snapshotInterface / evaluationInterface / auditInterface
+  - **5종 Contract** (per-interface boundary): bindingResolverContract (top-level) / driverCallContract / resultAdapterContract / errorAdapterContract / retryAdapterContract
+  - **8 boolean hard block** (DP-ADAPTER4): `liveExecutionAllowed / sideEffectAllowed / fetchAllowed / writeAllowed / credentialLookupAllowed / bindingLookupAllowed / driverCallAllowed / retryAllowed` 중 하나라도 true → ADAPTER_BLOCKED
+  - **target ↔ action 매핑 1:1** (N-ADAPTER-OBS-4): TELEGRAM→TELEGRAM_SEND, SNAPSHOT_STORE→SNAPSHOT_WRITE, EVALUATION_STORE→EVALUATION_WRITE, AUDIT_STORE→AUDIT_WRITE. mismatch → `INVALID_DRY_RUN_RESULT:ACTION_TARGET_MISMATCH:<target>`
+  - **v0.15 pass-through 재검증** (DP-ADAPTER2): rateLimitContract (key=target match) / circuitBreakerContract (state='OPEN_IN_DRY_RUN' 강제, CLOSED/HALF_OPEN 금지) / dryRunResult (wouldExecute=false 강제)
+  - **validateLogicalRef 6단계** (DP-ADAPTER5/6): 형식 + allowList + credential pattern 우선 + 금지 substring + bot[0-9]+/digit-only + function pattern (token-level). credential pattern 우선순위 — 일반 용어 허용 list override 불가 (N-ADAPTER-OBS-5)
+  - **function pattern token-level 매칭**: UPPER_SNAKE_CASE ref → `_` split → 각 token vs LOGICAL_REF_FUNCTION_TOKENS 10종 (FUNCTION/ASYNC/AWAIT/PROMISE/RETURN/EVAL/THEN/YIELD/GENERATOR/CALLBACK). 'EVAL' 토큰 차단 / 'EVALUATION' 토큰 허용 (false-positive 회피)
+  - **detectFunctionInputs**: function value / async function / Promise-like / thenable 재귀 차단 (DP-ADAPTER5)
+  - **9 errorType enum** (errorAdapterContract): NETWORK_ERROR/TIMEOUT/AUTH_FAILED/RATE_LIMIT/PAYLOAD_ERROR/SERVER_ERROR/PARSE_ERROR/UNKNOWN/CONTRACT_INVALID
+  - **logical handle refs**: FUTURE_SECURE_BINDING_RESOLVER / FUTURE_TELEGRAM_DRIVER / FUTURE_SNAPSHOT_DRIVER / FUTURE_EVALUATION_DRIVER / FUTURE_AUDIT_DRIVER / SEND_MESSAGE / WRITE_SNAPSHOT / WRITE_EVALUATION / WRITE_AUDIT / TELEGRAM_MESSAGE_SCHEMA / SNAPSHOT_WRITE_SCHEMA / EVALUATION_WRITE_SCHEMA / AUDIT_WRITE_SCHEMA / TRANSPORT_RESULT_SCHEMA / SECURE_CREDENTIAL_HANDLE_REF / LOGICAL_BINDING_REF
+  - **adapterPolicy 박제**: interfaceOnly=true, sideEffectAllowed=false, credentialLookupAllowed=false, bindingLookupAllowed=false, fetchAllowed=false, writeAllowed=false, driverCallAllowed=false, retryAllowed=false, liveExecutionRequiresExplicitGate=true
+  - **requestShape 재검증** (DP-ADAPTER7): v0.15 harness.requestShape 그대로 신뢰 X. whitelist scalar only. Object.assign/spread/clone/for-in 0건
+  - **sanitizeMessageLines** (DP-ADAPTER8): exact phrase substring match + CREDENTIAL_IN_LINE_REJECTED. `sanitizeMode='REJECT'` 기본
+  - **r0.1 폐기 naming residue 0건** (Gate 1 검증): RealTransportExecutor* / *Execution / EXECUTOR_* 폐기 명명 미사용
+  - **이중 환경 export**: `global.WS3_TransportExecutorInterfaceAdapter` + `module.exports`
+- `/docs/ws3/WS3_v0_16_0_TRANSPORT_EXECUTOR_INTERFACE_ADAPTER_REPORT.md` — 완료 보고서 (신규, 17 sections)
+
+### Adopted DP Policy
+- **DP-ADAPTER1** interface adapter only. 실제 발송/저장/호출/binding lookup/retry X.
+- **DP-ADAPTER2** transportExecutorHarness ready/status/gate/dryRunResult override 금지. pass-through 재검증만.
+- **DP-ADAPTER3** INTERFACE_ONLY 외 mode → ADAPTER_BLOCKED. LIVE/REAL/EXECUTE 금지.
+- **DP-ADAPTER4** 8 boolean hard block.
+- **DP-ADAPTER5** function 객체 / async function / Promise / resolver/driver/retry function input 차단.
+- **DP-ADAPTER6** credential 값 / process.env / env 객체 / secure binding value 읽기 0건. logicalRef credential / function pattern 검사.
+- **DP-ADAPTER7** requestShape / payloadSummary / metadata whitelist scalar. v0.15 재검증.
+- **DP-ADAPTER8** dry-run / interface wording only. exact phrase substring match.
+- **DP-ADAPTER9** 9종 입력 read-only.
+- **DP-ADAPTER10** 신규 파일 1개 + 문서 갱신만. 보호 파일 28종 수정 금지.
+
+### N-ADAPTER-OBS 처리
+- **N-ADAPTER-OBS-1** 보호 baseline false-positive — 본 모듈 fetch / Date.now / new Date / performance.now / Object.assign / spread / deep clone / for-in / async / await / Promise / setTimeout / setInterval 0건.
+- **N-ADAPTER-OBS-2** 신규 식별자 fresh — 충돌 0건.
+- **N-ADAPTER-OBS-3** v0.15 harness shape 정합. override 0건.
+- **N-ADAPTER-OBS-4** target ↔ action 매핑 1:1. mismatch → ACTION_TARGET_MISMATCH 차단.
+- **N-ADAPTER-OBS-5** validateLogicalRef credential pattern 우선. 일반 용어 허용 override 불가.
+- **N-ADAPTER-OBS-6** buildSafePayloadSummary / buildSafeMetadata / validateBindingRef 동명 — IIFE module-private, global export 미포함. v0.13~v0.15 파일 scope 분리.
+- **N-ADAPTER-OBS-7** 보호 파일 28종 (worker.js / wrangler.toml 포함).
+
+### Changed
+- `/docs/ws3/WS3_CHANGELOG.md` (본 파일): `[v0.16.0]` 엔트리 상단 추가
+- `/docs/ws3/WS3_CURRENT_BASELINE.md`: 완료된 단계 표 + 보호 파일 목록 (28종) + 모듈 의존성 + 다음 단계 갱신
+
+### Protected (수정 0건 — 28종)
+- v3 *.js 21종 (config / feature-payload / bithumb-client / candle-normalizer / indicators / feature-payload-builder / score-breakdown / structure-bucket / signal-cycle / strategy-plan / card-view-model / operation-packet / active-cycle / evaluation-outcome / evaluation-observation-adapter / external-confluence / transport-plan / renderer-binding / transport-execution-adapter / secure-transport-executor-contract / transport-executor-harness)
+- `docs/ws3/WS3_CODE_CONTRACT.md` (b-r2 박제본 그대로)
+- `docs/ws3/WS3_WORKFLOW_TEMPLATE.md` (v0.1 박제본 그대로)
+- `index.html` / `manifest.json` / `service-worker.js`
+- `worker.js` / `wrangler.toml`
+
+### 의도된 미구현 (이번 단계 제외)
+- 실제 Telegram bot API 호출 / chatId / botToken / webhookUrl 노출
+- 실제 KV write / DB persist / 파일 IO / 브라우저 storage
+- 실제 fetch / 외부 호출 / endpoint URL
+- 실제 binding lookup / env 접근 / process.env / Cloudflare env
+- 실제 driver call / retry 실행 / circuit breaker 상태 변경 / rate limit 카운터 증가
+- 실제 DOM 렌더 / HTML attach / addEventListener
+- async function / await / Promise / setTimeout / setInterval (sync only)
+- raw payload / payload.raw / identityInput / raw.builderDebug 노출
+
+### Verified
+- `node --check v3/v3-transport-executor-interface-adapter.js` 통과 (SYNTAX_OK)
+- smoke test **46 시나리오 / 147 assertion 전부 PASS**:
+  - S1 ready all targets / S2 skipped / S3 invalid / S4 source BLOCKED / S5 LIVE / S6~S13 8 hard block boolean
+  - S14 function input / S15 thenable input / S16 credential top-level / S17 env-like object
+  - S18~S21 4 target interface shape / S22 bindingResolverContract / S23 driverCallContract / S24 resultAdapterContract / S25 errorAdapterContract / S26 retryAdapterContract
+  - S27 rateLimitContract pass-through / S28 invalid rate limit / S29 circuitBreakerContract pass-through / S30 invalid CLOSED state / S31 dryRunResult pass-through / S32 ACTION_TARGET_MISMATCH
+  - S33 validateLogicalRef safe (EVALUATION_STORE_BINDING 허용) / S34 invalid format / S35 credential pattern / S36 function pattern (EVAL 차단 / EVALUATION 허용 token-level)
+  - S37 requestShape revalidation / S38 metadata revalidation / S39 wording sanitize / S40 no env access / S41 no side-effect / S42 mutation 0
+  - S43 raw/secret leak / S44 v0.17 interface separation (process.env / api.telegram.org / sk-/xoxb-/eyJ 0 노출 + adapterPolicy 9 boolean) / S45 driver interface policy (4 target) / S46 retry policy (4 target)
+- 모든 시나리오 **입력 mutation 0건** (DP-ADAPTER9, S42 frozen-input 검증)
+- 금지 패턴 grep (실제 코드 침범 0건):
+  - `async function / await / Promise / setTimeout / setInterval / fetch( / KV. / DB / Telegram 실호출 / XMLHttpRequest / innerHTML / document. / addEventListener / localStorage / sessionStorage / Date.now( / new Date / performance.now` 코드 0건 (sync only)
+  - `transportExecutorHarness.X = / secureTransportExecutorContract.X = / ...8 inputs.X =` 입력 mutation **0건** ✅
+  - `process.env / globalThis.env / globalThis.bindings / globalThis.secrets / typeof process / typeof globalThis` **0건** ✅
+  - `Object.assign / ...spread / JSON.parse(JSON.stringify) / for-in` 실제 사용 **0건**
+  - credential / URL / token 매치 = JSDoc + literal 차단 list (CREDENTIAL_KEYS_BASE / RESERVED_FRAMEWORK_METADATA_KEYS 22종 / LOGICAL_REF_FORBIDDEN_SUBSTRINGS) + 변수/함수명. 실제 외부 노출 0건
+  - `driverCallAllowed:true / bindingLookupAllowed:true / retryAllowed:true / callAllowed:true / lookupAllowed:true / wouldCall:true / rawResponseAllowed:true / rawErrorAllowed:true / stackAllowed:true / responseBodyAllowed:true` **0건** ✅
+  - `CLOSED / HALF_OPEN` circuit breaker state **실제 사용 0건** (1 JSDoc 정책 매치만)
+  - 발송됨 / sent / 손절 / 익절 등 출력 어휘 사용 0건 (FORBIDDEN_WORDS literal 차단 list 정의만)
+- 보호 파일 `git diff --stat HEAD -- <28 protected files>` 빈 출력 = 0건
+
+### 기준 commit
+- branch: `claude/heuristic-cori-7865e7`
+- 이전 functional baseline: WS3 v0.15.0 transportExecutorHarness (`4a2baa6`)
+- 본 commit: (push 후 기록)
+
+---
+
 ## [v0.15.0] — 2026-05-17 (Transport Executor Harness — Dry-Run)
 
 ### Added

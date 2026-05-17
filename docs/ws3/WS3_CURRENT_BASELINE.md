@@ -4,8 +4,8 @@
 > 다음 단계 작업 전에 이 파일로 baseline 을 확인.
 
 **최종 업데이트**: 2026-05-17  
-**기능 단계 (current functional baseline)**: WS3 v0.15.0 Transport Executor Harness — Dry-Run (본 단계)  
-**이전 기능 baseline**: WS3 v0.14.0 secureTransportExecutorContract (`644c525`)  
+**기능 단계 (current functional baseline)**: WS3 v0.16.0 Transport Executor Interface Adapter (본 단계)  
+**이전 기능 baseline**: WS3 v0.15.0 transportExecutorHarness (`4a2baa6`)  
 **운영 문서**: WS3 Workflow Template v0.1 박제 (`d8bebc2`, v0.3.0-docs)  
 **branch**: `claude/heuristic-cori-7865e7`
 
@@ -36,7 +36,8 @@
 | WS3 v0.12.0 | `/v3/v3-transport-plan.js` + `/v3/v3-renderer-binding.js` | `8fd0551` | ✅ 박제 |
 | WS3 v0.13.0 | `/v3/v3-transport-execution-adapter.js` | `5d05836` | ✅ 박제 |
 | WS3 v0.14.0 | `/v3/v3-secure-transport-executor-contract.js` | `644c525` | ✅ 박제 |
-| **WS3 v0.15.0** | **`/v3/v3-transport-executor-harness.js`** | **(push 후 기록)** | **✅ 박제 (이번 단계, DRY_RUN_HARNESS transport executor harness)** |
+| WS3 v0.15.0 | `/v3/v3-transport-executor-harness.js` | `4a2baa6` | ✅ 박제 |
+| **WS3 v0.16.0** | **`/v3/v3-transport-executor-interface-adapter.js`** | **(push 후 기록)** | **✅ 박제 (이번 단계, INTERFACE_ONLY transport executor interface adapter)** |
 
 ## REJECTED — repo 반영 보류
 
@@ -243,7 +244,8 @@ wrangler.toml
 /v3/v3-renderer-binding.js                  ← v0.12.0 박제본 (UI binding)
 /v3/v3-transport-execution-adapter.js       ← v0.13.0 박제본 (dry-run safe envelope)
 /v3/v3-secure-transport-executor-contract.js ← v0.14.0 박제본 (CONTRACT_ONLY secure executor contract)
-/v3/v3-transport-executor-harness.js        ← v0.15.0 박제본 (이번 단계 신규, DRY_RUN_HARNESS transport executor harness)
+/v3/v3-transport-executor-harness.js        ← v0.15.0 박제본 (DRY_RUN_HARNESS transport executor harness)
+/v3/v3-transport-executor-interface-adapter.js ← v0.16.0 박제본 (이번 단계 신규, INTERFACE_ONLY transport executor interface adapter)
 /v3/v3-index.html                           (생성도 X)
 ```
 
@@ -290,8 +292,10 @@ v3-transport-execution-adapter.js  (v0.13.0 박제 — dry-run safe envelope: te
 v3-secure-transport-executor-contract.js  (v0.14.0 박제 — CONTRACT_ONLY secure executor contract: telegramContract/snapshotContract/evaluationContract/auditContract)
   ↓ (standalone SecureTransportExecutorContract 객체, 7종 입력 mutate 0건, side-effect free, contractMode='CONTRACT_ONLY' 강제, liveExecutionAllowed=false 강제, credential recursive + env-like + depth + bindingRef 검증, bindingRef logical reference only, v0.13 envelope 재검증, secureBindingPolicy 박제, v0.15+ real executor 와 credential 비전달 보장)
 v3-transport-executor-harness.js  (v0.15.0 박제 — DRY_RUN_HARNESS: telegramHarness/snapshotHarness/evaluationHarness/auditHarness + rateLimitContract + circuitBreakerContract + dryRunResult)
-  ↓ (standalone TransportExecutorHarness 객체, 8종 입력 mutate 0건, side-effect free, harnessMode='DRY_RUN_HARNESS' 강제, 5 boolean hard block (liveExecution/sideEffect/fetch/write/credentialLookup), perTargetGate.allow=false 강제, dryRunResult.wouldExecute=false 강제, circuitBreaker.state='OPEN_IN_DRY_RUN' 강제, v0.14 contract.requestShape 재검증, v0.16+ real executor 와 credential 비전달 보장)
-[v0.15.x / v0.16.x — 실제 transport executor / renderer / persistence 분리 단계]
+  ↓ (standalone TransportExecutorHarness 객체, 8종 입력 mutate 0건, side-effect free, harnessMode='DRY_RUN_HARNESS' 강제, 5 boolean hard block, perTargetGate.allow=false 강제, dryRunResult.wouldExecute=false 강제, circuitBreaker.state='OPEN_IN_DRY_RUN' 강제, v0.14 contract.requestShape 재검증)
+v3-transport-executor-interface-adapter.js  (v0.16.0 박제 — INTERFACE_ONLY: telegramInterface/snapshotInterface/evaluationInterface/auditInterface + 5종 Contract (bindingResolver/driverCall/resultAdapter/errorAdapter/retryAdapter))
+  ↓ (standalone TransportExecutorInterfaceAdapter 객체, 9종 입력 mutate 0건, side-effect free, sync only, adapterMode='INTERFACE_ONLY' 강제, 8 boolean hard block (liveExecution/sideEffect/fetch/write/credentialLookup/bindingLookup/driverCall/retry), driverCallContract.callAllowed=false 강제, bindingResolverContract.lookupAllowed=false 강제, retryAdapterContract.retryAllowed=false 강제, target↔action 매핑 1:1, validateLogicalRef 6단계 (credential pattern 우선 + function token 차단), detectFunctionInputs 재귀 차단, v0.15 pass-through 재검증, v0.17+ real executor 와 credential 비전달 보장)
+[v0.16.x / v0.17.x — 실제 transport executor / renderer / persistence 분리 단계]
 ```
 
 ---
@@ -330,6 +334,37 @@ v3-transport-executor-harness.js  (v0.15.0 박제 — DRY_RUN_HARNESS: telegramH
 ```
 
 ---
+
+## v0.16.0 핵심 메모
+
+```text
+- v3/v3-transport-executor-interface-adapter.js 신규 (1788 라인)
+- 보호 파일 28종 모두 무손상 (v3 *.js 21종 + index/manifest/sw 3종 + CODE_CONTRACT + WORKFLOW_TEMPLATE + worker.js + wrangler.toml)
+- DP-ADAPTER1 ~ DP-ADAPTER10 + N-ADAPTER-OBS-1 ~ N-ADAPTER-OBS-7 모두 적용 / 미해결 항목 0건
+- adapterStatus 6 후보 first-match-wins (INVALID > BLOCKED > PARTIAL > READY > SKIPPED > UNKNOWN)
+- 4 target interface: telegram / snapshot / evaluation / audit (각 16-stage AND ready)
+- adapterMode='INTERFACE_ONLY' 강제, liveExecutionAllowed=false 강제
+- 8 boolean hard block: liveExecution / sideEffect / fetch / write / credentialLookup / bindingLookup / driverCall / retry
+- 5종 Contract: bindingResolverContract / driverCallContract / resultAdapterContract / errorAdapterContract / retryAdapterContract (모두 INTERFACE_ONLY boolean false 강제)
+- target ↔ action 매핑 1:1: TELEGRAM→TELEGRAM_SEND, SNAPSHOT_STORE→SNAPSHOT_WRITE, EVALUATION_STORE→EVALUATION_WRITE, AUDIT_STORE→AUDIT_WRITE
+- v0.15 pass-through 재검증: rateLimitContract (key=target match) / circuitBreakerContract (state=OPEN_IN_DRY_RUN 강제, CLOSED/HALF_OPEN 금지) / dryRunResult (wouldExecute=false + action 매핑, ACTION_TARGET_MISMATCH 차단)
+- validateLogicalRef 6단계: 형식 + allowList + credential pattern 우선 + 금지 substring + bot/digit-only + function pattern (token-level)
+- credential pattern 우선순위 — 일반 용어 허용 list override 불가 (N-ADAPTER-OBS-5)
+- function pattern token-level 매칭 — 'EVAL' 토큰 차단 / 'EVALUATION' 토큰 허용 (false-positive 회피)
+- detectFunctionInputs 재귀 차단 — function value / async function / Promise / thenable 모두 ADAPTER_BLOCKED
+- RESERVED 프레임워크 metadata 22종 자동 차단 제외 (logicalRefAllowList 등 v0.16 신규 4종 포함)
+- 9 errorType enum (NETWORK_ERROR/TIMEOUT/AUTH_FAILED/RATE_LIMIT/PAYLOAD_ERROR/SERVER_ERROR/PARSE_ERROR/UNKNOWN/CONTRACT_INVALID)
+- adapterPolicy 박제: interfaceOnly=true + 6 boolean false + liveExecutionRequiresExplicitGate=true
+- payloadSummary 14 whitelist scalar + metadata 기본 빈 배열, v0.15 재검증
+- Object.assign / spread / JSON.parse(JSON.stringify) / for-in 코드 0건
+- async / await / Promise / setTimeout / setInterval 코드 0건 (sync only)
+- sanitizeMode='REJECT' 기본 (15 금지 어휘 exact phrase substring match) + CREDENTIAL_IN_LINE_REJECTED
+- r0.1 폐기 naming residue 0건 (RealTransportExecutor* / *Execution / EXECUTOR_* / classifyExecutorStatus)
+- smoke test 46 시나리오 / 147 assertion 전부 PASS
+- 입력 mutation 0건 (DP-ADAPTER9, S42 frozen-input 검증)
+- fetch / Telegram 실호출 / KV / DB / DOM / storage / clock API / process.env / globalThis 코드 0건
+- v0.17+ real executor 와 credential 인계 0건 (logical handle ref + adapterPolicy 만 인계)
+```
 
 ## v0.15.0 핵심 메모
 
