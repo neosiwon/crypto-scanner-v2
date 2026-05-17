@@ -4,8 +4,8 @@
 > 다음 단계 작업 전에 이 파일로 baseline 을 확인.
 
 **최종 업데이트**: 2026-05-17  
-**기능 단계 (current functional baseline)**: WS3 v0.20.0 Secure Runtime State Adapter + v0.21.0 Telegram Canary Sender (본 단계 — Gate 2 동시 작성, commit/push 분리)  
-**이전 기능 baseline**: WS3 v0.19.0 liveExecutionPreflightGate (`7f2de04`)  
+**기능 단계 (current functional baseline)**: WS3 v0.22.1 Canary Worker Runtime Hotfix + First Live Telegram Canary Success  
+**이전 기능 baseline**: WS3 v0.22.0 Canary Web MVP Pack (`69bf5b0`)  
 **운영 문서**: WS3 Workflow Template v0.1 박제 (`d8bebc2`, v0.3.0-docs)  
 **branch**: `claude/heuristic-cori-7865e7`
 
@@ -43,6 +43,8 @@
 | WS3 v0.19.0 | `/v3/v3-live-execution-preflight-gate.js` | `7f2de04` | ✅ 박제 |
 | **WS3 v0.20.0** | **`/v3/v3-secure-runtime-state-adapter.js`** | **(push 후 기록)** | **✅ 박제 (이번 단계, CANARY_PREP_ONLY secure runtime state adapter — Gate 2 동시 작성, commit 분리)** |
 | **WS3 v0.21.0** | **`/v3/v3-telegram-canary-sender.js`** | **(push 후 기록)** | **✅ 박제 (이번 단계, Telegram canary sender — 첫 LIVE side-effect 모듈, Gate 2 동시 작성, commit 분리)** |
+| **WS3 v0.22.0** | **`/workers/ws3-telegram-canary-worker.js` + `/web/ws3-canary-console.html`** | **`69bf5b0`** | **✅ 박제 (Canary Web MVP Pack, 별도 canary worker + local web console, 실제 Telegram 호출은 Gate 5 전까지 0건)** |
+| **WS3 v0.22.1** | **`/workers/ws3-telegram-canary-worker.js` + runtime hotfix report** | **`d8b1108`** | **✅ 박제 (Cloudflare runtime hotfix + first live Telegram canary success, cleanup 완료)** |
 
 ## REJECTED — repo 반영 보류
 
@@ -315,7 +317,9 @@ v3-secure-runtime-state-adapter.js  (v0.20.0 박제 — CANARY_PREP_ONLY: killSw
   ↓ (standalone SecureRuntimeStateAdapter 객체, v0.19 결과 mutate 0건, side-effect free, sync only, runtimeMode='CANARY_PREP_ONLY' 강제, 6 runtime state contract (killSwitchRuntimeState.state='CANARY_ALLOWED' 박제 + rollback/disable executor 0건 + telegramRuntimeEligibility (Canary only) + canaryRuntimePolicy 8 boolean (fixedMessageOnly=true, KV/DB/snapshot/evaluation/audit/candidatePayload 0건) + safeDiagnostics 3 false 강제), 6 validate 본문 규칙, async/Promise/timer/Date.now/process.env/globalThis.env 0건)
 v3-telegram-canary-sender.js  (v0.21.0 박제 — Telegram canary sender: buildTelegramCanaryPlan sync + dispatchCanary async)
   ↓ (Telegram 1 target 한정 첫 LIVE side-effect 모듈, CANARY_FIXED_MESSAGE 5줄 byte-for-byte exact, 20 hard precondition AND, 4 explicit gate (env enabled + 24h authorized + invoke token + manualTrigger), 5s hard timeout + AbortController via deps, retry=0, 60s rate limit, 3-fail 24h circuit breaker, safe result whitelist 6 fields, safe error whitelist 4 fields + 7 errorCode enum, safeDiagnostics 6 fields (3 false 강제), raw Telegram response 차단 (description/from.*/chat.*/bot_token/headers/Set-Cookie 0건), token/chatId 값 출력 0건, deps.fetchImpl/AbortControllerImpl/setTimeoutImpl/clearTimeoutImpl/nowMs 인자 주입 만, input.runtimeEnv 인자 만 (process.env/globalThis.env 직접 사용 0건), worker.js/endpoint/inbound/canary worker 0건)
-[v0.22.x — 실제 canary endpoint / inbound / GitHub Actions workflow_dispatch / 별도 canary worker 분리 단계]
+workers/ws3-telegram-canary-worker.js + web/ws3-canary-console.html  (v0.22.0/v0.22.1 박제 — separate canary worker, local Web Console, Cloudflare runtime hotfix)
+  ↓ (actual live Telegram canary 1회 성공, CANARY_SENT/httpStatus 200/messageType CANARY_TEST_ONLY/fixedMessageUsed true, fixed 5-line message 수신, cleanup 완료, CANARY_ENABLED=false, real coin candidates still not connected, KV/DB writes 0건)
+[v0.23.x — production-grade enforcement: persistent alreadySent, persistent invoke-token failure counter, cleanup automation, production Web Console hosting policy]
 ```
 
 ---
@@ -342,6 +346,11 @@ v3-telegram-canary-sender.js  (v0.21.0 박제 — Telegram canary sender: buildT
 ## 다음 단계 (확정된 순서)
 
 ```text
+(다음) v0.23.x — production-grade enforcement:
+                  persistent alreadySent,
+                  persistent invoke-token failure counter,
+                  cleanup automation,
+                  production Web Console hosting policy
 (별도) v0.15.x — 실제 transport executor (SecureTransportExecutorContract 출력을 받아 실제 Telegram bot API / KV write / reviewQueue write)
                   bindingRef → secure binding lookup (Cloudflare env / KMS / secret store) — v0.14.0 contract 에는 credential value 0 포함
                   LIVE_EXECUTION explicit gate 별도 정의
@@ -354,6 +363,21 @@ v3-telegram-canary-sender.js  (v0.21.0 박제 — Telegram canary sender: buildT
 ```
 
 ---
+
+## v0.22.1 actual live canary result
+
+```text
+- first real Telegram canary send succeeded
+- code CANARY_SENT / httpStatus 200
+- messageType CANARY_TEST_ONLY
+- fixedMessageUsed true
+- fixed 5-line Telegram message received
+- cleanup completed
+- CANARY_ENABLED=false after test
+- real coin candidates still not connected
+- KV/DB writes still 0
+- production-grade enforcement deferred to v0.23+
+```
 
 ## v0.21.0 핵심 메모
 

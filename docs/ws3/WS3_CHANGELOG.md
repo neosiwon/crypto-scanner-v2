@@ -5,6 +5,29 @@
 
 ---
 
+## [v0.22.1] — Canary Worker Runtime Hotfix + First Live Canary Success
+
+### Added / Changed
+- Updated canary worker runtime dependency wrapping for Cloudflare runtime safety.
+- Added safe worker-level error separation for runtime dependency failures.
+- Preserved v0.20/v0.21 runtime and sender contracts without modifying v3 engine files.
+
+### Verified
+- Cloudflare production canary worker updated to v0.22.1.
+- /health returned CANARY_READY.
+- OPTIONS preflight passed for configured staging origin.
+- Actual Telegram canary sent successfully exactly once.
+- Response code: CANARY_SENT / httpStatus 200 / messageType CANARY_TEST_ONLY / fixedMessageUsed true.
+- Telegram received the fixed 5-line canary message.
+- Cleanup completed after success: CANARY_ENABLED=false.
+- Token/chatId/invoke token/raw Telegram response/message_id were not recorded.
+
+### Next
+- v0.23: production-grade enforcement.
+- Candidate scope: persistent alreadySent, persistent invoke-token failure counter, cleanup automation, and production Web Console hosting policy.
+
+---
+
 ## [v0.21.0] — 2026-05-17 (Telegram Canary Sender)
 
 ### Added

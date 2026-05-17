@@ -84,6 +84,20 @@ Static check:
 node --check workers/ws3-telegram-canary-worker.js -> OK
 ```
 
+## Final Live Canary Result
+
+- actual Telegram canary: SUCCESS, 1 send only
+- response code: CANARY_SENT
+- httpStatus: 200
+- messageType: CANARY_TEST_ONLY
+- fixedMessageUsed: true
+- Telegram received fixed 5-line message exactly
+- cleanup completed after success
+- CANARY_ENABLED=false after test
+- raw Telegram response not recorded
+- token/chatId/invoke token not recorded
+- message_id not recorded
+
 ## Next
 
-Deploy v0.22.1 only after user approval. Keep `WS3_TELEGRAM_CANARY_ENABLED=false` until a separate approved staging retry.
+v0.23 should cover production-grade enforcement: persistent alreadySent, persistent invoke-token failure counter, cleanup automation, and production Web Console hosting policy.
