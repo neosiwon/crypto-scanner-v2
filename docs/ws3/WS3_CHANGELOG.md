@@ -5,6 +5,96 @@
 
 ---
 
+## [v0.25.0] — 2026-05-18 (Operator Reset / State Lifecycle)
+
+### Added
+- `/docs/ws3/WS3_v0_25_0_OPERATOR_RESET_STATE_LIFECYCLE_REPORT.md` — v0.25 완료 보고서 (17 sections)
+- `workers/ws3-canary-state-kv-adapter.js` 확장 (276 → 360 라인, +84):
+  - `keyOperatorReset()` — `ws3:canary:operatorReset` 키 namespacing
+  - `readOperatorReset(kv)` / `writeOperatorReset(kv, payload)` — schemaVersion='v1' / `{resetCount, lastResetAt, lastResetReason}`
+  - `markAlreadySentReset(kv)` — alreadySent=false 전환 + sentAt audit 보존
+  - `computeCurrentPhase(state)` — 9-phase classifier (`PERSISTENCE_UNAVAILABLE` / `CIRCUIT_OPEN` / `CLEANUP_REQUIRED` / `LOCKED_ALREADY_SENT` / `OPERATOR_RESETTABLE` / `RESET_CONFIRMED` / `READY`)
+- `workers/ws3-telegram-canary-worker.js` 확장 (737 → 943 라인, +206):
+  - `OPERATOR_RESET_PHRASE = 'RESET_WS3_CANARY_STATE'` (hardcoded constant)
+  - `OPERATOR_RESET_COOLDOWN_MS = 60 * 1000`
+  - `OPERATOR_RESET_REASON = 'OPERATOR_RESET_CONFIRMED'`
+  - **POST `/operator-reset` 엔드포인트** — 7중 조건 + circuit 차단 + 60s cooldown 가드
+  - OPTIONS preflight 허용 path 확장: `/health` / `/send-canary` / `/state` / `/cleanup-confirm` / `/operator-reset`
+  - `/state` 응답 8 → 10 fields (신규 `currentPhase` / `resetCount`)
+
+### Changed
+- `/docs/ws3/WS3_CHANGELOG.md` (본 파일): `[v0.25.0]` entry 상단 추가
+- `/docs/ws3/WS3_CURRENT_BASELINE.md`: baseline → v0.25.0 + 완료된 단계 v0.25 row 추가 + v0.25.0 핵심 메모 추가
+- `VERSION` 상수: `WS3_v0.23.0_persistent_canary_safety_guard` → `WS3_v0.25.0_operator_reset_state_lifecycle`
+
+### /operator-reset 7중 조건 + 2 추가 안전선
+| # | 조건 | 위반 시 |
+|---|---|---|
+| 1 | Origin allowlist 통과 | `ORIGIN_MISSING` 403 / `ORIGIN_NOT_ALLOWED` 403 |
+| 2 | `X-WS3-Canary-Token === env.WS3_CANARY_INVOKE_TOKEN` exact | `MISSING_INVOKE_TOKEN` 401 / `INVOKE_TOKEN_MISMATCH` 403 |
+| 3 | `body.manualTrigger === true` | `MANUAL_TRIGGER_REQUIRED` 400 |
+| 4 | `body.resetPhrase === "RESET_WS3_CANARY_STATE"` byte-for-byte | `RESET_PHRASE_MISMATCH` 403 |
+| 5 | `env.WS3_TELEGRAM_CANARY_ENABLED === 'false'` | `RESET_REQUIRES_CANARY_DISABLED` 409 |
+| 6 | KV `cleanupRequired === false` | `RESET_REQUIRES_CLEANUP_CONFIRMED` 409 |
+| 7 | KV `persistenceAvailable === true` (binding + read 성공) | `PERSISTENCE_UNAVAILABLE` 503 |
+| +1 | KV `circuitOpen === false` | `CIRCUIT_OPEN_RESET_BLOCKED` 503 |
+| +2 | lastResetAt 기준 60s 이내 재-reset 불가 (idempotent NO_RESET_REQUIRED 제외) | `RESET_COOLDOWN_ACTIVE` 429 |
+
+### 신규 safe code (8종)
+- `OPERATOR_RESET_CONFIRMED` 200 — reset 성공 (alreadySent=false + resetCount +1)
+- `NO_RESET_REQUIRED` 200 — alreadySent=false 상태, KV 변경 0건 (idempotent)
+- `RESET_PHRASE_MISMATCH` 403
+- `RESET_PRECONDITION_FAILED` 409
+- `RESET_REQUIRES_CANARY_DISABLED` 409
+- `RESET_REQUIRES_CLEANUP_CONFIRMED` 409
+- `RESET_COOLDOWN_ACTIVE` 429
+- `CIRCUIT_OPEN_RESET_BLOCKED` 503
+
+### Protected (수정 0건)
+- 본선 `worker.js` / `wrangler.toml` (repo 미존재) / `index.html` / `manifest.json` / `service-worker.js` — 미수정
+- `v3/` 25종 엔진 — 미수정
+- `docs/ws3/WS3_CODE_CONTRACT.md` / `WS3_WORKFLOW_TEMPLATE.md` — 미수정
+- `web/ws3-canary-console.html` — 미수정 (v0.25 에서 web console 변경 없음)
+- `wrangler-canary.example.toml` / `.gitignore` — 미수정
+
+### mock smoke (19 시나리오)
+```
+TOTAL=19 PASS=19 FAIL=0
+```
+실제 Telegram API 호출 **0건** (mock fetchImpl). 실제 KV API 호출 **0건** (mock in-memory store).
+
+### 보안 / 누출 검증 (0건 확인)
+- bot token / chatId / invoke token / KV namespace id / Telegram message_id / raw Telegram response / IP / cookie / session id / browser fingerprint — 채팅 / 보고서 / 로그 노출 0건
+- resetPhrase 원문 KV 저장 0건 (smoke S17 검증)
+- /state 응답 10 fields whitelist 외 필드 노출 0건 (lastResetAt / sentAt / blockedUntil / failureCount 등 모두 차단)
+- masked / first-4 / last-4 / redacted preview 0건
+- operator identity 저장 0건
+
+### Cloudflare 변경 0건
+- worker 재배포 0건 (v0.23.0 production Version 그대로, v0.25 staging 재배포는 별도 gate)
+- KV namespace 생성/변경 0건
+- KV binding 변경 0건
+- secrets (BOT_TOKEN / CHAT_ID / INVOKE_TOKEN) 변경 0건
+- 실제 Telegram API 호출 0건
+- 실제 /operator-reset 호출 0건 (mock 만)
+
+### 의도된 미구현 (다음 단계 후보)
+- `/operator-reset` 실 staging test (v0.24 잔존 alreadySent=true 상태 → 실 호출 → 검증) — 별도 gate
+- v0.25 worker 재배포 — 별도 gate
+- Production Web Console hosting — v0.26+
+- actual coin live preflight (Snapshot / Evaluation / Audit) — v0.27+
+- Durable Objects / D1 strict one-time guarantee — v0.27+
+- env-based resetPhrase / circuit reset endpoint / failure counter reset endpoint
+- invoke token rotate automation
+- ipHash + `WS3_CANARY_HASH_SALT`
+
+### 기준 commit
+- branch: `claude/heuristic-cori-7865e7`
+- 이전 functional baseline: WS3 v0.24.0 Persistent Guard Staging Validation (`cd002dc`)
+- 본 commit: (push 후 기록)
+
+---
+
 ## [v0.24.0] — 2026-05-18 (Persistent Guard Staging Validation)
 
 ### Verified (운영 검증 Gate — 코드 변경 0건)

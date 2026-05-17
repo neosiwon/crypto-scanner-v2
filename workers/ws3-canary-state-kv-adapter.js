@@ -1,19 +1,26 @@
 /**
- * WS3 v0.23.0 — Canary State KV Adapter
+ * WS3 v0.23.0 / v0.25.0 — Canary State KV Adapter
  *
  * canary 전용 KV 접근만 담당. 본선 / 실코인 / Snapshot / Evaluation / Audit KV write 금지.
  *
  * 정책:
  *   - prefix: 'ws3:canary:' 만 허용. 다른 prefix 접근 시 INVALID_KV_KEY_PREFIX.
- *   - schemaVersion: 'v1' 강제. 불일치 시 SCHEMA_VERSION_MISMATCH.
+ *   - schemaVersion: 'v1' 강제 (v0.25 backward-compatible 확장). 불일치 시 SCHEMA_VERSION_MISMATCH.
  *   - hash: SHA-256 lowercase hex first 16 chars. 위반 시 INVALID_HASH_FORMAT.
- *   - secret / Telegram message_id / raw response / token / chatId / invoke token 저장 금지.
+ *   - secret / Telegram message_id / raw response / token / chatId / invoke token / resetPhrase 원문
+ *     / Origin 실제 값 / IP / operator identity 저장 금지.
  *
  * 한계 (r0.2-final 박제):
  *   - KV alreadySent 는 strict distributed lock 이 아니다. persistent safety guard.
- *   - strict one-time guarantee 는 v0.24+ Durable Objects / atomic lock 에서 검토.
+ *   - strict one-time guarantee 는 v0.27+ Durable Objects / atomic lock / D1 transaction 검토.
  *   - mock KV = strong consistency / real KV = eventual consistency 가능. mock 통과 가
  *     production 안정성을 완전히 보장하지 않음.
+ *
+ * v0.25 추가:
+ *   - keyOperatorReset / readOperatorReset / writeOperatorReset — reset metadata (resetCount, lastResetAt).
+ *   - markAlreadySentReset — alreadySent=false 로 전환 + sentAt 등 audit 필드 보존.
+ *   - computeCurrentPhase — 7+ phase 분류 (READY / CANARY_SENT / CLEANUP_REQUIRED / CLEANUP_CONFIRMED /
+ *     LOCKED_ALREADY_SENT / OPERATOR_RESETTABLE / RESET_CONFIRMED / CIRCUIT_OPEN / PERSISTENCE_UNAVAILABLE).
  *
  * export: CommonJS module.exports. Cloudflare Worker 는 entry shim 통해 import.
  */
@@ -78,6 +85,7 @@ function keyInvokeFail(originHash) {
   if (!isValidHash(originHash)) return null;
   return KV_PREFIX + 'invokeFail:' + originHash;
 }
+function keyOperatorReset() { return KV_PREFIX + 'operatorReset'; }
 
 // §KV CRUD wrappers ─────────────────────────────────────────────────────
 
@@ -244,6 +252,77 @@ async function writeInvokeFail(kv, originHash, payload) {
   });
 }
 
+// §v0.25 operatorReset metadata ────────────────────────────────────────
+
+async function readOperatorReset(kv) {
+  return getJson(kv, keyOperatorReset());
+}
+
+async function writeOperatorReset(kv, payload) {
+  if (!isPlainObject(payload)) return { ok: false, reason: 'INVALID_KV_VALUE' };
+  return putJson(kv, keyOperatorReset(), {
+    schemaVersion: SCHEMA_VERSION,
+    resetCount: (typeof payload.resetCount === 'number' && isFinite(payload.resetCount) && payload.resetCount >= 0) ? payload.resetCount : 0,
+    lastResetAt: (typeof payload.lastResetAt === 'number' && isFinite(payload.lastResetAt)) ? payload.lastResetAt : null,
+    lastResetReason: (typeof payload.lastResetReason === 'string' && payload.lastResetReason.length > 0 && payload.lastResetReason.length <= 64) ? payload.lastResetReason : null
+  });
+}
+
+// §v0.25 markAlreadySentReset — alreadySent=false 로 전환 (sentAt 등 audit 필드 보존)
+//   resetCount / lastResetAt 은 별도 keyOperatorReset 에 저장 — alreadySent 레코드에 중복 저장 X
+async function markAlreadySentReset(kv) {
+  var existing = await readAlreadySent(kv);
+  if (existing.ok !== true) {
+    // PERSISTENCE_UNAVAILABLE / SCHEMA_VERSION_MISMATCH / INVALID_KV_VALUE — propagate
+    if (existing.reason === 'PERSISTENCE_UNAVAILABLE' || existing.reason === 'SCHEMA_VERSION_MISMATCH') {
+      return existing;
+    }
+    // INVALID_KV_VALUE — fall through and write minimal fresh record
+  }
+  var prev = (existing.ok === true && isPlainObject(existing.value)) ? existing.value : null;
+  return putJson(kv, keyAlreadySent(), {
+    schemaVersion: SCHEMA_VERSION,
+    alreadySent: false,
+    sentAt: (prev && typeof prev.sentAt === 'number' && isFinite(prev.sentAt)) ? prev.sentAt : null,
+    messageType: MESSAGE_TYPE,
+    fixedMessageUsed: (prev && prev.fixedMessageUsed === true) ? true : true
+  });
+}
+
+// §v0.25 currentPhase 계산 — 7+ phase (READY/CANARY_SENT/CLEANUP_REQUIRED/CLEANUP_CONFIRMED/
+//   LOCKED_ALREADY_SENT/OPERATOR_RESETTABLE/RESET_CONFIRMED/CIRCUIT_OPEN/PERSISTENCE_UNAVAILABLE)
+//
+// inputs:
+//   state = {
+//     persistenceAvailable: boolean,
+//     alreadySent: boolean,
+//     cleanupRequired: boolean,
+//     circuitOpen: boolean,
+//     canaryEnabled: boolean,
+//     resetCount: number (default 0)
+//   }
+function computeCurrentPhase(state) {
+  if (!isPlainObject(state)) return 'PERSISTENCE_UNAVAILABLE';
+  if (state.persistenceAvailable !== true) return 'PERSISTENCE_UNAVAILABLE';
+  if (state.circuitOpen === true) return 'CIRCUIT_OPEN';
+
+  var already = state.alreadySent === true;
+  var cleanup = state.cleanupRequired === true;
+  var enabled = state.canaryEnabled === true;
+  var resetCount = (typeof state.resetCount === 'number' && isFinite(state.resetCount)) ? state.resetCount : 0;
+
+  // alreadySent + cleanupRequired
+  if (already && cleanup) return 'CLEANUP_REQUIRED';
+  // alreadySent + !cleanupRequired
+  if (already && !cleanup) {
+    if (enabled === true) return 'LOCKED_ALREADY_SENT';
+    return 'OPERATOR_RESETTABLE';
+  }
+  // !alreadySent + !cleanupRequired
+  if (resetCount > 0) return 'RESET_CONFIRMED';
+  return 'READY';
+}
+
 // §export ──────────────────────────────────────────────────────────────
 
 module.exports = {
@@ -260,6 +339,7 @@ module.exports = {
   keyCleanupRequired: keyCleanupRequired,
   keyCircuit: keyCircuit,
   keyInvokeFail: keyInvokeFail,
+  keyOperatorReset: keyOperatorReset,
   getJson: getJson,
   putJson: putJson,
   deleteKey: deleteKey,
@@ -272,5 +352,9 @@ module.exports = {
   readCircuit: readCircuit,
   writeCircuit: writeCircuit,
   readInvokeFail: readInvokeFail,
-  writeInvokeFail: writeInvokeFail
+  writeInvokeFail: writeInvokeFail,
+  readOperatorReset: readOperatorReset,
+  writeOperatorReset: writeOperatorReset,
+  markAlreadySentReset: markAlreadySentReset,
+  computeCurrentPhase: computeCurrentPhase
 };

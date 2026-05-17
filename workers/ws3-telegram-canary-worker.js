@@ -1,14 +1,29 @@
 /**
- * WS3 v0.23.0 — Canary Web MVP Worker (Persistent Canary Safety Guard)
+ * WS3 v0.25.0 — Canary Web MVP Worker (Operator Reset / State Lifecycle)
  *
  * 별도 Cloudflare Worker. 기존 worker.js 본선을 수정하지 않는다.
  *
  * Route:
  *   GET     /health
  *   POST    /send-canary
- *   GET     /state            (v0.23 신규 — safe persistent state read)
- *   POST    /cleanup-confirm  (v0.23 신규 — manual cleanup ack)
- *   OPTIONS /health, /send-canary, /state, /cleanup-confirm (CORS preflight)
+ *   GET     /state            (v0.23 — safe persistent state read; v0.25 currentPhase+resetCount 추가)
+ *   POST    /cleanup-confirm  (v0.23 — manual cleanup ack)
+ *   POST    /operator-reset   (v0.25 신규 — operator reset, 7중 조건 보호, Telegram 발송 0건)
+ *   OPTIONS /health, /send-canary, /state, /cleanup-confirm, /operator-reset (CORS preflight)
+ *
+ * v0.25 핵심 정책:
+ *   /operator-reset 은 ALREADY_SENT_PERSISTENT 우회문 가능성이 있으므로 7중 조건으로 보호:
+ *     1) Origin allowlist 통과
+ *     2) X-WS3-Canary-Token === env.WS3_CANARY_INVOKE_TOKEN exact
+ *     3) body.manualTrigger === true
+ *     4) body.resetPhrase === "RESET_WS3_CANARY_STATE" (byte-for-byte exact, hardcoded)
+ *     5) env.WS3_TELEGRAM_CANARY_ENABLED === 'false' (canary disabled 강제)
+ *     6) KV cleanupRequired === false (cleanup-confirm 이미 완료)
+ *     7) KV persistenceAvailable === true
+ *   추가: KV circuitOpen === true 면 CIRCUIT_OPEN_RESET_BLOCKED 차단.
+ *   추가: lastResetAt 기준 60s 이내 재-reset 시 RESET_COOLDOWN_ACTIVE.
+ *   reset 은 alreadySent=false 로만 전환 + resetCount 증가 + lastResetAt 기록 — Telegram 발송 / secret
+ *   변경 / failure counter 삭제 / circuit 강제 해제 0건.
  *
  * 정책:
  *   - 실제 Telegram API 호출은 v0.21 telegramCanarySender.dispatchCanary 가 deps.fetchImpl 로만 호출.
@@ -43,7 +58,7 @@ var TelegramCanarySender = require('../v3/v3-telegram-canary-sender.js');
 var CanaryStateKvAdapter = require('./ws3-canary-state-kv-adapter.js');
 
 // §constants ───────────────────────────────────────────────────────────
-var VERSION = 'WS3_v0.23.0_persistent_canary_safety_guard';
+var VERSION = 'WS3_v0.25.0_operator_reset_state_lifecycle';
 var SERVICE = 'WS3_CANARY_WEB_MVP';
 var STATUS_READY_CODE = 'CANARY_READY';
 var MAX_BODY_BYTES = 1024;
@@ -58,6 +73,11 @@ var CIRCUIT_PERSISTENT_BLOCK_MS = 24 * 60 * 60 * 1000;
 var INVOKE_TOKEN_PERSISTENT_THRESHOLD = 5;
 var INVOKE_TOKEN_PERSISTENT_BLOCK_MS = 24 * 60 * 60 * 1000;
 var CLEANUP_REASON_LIVE_SENT = 'LIVE_CANARY_SENT';
+
+// §v0.25 operator reset constants
+var OPERATOR_RESET_PHRASE = 'RESET_WS3_CANARY_STATE';
+var OPERATOR_RESET_COOLDOWN_MS = 60 * 1000;
+var OPERATOR_RESET_REASON = 'OPERATOR_RESET_CONFIRMED';
 
 // §per-process state (Cloudflare isolate cold-start 시 초기화 — best effort)
 var CANARY_PROCESS_STATE = {
@@ -290,7 +310,7 @@ async function handleFetch(request, env, ctx, deps) {
 
   // OPTIONS preflight
   if (method === 'OPTIONS') {
-    if (path !== '/health' && path !== '/send-canary' && path !== '/state' && path !== '/cleanup-confirm') {
+    if (path !== '/health' && path !== '/send-canary' && path !== '/state' && path !== '/cleanup-confirm' && path !== '/operator-reset') {
       return jsonResponse({ ok: false, status: 'ERROR', code: 'METHOD_NOT_ALLOWED', httpStatus: 405 }, 405, false, null);
     }
     if (!origin) {
@@ -596,6 +616,15 @@ async function handleFetch(request, env, ctx, deps) {
     var stateKv = isPlainObject(resolvedDeps) && hasOwn(resolvedDeps, 'kv') ? resolvedDeps.kv : (env ? env[KV_BINDING_NAME] : null);
     var canaryEnabled = env && env.WS3_TELEGRAM_CANARY_ENABLED === 'true';
     if (!stateKv || typeof stateKv.get !== 'function') {
+      // KV missing — degraded safe view (no leak)
+      var degradedState = {
+        persistenceAvailable: false,
+        alreadySent: false,
+        cleanupRequired: false,
+        circuitOpen: false,
+        canaryEnabled: canaryEnabled,
+        resetCount: 0
+      };
       return jsonResponse({
         ok: true,
         service: SERVICE,
@@ -604,17 +633,31 @@ async function handleFetch(request, env, ctx, deps) {
         persistenceAvailable: false,
         alreadySent: false,
         cleanupRequired: false,
-        circuitOpen: false
+        circuitOpen: false,
+        currentPhase: CanaryStateKvAdapter.computeCurrentPhase(degradedState),
+        resetCount: 0
       }, 200, true, origin);
     }
 
     var sAlready = await CanaryStateKvAdapter.readAlreadySent(stateKv);
     var sCleanup = await CanaryStateKvAdapter.readCleanupRequired(stateKv);
     var sCircuit = await CanaryStateKvAdapter.readCircuit(stateKv);
+    var sReset = await CanaryStateKvAdapter.readOperatorReset(stateKv);
 
     var alreadyFlag = (sAlready.ok === true && isPlainObject(sAlready.value) && sAlready.value.alreadySent === true);
     var cleanupFlag = (sCleanup.ok === true && isPlainObject(sCleanup.value) && sCleanup.value.cleanupRequired === true);
     var circuitFlag = (sCircuit.ok === true && isPlainObject(sCircuit.value) && sCircuit.value.circuitOpen === true);
+    var resetCount = (sReset.ok === true && isPlainObject(sReset.value) && typeof sReset.value.resetCount === 'number' && isFinite(sReset.value.resetCount)) ? sReset.value.resetCount : 0;
+
+    var phaseState = {
+      persistenceAvailable: true,
+      alreadySent: alreadyFlag,
+      cleanupRequired: cleanupFlag,
+      circuitOpen: circuitFlag,
+      canaryEnabled: canaryEnabled,
+      resetCount: resetCount
+    };
+    var currentPhase = CanaryStateKvAdapter.computeCurrentPhase(phaseState);
 
     return jsonResponse({
       ok: true,
@@ -624,7 +667,9 @@ async function handleFetch(request, env, ctx, deps) {
       persistenceAvailable: true,
       alreadySent: alreadyFlag,
       cleanupRequired: cleanupFlag,
-      circuitOpen: circuitFlag
+      circuitOpen: circuitFlag,
+      currentPhase: currentPhase,
+      resetCount: resetCount
     }, 200, true, origin);
   }
 
@@ -704,6 +749,164 @@ async function handleFetch(request, env, ctx, deps) {
     return jsonResponse({ ok: true, status: 'OK', code: 'NO_CLEANUP_REQUIRED', httpStatus: 200 }, 200, true, origin);
   }
 
+  // POST /operator-reset  (v0.25 — 7중 조건 보호, Telegram 발송 0건)
+  if (path === '/operator-reset' && method === 'POST') {
+    // §1 Origin allowlist
+    if (!origin) {
+      return jsonResponse({ ok: false, status: 'BLOCKED', code: 'ORIGIN_MISSING', httpStatus: 403 }, 403, false, null);
+    }
+    if (!allowed) {
+      return jsonResponse({ ok: false, status: 'BLOCKED', code: 'ORIGIN_NOT_ALLOWED', httpStatus: 403 }, 403, false, null);
+    }
+    var orCt = request.headers.get('Content-Type');
+    if (typeof orCt !== 'string' || orCt.toLowerCase().indexOf('application/json') === -1) {
+      return jsonResponse({ ok: false, status: 'BLOCKED', code: 'UNSUPPORTED_MEDIA_TYPE', httpStatus: 415 }, 415, true, origin);
+    }
+    var orCl = request.headers.get('Content-Length');
+    if (typeof orCl === 'string' && orCl.length > 0) {
+      var orN = parseInt(orCl, 10);
+      if (isFinite(orN) && orN > MAX_BODY_BYTES) {
+        return jsonResponse({ ok: false, status: 'BLOCKED', code: 'PAYLOAD_TOO_LARGE', httpStatus: 413 }, 413, true, origin);
+      }
+    }
+    var orBodyText = '';
+    try { orBodyText = await request.text(); } catch (e) {
+      return jsonResponse({ ok: false, status: 'ERROR', code: 'INVALID_JSON', httpStatus: 400 }, 400, true, origin);
+    }
+    if (typeof orBodyText === 'string' && orBodyText.length > MAX_BODY_BYTES) {
+      return jsonResponse({ ok: false, status: 'BLOCKED', code: 'PAYLOAD_TOO_LARGE', httpStatus: 413 }, 413, true, origin);
+    }
+    var orBody;
+    try { orBody = JSON.parse(orBodyText); } catch (e) {
+      return jsonResponse({ ok: false, status: 'ERROR', code: 'INVALID_JSON', httpStatus: 400 }, 400, true, origin);
+    }
+    if (!isPlainObject(orBody)) {
+      return jsonResponse({ ok: false, status: 'ERROR', code: 'INVALID_JSON', httpStatus: 400 }, 400, true, origin);
+    }
+
+    // §3 manualTrigger === true
+    if (orBody.manualTrigger !== true) {
+      return jsonResponse({ ok: false, status: 'BLOCKED', code: 'MANUAL_TRIGGER_REQUIRED', httpStatus: 400 }, 400, true, origin);
+    }
+
+    // §4 resetPhrase byte-for-byte exact (hardcoded)
+    if (typeof orBody.resetPhrase !== 'string' || orBody.resetPhrase !== OPERATOR_RESET_PHRASE) {
+      return jsonResponse({ ok: false, status: 'BLOCKED', code: 'RESET_PHRASE_MISMATCH', httpStatus: 403 }, 403, true, origin);
+    }
+
+    // §2 X-WS3-Canary-Token exact match
+    var orToken = request.headers.get('X-WS3-Canary-Token');
+    if (typeof orToken !== 'string' || orToken.length === 0) {
+      return jsonResponse({ ok: false, status: 'BLOCKED', code: 'MISSING_INVOKE_TOKEN', httpStatus: 401 }, 401, true, origin);
+    }
+    if (typeof env.WS3_CANARY_INVOKE_TOKEN !== 'string' || env.WS3_CANARY_INVOKE_TOKEN.length === 0) {
+      return jsonResponse({ ok: false, status: 'BLOCKED', code: 'MISSING_INVOKE_TOKEN', httpStatus: 503 }, 503, true, origin);
+    }
+    if (orToken !== env.WS3_CANARY_INVOKE_TOKEN) {
+      return jsonResponse({ ok: false, status: 'BLOCKED', code: 'INVOKE_TOKEN_MISMATCH', httpStatus: 403 }, 403, true, origin);
+    }
+
+    // §5 CANARY_ENABLED === 'false' 강제 (canary 가 활성화 상태에선 reset 차단)
+    if (env.WS3_TELEGRAM_CANARY_ENABLED === 'true') {
+      return jsonResponse({ ok: false, status: 'BLOCKED', code: 'RESET_REQUIRES_CANARY_DISABLED', httpStatus: 409 }, 409, true, origin);
+    }
+
+    // §7 KV binding 필수 (persistenceAvailable=true)
+    var orKv = isPlainObject(resolvedDeps) && hasOwn(resolvedDeps, 'kv') ? resolvedDeps.kv : (env ? env[KV_BINDING_NAME] : null);
+    if (!orKv || typeof orKv.get !== 'function' || typeof orKv.put !== 'function') {
+      return jsonResponse({ ok: false, status: 'BLOCKED', code: 'PERSISTENCE_UNAVAILABLE', httpStatus: 503 }, 503, true, origin);
+    }
+
+    // §6 cleanupRequired === false 강제
+    var orCleanupRead = await CanaryStateKvAdapter.readCleanupRequired(orKv);
+    if (orCleanupRead.ok !== true) {
+      if (orCleanupRead.reason === 'PERSISTENCE_UNAVAILABLE') {
+        return jsonResponse({ ok: false, status: 'BLOCKED', code: 'PERSISTENCE_UNAVAILABLE', httpStatus: 503 }, 503, true, origin);
+      }
+      if (orCleanupRead.reason === 'SCHEMA_VERSION_MISMATCH') {
+        return jsonResponse({ ok: false, status: 'ERROR', code: 'SCHEMA_VERSION_MISMATCH', httpStatus: 503 }, 503, true, origin);
+      }
+      // INVALID_KV_VALUE — safe default treats as cleanupRequired=true (must cleanup first)
+    }
+    var orCleanupVal = (orCleanupRead.ok === true && isPlainObject(orCleanupRead.value)) ? orCleanupRead.value : null;
+    if (orCleanupVal && orCleanupVal.cleanupRequired === true) {
+      return jsonResponse({ ok: false, status: 'BLOCKED', code: 'RESET_REQUIRES_CLEANUP_CONFIRMED', httpStatus: 409 }, 409, true, origin);
+    }
+
+    // §extra circuitOpen === true 차단
+    var orCircuitRead = await CanaryStateKvAdapter.readCircuit(orKv);
+    if (orCircuitRead.ok !== true) {
+      if (orCircuitRead.reason === 'PERSISTENCE_UNAVAILABLE') {
+        return jsonResponse({ ok: false, status: 'BLOCKED', code: 'PERSISTENCE_UNAVAILABLE', httpStatus: 503 }, 503, true, origin);
+      }
+      if (orCircuitRead.reason === 'SCHEMA_VERSION_MISMATCH') {
+        return jsonResponse({ ok: false, status: 'ERROR', code: 'SCHEMA_VERSION_MISMATCH', httpStatus: 503 }, 503, true, origin);
+      }
+    }
+    var orCircuitVal = (orCircuitRead.ok === true && isPlainObject(orCircuitRead.value)) ? orCircuitRead.value : null;
+    if (orCircuitVal && orCircuitVal.circuitOpen === true) {
+      return jsonResponse({ ok: false, status: 'BLOCKED', code: 'CIRCUIT_OPEN_RESET_BLOCKED', httpStatus: 503 }, 503, true, origin);
+    }
+
+    // §idempotent — alreadySent=false 면 NO_RESET_REQUIRED (cooldown 적용 X, KV 변경 0건)
+    var orAlreadyRead = await CanaryStateKvAdapter.readAlreadySent(orKv);
+    if (orAlreadyRead.ok !== true) {
+      if (orAlreadyRead.reason === 'PERSISTENCE_UNAVAILABLE') {
+        return jsonResponse({ ok: false, status: 'BLOCKED', code: 'PERSISTENCE_UNAVAILABLE', httpStatus: 503 }, 503, true, origin);
+      }
+      if (orAlreadyRead.reason === 'SCHEMA_VERSION_MISMATCH') {
+        return jsonResponse({ ok: false, status: 'ERROR', code: 'SCHEMA_VERSION_MISMATCH', httpStatus: 503 }, 503, true, origin);
+      }
+      // INVALID_KV_VALUE — fall through; treat as no record
+    }
+    var orAlreadyVal = (orAlreadyRead.ok === true && isPlainObject(orAlreadyRead.value)) ? orAlreadyRead.value : null;
+    var alreadyTrue = (orAlreadyVal && orAlreadyVal.alreadySent === true);
+    if (alreadyTrue !== true) {
+      // No reset needed (alreadySent already false or record missing) — no KV mutation, no cooldown apply
+      return jsonResponse({ ok: true, status: 'OK', code: 'NO_RESET_REQUIRED', httpStatus: 200 }, 200, true, origin);
+    }
+
+    // §cooldown — lastResetAt 기준 60s 이내 재-reset 차단
+    var orResetRead = await CanaryStateKvAdapter.readOperatorReset(orKv);
+    if (orResetRead.ok !== true) {
+      if (orResetRead.reason === 'PERSISTENCE_UNAVAILABLE') {
+        return jsonResponse({ ok: false, status: 'BLOCKED', code: 'PERSISTENCE_UNAVAILABLE', httpStatus: 503 }, 503, true, origin);
+      }
+      if (orResetRead.reason === 'SCHEMA_VERSION_MISMATCH') {
+        return jsonResponse({ ok: false, status: 'ERROR', code: 'SCHEMA_VERSION_MISMATCH', httpStatus: 503 }, 503, true, origin);
+      }
+    }
+    var orResetVal = (orResetRead.ok === true && isPlainObject(orResetRead.value)) ? orResetRead.value : null;
+    var prevResetCount = (orResetVal && typeof orResetVal.resetCount === 'number' && isFinite(orResetVal.resetCount) && orResetVal.resetCount >= 0) ? orResetVal.resetCount : 0;
+    if (orResetVal && typeof orResetVal.lastResetAt === 'number' && isFinite(orResetVal.lastResetAt) && orResetVal.lastResetAt > 0) {
+      if ((nowMs - orResetVal.lastResetAt) < OPERATOR_RESET_COOLDOWN_MS) {
+        return jsonResponse({ ok: false, status: 'BLOCKED', code: 'RESET_COOLDOWN_ACTIVE', httpStatus: 429 }, 429, true, origin);
+      }
+    }
+
+    // §perform reset
+    var markRes = await CanaryStateKvAdapter.markAlreadySentReset(orKv);
+    if (markRes.ok !== true) {
+      if (markRes.reason === 'PERSISTENCE_UNAVAILABLE') {
+        return jsonResponse({ ok: false, status: 'BLOCKED', code: 'PERSISTENCE_UNAVAILABLE', httpStatus: 503 }, 503, true, origin);
+      }
+      if (markRes.reason === 'SCHEMA_VERSION_MISMATCH') {
+        return jsonResponse({ ok: false, status: 'ERROR', code: 'SCHEMA_VERSION_MISMATCH', httpStatus: 503 }, 503, true, origin);
+      }
+      return jsonResponse({ ok: false, status: 'ERROR', code: 'RESET_PRECONDITION_FAILED', httpStatus: 409 }, 409, true, origin);
+    }
+    var resetWriteRes = await CanaryStateKvAdapter.writeOperatorReset(orKv, {
+      resetCount: prevResetCount + 1,
+      lastResetAt: nowMs,
+      lastResetReason: OPERATOR_RESET_REASON
+    });
+    if (resetWriteRes.ok !== true) {
+      return jsonResponse({ ok: false, status: 'BLOCKED', code: 'PERSISTENCE_UNAVAILABLE', httpStatus: 503 }, 503, true, origin);
+    }
+
+    return jsonResponse({ ok: true, status: 'OK', code: 'OPERATOR_RESET_CONFIRMED', httpStatus: 200 }, 200, true, origin);
+  }
+
   // Fallback — unknown path/method
   return jsonResponse({ ok: false, status: 'ERROR', code: 'METHOD_NOT_ALLOWED', httpStatus: 405 }, 405, allowed === true, origin);
 }
@@ -727,6 +930,9 @@ module.exports = {
   CANARY_MESSAGE_TYPE: CANARY_MESSAGE_TYPE,
   KV_BINDING_NAME: KV_BINDING_NAME,
   CLEANUP_REASON_LIVE_SENT: CLEANUP_REASON_LIVE_SENT,
+  OPERATOR_RESET_PHRASE: OPERATOR_RESET_PHRASE,
+  OPERATOR_RESET_COOLDOWN_MS: OPERATOR_RESET_COOLDOWN_MS,
+  OPERATOR_RESET_REASON: OPERATOR_RESET_REASON,
   mapErrorCodeToWeb: mapErrorCodeToWeb,
   isAllowedOrigin: isAllowedOrigin,
   buildMinimalPreflightGate: buildMinimalPreflightGate,
