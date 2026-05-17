@@ -289,4 +289,64 @@ v0.30+ = ipHash / hash salting / Durable Objects
 
 - branch: `claude/heuristic-cori-7865e7`
 - 이전 functional baseline: WS3 v0.24.0 Persistent Guard Staging Validation (`cd002dc`)
-- 본 commit: (Gate 3 staging + commit 별도 단계)
+- 본 commit: `c3c5ace` (ws3: v0.25.0 operatorResetStateLifecycle, 2026-05-18 push 완료)
+
+---
+
+## 18. Final Staging Result
+
+본 섹션은 v0.25 코드 commit (`c3c5ace`) 이후 실제 Cloudflare canary worker 재배포 + `/operator-reset` 1회 staging 호출까지 마친 결과 박제다. 코드 변경 0건 / Cloudflare 재배포 0건 / Telegram 발송 0건 / Send Canary 0건 / KV write 추가 0건.
+
+- Cloudflare worker version: `WS3_v0.25.0_operator_reset_state_lifecycle`
+- pre-reset state:
+  - `alreadySent=true`
+  - `cleanupRequired=false`
+  - `currentPhase=OPERATOR_RESETTABLE`
+  - `resetCount=0`
+- operator-reset result:
+  - `code=OPERATOR_RESET_CONFIRMED`
+  - `httpStatus=200`
+- post-reset state:
+  - `alreadySent=false`
+  - `cleanupRequired=false`
+  - `currentPhase=RESET_CONFIRMED`
+  - `resetCount=1`
+  - `canaryEnabled=false`
+  - `persistenceAvailable=true`
+  - `circuitOpen=false`
+- Telegram send count during this gate: **0**
+- Send Canary count during this gate: **0**
+- cleanup state remained safe (`cleanupRequired=false` 유지)
+- `CANARY_ENABLED=false` maintained
+- secret / token / chatId / KV namespace ID / raw Telegram response / message_id — not recorded
+
+### 18.1 검증된 동작 9건
+
+```text
+1. v0.25 worker 배포 성공 (version=WS3_v0.25.0_operator_reset_state_lifecycle)
+2. /state currentPhase 출력 정상 (OPERATOR_RESETTABLE)
+3. /operator-reset 7중 조건 통과
+4. alreadySent=true → false 전환 성공
+5. cleanupRequired=false 유지 (reset 이 cleanup record 수정 0건)
+6. resetCount 0 → 1 증가
+7. currentPhase OPERATOR_RESETTABLE → RESET_CONFIRMED 전환
+8. Telegram 발송 0건
+9. CANARY_ENABLED=false 유지
+```
+
+### 18.2 한계 재확인 (v0.23 strict-lock r0.2-final 박제 재인용)
+
+- 본 staging 검증 범위: 1 isolate / 1 사용자 시퀀스. mock KV (strong consistency) 와 동등 동작.
+- real Cloudflare KV (eventually consistent) 의 다중 isolate read-modify-write race 는 본 검증 범위 밖.
+- production-grade strict one-time guarantee 는 v0.27+ Durable Objects / D1 transaction / atomic lock 에서 재논의.
+
+### 18.3 v0.26+ 다음 단계 후보
+
+```text
+v0.26 = Production Web Console Hosting (localhost:8788 외 production origin)
+v0.27 = Actual Coin Live Preflight + Durable Objects strict one-time guarantee 검토
+v0.28+ = Snapshot / Evaluation / Audit KV write boundary 검토
+v0.29+ = cleanup 자동화
+v0.30+ = ipHash / hash salting / Durable Objects
+별도: env-based resetPhrase / circuit reset endpoint / failure counter reset endpoint / invoke token rotate automation
+```

@@ -4,7 +4,7 @@
 > 다음 단계 작업 전에 이 파일로 baseline 을 확인.
 
 **최종 업데이트**: 2026-05-18  
-**기능 단계 (current functional baseline)**: WS3 v0.25.0 Operator Reset / State Lifecycle (canary 전용 KV write exception, /operator-reset endpoint 7중 조건 + circuit + 60s cooldown 가드, /state 10 fields + currentPhase 9-phase 분류, mock smoke 19/19, 실 Cloudflare 변경 0건)  
+**기능 단계 (current functional baseline)**: WS3 v0.25.0 Operator Reset / State Lifecycle + Staging Success (canary 전용 KV write exception, /operator-reset endpoint 7중 조건 + circuit + 60s cooldown 가드, /state 10 fields + currentPhase 9-phase 분류, mock smoke 19/19, 실 Cloudflare staging 1회 /operator-reset 호출 성공 검증 완료 — alreadySent true→false / resetCount 0→1 / currentPhase OPERATOR_RESETTABLE→RESET_CONFIRMED / Telegram 발송 0건)  
 **이전 기능 baseline**: WS3 v0.24.0 Persistent Guard Staging Validation (`cd002dc`)  
 **운영 문서**: WS3 Workflow Template v0.1 박제 (`d8bebc2`, v0.3.0-docs)  
 **branch**: `claude/heuristic-cori-7865e7`
@@ -47,7 +47,8 @@
 | **WS3 v0.22.1** | **`/workers/ws3-telegram-canary-worker.js` + runtime hotfix report** | **`d8b1108`** | **✅ 박제 (Cloudflare runtime hotfix + first live Telegram canary success, cleanup 완료)** |
 | **WS3 v0.23.0** | **`/workers/ws3-canary-state-kv-adapter.js` + canary worker (v0.23) + `.gitignore` + `wrangler-canary.example.toml`** | **`5b6c488`** | **✅ 박제 (Persistent Canary Safety Guard — canary 전용 KV write exception, persistent alreadySent/cleanupRequired/circuit/invokeFail counter, /state + /cleanup-confirm endpoint, mock smoke 16/16)** |
 | **WS3 v0.24.0** | **`/docs/ws3/WS3_v0_24_0_PERSISTENT_GUARD_STAGING_VALIDATION_REPORT.md`** | **`cd002dc`** | **✅ 박제 (Persistent Guard Staging Validation — 운영 검증 Gate, 코드 변경 0건. 실 Cloudflare KV 에서 1회 한정 Telegram canary 발송 → alreadySent/cleanupRequired KV 저장 + 2차 ALREADY_SENT_PERSISTENT 차단 + /cleanup-confirm + alreadySent=true 유지 + CANARY_ENABLED=false 복귀 9건 검증 완료)** |
-| **WS3 v0.25.0** | **`/workers/ws3-telegram-canary-worker.js` + `/workers/ws3-canary-state-kv-adapter.js` + `/docs/ws3/WS3_v0_25_0_OPERATOR_RESET_STATE_LIFECYCLE_REPORT.md`** | **(push 후 기록)** | **✅ 박제 (Operator Reset / State Lifecycle — POST /operator-reset 엔드포인트 7중 조건 + circuit 차단 + 60s cooldown, /state 8→10 fields + currentPhase 9-phase 분류, KV operatorReset 신규 key, mock smoke 19/19. 실 Cloudflare 변경 0건 / 실 Telegram 호출 0건)** |
+| **WS3 v0.25.0** | **`/workers/ws3-telegram-canary-worker.js` + `/workers/ws3-canary-state-kv-adapter.js` + `/docs/ws3/WS3_v0_25_0_OPERATOR_RESET_STATE_LIFECYCLE_REPORT.md`** | **`c3c5ace`** | **✅ 박제 (Operator Reset / State Lifecycle — POST /operator-reset 엔드포인트 7중 조건 + circuit 차단 + 60s cooldown, /state 8→10 fields + currentPhase 9-phase 분류, KV operatorReset 신규 key, mock smoke 19/19. 실 Cloudflare staging deploy + /operator-reset 1회 호출 성공 — alreadySent true→false / resetCount 0→1 / currentPhase OPERATOR_RESETTABLE→RESET_CONFIRMED / Telegram 발송 0건 검증 완료)** |
+| **WS3 v0.25.0 closure** | **`/docs/ws3/WS3_v0_25_0_OPERATOR_RESET_STATE_LIFECYCLE_REPORT.md` §18 추가 + `/docs/ws3/WS3_CHANGELOG.md` + `/docs/ws3/WS3_CURRENT_BASELINE.md`** | **(closure commit 후 기록)** | **✅ 박제 (Operator Reset Staging Success Closure — 코드 변경 0건, 문서 3개만, Cloudflare 변경 0건, /operator-reset 재호출 0건, Telegram 발송 0건)** |
 
 ## REJECTED — repo 반영 보류
 
@@ -366,6 +367,28 @@ workers/ws3-telegram-canary-worker.js + web/ws3-canary-console.html  (v0.22.0/v0
 ```
 
 ---
+
+## v0.25.0 Staging Success (실 Cloudflare 검증 박제)
+
+```text
+v0.25.0 actual staging result:
+- Cloudflare worker version: WS3_v0.25.0_operator_reset_state_lifecycle
+- /operator-reset staging succeeded (1회 한정 KV write, Cloudflare 재배포 1회)
+- pre-reset phase: OPERATOR_RESETTABLE (alreadySent=true / cleanupRequired=false / resetCount=0)
+- reset result: OPERATOR_RESET_CONFIRMED / 200
+- post-reset phase: RESET_CONFIRMED (alreadySent=false / cleanupRequired=false / resetCount=1 / canaryEnabled=false / persistenceAvailable=true / circuitOpen=false)
+- alreadySent true → false 전환 성공
+- cleanupRequired=false 유지 (reset 이 cleanup record 수정 0건)
+- resetCount 0 → 1 증가
+- Telegram sends during reset gate: 0
+- Send Canary during reset gate: 0
+- CANARY_ENABLED=false maintained
+- secret / token / chatId / KV namespace ID / raw Telegram response / message_id — 채팅 / 보고서 / 로그 노출 0건
+- 본 staging 한계 (재인용): 1 isolate / 1 사용자 시퀀스 범위. real Cloudflare KV (eventually consistent) 다중 isolate race 는 본 검증 범위 밖. production-grade strict one-time guarantee 는 v0.27+ Durable Objects / D1 transaction.
+
+Next:
+v0.26 candidate: Production Web Console Hosting (localhost:8788 외 production origin)
+```
 
 ## v0.25.0 핵심 메모
 

@@ -7,8 +7,18 @@
 
 ## [v0.25.0] — 2026-05-18 (Operator Reset / State Lifecycle)
 
+### Verified (Cloudflare staging — 코드 변경 0건, 추가 deploy 0건)
+- Cloudflare canary worker redeployed with v0.25.0 (`WS3_v0.25.0_operator_reset_state_lifecycle`).
+- `/state` returned `currentPhase=OPERATOR_RESETTABLE` before reset (alreadySent=true / cleanupRequired=false / resetCount=0).
+- `/operator-reset` returned `OPERATOR_RESET_CONFIRMED` / `httpStatus=200`.
+- post-reset `/state` returned `alreadySent=false`, `cleanupRequired=false`, `currentPhase=RESET_CONFIRMED`, `resetCount=1`, `canaryEnabled=false`, `persistenceAvailable=true`, `circuitOpen=false`.
+- Telegram send count remained **0** during operator-reset staging.
+- Send Canary count remained **0** during operator-reset staging.
+- `CANARY_ENABLED=false` remained enforced.
+- No bot token / chatId / invoke token / KV namespace ID / raw Telegram response / Telegram message_id recorded.
+
 ### Added
-- `/docs/ws3/WS3_v0_25_0_OPERATOR_RESET_STATE_LIFECYCLE_REPORT.md` — v0.25 완료 보고서 (17 sections)
+- `/docs/ws3/WS3_v0_25_0_OPERATOR_RESET_STATE_LIFECYCLE_REPORT.md` — v0.25 완료 보고서 (17 sections + §18 Final Staging Result 추가, 총 18 sections)
 - `workers/ws3-canary-state-kv-adapter.js` 확장 (276 → 360 라인, +84):
   - `keyOperatorReset()` — `ws3:canary:operatorReset` 키 namespacing
   - `readOperatorReset(kv)` / `writeOperatorReset(kv, payload)` — schemaVersion='v1' / `{resetCount, lastResetAt, lastResetReason}`
@@ -91,7 +101,8 @@ TOTAL=19 PASS=19 FAIL=0
 ### 기준 commit
 - branch: `claude/heuristic-cori-7865e7`
 - 이전 functional baseline: WS3 v0.24.0 Persistent Guard Staging Validation (`cd002dc`)
-- 본 commit: (push 후 기록)
+- 코드 commit: `c3c5ace` (ws3: v0.25.0 operatorResetStateLifecycle)
+- staging closure commit: 본 closure commit (코드 변경 0건 / docs 3개만 — push 별도 승인)
 
 ---
 
