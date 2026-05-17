@@ -4,8 +4,8 @@
 > 다음 단계 작업 전에 이 파일로 baseline 을 확인.
 
 **최종 업데이트**: 2026-05-18  
-**기능 단계 (current functional baseline)**: WS3 v0.23.0 Persistent Canary Safety Guard (본 단계 — canary 전용 KV write exception)  
-**이전 기능 baseline**: WS3 v0.22.1 Canary Worker Runtime Hotfix + First Live Telegram Canary Success (`f221e62`)  
+**기능 단계 (current functional baseline)**: WS3 v0.24.0 Persistent Guard Staging Validation (운영 검증 종결 — 코드 변경 0건, v0.23 persistent guard 실 Cloudflare KV 작동 검증 완료)  
+**이전 기능 baseline**: WS3 v0.23.0 Persistent Canary Safety Guard (`5b6c488`)  
 **운영 문서**: WS3 Workflow Template v0.1 박제 (`d8bebc2`, v0.3.0-docs)  
 **branch**: `claude/heuristic-cori-7865e7`
 
@@ -45,7 +45,8 @@
 | **WS3 v0.21.0** | **`/v3/v3-telegram-canary-sender.js`** | **(push 후 기록)** | **✅ 박제 (이번 단계, Telegram canary sender — 첫 LIVE side-effect 모듈, Gate 2 동시 작성, commit 분리)** |
 | **WS3 v0.22.0** | **`/workers/ws3-telegram-canary-worker.js` + `/web/ws3-canary-console.html`** | **`69bf5b0`** | **✅ 박제 (Canary Web MVP Pack, 별도 canary worker + local web console, 실제 Telegram 호출은 Gate 5 전까지 0건)** |
 | **WS3 v0.22.1** | **`/workers/ws3-telegram-canary-worker.js` + runtime hotfix report** | **`d8b1108`** | **✅ 박제 (Cloudflare runtime hotfix + first live Telegram canary success, cleanup 완료)** |
-| **WS3 v0.23.0** | **`/workers/ws3-canary-state-kv-adapter.js` + canary worker (v0.23) + `.gitignore` + `wrangler-canary.example.toml`** | **(Gate 3 commit 후 기록)** | **✅ 박제 (Persistent Canary Safety Guard — canary 전용 KV write exception, persistent alreadySent/cleanupRequired/circuit/invokeFail counter, /state + /cleanup-confirm endpoint, mock smoke 16/16)** |
+| **WS3 v0.23.0** | **`/workers/ws3-canary-state-kv-adapter.js` + canary worker (v0.23) + `.gitignore` + `wrangler-canary.example.toml`** | **`5b6c488`** | **✅ 박제 (Persistent Canary Safety Guard — canary 전용 KV write exception, persistent alreadySent/cleanupRequired/circuit/invokeFail counter, /state + /cleanup-confirm endpoint, mock smoke 16/16)** |
+| **WS3 v0.24.0** | **`/docs/ws3/WS3_v0_24_0_PERSISTENT_GUARD_STAGING_VALIDATION_REPORT.md`** | **(closure commit 후 기록)** | **✅ 박제 (Persistent Guard Staging Validation — 운영 검증 Gate, 코드 변경 0건. 실 Cloudflare KV 에서 1회 한정 Telegram canary 발송 → alreadySent/cleanupRequired KV 저장 + 2차 ALREADY_SENT_PERSISTENT 차단 + /cleanup-confirm + alreadySent=true 유지 + CANARY_ENABLED=false 복귀 9건 검증 완료)** |
 
 ## REJECTED — repo 반영 보류
 
@@ -364,6 +365,36 @@ workers/ws3-telegram-canary-worker.js + web/ws3-canary-console.html  (v0.22.0/v0
 ```
 
 ---
+
+## v0.24.0 핵심 메모
+
+```text
+- 운영 검증 Gate — 코드 변경 0건, 신규 docs 1건 (WS3_v0_24_0_PERSISTENT_GUARD_STAGING_VALIDATION_REPORT.md) + CHANGELOG/BASELINE 갱신
+- v0.23 persistent guard 가 실제 Cloudflare KV 환경에서 의도대로 작동함을 1 isolate / 1 사용자 시퀀스 범위에서 검증
+- 검증 9건 모두 PASS:
+  1. 첫 Send Canary → 실제 Telegram 1회 수신 성공 (fixed 5-line message exact)
+  2. KV ws3:canary:alreadySent schemaVersion='v1' / alreadySent=true 저장 확인
+  3. KV ws3:canary:cleanupRequired schemaVersion='v1' / cleanupRequired=true / reason='LIVE_CANARY_SENT' 저장 확인
+  4. 2차 Send Canary 시도 → ALREADY_SENT_PERSISTENT 409 차단 (Telegram 추가 발송 0건)
+  5. Telegram 추가 수신 0건 충족
+  6. /cleanup-confirm → CLEANUP_CONFIRMED 200 (Telegram 발송 0건)
+  7. cleanup-confirm 후 cleanupRequired=false + lastCleanupAt=nowMs 갱신
+  8. cleanup-confirm 후 alreadySent=true 유지 (cleanup-confirm 이 alreadySent reset 하지 않음)
+  9. 최종 CANARY_ENABLED=false 복귀 + AUTHORIZED_AT=0 reset
+- 최종 /state 8 fields whitelist: ok=true / service=WS3_CANARY_WEB_MVP / version=WS3_v0.23.0_persistent_canary_safety_guard / canaryEnabled=false / persistenceAvailable=true / alreadySent=true / cleanupRequired=false / circuitOpen=false
+- 누출 검증: bot token / chatId / invoke token / KV namespace id / Telegram message_id / raw Telegram response / IP / cookie / session / browser fingerprint / masked preview — 모두 0건
+- Cloudflare 변경: worker 재배포 0건 / KV namespace 생성·변경 0건 / KV binding 변경 0건 / secrets 변경 0건
+- v0.23 strict-lock 한계 재확인 (r0.2-final):
+  · 본 검증 = 1 isolate / 1 사용자 시퀀스 범위. mock KV (strong consistency) 와 동등 동작.
+  · real Cloudflare KV (eventually consistent) 의 다중 isolate race 는 본 검증 범위 밖.
+  · production-grade strict one-time guarantee 는 v0.27+ Durable Objects / D1 transaction / atomic lock.
+- 보호 파일 (v3/ 25종 + worker.js + index.html + manifest.json + service-worker.js + WS3_CODE_CONTRACT.md + WS3_WORKFLOW_TEMPLATE.md + web/ws3-canary-console.html) diff 0건
+- 다음 후보:
+  · v0.25: alreadySent reset endpoint / production Web Console hosting
+  · v0.26+: actual coin live preflight
+  · v0.27+: Durable Objects / D1 strict one-time guarantee
+  · invoke token rotate automation / ipHash + WS3_CANARY_HASH_SALT
+```
 
 ## v0.23.0 핵심 메모
 

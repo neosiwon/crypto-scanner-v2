@@ -5,6 +5,70 @@
 
 ---
 
+## [v0.24.0] — 2026-05-18 (Persistent Guard Staging Validation)
+
+### Verified (운영 검증 Gate — 코드 변경 0건)
+v0.23.0 Persistent Canary Safety Guard 가 실제 Cloudflare KV 환경에서 의도대로 작동하는지 1회 한정 staging 발송으로 검증:
+1. 첫 Send Canary → 실제 Telegram 1회 수신 성공 (fixed 5-line message exact)
+2. 발송 후 KV `ws3:canary:alreadySent` schemaVersion='v1' / alreadySent=true 저장 확인
+3. 발송 후 KV `ws3:canary:cleanupRequired` schemaVersion='v1' / cleanupRequired=true / reason='LIVE_CANARY_SENT' 저장 확인
+4. 2차 Send Canary 시도 → `ALREADY_SENT_PERSISTENT` 409 차단 확인 (Telegram 추가 발송 0건)
+5. Telegram 추가 수신 0건 기준 충족
+6. `POST /cleanup-confirm` → `CLEANUP_CONFIRMED` 200 확인 (Telegram 발송 0건)
+7. cleanup-confirm 후 cleanupRequired=false 갱신 + lastCleanupAt=nowMs 기록 확인
+8. cleanup-confirm 후 alreadySent=true 유지 확인 (cleanup-confirm 이 alreadySent reset 하지 않음)
+9. 최종 `CANARY_ENABLED=false` 복귀 + `AUTHORIZED_AT=0` reset 확인
+
+### 최종 /state (8 fields whitelist)
+```json
+{ "ok": true, "service": "WS3_CANARY_WEB_MVP",
+  "version": "WS3_v0.23.0_persistent_canary_safety_guard",
+  "canaryEnabled": false, "persistenceAvailable": true,
+  "alreadySent": true, "cleanupRequired": false, "circuitOpen": false }
+```
+
+### Added
+- `/docs/ws3/WS3_v0_24_0_PERSISTENT_GUARD_STAGING_VALIDATION_REPORT.md` — 운영 검증 보고서 (11 sections)
+
+### Changed
+- `/docs/ws3/WS3_CHANGELOG.md` (본 파일): `[v0.24.0]` entry 상단 추가
+- `/docs/ws3/WS3_CURRENT_BASELINE.md`: baseline → v0.24.0 (코드 변경 0건, 운영 검증 박제만)
+
+### Protected (수정 0건)
+- v0.23 worker code / KV adapter / wrangler-canary.example.toml / .gitignore — 변경 0건
+- v3 엔진 25종 / worker.js / index.html / manifest.json / service-worker.js / WS3_CODE_CONTRACT.md / WS3_WORKFLOW_TEMPLATE.md — 모두 무손상
+
+### 보안 / 누출 검증 (0건 확인)
+- bot token / chatId / invoke token / KV namespace id / Telegram message_id / raw Telegram response / IP / cookie / session id / browser fingerprint — 채팅 / 보고서 / 로그 노출 0건
+- /state 응답 8 fields whitelist 외 필드 노출 0건
+- masked / first-4 / last-4 / redacted preview 0건
+
+### v0.23 strict-lock 한계 재확인 (r0.2-final 박제 재인용)
+- 본 staging 검증 범위: 1 isolate / 1 사용자 시퀀스. mock KV (strong consistency) 와 동등 동작 확인.
+- mock KV ↔ real KV 차이: real Cloudflare KV 는 eventually consistent. 동시 다중 isolate 의 read-modify-write race / counter increment race 는 본 검증 범위 밖.
+- production-grade strict one-time guarantee 는 v0.27+ Durable Objects / D1 transaction / atomic lock 에서 재논의.
+
+### Cloudflare 변경 0건
+- worker 재배포 0건 (v0.23.0 production Version 그대로)
+- KV namespace 생성/변경 0건
+- KV binding 변경 0건
+- secrets (BOT_TOKEN / CHAT_ID / INVOKE_TOKEN) 변경 0건
+
+### 의도된 미구현 (다음 단계 후보)
+- `alreadySent` reset endpoint (재staging 검증용) — v0.25+
+- Production Web Console hosting (localhost:8788 외 production origin) — v0.25+
+- actual coin live 연결 preflight (Snapshot / Evaluation / Audit) — v0.26+
+- Durable Objects / D1 strict one-time guarantee — v0.27+
+- invoke token rotate automation
+- ipHash + `WS3_CANARY_HASH_SALT`
+
+### 기준 commit
+- branch: `claude/heuristic-cori-7865e7`
+- 이전 functional baseline: WS3 v0.23.0 Persistent Canary Safety Guard (`5b6c488`)
+- 본 commit: (closure commit 별도 — 코드 변경 0건, 문서 박제만)
+
+---
+
 ## [v0.23.0] — 2026-05-18 (Persistent Canary Safety Guard)
 
 ### Added
