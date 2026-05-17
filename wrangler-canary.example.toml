@@ -1,0 +1,28 @@
+# WS3 v0.23.0 Canary Worker — wrangler config example (placeholder)
+#
+# 사용법:
+#   1) cp wrangler-canary.example.toml wrangler-canary.toml
+#   2) `wrangler kv namespace create WS3_CANARY_STATE_KV` 로 별도 KV namespace 신규 생성
+#      (canary 전용. 본선 KV namespace 와 공유 금지)
+#   3) 위 명령이 반환한 namespace id 를 아래 REPLACE_WITH_CANARY_KV_NAMESPACE_ID 자리에 대입
+#   4) wrangler-canary.toml 은 .gitignore 로 commit 금지 (실제 KV namespace id 노출 금지)
+#   5) plain vars (CANARY_ENABLED / AUTHORIZED_AT / ALLOWED_ORIGINS) 도 환경에 맞게 채울 것
+#
+# 실제 KV namespace id / secret / origin 값은 본 example 파일에 절대 기록하지 않는다.
+name = "ws3-telegram-canary"
+main = "workers/ws3-telegram-canary-entry.mjs"
+compatibility_date = "2026-05-17"
+
+kv_namespaces = [
+  { binding = "WS3_CANARY_STATE_KV", id = "REPLACE_WITH_CANARY_KV_NAMESPACE_ID" }
+]
+
+# [vars] — 다음 키를 환경에 맞춰 추가. 본 example 에는 placeholder 도 기록하지 않음.
+#   WS3_TELEGRAM_CANARY_ENABLED       = "false"                  # 발송 직전 user manual 로 true 전환
+#   WS3_TELEGRAM_CANARY_AUTHORIZED_AT = "<Date.now() ms 문자열>"  # 24h 유효, ISO 금지
+#   WS3_CANARY_ALLOWED_ORIGINS        = "<comma-separated origin allowlist>"
+#
+# secrets ( `wrangler secret put` 인터랙티브 — 실제 값 기록 금지 ):
+#   WS3_TELEGRAM_BOT_TOKEN
+#   WS3_TELEGRAM_CHAT_ID
+#   WS3_CANARY_INVOKE_TOKEN

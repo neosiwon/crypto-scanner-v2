@@ -1,46 +1,63 @@
 /**
- * WS3 v0.22.1 — Canary Web MVP Worker
+ * WS3 v0.23.0 — Canary Web MVP Worker (Persistent Canary Safety Guard)
  *
  * 별도 Cloudflare Worker. 기존 worker.js 본선을 수정하지 않는다.
  *
  * Route:
  *   GET     /health
  *   POST    /send-canary
- *   OPTIONS /health, /send-canary (CORS preflight)
+ *   GET     /state            (v0.23 신규 — safe persistent state read)
+ *   POST    /cleanup-confirm  (v0.23 신규 — manual cleanup ack)
+ *   OPTIONS /health, /send-canary, /state, /cleanup-confirm (CORS preflight)
  *
  * 정책:
  *   - 실제 Telegram API 호출은 v0.21 telegramCanarySender.dispatchCanary 가 deps.fetchImpl 로만 호출.
- *   - process.env / globalThis.env / Date.now 직접 사용은 production fetch handler 안에서만 (Cloudflare 표준 패턴).
- *     테스트 시 deps 인자로 mock 주입 가능.
+ *   - canary 전용 KV (binding WS3_CANARY_STATE_KV, prefix `ws3:canary:`) 만 write/read. 본선 / 실코인 /
+ *     Snapshot / Evaluation / Audit KV write 금지.
+ *   - KV binding 없으면 Send Canary fallback 금지. process memory fallback 금지 — PERSISTENCE_UNAVAILABLE 반환.
  *   - Origin allowlist (env.WS3_CANARY_ALLOWED_ORIGINS, comma-separated) + invoke token (env.WS3_CANARY_INVOKE_TOKEN)
- *     + manualTrigger=true 조건 모두 만족 시에만 dispatchCanary 호출.
- *   - per-process state (CANARY_PROCESS_STATE) 는 Cloudflare isolate cold start 시 초기화 가능 (best effort).
+ *     + manualTrigger=true + persistent guards (alreadySent / cleanupRequired / circuit / invokeFail) 모두
+ *     만족 시에만 dispatchCanary 호출.
+ *   - per-process state 는 transient 보조 (best effort). persistent enforcement 는 KV.
  *
- * r0.2-final 보강 (특별관리):
- *   invoke token mismatch 5회 차단도 per-process state 기반 best effort 다. Cloudflare Worker isolate 가
- *   새로 뜨면 counter 가 초기화될 수 있다. v0.22 에서는 brute force 완전 차단이 아니라 Origin allowlist +
- *   high entropy invoke token + manualTrigger + 24h authorized_at expire + UI throttle 에 의존한다.
- *   production-grade persistent 차단은 v0.23+ KV / DO / D1 또는 Cloudflare Rate Limiting API 에서 재논의.
+ * v0.23 KV strict 한계 (r0.2-final 박제):
+ *   KV alreadySent 는 strict distributed lock 이 아니다. persistent safety guard 다. 동시 다중 worker isolate
+ *   에서 정확히 1회 보장은 KV eventual consistency / read-modify-write race 로 불완전. strict one-time
+ *   guarantee 는 v0.24+ Durable Objects 또는 atomic lock 설계 에서 검토.
+ *
+ * v0.23 보안 의존성 (best effort layered defense):
+ *   1) Origin allowlist  2) High entropy invoke token  3) manualTrigger  4) 24h authorized_at expire
+ *   5) KV persistent alreadySent  6) KV cleanupRequired  7) KV persistent circuit  8) KV persistent
+ *      invoke-token failure counter (per originHash)  9) UI throttle.
  *
  * export:
  *   module.exports = { handleFetch, default: { fetch: handleFetch }, ... }
- *   Cloudflare workers ES module 변환은 v0.22 단계에서 진행하지 않음 (bundler 단계 분리).
+ *   Cloudflare workers ES module 변환은 entry shim (ws3-telegram-canary-entry.mjs) 에서 진행.
  *
- * 실제 Telegram canary 1회 발송: 사용자 별도 승인 후 별도 단계에서 진행.
+ * 실제 Telegram canary 1회 발송: 사용자 별도 승인 후 별도 단계에서 진행. v0.23 코드 작성 단계 0건.
  */
 'use strict';
 
 var RuntimeStateAdapter = require('../v3/v3-secure-runtime-state-adapter.js');
 var TelegramCanarySender = require('../v3/v3-telegram-canary-sender.js');
+var CanaryStateKvAdapter = require('./ws3-canary-state-kv-adapter.js');
 
 // §constants ───────────────────────────────────────────────────────────
-var VERSION = 'WS3_v0.22.1_canary_worker_runtime_hotfix';
+var VERSION = 'WS3_v0.23.0_persistent_canary_safety_guard';
 var SERVICE = 'WS3_CANARY_WEB_MVP';
 var STATUS_READY_CODE = 'CANARY_READY';
 var MAX_BODY_BYTES = 1024;
 var INVOKE_TOKEN_MISMATCH_THRESHOLD = 5;
 var INVOKE_TOKEN_MISMATCH_BLOCK_MS = 24 * 60 * 60 * 1000;
 var CANARY_MESSAGE_TYPE = 'CANARY_TEST_ONLY';
+
+// §v0.23 persistent guard constants
+var KV_BINDING_NAME = 'WS3_CANARY_STATE_KV';
+var CIRCUIT_PERSISTENT_FAIL_THRESHOLD = 3;
+var CIRCUIT_PERSISTENT_BLOCK_MS = 24 * 60 * 60 * 1000;
+var INVOKE_TOKEN_PERSISTENT_THRESHOLD = 5;
+var INVOKE_TOKEN_PERSISTENT_BLOCK_MS = 24 * 60 * 60 * 1000;
+var CLEANUP_REASON_LIVE_SENT = 'LIVE_CANARY_SENT';
 
 // §per-process state (Cloudflare isolate cold-start 시 초기화 — best effort)
 var CANARY_PROCESS_STATE = {
@@ -273,7 +290,7 @@ async function handleFetch(request, env, ctx, deps) {
 
   // OPTIONS preflight
   if (method === 'OPTIONS') {
-    if (path !== '/health' && path !== '/send-canary') {
+    if (path !== '/health' && path !== '/send-canary' && path !== '/state' && path !== '/cleanup-confirm') {
       return jsonResponse({ ok: false, status: 'ERROR', code: 'METHOD_NOT_ALLOWED', httpStatus: 405 }, 405, false, null);
     }
     if (!origin) {
@@ -298,13 +315,19 @@ async function handleFetch(request, env, ctx, deps) {
     }, 200, allowed === true, origin);
   }
 
-  // POST /send-canary
+  // POST /send-canary  (v0.23 — KV persistent guard 통합)
   if (path === '/send-canary' && method === 'POST') {
     if (!origin) {
       return jsonResponse({ ok: false, status: 'BLOCKED', code: 'ORIGIN_MISSING', httpStatus: 403 }, 403, false, null);
     }
     if (!allowed) {
       return jsonResponse({ ok: false, status: 'BLOCKED', code: 'ORIGIN_NOT_ALLOWED', httpStatus: 403 }, 403, false, null);
+    }
+
+    // v0.23 — KV binding 필수. 없으면 PERSISTENCE_UNAVAILABLE. process memory fallback 금지.
+    var kv = isPlainObject(resolvedDeps) && hasOwn(resolvedDeps, 'kv') ? resolvedDeps.kv : (env ? env[KV_BINDING_NAME] : null);
+    if (!kv || typeof kv.get !== 'function' || typeof kv.put !== 'function') {
+      return jsonResponse({ ok: false, status: 'BLOCKED', code: 'PERSISTENCE_UNAVAILABLE', httpStatus: 503 }, 503, true, origin);
     }
 
     // Content-Type
@@ -341,7 +364,87 @@ async function handleFetch(request, env, ctx, deps) {
     }
     var manualTrigger = body.manualTrigger === true;
 
-    // Worker-level invoke token mismatch throttle (best effort per-process — see r0.2-final note above)
+    // v0.23 — persistent circuit guard
+    var circuitRead = await CanaryStateKvAdapter.readCircuit(kv);
+    if (circuitRead.ok !== true) {
+      if (circuitRead.reason === 'PERSISTENCE_UNAVAILABLE') {
+        return jsonResponse({ ok: false, status: 'BLOCKED', code: 'PERSISTENCE_UNAVAILABLE', httpStatus: 503 }, 503, true, origin);
+      }
+      if (circuitRead.reason === 'SCHEMA_VERSION_MISMATCH') {
+        return jsonResponse({ ok: false, status: 'ERROR', code: 'SCHEMA_VERSION_MISMATCH', httpStatus: 503 }, 503, true, origin);
+      }
+      // INVALID_KV_VALUE → safe default: treat as missing
+    }
+    var circuit = (circuitRead.ok === true && isPlainObject(circuitRead.value)) ? circuitRead.value : null;
+    if (circuit && circuit.circuitOpen === true) {
+      if (typeof circuit.circuitOpenUntil === 'number' && circuit.circuitOpenUntil > 0 && nowMs < circuit.circuitOpenUntil) {
+        return jsonResponse({ ok: false, status: 'BLOCKED', code: 'CANARY_CIRCUIT_OPEN_PERSISTENT', httpStatus: 503 }, 503, true, origin);
+      }
+    }
+
+    // v0.23 — persistent alreadySent guard
+    var alreadyRead = await CanaryStateKvAdapter.readAlreadySent(kv);
+    if (alreadyRead.ok !== true) {
+      if (alreadyRead.reason === 'PERSISTENCE_UNAVAILABLE') {
+        return jsonResponse({ ok: false, status: 'BLOCKED', code: 'PERSISTENCE_UNAVAILABLE', httpStatus: 503 }, 503, true, origin);
+      }
+      if (alreadyRead.reason === 'SCHEMA_VERSION_MISMATCH') {
+        return jsonResponse({ ok: false, status: 'ERROR', code: 'SCHEMA_VERSION_MISMATCH', httpStatus: 503 }, 503, true, origin);
+      }
+    }
+    var alreadySentVal = (alreadyRead.ok === true && isPlainObject(alreadyRead.value)) ? alreadyRead.value : null;
+    if (alreadySentVal && alreadySentVal.alreadySent === true) {
+      return jsonResponse({ ok: false, status: 'BLOCKED', code: 'ALREADY_SENT_PERSISTENT', httpStatus: 409 }, 409, true, origin);
+    }
+
+    // v0.23 — persistent cleanupRequired guard
+    var cleanupRead = await CanaryStateKvAdapter.readCleanupRequired(kv);
+    if (cleanupRead.ok !== true) {
+      if (cleanupRead.reason === 'PERSISTENCE_UNAVAILABLE') {
+        return jsonResponse({ ok: false, status: 'BLOCKED', code: 'PERSISTENCE_UNAVAILABLE', httpStatus: 503 }, 503, true, origin);
+      }
+      if (cleanupRead.reason === 'SCHEMA_VERSION_MISMATCH') {
+        return jsonResponse({ ok: false, status: 'ERROR', code: 'SCHEMA_VERSION_MISMATCH', httpStatus: 503 }, 503, true, origin);
+      }
+    }
+    var cleanupVal = (cleanupRead.ok === true && isPlainObject(cleanupRead.value)) ? cleanupRead.value : null;
+    if (cleanupVal && cleanupVal.cleanupRequired === true) {
+      return jsonResponse({ ok: false, status: 'BLOCKED', code: 'CLEANUP_REQUIRED', httpStatus: 409 }, 409, true, origin);
+    }
+    // Safe default — alreadySent=true but cleanupRequired absent → treat as blocking
+    if (alreadySentVal && alreadySentVal.alreadySent === true && cleanupVal === null) {
+      return jsonResponse({ ok: false, status: 'BLOCKED', code: 'CLEANUP_REQUIRED', httpStatus: 409 }, 409, true, origin);
+    }
+
+    // v0.23 — persistent invoke-token failure counter (per originHash)
+    var originHash;
+    try {
+      originHash = await CanaryStateKvAdapter.hashOrigin(origin, resolvedDeps.cryptoImpl);
+    } catch (e) {
+      return jsonResponse({ ok: false, status: 'ERROR', code: 'INVALID_HASH_FORMAT', httpStatus: 500 }, 500, true, origin);
+    }
+    if (!CanaryStateKvAdapter.isValidHash(originHash)) {
+      return jsonResponse({ ok: false, status: 'ERROR', code: 'INVALID_HASH_FORMAT', httpStatus: 500 }, 500, true, origin);
+    }
+    var invokeRead = await CanaryStateKvAdapter.readInvokeFail(kv, originHash);
+    if (invokeRead.ok !== true) {
+      if (invokeRead.reason === 'PERSISTENCE_UNAVAILABLE') {
+        return jsonResponse({ ok: false, status: 'BLOCKED', code: 'PERSISTENCE_UNAVAILABLE', httpStatus: 503 }, 503, true, origin);
+      }
+      if (invokeRead.reason === 'SCHEMA_VERSION_MISMATCH') {
+        return jsonResponse({ ok: false, status: 'ERROR', code: 'SCHEMA_VERSION_MISMATCH', httpStatus: 503 }, 503, true, origin);
+      }
+    }
+    var invokeVal = (invokeRead.ok === true && isPlainObject(invokeRead.value)) ? invokeRead.value : null;
+    if (invokeVal && typeof invokeVal.blockedUntil === 'number' && invokeVal.blockedUntil > 0 && nowMs < invokeVal.blockedUntil) {
+      return jsonResponse({
+        ok: false, status: 'BLOCKED',
+        code: 'INVOKE_TOKEN_BLOCKED_TOO_MANY_FAILURES_PERSISTENT',
+        httpStatus: 429
+      }, 429, true, origin);
+    }
+
+    // Worker-level invoke token mismatch throttle (transient — best effort per-process)
     if (state.invokeTokenMismatchBlockedUntil > 0 && nowMs < state.invokeTokenMismatchBlockedUntil) {
       return jsonResponse({
         ok: false, status: 'BLOCKED',
@@ -395,9 +498,23 @@ async function handleFetch(request, env, ctx, deps) {
 
     try {
       if (isPlainObject(result) && result.ok === true) {
-        // success — reset invoke token mismatch counter
+        // success — reset transient counter, write KV alreadySent + cleanupRequired=true
         state.invokeTokenMismatchCount = 0;
         state.invokeTokenMismatchBlockedUntil = 0;
+        await CanaryStateKvAdapter.writeAlreadySent(kv, nowMs);
+        await CanaryStateKvAdapter.writeCleanupRequired(kv, {
+          cleanupRequired: true,
+          reason: CLEANUP_REASON_LIVE_SENT,
+          createdAt: nowMs,
+          lastCleanupAt: null
+        });
+        // Reset persistent circuit + invokeFail on success
+        await CanaryStateKvAdapter.writeCircuit(kv, {
+          circuitOpen: false, consecutiveFailures: 0, lastFailureAt: null, circuitOpenUntil: null
+        });
+        await CanaryStateKvAdapter.writeInvokeFail(kv, originHash, {
+          failureCount: 0, lastFailureAt: null, blockedUntil: null
+        });
         return jsonResponse({
           ok: true,
           status: 'SENT',
@@ -412,12 +529,37 @@ async function handleFetch(request, env, ctx, deps) {
       var errorCode = (isPlainObject(result) && typeof result.errorCode === 'string') ? result.errorCode : 'UNKNOWN_ERROR';
       var mapped = mapErrorCodeToWeb(errorCode);
 
-      // Invoke token mismatch counter
+      // Transient invoke token mismatch counter (per-process)
       if (mapped.code === 'INVOKE_TOKEN_MISMATCH') {
         state.invokeTokenMismatchCount = (state.invokeTokenMismatchCount || 0) + 1;
         if (state.invokeTokenMismatchCount >= INVOKE_TOKEN_MISMATCH_THRESHOLD) {
           state.invokeTokenMismatchBlockedUntil = nowMs + INVOKE_TOKEN_MISMATCH_BLOCK_MS;
         }
+        // Persistent invoke-token failure counter (per originHash)
+        var prevFail = (invokeVal && typeof invokeVal.failureCount === 'number') ? invokeVal.failureCount : 0;
+        var newFail = prevFail + 1;
+        var newBlockedUntil = (newFail >= INVOKE_TOKEN_PERSISTENT_THRESHOLD) ? (nowMs + INVOKE_TOKEN_PERSISTENT_BLOCK_MS) : null;
+        await CanaryStateKvAdapter.writeInvokeFail(kv, originHash, {
+          failureCount: newFail,
+          lastFailureAt: nowMs,
+          blockedUntil: newBlockedUntil
+        });
+      }
+
+      // Persistent circuit counter on Telegram/network failures
+      if (mapped.code === 'TELEGRAM_NETWORK_ERROR'
+          || mapped.code === 'TELEGRAM_AUTH_ERROR'
+          || mapped.code === 'TELEGRAM_NOT_FOUND'
+          || mapped.code === 'CANARY_TIMEOUT') {
+        var prevCf = (circuit && typeof circuit.consecutiveFailures === 'number') ? circuit.consecutiveFailures : 0;
+        var newCf = prevCf + 1;
+        var openUntil = (newCf >= CIRCUIT_PERSISTENT_FAIL_THRESHOLD) ? (nowMs + CIRCUIT_PERSISTENT_BLOCK_MS) : null;
+        await CanaryStateKvAdapter.writeCircuit(kv, {
+          circuitOpen: (openUntil !== null),
+          consecutiveFailures: newCf,
+          lastFailureAt: nowMs,
+          circuitOpenUntil: openUntil
+        });
       }
 
       var outerStatus = (mapped.httpStatus > 0) ? mapped.httpStatus : 502;
@@ -430,6 +572,136 @@ async function handleFetch(request, env, ctx, deps) {
     } catch (e) {
       return workerSafeErrorResponse('WORKER_RESPONSE_MAP_FAILED', true, origin);
     }
+  }
+
+  // GET /state  (v0.23 — safe persistent state read; requires Origin + invoke token)
+  if (path === '/state' && method === 'GET') {
+    if (!origin) {
+      return jsonResponse({ ok: false, status: 'BLOCKED', code: 'ORIGIN_MISSING', httpStatus: 403 }, 403, false, null);
+    }
+    if (!allowed) {
+      return jsonResponse({ ok: false, status: 'BLOCKED', code: 'ORIGIN_NOT_ALLOWED', httpStatus: 403 }, 403, false, null);
+    }
+    var stateToken = request.headers.get('X-WS3-Canary-Token');
+    if (typeof stateToken !== 'string' || stateToken.length === 0) {
+      return jsonResponse({ ok: false, status: 'BLOCKED', code: 'MISSING_INVOKE_TOKEN', httpStatus: 401 }, 401, true, origin);
+    }
+    if (typeof env.WS3_CANARY_INVOKE_TOKEN !== 'string' || env.WS3_CANARY_INVOKE_TOKEN.length === 0) {
+      return jsonResponse({ ok: false, status: 'BLOCKED', code: 'MISSING_INVOKE_TOKEN', httpStatus: 503 }, 503, true, origin);
+    }
+    if (stateToken !== env.WS3_CANARY_INVOKE_TOKEN) {
+      return jsonResponse({ ok: false, status: 'BLOCKED', code: 'INVOKE_TOKEN_MISMATCH', httpStatus: 403 }, 403, true, origin);
+    }
+
+    var stateKv = isPlainObject(resolvedDeps) && hasOwn(resolvedDeps, 'kv') ? resolvedDeps.kv : (env ? env[KV_BINDING_NAME] : null);
+    var canaryEnabled = env && env.WS3_TELEGRAM_CANARY_ENABLED === 'true';
+    if (!stateKv || typeof stateKv.get !== 'function') {
+      return jsonResponse({
+        ok: true,
+        service: SERVICE,
+        version: VERSION,
+        canaryEnabled: canaryEnabled,
+        persistenceAvailable: false,
+        alreadySent: false,
+        cleanupRequired: false,
+        circuitOpen: false
+      }, 200, true, origin);
+    }
+
+    var sAlready = await CanaryStateKvAdapter.readAlreadySent(stateKv);
+    var sCleanup = await CanaryStateKvAdapter.readCleanupRequired(stateKv);
+    var sCircuit = await CanaryStateKvAdapter.readCircuit(stateKv);
+
+    var alreadyFlag = (sAlready.ok === true && isPlainObject(sAlready.value) && sAlready.value.alreadySent === true);
+    var cleanupFlag = (sCleanup.ok === true && isPlainObject(sCleanup.value) && sCleanup.value.cleanupRequired === true);
+    var circuitFlag = (sCircuit.ok === true && isPlainObject(sCircuit.value) && sCircuit.value.circuitOpen === true);
+
+    return jsonResponse({
+      ok: true,
+      service: SERVICE,
+      version: VERSION,
+      canaryEnabled: canaryEnabled,
+      persistenceAvailable: true,
+      alreadySent: alreadyFlag,
+      cleanupRequired: cleanupFlag,
+      circuitOpen: circuitFlag
+    }, 200, true, origin);
+  }
+
+  // POST /cleanup-confirm  (v0.23 — manual cleanup ack; NO Telegram call)
+  if (path === '/cleanup-confirm' && method === 'POST') {
+    if (!origin) {
+      return jsonResponse({ ok: false, status: 'BLOCKED', code: 'ORIGIN_MISSING', httpStatus: 403 }, 403, false, null);
+    }
+    if (!allowed) {
+      return jsonResponse({ ok: false, status: 'BLOCKED', code: 'ORIGIN_NOT_ALLOWED', httpStatus: 403 }, 403, false, null);
+    }
+    var ccCt = request.headers.get('Content-Type');
+    if (typeof ccCt !== 'string' || ccCt.toLowerCase().indexOf('application/json') === -1) {
+      return jsonResponse({ ok: false, status: 'BLOCKED', code: 'UNSUPPORTED_MEDIA_TYPE', httpStatus: 415 }, 415, true, origin);
+    }
+    var ccCl = request.headers.get('Content-Length');
+    if (typeof ccCl === 'string' && ccCl.length > 0) {
+      var ccN = parseInt(ccCl, 10);
+      if (isFinite(ccN) && ccN > MAX_BODY_BYTES) {
+        return jsonResponse({ ok: false, status: 'BLOCKED', code: 'PAYLOAD_TOO_LARGE', httpStatus: 413 }, 413, true, origin);
+      }
+    }
+    var ccBodyText = '';
+    try { ccBodyText = await request.text(); } catch (e) {
+      return jsonResponse({ ok: false, status: 'ERROR', code: 'INVALID_JSON', httpStatus: 400 }, 400, true, origin);
+    }
+    if (typeof ccBodyText === 'string' && ccBodyText.length > MAX_BODY_BYTES) {
+      return jsonResponse({ ok: false, status: 'BLOCKED', code: 'PAYLOAD_TOO_LARGE', httpStatus: 413 }, 413, true, origin);
+    }
+    var ccBody;
+    try { ccBody = JSON.parse(ccBodyText); } catch (e) {
+      return jsonResponse({ ok: false, status: 'ERROR', code: 'INVALID_JSON', httpStatus: 400 }, 400, true, origin);
+    }
+    if (!isPlainObject(ccBody) || ccBody.manualTrigger !== true) {
+      return jsonResponse({ ok: false, status: 'BLOCKED', code: 'MANUAL_TRIGGER_REQUIRED', httpStatus: 400 }, 400, true, origin);
+    }
+    var ccToken = request.headers.get('X-WS3-Canary-Token');
+    if (typeof ccToken !== 'string' || ccToken.length === 0) {
+      return jsonResponse({ ok: false, status: 'BLOCKED', code: 'MISSING_INVOKE_TOKEN', httpStatus: 401 }, 401, true, origin);
+    }
+    if (typeof env.WS3_CANARY_INVOKE_TOKEN !== 'string' || env.WS3_CANARY_INVOKE_TOKEN.length === 0) {
+      return jsonResponse({ ok: false, status: 'BLOCKED', code: 'MISSING_INVOKE_TOKEN', httpStatus: 503 }, 503, true, origin);
+    }
+    if (ccToken !== env.WS3_CANARY_INVOKE_TOKEN) {
+      return jsonResponse({ ok: false, status: 'BLOCKED', code: 'INVOKE_TOKEN_MISMATCH', httpStatus: 403 }, 403, true, origin);
+    }
+
+    var ccKv = isPlainObject(resolvedDeps) && hasOwn(resolvedDeps, 'kv') ? resolvedDeps.kv : (env ? env[KV_BINDING_NAME] : null);
+    if (!ccKv || typeof ccKv.get !== 'function' || typeof ccKv.put !== 'function') {
+      return jsonResponse({ ok: false, status: 'BLOCKED', code: 'PERSISTENCE_UNAVAILABLE', httpStatus: 503 }, 503, true, origin);
+    }
+
+    var ccCleanupRead = await CanaryStateKvAdapter.readCleanupRequired(ccKv);
+    if (ccCleanupRead.ok !== true) {
+      if (ccCleanupRead.reason === 'PERSISTENCE_UNAVAILABLE') {
+        return jsonResponse({ ok: false, status: 'BLOCKED', code: 'PERSISTENCE_UNAVAILABLE', httpStatus: 503 }, 503, true, origin);
+      }
+      if (ccCleanupRead.reason === 'SCHEMA_VERSION_MISMATCH') {
+        return jsonResponse({ ok: false, status: 'ERROR', code: 'SCHEMA_VERSION_MISMATCH', httpStatus: 503 }, 503, true, origin);
+      }
+      // INVALID_KV_VALUE → safe default: NO_CLEANUP_REQUIRED
+    }
+    var ccVal = (ccCleanupRead.ok === true && isPlainObject(ccCleanupRead.value)) ? ccCleanupRead.value : null;
+    if (ccVal && ccVal.cleanupRequired === true) {
+      var writeRes = await CanaryStateKvAdapter.writeCleanupRequired(ccKv, {
+        cleanupRequired: false,
+        reason: (typeof ccVal.reason === 'string') ? ccVal.reason : null,
+        createdAt: (typeof ccVal.createdAt === 'number') ? ccVal.createdAt : null,
+        lastCleanupAt: nowMs
+      });
+      if (writeRes.ok !== true) {
+        return jsonResponse({ ok: false, status: 'BLOCKED', code: 'PERSISTENCE_UNAVAILABLE', httpStatus: 503 }, 503, true, origin);
+      }
+      return jsonResponse({ ok: true, status: 'OK', code: 'CLEANUP_CONFIRMED', httpStatus: 200 }, 200, true, origin);
+    }
+    // cleanupRequired=false or absent → no state change
+    return jsonResponse({ ok: true, status: 'OK', code: 'NO_CLEANUP_REQUIRED', httpStatus: 200 }, 200, true, origin);
   }
 
   // Fallback — unknown path/method
@@ -448,7 +720,13 @@ module.exports = {
   MAX_BODY_BYTES: MAX_BODY_BYTES,
   INVOKE_TOKEN_MISMATCH_THRESHOLD: INVOKE_TOKEN_MISMATCH_THRESHOLD,
   INVOKE_TOKEN_MISMATCH_BLOCK_MS: INVOKE_TOKEN_MISMATCH_BLOCK_MS,
+  INVOKE_TOKEN_PERSISTENT_THRESHOLD: INVOKE_TOKEN_PERSISTENT_THRESHOLD,
+  INVOKE_TOKEN_PERSISTENT_BLOCK_MS: INVOKE_TOKEN_PERSISTENT_BLOCK_MS,
+  CIRCUIT_PERSISTENT_FAIL_THRESHOLD: CIRCUIT_PERSISTENT_FAIL_THRESHOLD,
+  CIRCUIT_PERSISTENT_BLOCK_MS: CIRCUIT_PERSISTENT_BLOCK_MS,
   CANARY_MESSAGE_TYPE: CANARY_MESSAGE_TYPE,
+  KV_BINDING_NAME: KV_BINDING_NAME,
+  CLEANUP_REASON_LIVE_SENT: CLEANUP_REASON_LIVE_SENT,
   mapErrorCodeToWeb: mapErrorCodeToWeb,
   isAllowedOrigin: isAllowedOrigin,
   buildMinimalPreflightGate: buildMinimalPreflightGate,

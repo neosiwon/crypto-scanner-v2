@@ -3,9 +3,9 @@
 > 현재 GitHub 박제 기준 (최신).  
 > 다음 단계 작업 전에 이 파일로 baseline 을 확인.
 
-**최종 업데이트**: 2026-05-17  
-**기능 단계 (current functional baseline)**: WS3 v0.22.1 Canary Worker Runtime Hotfix + First Live Telegram Canary Success  
-**이전 기능 baseline**: WS3 v0.22.0 Canary Web MVP Pack (`69bf5b0`)  
+**최종 업데이트**: 2026-05-18  
+**기능 단계 (current functional baseline)**: WS3 v0.23.0 Persistent Canary Safety Guard (본 단계 — canary 전용 KV write exception)  
+**이전 기능 baseline**: WS3 v0.22.1 Canary Worker Runtime Hotfix + First Live Telegram Canary Success (`f221e62`)  
 **운영 문서**: WS3 Workflow Template v0.1 박제 (`d8bebc2`, v0.3.0-docs)  
 **branch**: `claude/heuristic-cori-7865e7`
 
@@ -45,6 +45,7 @@
 | **WS3 v0.21.0** | **`/v3/v3-telegram-canary-sender.js`** | **(push 후 기록)** | **✅ 박제 (이번 단계, Telegram canary sender — 첫 LIVE side-effect 모듈, Gate 2 동시 작성, commit 분리)** |
 | **WS3 v0.22.0** | **`/workers/ws3-telegram-canary-worker.js` + `/web/ws3-canary-console.html`** | **`69bf5b0`** | **✅ 박제 (Canary Web MVP Pack, 별도 canary worker + local web console, 실제 Telegram 호출은 Gate 5 전까지 0건)** |
 | **WS3 v0.22.1** | **`/workers/ws3-telegram-canary-worker.js` + runtime hotfix report** | **`d8b1108`** | **✅ 박제 (Cloudflare runtime hotfix + first live Telegram canary success, cleanup 완료)** |
+| **WS3 v0.23.0** | **`/workers/ws3-canary-state-kv-adapter.js` + canary worker (v0.23) + `.gitignore` + `wrangler-canary.example.toml`** | **(Gate 3 commit 후 기록)** | **✅ 박제 (Persistent Canary Safety Guard — canary 전용 KV write exception, persistent alreadySent/cleanupRequired/circuit/invokeFail counter, /state + /cleanup-confirm endpoint, mock smoke 16/16)** |
 
 ## REJECTED — repo 반영 보류
 
@@ -363,6 +364,31 @@ workers/ws3-telegram-canary-worker.js + web/ws3-canary-console.html  (v0.22.0/v0
 ```
 
 ---
+
+## v0.23.0 핵심 메모
+
+```text
+- workers/ws3-canary-state-kv-adapter.js 신규 (276 라인) — canary 전용 KV CRUD safe adapter
+- workers/ws3-telegram-canary-worker.js v0.22.1 → v0.23.0 (737 라인, +197) — persistent guard 통합
+- wrangler-canary.example.toml 신규 (commit-safe placeholder) + .gitignore 신규 (canary local-only 보호)
+- KV binding: WS3_CANARY_STATE_KV (canary 전용, 본선 KV namespace 와 공유 금지)
+- KV prefix: ws3:canary: 만 허용 (INVALID_KV_KEY_PREFIX 차단)
+- schemaVersion: 'v1' 강제 (SCHEMA_VERSION_MISMATCH 차단)
+- hash: SHA-256 lowercase hex first 16 chars (INVALID_HASH_FORMAT 차단)
+- 4 persistent guard: alreadySent / cleanupRequired / circuit / invokeFail (per-originHash)
+- 신규 endpoint: GET /state (safe 8-field view) / POST /cleanup-confirm (manual ack, Telegram 발송 0건)
+- 신규 safe code: PERSISTENCE_UNAVAILABLE / ALREADY_SENT_PERSISTENT / CANARY_CIRCUIT_OPEN_PERSISTENT / INVOKE_TOKEN_BLOCKED_TOO_MANY_FAILURES_PERSISTENT / CLEANUP_REQUIRED / NO_CLEANUP_REQUIRED / CLEANUP_CONFIRMED / INVALID_KV_KEY_PREFIX / SCHEMA_VERSION_MISMATCH / INVALID_HASH_FORMAT
+- KV binding 없으면 send-canary fallback 금지 (PERSISTENCE_UNAVAILABLE). process memory fallback 0건.
+- 본선 / 실코인 / Snapshot / Evaluation / Audit KV write 영구 금지. canary 전용 namespace 만.
+- 실제 KV namespace ID 노출 0건 (commit / 채팅 / 보고서 / 로그 모두). example.toml 에는 placeholder 만.
+- KV alreadySent 는 strict distributed lock 이 아님 (best effort persistent safety guard).
+  · mock KV = strong consistency / real KV = eventually consistent → race 가능
+  · strict one-time guarantee 는 v0.24+ Durable Objects / atomic lock / D1 transaction 에서 검토
+- mock KV + mock fetch smoke 16 시나리오 전부 PASS (TOTAL=16 PASS=16 FAIL=0)
+- 실제 Telegram API 호출 0건 / 실제 KV API 호출 0건 / Cloudflare deploy 0건 / KV namespace 생성 0건
+- 보호 파일 (v3/ 25종 + worker.js + index.html + manifest.json + service-worker.js + WS3_CODE_CONTRACT.md + WS3_WORKFLOW_TEMPLATE.md + web/ws3-canary-console.html) diff 0건
+- 다음: Gate 3 staging + commit + push 별도 단계 → KV namespace 생성 + deploy + retest 별도 단계
+```
 
 ## v0.22.1 actual live canary result
 

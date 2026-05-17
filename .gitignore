@@ -1,0 +1,21 @@
+# WS3 v0.23.0 — gitignore for canary worker locals
+# Real KV namespace id / secrets / Origin values stay in untracked-only files.
+
+# Claude Code session artifacts
+.claude/
+
+# Wrangler local cache / state
+.wrangler/
+
+# Real canary worker config (실제 KV namespace id / vars 가 들어가는 파일 — 절대 commit 금지)
+# 공유용 placeholder 는 wrangler-canary.example.toml 만 commit.
+wrangler-canary.toml
+wrangler-canary.toml.local
+
+# Temporary canary helpers / smoke / backups
+.tmp_canary_*.js
+.tmp_*.bak
+.tmp_*.json
+
+# Node
+node_modules/

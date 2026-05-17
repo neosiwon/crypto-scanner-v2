@@ -5,6 +5,66 @@
 
 ---
 
+## [v0.23.0] — 2026-05-18 (Persistent Canary Safety Guard)
+
+### Added
+- `/workers/ws3-canary-state-kv-adapter.js` — Canary State KV Adapter (신규, 276 라인)
+  - canary 전용 KV 접근만 담당. binding `WS3_CANARY_STATE_KV` + prefix `ws3:canary:` 만 허용.
+  - schemaVersion `v1` 강제. read/write 불일치 → `SCHEMA_VERSION_MISMATCH`.
+  - validateCanaryKvKey / safeJsonParse / safeJsonStringify / getJson / putJson / deleteKey / listKeysByPrefix / hashOrigin (SHA-256 lowercase hex first 16 chars).
+  - 4 domain readers/writers: alreadySent / cleanupRequired / circuit / invokeFail(per-originHash).
+  - INVALID_KV_KEY_PREFIX (non-canary prefix 차단) / INVALID_HASH_FORMAT (16-hex lowercase 만 통과).
+  - 저장 금지: Telegram message_id / raw response / bot token / chatId / invoke token / Telegram URL / Origin 실제 값 / IP.
+- `/wrangler-canary.example.toml` — commit-safe placeholder (실제 KV namespace id / vars / secrets 기록 0건).
+- `/.gitignore` — 신규 (`.claude/` / `.wrangler/` / `wrangler-canary.toml` / `wrangler-canary.toml.local` / `.tmp_canary_*.js` / `.tmp_*.bak` / `.tmp_*.json` / `node_modules/`).
+- `/docs/ws3/WS3_v0_23_0_PERSISTENT_CANARY_SAFETY_GUARD_REPORT.md` — 완료 보고서 (15 sections).
+
+### Changed
+- `/workers/ws3-telegram-canary-worker.js` — v0.22.1 → v0.23.0 (737 lines, +197 lines)
+  - VERSION → `WS3_v0.23.0_persistent_canary_safety_guard`.
+  - 신규 endpoint: `GET /state` (safe persistent state read — Origin + invoke token 필수) / `POST /cleanup-confirm` (manual cleanup ack — Telegram 발송 0건).
+  - `POST /send-canary` 에 6단계 persistent guard 추가:
+    1) KV binding 부재 시 `PERSISTENCE_UNAVAILABLE` (memory fallback 금지)
+    2) `readCircuit` → `CANARY_CIRCUIT_OPEN_PERSISTENT` (3회 fail 누적, 24h 차단)
+    3) `readAlreadySent` → `ALREADY_SENT_PERSISTENT`
+    4) `readCleanupRequired` → `CLEANUP_REQUIRED` (또는 alreadySent=true + state 부재 safe default)
+    5) `hashOrigin` → `readInvokeFail` → `INVOKE_TOKEN_BLOCKED_TOO_MANY_FAILURES_PERSISTENT` (per-originHash 5회 / 24h 차단)
+    6) 기존 v0.20/v0.21 gate 진행 후 success 시 KV `writeAlreadySent` + `writeCleanupRequired(true)` + circuit reset + invokeFail reset. 실패 시 circuit / invokeFail counter 증가.
+- `/docs/ws3/WS3_CHANGELOG.md` (본 파일): `[v0.23.0]` entry 상단 추가.
+- `/docs/ws3/WS3_CURRENT_BASELINE.md`: baseline → v0.23.0.
+
+### Adopted DP Policy
+- canary 전용 KV write exception 만 허용. 본선 / 실코인 / Snapshot / Evaluation / Audit KV write 영구 금지.
+- KV binding 없으면 send-canary fallback 금지 (`PERSISTENCE_UNAVAILABLE`).
+- schemaVersion v1 강제, INVALID_KV_KEY_PREFIX / INVALID_HASH_FORMAT 가드.
+- KV alreadySent 는 strict distributed lock 이 아님 (best effort persistent safety guard). strict one-time guarantee 는 v0.24+ Durable Objects / atomic lock 에서 검토.
+- /state 응답 8 fields whitelist: ok / service / version / canaryEnabled / persistenceAvailable / alreadySent / cleanupRequired / circuitOpen. sentAt / blockedUntil / consecutiveFailures / failureCount / Telegram message_id / raw response / token / chatId / Origin 실제 값 출력 0건.
+
+### Protected (수정 0건)
+- 본선 / 보호 파일 모두 무손상: worker.js (이 repo 미존재) / wrangler.toml (이 repo 미존재) / index.html / manifest.json / service-worker.js / docs/ws3/WS3_CODE_CONTRACT.md / docs/ws3/WS3_WORKFLOW_TEMPLATE.md / v3/ 전체 (25종) / web/ws3-canary-console.html.
+
+### 의도된 미구현 (이번 단계 제외)
+- Cloudflare deploy / KV namespace 실제 생성 / KV binding 활성 / CANARY_ENABLED=true 변경 / Send Canary 클릭 / Telegram API 호출 — 모두 별도 승인 단계.
+- ipHash / `WS3_CANARY_HASH_SALT` / Durable Objects / D1 / atomic lock / production Web Console hosting — v0.24+ 검토.
+
+### Verified
+- `node --check workers/ws3-telegram-canary-worker.js` + `node --check workers/ws3-canary-state-kv-adapter.js` 모두 SYNTAX_OK.
+- mock KV + mock fetch smoke **16 시나리오 전부 PASS** (TOTAL=16 PASS=16 FAIL=0):
+  - S1 PERSISTENCE_UNAVAILABLE / S2 INVOKE_TOKEN_BLOCKED_TOO_MANY_FAILURES_PERSISTENT (5x → 6th block) / S3 ALREADY_SENT_PERSISTENT / S4 CLEANUP_REQUIRED
+  - S5 CANARY_SENT + KV alreadySent + cleanupRequired=true 자동 저장 / S6 CLEANUP_CONFIRMED + lastCleanupAt / S7 NO_CLEANUP_REQUIRED + state 변경 0건
+  - S8 CANARY_CIRCUIT_OPEN_PERSISTENT (3 network fail → 24h) / S9 /state 8-field safe view (no leak)
+  - S10 SCHEMA_VERSION_MISMATCH / S11 INVALID_KV_KEY_PREFIX / S12 INVALID_HASH_FORMAT (3 variants)
+  - S13 raw Telegram response leak 0건 / S14 token/chatId/invoke token value leak 0건 / S15 message_id leak 0건 / S16 KV strict-lock 한계 문서 박제
+- 실제 Telegram API 호출 **0건** (전 시나리오 mock fetchImpl 만). 실제 KV API 호출 **0건** (mock in-memory store 만).
+- 보호 파일 `git diff --stat HEAD -- worker.js wrangler.toml index.html manifest.json service-worker.js docs/ws3/WS3_CODE_CONTRACT.md docs/ws3/WS3_WORKFLOW_TEMPLATE.md v3/` 빈 출력 = 0건.
+
+### 기준 commit
+- branch: `claude/heuristic-cori-7865e7`
+- 이전 functional baseline: WS3 v0.22.1 + Gate 6 closure (`f221e62`)
+- 본 commit: (Gate 3 staging + commit 별도 단계)
+
+---
+
 ## [v0.22.1] — Canary Worker Runtime Hotfix + First Live Canary Success
 
 ### Added / Changed
