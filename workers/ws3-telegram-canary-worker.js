@@ -1,5 +1,5 @@
 /**
- * WS3 v0.22.0 — Canary Web MVP Worker
+ * WS3 v0.22.1 — Canary Web MVP Worker
  *
  * 별도 Cloudflare Worker. 기존 worker.js 본선을 수정하지 않는다.
  *
@@ -34,7 +34,7 @@ var RuntimeStateAdapter = require('../v3/v3-secure-runtime-state-adapter.js');
 var TelegramCanarySender = require('../v3/v3-telegram-canary-sender.js');
 
 // §constants ───────────────────────────────────────────────────────────
-var VERSION = 'WS3_v0.22.0_canary_web_mvp';
+var VERSION = 'WS3_v0.22.1_canary_worker_runtime_hotfix';
 var SERVICE = 'WS3_CANARY_WEB_MVP';
 var STATUS_READY_CODE = 'CANARY_READY';
 var MAX_BODY_BYTES = 1024;
@@ -108,6 +108,97 @@ function emptyResponse(status, allowed, origin) {
   return new Response(null, { status: status, headers: headers });
 }
 
+function makeWorkerSafeError(code) {
+  return { ws3WorkerSafeCode: code };
+}
+
+function getWorkerSafeErrorCode(err, fallback) {
+  if (err && typeof err.ws3WorkerSafeCode === 'string') return err.ws3WorkerSafeCode;
+  return fallback;
+}
+
+function workerSafeErrorResponse(code, allowed, origin) {
+  return jsonResponse({ ok: false, status: 'ERROR', code: code, httpStatus: 500 }, 500, allowed, origin);
+}
+
+function hasOwn(obj, key) {
+  return Object.prototype.hasOwnProperty.call(obj, key);
+}
+
+function resolveRuntimeFunction(resolvedDeps, key, globalFactory) {
+  if (isPlainObject(resolvedDeps) && hasOwn(resolvedDeps, key)) {
+    return (typeof resolvedDeps[key] === 'function') ? resolvedDeps[key] : null;
+  }
+  return (typeof globalFactory === 'function') ? globalFactory() : null;
+}
+
+function buildWorkerRuntimeDeps(resolvedDeps, nowMs, state) {
+  var rawFetch = resolveRuntimeFunction(resolvedDeps, 'fetchImpl', function() {
+    if (typeof fetch !== 'function') return null;
+    return function(url, init) { return fetch(url, init); };
+  });
+  var RawAbortController = resolveRuntimeFunction(resolvedDeps, 'AbortControllerImpl', function() {
+    if (typeof AbortController !== 'function') return null;
+    return function() { return new AbortController(); };
+  });
+  var rawSetTimeout = resolveRuntimeFunction(resolvedDeps, 'setTimeoutImpl', function() {
+    if (typeof setTimeout !== 'function') return null;
+    return function(fn, ms) { return setTimeout(fn, ms); };
+  });
+  var rawClearTimeout = resolveRuntimeFunction(resolvedDeps, 'clearTimeoutImpl', function() {
+    if (typeof clearTimeout !== 'function') return null;
+    return function(handle) { return clearTimeout(handle); };
+  });
+
+  if (rawFetch === null) return { ok: false, code: 'WORKER_DEP_FETCH_FAILED' };
+  if (RawAbortController === null) return { ok: false, code: 'WORKER_DEP_ABORT_CONTROLLER_FAILED' };
+  if (rawSetTimeout === null || rawClearTimeout === null) return { ok: false, code: 'WORKER_DEP_TIMER_FAILED' };
+
+  function safeFetch(url, init) {
+    try {
+      return rawFetch(url, init);
+    } catch (e) {
+      throw makeWorkerSafeError('WORKER_DEP_FETCH_FAILED');
+    }
+  }
+
+  function SafeAbortController() {
+    try {
+      return new RawAbortController();
+    } catch (e) {
+      throw makeWorkerSafeError('WORKER_DEP_ABORT_CONTROLLER_FAILED');
+    }
+  }
+
+  function safeSetTimeout(fn, ms) {
+    try {
+      return rawSetTimeout(fn, ms);
+    } catch (e) {
+      throw makeWorkerSafeError('WORKER_DEP_TIMER_FAILED');
+    }
+  }
+
+  function safeClearTimeout(handle) {
+    try {
+      return rawClearTimeout(handle);
+    } catch (e) {
+      throw makeWorkerSafeError('WORKER_DEP_TIMER_FAILED');
+    }
+  }
+
+  return {
+    ok: true,
+    deps: {
+      fetchImpl: safeFetch,
+      AbortControllerImpl: SafeAbortController,
+      setTimeoutImpl: safeSetTimeout,
+      clearTimeoutImpl: safeClearTimeout,
+      nowMs: nowMs,
+      state: state
+    }
+  };
+}
+
 // §minimal v0.19 preflightGate fixture (canary 한정 단순 path)
 //   v0.22 canary worker 는 LIVE pipeline 전체 의존 없이 canary 단일 path 만 사용.
 //   v0.19 preflightGate 결과의 'PREFLIGHT_READY for telegram' 시나리오만 필요.
@@ -163,18 +254,6 @@ function mapErrorCodeToWeb(errorCode) {
 async function handleFetch(request, env, ctx, deps) {
   // deps (optional) — production worker does not receive deps; smoke tests inject.
   var resolvedDeps = isPlainObject(deps) ? deps : {};
-  var fetchImpl = (typeof resolvedDeps.fetchImpl === 'function')
-    ? resolvedDeps.fetchImpl
-    : ((typeof fetch === 'function') ? fetch : null);
-  var AbortControllerImpl = (typeof resolvedDeps.AbortControllerImpl === 'function')
-    ? resolvedDeps.AbortControllerImpl
-    : ((typeof AbortController === 'function') ? AbortController : null);
-  var setTimeoutImpl = (typeof resolvedDeps.setTimeoutImpl === 'function')
-    ? resolvedDeps.setTimeoutImpl
-    : ((typeof setTimeout === 'function') ? setTimeout : null);
-  var clearTimeoutImpl = (typeof resolvedDeps.clearTimeoutImpl === 'function')
-    ? resolvedDeps.clearTimeoutImpl
-    : ((typeof clearTimeout === 'function') ? clearTimeout : null);
   var nowMs = (typeof resolvedDeps.nowMs === 'number' && isFinite(resolvedDeps.nowMs))
     ? resolvedDeps.nowMs
     : ((typeof Date !== 'undefined') ? Date.now() : 0);
@@ -276,14 +355,20 @@ async function handleFetch(request, env, ctx, deps) {
       return jsonResponse({ ok: false, status: 'BLOCKED', code: 'MISSING_INVOKE_TOKEN', httpStatus: 401 }, 401, true, origin);
     }
 
-    // deps must be resolvable
-    if (fetchImpl === null || AbortControllerImpl === null || setTimeoutImpl === null || clearTimeoutImpl === null) {
-      return jsonResponse({ ok: false, status: 'ERROR', code: 'UNKNOWN_ERROR', httpStatus: 500 }, 500, true, origin);
+    var runtimeDeps = buildWorkerRuntimeDeps(resolvedDeps, nowMs, state);
+    if (!runtimeDeps.ok) {
+      return workerSafeErrorResponse(runtimeDeps.code, true, origin);
     }
 
     // Build v0.20 → v0.21 chain
-    var preflight = buildMinimalPreflightGate();
-    var v20Result = RuntimeStateAdapter.build({ liveExecutionPreflightGate: preflight });
+    var preflight;
+    var v20Result;
+    try {
+      preflight = buildMinimalPreflightGate();
+      v20Result = RuntimeStateAdapter.build({ liveExecutionPreflightGate: preflight });
+    } catch (e) {
+      return workerSafeErrorResponse('WORKER_DISPATCH_THROWN', true, origin);
+    }
 
     var canaryInput = {
       secureRuntimeStateAdapterResult: v20Result,
@@ -299,55 +384,52 @@ async function handleFetch(request, env, ctx, deps) {
       messageType: CANARY_MESSAGE_TYPE
     };
 
-    var canaryDeps = {
-      fetchImpl: fetchImpl,
-      AbortControllerImpl: AbortControllerImpl,
-      setTimeoutImpl: setTimeoutImpl,
-      clearTimeoutImpl: clearTimeoutImpl,
-      nowMs: nowMs,
-      state: state
-    };
+    var canaryDeps = runtimeDeps.deps;
 
     var result;
     try {
       result = await TelegramCanarySender.dispatchCanary(canaryInput, canaryDeps);
     } catch (e) {
-      return jsonResponse({ ok: false, status: 'ERROR', code: 'UNKNOWN_ERROR', httpStatus: 500 }, 500, true, origin);
+      return workerSafeErrorResponse(getWorkerSafeErrorCode(e, 'WORKER_DISPATCH_THROWN'), true, origin);
     }
 
-    if (isPlainObject(result) && result.ok === true) {
-      // success — reset invoke token mismatch counter
-      state.invokeTokenMismatchCount = 0;
-      state.invokeTokenMismatchBlockedUntil = 0;
-      return jsonResponse({
-        ok: true,
-        status: 'SENT',
-        code: 'CANARY_SENT',
-        httpStatus: (typeof result.httpStatus === 'number') ? result.httpStatus : 200,
-        messageType: CANARY_MESSAGE_TYPE,
-        fixedMessageUsed: true
-      }, 200, true, origin);
-    }
-
-    // Mapped error
-    var errorCode = (isPlainObject(result) && typeof result.errorCode === 'string') ? result.errorCode : 'UNKNOWN_ERROR';
-    var mapped = mapErrorCodeToWeb(errorCode);
-
-    // Invoke token mismatch counter
-    if (mapped.code === 'INVOKE_TOKEN_MISMATCH') {
-      state.invokeTokenMismatchCount = (state.invokeTokenMismatchCount || 0) + 1;
-      if (state.invokeTokenMismatchCount >= INVOKE_TOKEN_MISMATCH_THRESHOLD) {
-        state.invokeTokenMismatchBlockedUntil = nowMs + INVOKE_TOKEN_MISMATCH_BLOCK_MS;
+    try {
+      if (isPlainObject(result) && result.ok === true) {
+        // success — reset invoke token mismatch counter
+        state.invokeTokenMismatchCount = 0;
+        state.invokeTokenMismatchBlockedUntil = 0;
+        return jsonResponse({
+          ok: true,
+          status: 'SENT',
+          code: 'CANARY_SENT',
+          httpStatus: (typeof result.httpStatus === 'number') ? result.httpStatus : 200,
+          messageType: CANARY_MESSAGE_TYPE,
+          fixedMessageUsed: true
+        }, 200, true, origin);
       }
-    }
 
-    var outerStatus = (mapped.httpStatus > 0) ? mapped.httpStatus : 502;
-    return jsonResponse({
-      ok: false,
-      status: mapped.status,
-      code: mapped.code,
-      httpStatus: mapped.httpStatus
-    }, outerStatus, true, origin);
+      // Mapped error
+      var errorCode = (isPlainObject(result) && typeof result.errorCode === 'string') ? result.errorCode : 'UNKNOWN_ERROR';
+      var mapped = mapErrorCodeToWeb(errorCode);
+
+      // Invoke token mismatch counter
+      if (mapped.code === 'INVOKE_TOKEN_MISMATCH') {
+        state.invokeTokenMismatchCount = (state.invokeTokenMismatchCount || 0) + 1;
+        if (state.invokeTokenMismatchCount >= INVOKE_TOKEN_MISMATCH_THRESHOLD) {
+          state.invokeTokenMismatchBlockedUntil = nowMs + INVOKE_TOKEN_MISMATCH_BLOCK_MS;
+        }
+      }
+
+      var outerStatus = (mapped.httpStatus > 0) ? mapped.httpStatus : 502;
+      return jsonResponse({
+        ok: false,
+        status: mapped.status,
+        code: mapped.code,
+        httpStatus: mapped.httpStatus
+      }, outerStatus, true, origin);
+    } catch (e) {
+      return workerSafeErrorResponse('WORKER_RESPONSE_MAP_FAILED', true, origin);
+    }
   }
 
   // Fallback — unknown path/method
@@ -370,6 +452,7 @@ module.exports = {
   mapErrorCodeToWeb: mapErrorCodeToWeb,
   isAllowedOrigin: isAllowedOrigin,
   buildMinimalPreflightGate: buildMinimalPreflightGate,
+  buildWorkerRuntimeDeps: buildWorkerRuntimeDeps,
   default: {
     fetch: function(request, env, ctx) { return handleFetch(request, env, ctx); }
   }
