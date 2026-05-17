@@ -5,6 +5,105 @@
 
 ---
 
+## [v0.19.0] — 2026-05-17 (LIVE Execution Preflight Gate)
+
+### Added
+- `/v3/v3-live-execution-preflight-gate.js` — LiveExecutionPreflightGate (신규, 1950 라인)
+  - `WS3_LiveExecutionPreflightGate.build(input, config)` → standalone PREFLIGHT_ONLY LIVE 실행 사전 안전 contract (입력 12종 mutate 0건)
+  - **출력 top-level**: valid/version/preflightMode('PREFLIGHT_ONLY')/liveExecutionAllowed(false)/preflightStatus/sourceGatewayStatus/preflightPolicy/telegramPreflight/snapshotPreflight/evaluationPreflight/auditPreflight/preflightSummary + reasons/warnings/debug/configUsed
+  - **preflightStatus 6 후보** first-match-wins 우선순위: `PREFLIGHT_INVALID > PREFLIGHT_BLOCKED > PREFLIGHT_PARTIAL > PREFLIGHT_READY > PREFLIGHT_SKIPPED > PREFLIGHT_UNKNOWN`
+  - **4 target preflight** (17-stage AND ready) — 모두 동일 13-key shape: telegramPreflight / snapshotPreflight / evaluationPreflight / auditPreflight. 빈 객체 출력 0건
+  - **11 boolean hard block** (DP-PREFLIGHT4): `liveExecutionAllowed / credentialLookupAllowed / bindingLookupAllowed / driverCallAllowed / fetchAllowed / writeAllowed / retryAllowed / timerAllowed / envAccessAllowed / rollbackExecutionAllowed / killSwitchMutationAllowed` 중 하나라도 true → PREFLIGHT_BLOCKED
+  - **7 contract field** (per-preflight): `gatewayRef` (5 safe scalar — target/gatewayStatus/bindingRef/credentialHandleRef/bindingScope), `executionIntent` (5 keys — target/action/intentMode='PREFLIGHT_ONLY'/wouldExecuteLive=false/requiresManualApproval=true), `bindingRequirementSnapshot` (7 keys — required + 6 false), `liveReadinessPolicy` (7 keys — 6 requires* + liveReady=false), `killSwitchPlan` (3 keys — required + currentState='NOT_EVALUATED' + mutationAllowed=false), `rollbackPlan` (3 keys — required + rollbackAvailable=false + rollbackExecutionAllowed=false), `disablePlan` (3 keys — required + disableAvailable=false + disableExecutionAllowed=false). 추가 `riskSummary` (3 keys — riskLevel='PREFLIGHT_ONLY' + blockers/warnings string[])
+  - **3중 안전망 책임 분리**: killSwitchPlan (system-wide pre-LIVE) / disablePlan (per-target pre-LIVE) / rollbackPlan (post-LIVE recovery). v0.19 셋 모두 실제 실행 0건
+  - **8 validate 함수 본문 규칙**: 모두 plain object only + Array/function/Promise/thenable 차단 + depth limit 1 + whitelist key + enum/boolean/강제 false 검증 + `INVALID_<NAME>:<sub-reason>:<target>` reason
+  - **target ↔ action 매핑 1:1**: TELEGRAM→TELEGRAM_SEND, SNAPSHOT_STORE→SNAPSHOT_WRITE, EVALUATION_STORE→EVALUATION_WRITE, AUDIT_STORE→AUDIT_WRITE
+  - **22 forbidden wording** (DP-PREFLIGHT5): v0.18 inherited 20 + v0.19 신규 2 (`LIVE 실행 완료`, `실제 발송`). credential pattern / masked preview term 우선 검사
+  - **RESERVED 31종 자동 차단 제외** (v0.18 26 + v0.19 5 신규 credentialValue* + allowMaskedCredentialPreview)
+  - **v0.20 runtimeState 분리 정책** (N-PREFLIGHT-OBS-5): v0.19 결과는 read-only contract. v0.20 가 `killSwitchRuntimeState / rollbackRuntimeState / disableRuntimeState` 별도 객체 생성. v0.19 결과 mutate 금지.
+  - **logicalRefAllowList 14종 박제** (v0.18 inherited 10 + v0.19 신규 4 bindingRef): TELEGRAM_SECURE_BINDING / KV_SNAPSHOT_BINDING / EVALUATION_STORE_BINDING / AUDIT_STORE_BINDING
+  - **preflightPolicy 박제**: preflightOnly=true + 11 boolean false + liveExecutionRequiresExplicitGate=true
+  - **이중 환경 export**: `global.WS3_LiveExecutionPreflightGate` + `module.exports`
+- `/docs/ws3/WS3_v0_19_0_LIVE_EXECUTION_PREFLIGHT_GATE_REPORT.md` — 완료 보고서 (신규, 17 sections)
+
+### Adopted DP Policy
+- **DP-PREFLIGHT1** LIVE execution preflight gate only. 실제 LIVE 실행 / credential lookup / env / driver call X.
+- **DP-PREFLIGHT2** secureBindingGatewayContract ready/status/lookupPlan/bindingPolicy override 0건.
+- **DP-PREFLIGHT3** PREFLIGHT_ONLY only. LIVE/REAL/EXECUTE → PREFLIGHT_BLOCKED.
+- **DP-PREFLIGHT4** 11 boolean hard block (liveExecution / credentialLookup / bindingLookup / driverCall / fetch / write / retry / timer / envAccess / rollbackExecution / killSwitchMutation).
+- **DP-PREFLIGHT5** credential value / masked / token preview / chatId preview / webhook preview 출력 0건.
+- **DP-PREFLIGHT6** process.env / env / Cloudflare binding / KV namespace / DB connection 접근 0건. env-like → 즉시 PREFLIGHT_BLOCKED.
+- **DP-PREFLIGHT7** executionIntent PREFLIGHT_ONLY 구조. wouldExecuteLive=false 유지.
+- **DP-PREFLIGHT8** rollbackPlan / disablePlan / killSwitchPlan preflight contract only. 실행 0건.
+- **DP-PREFLIGHT9** 12종 입력 read-only.
+- **DP-PREFLIGHT10** 신규 파일 1개 + 문서 갱신만. 보호 파일 31종 수정 금지.
+
+### N-PREFLIGHT-OBS 처리
+- **N-PREFLIGHT-OBS-1** 신규 식별자 fresh (LiveExecutionPreflightGate / PREFLIGHT_xxx / buildXxxPreflight / 7 contract / 8 validate / runtimeState 분리 객체 — 25+ 0건 충돌).
+- **N-PREFLIGHT-OBS-2** v0.18 secureBindingGatewayContract shape 정합. ready/status/lookupPlan/bindingPolicy override 0건.
+- **N-PREFLIGHT-OBS-3** 7 contract field 박제 + 빈 객체 출력 0건.
+- **N-PREFLIGHT-OBS-4** 8 validate 본문 규칙 박제 + INVALID_* reason code 8종.
+- **N-PREFLIGHT-OBS-5** v0.20 runtimeState 분리 정책 (killSwitchRuntimeState/rollbackRuntimeState/disableRuntimeState 별도 객체, v0.19 결과 read-only).
+- **N-PREFLIGHT-OBS-6** 보호 baseline false-positive 모두 정상 (JSDoc / detection list / forbidden list / 식별자 substring).
+- **N-PREFLIGHT-OBS-7** 보호 파일 31종 무손상 (v0.18 v3-secure-binding-gateway-contract.js 신규 추가).
+
+### Changed
+- `/docs/ws3/WS3_CHANGELOG.md` (본 파일): `[v0.19.0]` 엔트리 상단 추가
+- `/docs/ws3/WS3_CURRENT_BASELINE.md`: 완료된 단계 표 + 보호 파일 목록 (31종) + 모듈 의존성 + v0.19.0 핵심 메모 갱신
+
+### Protected (수정 0건 — 31종)
+- v3 *.js 24종 (config ~ secure-binding-gateway-contract)
+- `docs/ws3/WS3_CODE_CONTRACT.md` (b-r2 박제본 그대로)
+- `docs/ws3/WS3_WORKFLOW_TEMPLATE.md` (v0.1 박제본 그대로)
+- `index.html` / `manifest.json` / `service-worker.js`
+- `worker.js` / `wrangler.toml`
+
+### 의도된 미구현 (이번 단계 제외)
+- 실제 LIVE 실행 / credential lookup / process.env / Cloudflare env / globalThis.env / KV namespace / DB connection / Telegram bot token / chatId / webhookUrl / secret binding value 읽기
+- 실제 fetch / Telegram 발송 / KV read/write / DB read/write / binding resolver function 호출
+- 실제 driver call / retry / timer
+- 실제 rollback 실행 / disable 실행 / kill switch 조회 / kill switch 변경
+- credential value 저장 / logging / preview / masked preview
+- async function / await / Promise / setTimeout / setInterval (sync only)
+
+### Verified
+- `node --check v3/v3-live-execution-preflight-gate.js` 통과 (SYNTAX_OK)
+- smoke test **68 시나리오 전부 PASS** (TOTAL=68 PASS=68 FAIL=0):
+  - S1~S4 preflight READY/SKIPPED/INVALID/BLOCKED-by-source-gateway
+  - S5~S16 LIVE mode + 11 boolean hard block → BLOCKED
+  - S17~S20 function / thenable / credential / env-like input → BLOCKED
+  - S21~S24 telegram/snapshot/evaluation/audit preflight 13-key full shape
+  - S25 gatewayRef safe scalar 5 keys (no lookupPlan/bindingPolicy/sandboxResultRef)
+  - S26~S33 executionIntent/bindingRequirementSnapshot/liveReadinessPolicy/killSwitchPlan/rollbackPlan/disablePlan + perTargetGate 박제값 검증
+  - S34~S35 no credential value output + masked preview blocked
+  - S36~S39 no env / no side-effect / mutation 0 / no raw or secret leak
+  - S40~S42 v0.20 runtimeState 분리 / preflight gate is not LIVE executor / rollback·killSwitch not executed
+  - S43~S46 snapshotPreflight/evaluationPreflight/auditPreflight full shape + empty 금지
+  - S47~S51 validateGatewayRef extra key + forbidden keys (lookupPlan/bindingPolicy/sandboxResultRef) + LIVE/REAL/EXECUTE + wouldExecuteLive=true + requiresManualApproval=false blocked
+  - S52~S56 validateBindingRequirementSnapshot 5 credentialValue* true blocked
+  - S57~S59 validateLiveReadinessPolicy liveReady=true + validateKillSwitchPlan 5 forbidden states + mutationAllowed=true blocked
+  - S60~S63 validateRollbackPlan / validateDisablePlan rollback*/disable* true blocked
+  - S64~S67 v0.20 executionIntent/liveReadinessPolicy/killSwitchPlan/rollbackPlan/disablePlan read-only policy
+  - S68 validateRiskSummary PREFLIGHT_ONLY only (LOW/MEDIUM/HIGH/CRITICAL blocked)
+- 모든 시나리오 **입력 mutation 0건** (DP-PREFLIGHT9)
+- 금지 패턴 grep:
+  - async / await / Promise / thenable / setTimeout / setInterval / fetch / Date.now / new Date / performance.now 실제 사용 **0건** (JSDoc / 식별자 substring `Promise` in `hasFunctionOrPromiseInPlainObject` 만)
+  - process.env / globalThis.env / api.telegram.org **0건**
+  - Object.assign / spread / clone / for-in / JSON.parse(JSON.stringify) **0건**
+  - credential / URL / token 외부 노출 **0건** (detection / RESERVED / framework logical handle 식별자만)
+  - 11 boolean `: true` + 5 valueExposed/Masked/Logged/Stored/PreviewAllowed `: true` + liveReady/mutationAllowed/rollback*/disable* `: true` 박제 **0건**
+  - CLOSED / HALF_OPEN / OPEN[^_] 실제 state 사용 **0건** (`INVALID_REQUIRES_CIRCUIT_BREAKER_CLOSED` reason 식별자 substring 1건만)
+  - currentState 박제 'ON' / 'OFF' / 'UNKNOWN' / 'ERROR' / 'BYPASSED' **0건** (NOT_EVALUATED only)
+  - 22 forbidden wording 출력 **0건** (FORBIDDEN_WORDS detection list / getSafeReplacement 치환 매핑만)
+- 보호 파일 `git diff --stat HEAD -- <31 protected files>` 빈 출력 = 0건
+
+### 기준 commit
+- branch: `claude/heuristic-cori-7865e7`
+- 이전 functional baseline: WS3 v0.18.0 secureBindingGatewayContract (`32cbc1d`)
+- 본 commit: (push 후 기록)
+
+---
+
 ## [v0.18.0] — 2026-05-17 (Secure Binding Gateway Contract)
 
 ### Added

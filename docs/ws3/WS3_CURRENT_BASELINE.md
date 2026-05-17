@@ -4,8 +4,8 @@
 > 다음 단계 작업 전에 이 파일로 baseline 을 확인.
 
 **최종 업데이트**: 2026-05-17  
-**기능 단계 (current functional baseline)**: WS3 v0.18.0 Secure Binding Gateway Contract (본 단계)  
-**이전 기능 baseline**: WS3 v0.17.0 transportExecutorSandboxRunner  
+**기능 단계 (current functional baseline)**: WS3 v0.19.0 LIVE Execution Preflight Gate (본 단계)  
+**이전 기능 baseline**: WS3 v0.18.0 secureBindingGatewayContract (`32cbc1d`)  
 **운영 문서**: WS3 Workflow Template v0.1 박제 (`d8bebc2`, v0.3.0-docs)  
 **branch**: `claude/heuristic-cori-7865e7`
 
@@ -39,7 +39,8 @@
 | WS3 v0.15.0 | `/v3/v3-transport-executor-harness.js` | `4a2baa6` | ✅ 박제 |
 | WS3 v0.16.0 | `/v3/v3-transport-executor-interface-adapter.js` | `9eaffe5` | ✅ 박제 |
 | WS3 v0.17.0 | `/v3/v3-transport-executor-sandbox-runner.js` | `0ddbe85` | ✅ 박제 |
-| **WS3 v0.18.0** | **`/v3/v3-secure-binding-gateway-contract.js`** | **(push 후 기록)** | **✅ 박제 (이번 단계, CONTRACT_ONLY secure binding gateway contract)** |
+| WS3 v0.18.0 | `/v3/v3-secure-binding-gateway-contract.js` | `32cbc1d` | ✅ 박제 |
+| **WS3 v0.19.0** | **`/v3/v3-live-execution-preflight-gate.js`** | **(push 후 기록)** | **✅ 박제 (이번 단계, PREFLIGHT_ONLY LIVE execution preflight gate)** |
 
 ## REJECTED — repo 반영 보류
 
@@ -249,7 +250,8 @@ wrangler.toml
 /v3/v3-transport-executor-harness.js        ← v0.15.0 박제본 (DRY_RUN_HARNESS transport executor harness)
 /v3/v3-transport-executor-interface-adapter.js ← v0.16.0 박제본 (INTERFACE_ONLY transport executor interface adapter)
 /v3/v3-transport-executor-sandbox-runner.js ← v0.17.0 박제본 (SANDBOX_ONLY transport executor sandbox runner)
-/v3/v3-secure-binding-gateway-contract.js   ← v0.18.0 박제본 (이번 단계 신규, CONTRACT_ONLY secure binding gateway contract)
+/v3/v3-secure-binding-gateway-contract.js   ← v0.18.0 박제본 (CONTRACT_ONLY secure binding gateway contract)
+/v3/v3-live-execution-preflight-gate.js     ← v0.19.0 박제본 (이번 단계 신규, PREFLIGHT_ONLY LIVE execution preflight gate)
 /v3/v3-index.html                           (생성도 X)
 ```
 
@@ -303,7 +305,9 @@ v3-transport-executor-sandbox-runner.js  (v0.17.0 박제 — SANDBOX_ONLY: teleg
   ↓ (standalone TransportExecutorSandboxRunner 객체, 10종 입력 mutate 0건, side-effect free, sync only, sandboxMode='SANDBOX_ONLY' 강제, 9 boolean hard block (v0.16 8 + timerAllowed 신규), 5종 Preview (callAllowed/lookupAllowed/wouldCall/retryAllowed=false 강제), sandboxFixture 9-step 검증, sandboxResult whitelist scalar only, sandboxResult.ok ≠ target.ready 분리, v0.16 pass-through 재검증, v0.18+ real executor 와 credential 비전달 보장)
 v3-secure-binding-gateway-contract.js  (v0.18.0 박제 — CONTRACT_ONLY: telegramGateway/snapshotGateway/evaluationGateway/auditGateway + 5종 Contract field (credentialHandleRef/bindingScope/lookupPlan/bindingPolicy/sandboxResultRef))
   ↓ (standalone SecureBindingGatewayContract 객체, 11종 입력 mutate 0건, side-effect free, sync only, gatewayMode='CONTRACT_ONLY' 강제, 11 boolean hard block (v0.17 9 + lookupAllowed + envAccessAllowed 신규), 5 safe sandboxResultRef fields (target/action/resultType/simulated/status), framework logical term 우회 알고리즘 (CREDENTIAL_HANDLE / CREDENTIAL_HANDLE_REF substring), v0.17 pass-through 재검증, masked credential preview 출력 0건)
-[v0.19.x — 실제 transport executor / renderer / persistence 분리 단계]
+v3-live-execution-preflight-gate.js  (v0.19.0 박제 — PREFLIGHT_ONLY: telegramPreflight/snapshotPreflight/evaluationPreflight/auditPreflight + 7종 Contract field (gatewayRef/executionIntent/bindingRequirementSnapshot/liveReadinessPolicy/killSwitchPlan/rollbackPlan/disablePlan) + riskSummary)
+  ↓ (standalone LiveExecutionPreflightGate 객체, 12종 입력 mutate 0건, side-effect free, sync only, preflightMode='PREFLIGHT_ONLY' 강제, 11 boolean hard block (liveExecution/credentialLookup/bindingLookup/driverCall/fetch/write/retry/timer/envAccess/rollbackExecution/killSwitchMutation), 4 target 동일 13-key shape (빈 객체 0건), 8 validate 본문 규칙 박제, killSwitchPlan.currentState='NOT_EVALUATED' 강제, rollback/disable executor 호출 0건, v0.20 별도 runtimeState 객체 분리 정책 (killSwitchRuntimeState/rollbackRuntimeState/disableRuntimeState))
+[v0.20.x — 실제 LIVE executor / secure runtime adapter / runtime state 객체 분리 단계]
 ```
 
 ---
@@ -342,6 +346,40 @@ v3-secure-binding-gateway-contract.js  (v0.18.0 박제 — CONTRACT_ONLY: telegr
 ```
 
 ---
+
+## v0.19.0 핵심 메모
+
+```text
+- v3/v3-live-execution-preflight-gate.js 신규 (1950 라인)
+- 보호 파일 31종 모두 무손상 (v0.18 v3-secure-binding-gateway-contract.js 신규 추가)
+- DP-PREFLIGHT1 ~ DP-PREFLIGHT10 + N-PREFLIGHT-OBS-1 ~ N-PREFLIGHT-OBS-7 모두 적용 / 미해결 0건
+- preflightStatus 6 후보 first-match-wins (INVALID > BLOCKED > PARTIAL > READY > SKIPPED > UNKNOWN)
+- 4 target preflight: telegram / snapshot / evaluation / audit (각 17-stage AND ready)
+- preflightMode='PREFLIGHT_ONLY' 강제, liveExecutionAllowed=false 강제 (top-level + preflightPolicy)
+- 11 boolean hard block (liveExecution/credentialLookup/bindingLookup/driverCall/fetch/write/retry/timer/envAccess/rollbackExecution/killSwitchMutation)
+- 7 Contract field (per-preflight): gatewayRef(5 safe scalar) / executionIntent(5 keys, wouldExecuteLive=false, requiresManualApproval=true) / bindingRequirementSnapshot(7 keys, 6 boolean false) / liveReadinessPolicy(7 keys, liveReady=false) / killSwitchPlan(3 keys, currentState='NOT_EVALUATED', mutationAllowed=false) / rollbackPlan(3 keys, rollback*=false) / disablePlan(3 keys, disable*=false)
+- riskSummary(3 keys, riskLevel='PREFLIGHT_ONLY', blockers/warnings string[])
+- 빈 preflight 객체 출력 금지 (4 target 동일 13-key shape)
+- 3중 안전망: killSwitchPlan(system-wide pre-LIVE) / disablePlan(per-target pre-LIVE) / rollbackPlan(post-LIVE recovery). 셋 모두 v0.19 실제 실행 0건
+- 8 validate 본문 규칙 박제 (plain object only, depth limit 1, Array/function/Promise/thenable 차단, whitelist key + enum/boolean/false 강제, INVALID_<NAME>:<sub>:<target> reason)
+- target ↔ action 매핑 1:1 (TELEGRAM→TELEGRAM_SEND 등)
+- 22 forbidden wording (v0.18 20 + v0.19 신규 2: LIVE 실행 완료, 실제 발송)
+- 14 logicalRefAllowList (v0.18 10 + v0.19 신규 4 bindingRef: TELEGRAM_SECURE_BINDING/KV_SNAPSHOT_BINDING/EVALUATION_STORE_BINDING/AUDIT_STORE_BINDING)
+- RESERVED 31종 자동 차단 제외 (v0.18 26 + v0.19 신규 5 credentialValue* + allowMaskedCredentialPreview)
+- v0.20 runtimeState 분리 정책: killSwitchRuntimeState/rollbackRuntimeState/disableRuntimeState 별도 객체. v0.19 결과 read-only.
+- credential 9키 + env-like 11키 + function input 통합 차단
+- validateLogicalRef 6단계 (v0.18 inherited — credential pattern 우선 + framework bypass + token-level function pattern)
+- preflightPolicy 박제: preflightOnly=true + 11 boolean false + liveExecutionRequiresExplicitGate=true
+- Object.assign / spread / JSON.parse(JSON.stringify) / for-in 코드 0건
+- async / await / Promise / thenable / setTimeout / setInterval 코드 0건 (sync only)
+- fetch / Telegram 실호출 / KV / DB / DOM / storage / clock API / process.env / globalThis 코드 0건
+- 실제 rollback 실행 / disable 실행 / kill switch 조회 / kill switch 변경 0건
+- sanitizeMode='REJECT' 기본 (22 금지 어휘 substring match + credential pattern + masked preview term 우선 차단)
+- smoke test 68 시나리오 전부 PASS (TOTAL=68 PASS=68 FAIL=0)
+- 입력 mutation 0건 (DP-PREFLIGHT9)
+- v0.20+ real LIVE executor 와 credential 인계 0건 (gatewayRef logical handle 만 인계)
+- preflight gate ≠ LIVE executor: liveReadinessPolicy.liveReady=false / executionIntent.wouldExecuteLive=false / perTargetGate.allow=false
+```
 
 ## v0.18.0 핵심 메모
 
