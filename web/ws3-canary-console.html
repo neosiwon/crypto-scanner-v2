@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="X-Content-Type-Options" content="nosniff">
+<meta http-equiv="Referrer-Policy" content="no-referrer">
+<title>WS3 Canary Console</title>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; max-width: 480px; margin: 24px auto; padding: 16px; color: #222; }
+  h1 { font-size: 18px; margin: 0 0 16px; }
+  .note { font-size: 12px; color: #666; line-height: 1.4; margin: 0 0 16px; }
+  .row { margin: 10px 0; }
+  label { display: block; font-size: 13px; margin-bottom: 4px; color: #333; }
+  input[type="text"], input[type="password"] { width: 100%; padding: 8px 10px; box-sizing: border-box; font-family: ui-monospace, SFMono-Regular, monospace; font-size: 13px; border: 1px solid #ccc; border-radius: 4px; }
+  button { padding: 10px 16px; font-size: 14px; border: 1px solid #888; background: #fafafa; border-radius: 4px; cursor: pointer; }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
+  .status { padding: 10px 12px; border-radius: 4px; font-size: 13px; font-weight: 600; }
+  .status-READY { background: #eef; color: #225; }
+  .status-SENDING { background: #ffe; color: #553; }
+  .status-SENT { background: #efe; color: #252; }
+  .status-BLOCKED { background: #fee; color: #722; }
+  .status-ERROR { background: #fdd; color: #722; }
+  .result { font-family: ui-monospace, SFMono-Regular, monospace; font-size: 12px; background: #f7f7f7; padding: 10px; border-radius: 4px; line-height: 1.6; }
+  .result .key { color: #666; }
+</style>
+</head>
+<body>
+<h1>WS3 Canary Console</h1>
+
+<p class="note">
+  실 운영 canary 전용 콘솔. Telegram bot token / chat id / invoke token 의 실제 값은
+  본 화면 / localStorage / sessionStorage / cookie 에 저장하지 않는다. invoke token 은
+  매 발송마다 직접 입력 후 즉시 입력칸이 비워진다.
+</p>
+
+<div class="row">
+  <label for="endpoint">Worker Endpoint</label>
+  <input id="endpoint" type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="https://your-canary-worker.example.workers.dev">
+</div>
+
+<div class="row">
+  <label for="token">Invoke Token</label>
+  <input id="token" type="password" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-1p-ignore data-bwignore data-lpignore maxlength="128" placeholder="invoke token (1회 입력, 즉시 클리어)">
+</div>
+
+<div class="row">
+  <button id="sendBtn" type="button">Send Canary</button>
+</div>
+
+<div class="row">
+  <div id="status" class="status status-READY">status: READY</div>
+</div>
+
+<div class="row result">
+  <div><span class="key">code:</span> <span id="code">-</span></div>
+  <div><span class="key">httpStatus:</span> <span id="httpStatus">-</span></div>
+  <div><span class="key">messageType:</span> <span id="messageType">-</span></div>
+  <div><span class="key">fixedMessageUsed:</span> <span id="fixedMessageUsed">-</span></div>
+</div>
+
+<p class="note" style="margin-top: 24px;">
+  허용 표시: status / code / httpStatus / messageType / fixedMessageUsed.<br>
+  표시 금지: Telegram messageId / Telegram raw response / token-chatId 관련 값 /
+  Origin allowlist 실제 값 / response 전체 JSON.
+</p>
+
+<script>
+(function() {
+  'use strict';
+  var endpointEl = document.getElementById('endpoint');
+  var tokenEl = document.getElementById('token');
+  var sendBtn = document.getElementById('sendBtn');
+  var statusEl = document.getElementById('status');
+  var codeEl = document.getElementById('code');
+  var httpStatusEl = document.getElementById('httpStatus');
+  var messageTypeEl = document.getElementById('messageType');
+  var fixedMessageUsedEl = document.getElementById('fixedMessageUsed');
+
+  function setStatus(s) {
+    var safe = (typeof s === 'string' && s.length > 0 && s.length < 32) ? s : 'ERROR';
+    statusEl.textContent = 'status: ' + safe;
+    statusEl.className = 'status status-' + safe;
+  }
+  function setResult(code, httpStatus, messageType, fixedMessageUsed) {
+    codeEl.textContent = (typeof code === 'string' && code.length > 0 && code.length < 64) ? code : '-';
+    httpStatusEl.textContent = (typeof httpStatus === 'number' && isFinite(httpStatus)) ? String(httpStatus) : '-';
+    messageTypeEl.textContent = (typeof messageType === 'string' && messageType.length > 0 && messageType.length < 64) ? messageType : '-';
+    if (fixedMessageUsed === true) fixedMessageUsedEl.textContent = 'true';
+    else if (fixedMessageUsed === false) fixedMessageUsedEl.textContent = 'false';
+    else fixedMessageUsedEl.textContent = '-';
+  }
+
+  setStatus('READY');
+  setResult('-', null, '-', null);
+
+  function clickThrottleLock() {
+    sendBtn.disabled = true;
+    setTimeout(function() { sendBtn.disabled = false; }, 1500);
+  }
+
+  sendBtn.addEventListener('click', function() {
+    var endpoint = (typeof endpointEl.value === 'string') ? endpointEl.value.replace(/^\s+|\s+$/g, '') : '';
+    var token = tokenEl.value;
+    // Clear token input immediately
+    tokenEl.value = '';
+    if (!endpoint || endpoint.length === 0) {
+      setStatus('ERROR');
+      setResult('MISSING_ENDPOINT', null, '-', null);
+      return;
+    }
+    if (!token || typeof token !== 'string' || token.length === 0) {
+      setStatus('ERROR');
+      setResult('MISSING_INVOKE_TOKEN', null, '-', null);
+      return;
+    }
+    setStatus('SENDING');
+    setResult('-', null, '-', null);
+    clickThrottleLock();
+    var url;
+    try {
+      url = new URL('/send-canary', endpoint).toString();
+    } catch (e) {
+      setStatus('ERROR');
+      setResult('INVALID_ENDPOINT', null, '-', null);
+      return;
+    }
+    fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-WS3-Canary-Token': token
+      },
+      body: JSON.stringify({ manualTrigger: true }),
+      mode: 'cors',
+      credentials: 'omit',
+      cache: 'no-store',
+      redirect: 'error'
+    }).then(function(resp) {
+      return resp.json().then(function(body) { return { resp: resp, body: body }; });
+    }).then(function(r) {
+      var b = (r && r.body) ? r.body : {};
+      var s = (typeof b.status === 'string') ? b.status : 'ERROR';
+      var code = (typeof b.code === 'string') ? b.code : 'UNKNOWN_ERROR';
+      var httpStatus = (typeof b.httpStatus === 'number') ? b.httpStatus : r.resp.status;
+      var messageType = (typeof b.messageType === 'string') ? b.messageType : '-';
+      var fmu = (typeof b.fixedMessageUsed === 'boolean') ? b.fixedMessageUsed : null;
+      setStatus(s);
+      setResult(code, httpStatus, messageType, fmu);
+    }).catch(function() {
+      setStatus('ERROR');
+      setResult('TELEGRAM_NETWORK_ERROR', 0, '-', null);
+    });
+  });
+})();
+</script>
+</body>
+</html>
