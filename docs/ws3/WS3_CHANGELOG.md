@@ -5,6 +5,121 @@
 
 ---
 
+## [v0.26.0] — 2026-05-18 (Production Web Console Hosting)
+
+### 목적 (실코인 연결 아님)
+v0.26 은 기존 local-only Web Console 을 production-safe static hosting 구조로 정리하는 단계.
+실 Cloudflare Pages project 생성 / Access 정책 설정 / Worker 재배포 / allowlist 변경 / `/send-canary` / `/cleanup-confirm` / `/operator-reset` 호출 / Telegram API 호출 / KV write — **모두 0건**.
+
+### Added
+- `/web/ws3-canary-console/index.html` (신규, 466 라인) — Cloudflare Pages production entrypoint 후보. `/web/ws3-canary-console.html` 의 byte-for-byte mirror.
+- `/docs/ws3/WS3_v0_26_0_PRODUCTION_WEB_CONSOLE_HOSTING_REPORT.md` — v0.26 완료 보고서 (15 sections)
+
+### Changed
+- `/web/ws3-canary-console.html` 158 → 466 라인 (+308):
+  - 5-section UI 구조 (Configuration / Status / Controlled Operation / Danger Zone / Safe Result)
+  - 신규 버튼: Check State (`GET /state`) / Cleanup Confirm (`POST /cleanup-confirm`) / Operator Reset (`POST /operator-reset` + Reset Phrase 입력)
+  - 기존 Send Canary 버튼 유지 + Danger Zone 시각 분리 (border / warning label / danger class)
+  - state-based 버튼 활성화 (UI 보조 안전장치, 최종 판단은 worker server-side gate)
+  - status panel 7 fields whitelist: version / persistenceAvailable / canaryEnabled / alreadySent / cleanupRequired / circuitOpen / currentPhase
+  - **`resetCount` UI 표시 0건** (worker `/state` 가 반환해도 DOM 에 set 0건, 변수 저장 0건)
+  - mobile viewport CSS: input/button `min-height: 44px`, `button min-width: 120px`, `@media (max-width: 420px) button { width: 100% }`
+  - meta robots `noindex,nofollow,noarchive` / X-Content-Type-Options nosniff / Referrer-Policy no-referrer
+- `/docs/ws3/WS3_CHANGELOG.md` (본 파일): `[v0.26.0]` entry 상단 추가
+- `/docs/ws3/WS3_CURRENT_BASELINE.md`: baseline → v0.26.0 + 완료된 단계 row 추가 + v0.26.0 핵심 메모 추가
+
+### 4 핵심 정책 박제 (실 적용은 별도 deploy Gate)
+1. **Cloudflare Access 필수** — Access 없는 public Pages 비채택. 권장: Self-hosted application + Email allowlist + Email OTP/SSO.
+2. **localhost allowlist 2-phase** — Phase 1 (production 검증 중): `http://localhost:8788,https://<pages-project>.pages.dev`. Phase 2 (production 안정 후): `https://<pages-project>.pages.dev` only. localhost 영구 유지 금지.
+3. **/state UI 표시 정책** — UI 허용 8 fields (ok/version/canaryEnabled/persistenceAvailable/alreadySent/cleanupRequired/circuitOpen/currentPhase). UI 금지: resetCount/lastResetAt/sentAt/blockedUntil/failureCount 등. worker `/state` response 자체 변경은 v0.27+ 후보.
+4. **파일 구조** — `web/ws3-canary-console.html` (staging 호환) + `web/ws3-canary-console/index.html` (production entrypoint) byte-for-byte 동일. build script / shared source 도입은 v0.26.x 후보.
+
+### token 입력 보안 (Web Console)
+- `input type="password"` / `autocomplete="off"` / `autocorrect="off"` / `autocapitalize="off"` / `spellcheck="false"`
+- `data-1p-ignore` / `data-bwignore` / `data-lpignore` (password manager 무시)
+- `maxlength="128"`
+- **`localStorage` / `sessionStorage` / `IndexedDB` / `document.cookie` 호출 0건**
+- URL query parameter token 전달 0건
+- `console.log(token)` 0건
+- `readTokenAndClear()` 패턴 — 각 요청 시점 로컬 변수 1회 사용 후 즉시 `tokenEl.value = ''` 클리어
+- Reset Phrase 도 응답 도착 직후 `resetPhraseEl.value = ''` 클리어
+
+### fetch 옵션 일관 (모든 endpoint)
+```text
+mode: 'cors'
+credentials: 'omit'
+cache: 'no-store'
+redirect: 'error'
+```
+
+### UI 버튼 활성화 정책 (보조 안전장치)
+| 버튼 | UI 조건 | server-side 최종 가드 |
+|---|---|---|
+| Check State | token 입력 후 항상 | `/state` Origin allowlist + invoke token |
+| Send Canary | persistenceAvailable + canaryEnabled=true + alreadySent=false + cleanupRequired=false + circuitOpen=false | v0.22.1 hard precondition AND + v0.23 persistent guard |
+| Cleanup Confirm | cleanupRequired=true | `/cleanup-confirm` server gate |
+| Operator Reset | canaryEnabled=false + alreadySent=true + cleanupRequired=false + circuitOpen=false + phrase exact | v0.25 7중 조건 + circuit + 60s cooldown |
+
+### 정적 검증 결과
+- `grep -Rni "localStorage|sessionStorage|indexedDB|document.cookie" web/` → 매치 2건 (양쪽 파일), 모두 정책 부정문맥 단일 문장 (`"... 에 저장하지 않는다."`). 실 storage API 호출 0건.
+- `grep -Rni "resetCount" web/` → 매치 6건 (양쪽 파일), 모두 정책 footnote / Danger Zone warn 문구 / 코드 주석 (`"// Whitelist: ... Do NOT show resetCount"`). 실 DOM set 0건.
+- `grep -Rni "bot_token|chat_id|message_id|first-4|last-4|masked|redacted" web/` → 정책 / 안내 문맥만 매치. 실 값 노출 0건.
+- `diff -q web/ws3-canary-console.html web/ws3-canary-console/index.html` → 빈 출력 (diff 0건, 18422 bytes / 466 라인 일치).
+- embedded `<script>` 11257 chars Node `new Function(js)` parse 통과.
+
+### Protected (수정 0건)
+- 본선 `worker.js` / `wrangler.toml` (repo 미존재) / `index.html` / `manifest.json` / `service-worker.js` — 미수정
+- `v3/` 25종 엔진 — 미수정
+- `docs/ws3/WS3_CODE_CONTRACT.md` / `WS3_WORKFLOW_TEMPLATE.md` — 미수정
+- `workers/ws3-telegram-canary-worker.js` / `workers/ws3-canary-state-kv-adapter.js` — 미수정 (v0.25.0 그대로)
+- `wrangler-canary.example.toml` / `.gitignore` — 미수정
+- `workers/ws3-telegram-canary-entry.mjs` / `wrangler-canary.toml` / `.claude/` / `.wrangler/` / `.tmp_canary_*` — 미스테이지 유지
+
+### 보안 / 누출 검증 (0건 확인)
+- bot token / chatId / invoke token / KV namespace id / Telegram message_id / raw Telegram response / IP / cookie / session id / browser fingerprint — 코드 / 보고서 / 로그 노출 0건
+- masked / first-4 / last-4 / redacted preview 0건
+- localStorage / sessionStorage / IndexedDB / document.cookie 호출 0건
+- URL query parameter token 전달 0건
+- console.log 출력 0건
+
+### Cloudflare 변경 0건
+- Pages project 생성 0건 / Access 정책 설정 0건 / Pages deploy 0건
+- Worker 재배포 0건 (v0.25.0 production Version 그대로)
+- `WS3_CANARY_ALLOWED_ORIGINS` 변경 0건 (정책 박제만)
+- secrets (BOT_TOKEN / CHAT_ID / INVOKE_TOKEN) 변경 0건
+- `/state` / `/send-canary` / `/cleanup-confirm` / `/operator-reset` 실 호출 0건
+- Telegram API 호출 0건
+- KV write 0건
+
+### production deploy 순서 박제 (실 실행은 별도 Gate)
+```text
+Step 1: Cloudflare Pages project 생성
+Step 2: Cloudflare Access 정책 설정 (Email allowlist + Email OTP / Google SSO)
+Step 3: Pages deploy (Build output directory: web/ws3-canary-console/)
+Step 4: WS3_CANARY_ALLOWED_ORIGINS 에 Pages origin 임시 추가 (Phase 1)
+Step 5: Worker redeploy
+Step 6: production console Check State 만 검증 (Send Canary / Cleanup Confirm / Operator Reset 클릭 0건)
+Step 7: production 안정 후 localhost 제거 + Worker redeploy (Phase 2)
+```
+각 Step 별도 사용자 명시 승인 필요.
+
+### 의도된 미구현 (다음 단계 후보)
+- v0.26 production deploy Gate (Cloudflare Pages / Access / allowlist / Worker redeploy / Check State 검증)
+- v0.26.x: build script / shared source 도입 (두 파일 자동 동기화)
+- v0.27+: Actual Coin Live Preflight / Durable Objects strict one-time guarantee
+- v0.28+: Snapshot / Evaluation / Audit KV write boundary
+- worker `/state` response 자체에서 resetCount 제거 (v0.27+ 후보, 현재는 UI 비노출만)
+- env-based resetPhrase / circuit reset endpoint / failure counter reset endpoint
+- invoke token rotate automation
+- ipHash + `WS3_CANARY_HASH_SALT`
+
+### 기준 commit
+- branch: `claude/heuristic-cori-7865e7`
+- 이전 functional baseline: WS3 v0.25.0 Operator Reset / State Lifecycle + Staging Success (`f2d7ddd`)
+- 본 commit: (push 후 기록)
+
+---
+
 ## [v0.25.0] — 2026-05-18 (Operator Reset / State Lifecycle)
 
 ### Verified (Cloudflare staging — 코드 변경 0건, 추가 deploy 0건)

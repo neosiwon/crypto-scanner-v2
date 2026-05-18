@@ -4,8 +4,8 @@
 > 다음 단계 작업 전에 이 파일로 baseline 을 확인.
 
 **최종 업데이트**: 2026-05-18  
-**기능 단계 (current functional baseline)**: WS3 v0.25.0 Operator Reset / State Lifecycle + Staging Success (canary 전용 KV write exception, /operator-reset endpoint 7중 조건 + circuit + 60s cooldown 가드, /state 10 fields + currentPhase 9-phase 분류, mock smoke 19/19, 실 Cloudflare staging 1회 /operator-reset 호출 성공 검증 완료 — alreadySent true→false / resetCount 0→1 / currentPhase OPERATOR_RESETTABLE→RESET_CONFIRMED / Telegram 발송 0건)  
-**이전 기능 baseline**: WS3 v0.24.0 Persistent Guard Staging Validation (`cd002dc`)  
+**기능 단계 (current functional baseline)**: WS3 v0.26.0 Production Web Console Hosting (local-only Web Console → production-safe static hosting 구조, 5-section UI + Danger Zone 시각 분리 + Check State/Cleanup Confirm/Operator Reset 추가, resetCount UI 비노출, web/ws3-canary-console/index.html byte-for-byte mirror entrypoint 신규, Cloudflare Access 필수 정책 + localhost 2-phase allowlist 정책 박제, 실 Cloudflare 변경 0건 / 실 호출 0건)  
+**이전 기능 baseline**: WS3 v0.25.0 Operator Reset / State Lifecycle + Staging Success (`f2d7ddd`)  
 **운영 문서**: WS3 Workflow Template v0.1 박제 (`d8bebc2`, v0.3.0-docs)  
 **branch**: `claude/heuristic-cori-7865e7`
 
@@ -48,7 +48,8 @@
 | **WS3 v0.23.0** | **`/workers/ws3-canary-state-kv-adapter.js` + canary worker (v0.23) + `.gitignore` + `wrangler-canary.example.toml`** | **`5b6c488`** | **✅ 박제 (Persistent Canary Safety Guard — canary 전용 KV write exception, persistent alreadySent/cleanupRequired/circuit/invokeFail counter, /state + /cleanup-confirm endpoint, mock smoke 16/16)** |
 | **WS3 v0.24.0** | **`/docs/ws3/WS3_v0_24_0_PERSISTENT_GUARD_STAGING_VALIDATION_REPORT.md`** | **`cd002dc`** | **✅ 박제 (Persistent Guard Staging Validation — 운영 검증 Gate, 코드 변경 0건. 실 Cloudflare KV 에서 1회 한정 Telegram canary 발송 → alreadySent/cleanupRequired KV 저장 + 2차 ALREADY_SENT_PERSISTENT 차단 + /cleanup-confirm + alreadySent=true 유지 + CANARY_ENABLED=false 복귀 9건 검증 완료)** |
 | **WS3 v0.25.0** | **`/workers/ws3-telegram-canary-worker.js` + `/workers/ws3-canary-state-kv-adapter.js` + `/docs/ws3/WS3_v0_25_0_OPERATOR_RESET_STATE_LIFECYCLE_REPORT.md`** | **`c3c5ace`** | **✅ 박제 (Operator Reset / State Lifecycle — POST /operator-reset 엔드포인트 7중 조건 + circuit 차단 + 60s cooldown, /state 8→10 fields + currentPhase 9-phase 분류, KV operatorReset 신규 key, mock smoke 19/19. 실 Cloudflare staging deploy + /operator-reset 1회 호출 성공 — alreadySent true→false / resetCount 0→1 / currentPhase OPERATOR_RESETTABLE→RESET_CONFIRMED / Telegram 발송 0건 검증 완료)** |
-| **WS3 v0.25.0 closure** | **`/docs/ws3/WS3_v0_25_0_OPERATOR_RESET_STATE_LIFECYCLE_REPORT.md` §18 추가 + `/docs/ws3/WS3_CHANGELOG.md` + `/docs/ws3/WS3_CURRENT_BASELINE.md`** | **(closure commit 후 기록)** | **✅ 박제 (Operator Reset Staging Success Closure — 코드 변경 0건, 문서 3개만, Cloudflare 변경 0건, /operator-reset 재호출 0건, Telegram 발송 0건)** |
+| **WS3 v0.25.0 closure** | **`/docs/ws3/WS3_v0_25_0_OPERATOR_RESET_STATE_LIFECYCLE_REPORT.md` §18 추가 + `/docs/ws3/WS3_CHANGELOG.md` + `/docs/ws3/WS3_CURRENT_BASELINE.md`** | **`f2d7ddd`** | **✅ 박제 (Operator Reset Staging Success Closure — 코드 변경 0건, 문서 3개만, Cloudflare 변경 0건, /operator-reset 재호출 0건, Telegram 발송 0건)** |
+| **WS3 v0.26.0** | **`/web/ws3-canary-console.html` (보강) + `/web/ws3-canary-console/index.html` (신규 mirror) + `/docs/ws3/WS3_v0_26_0_PRODUCTION_WEB_CONSOLE_HOSTING_REPORT.md`** | **(push 후 기록)** | **✅ 박제 (Production Web Console Hosting — 5-section UI 구조 + Check State/Cleanup Confirm/Operator Reset 추가 + Danger Zone 시각 분리, resetCount UI 비노출, byte-for-byte mirror production entrypoint, Cloudflare Access 필수 + localhost 2-phase allowlist 정책 박제, worker logic 수정 0건 / 실 Cloudflare 변경 0건 / 실 호출 0건 / 실 KV write 0건)** |
 
 ## REJECTED — repo 반영 보류
 
@@ -367,6 +368,69 @@ workers/ws3-telegram-canary-worker.js + web/ws3-canary-console.html  (v0.22.0/v0
 ```
 
 ---
+
+## v0.26.0 핵심 메모
+
+```text
+- web/ws3-canary-console.html 158 → 466 라인 (+308 보강)
+- web/ws3-canary-console/index.html 신규 (466 라인, byte-for-byte mirror of staging file)
+- 신규 산출: /docs/ws3/WS3_v0_26_0_PRODUCTION_WEB_CONSOLE_HOSTING_REPORT.md (15 sections)
+- v0.26 의 핵심: 실코인 연결 아님. local-only Web Console → production-safe static hosting 구조 정리.
+- 4 핵심 정책 박제 (실 적용은 별도 deploy Gate):
+  1. Cloudflare Access 필수 (Self-hosted + Email allowlist + Email OTP/SSO). 운영자 email 만 허용. Access 없는 public Pages 비채택.
+  2. localhost allowlist 2-phase. Phase 1 (production 검증 중) = http://localhost:8788 + Pages origin. Phase 2 (production 안정 후) = Pages origin only. localhost 영구 유지 금지, staging 종료 직후 제거.
+  3. /state UI 표시 정책. UI 허용 8 fields: ok/version/canaryEnabled/persistenceAvailable/alreadySent/cleanupRequired/circuitOpen/currentPhase. UI 금지: resetCount/lastResetAt/sentAt/blockedUntil/failureCount/Telegram message_id/raw response/token/chatId/Origin 실제 값/IP/KV namespace ID.
+  4. 파일 구조. web/ws3-canary-console.html (staging 호환) + web/ws3-canary-console/index.html (production entrypoint). v0.26 에서는 byte-for-byte 동일. build script / shared source 는 v0.26.x 후보.
+- Web Console UI 5-section 구조:
+  · Section 1 Configuration (Worker Endpoint / Invoke Token)
+  · Section 2 Status (Check State 버튼 + 7-field panel)
+  · Section 3 Controlled Operation (Cleanup Confirm, cleanupRequired-gated)
+  · Section 4 Danger Zone (Send Canary / Reset Phrase / Operator Reset, border + warn + danger class 시각 분리)
+  · Section 5 Safe Result (code/httpStatus/messageType/fixedMessageUsed whitelist 4 fields)
+- UI 버튼 활성화 정책 (보조 안전장치, 최종 판단은 worker server-side):
+  · Check State: token 입력 후
+  · Send Canary: persistenceAvailable + canaryEnabled=true + alreadySent=false + cleanupRequired=false + circuitOpen=false
+  · Cleanup Confirm: cleanupRequired=true
+  · Operator Reset: canaryEnabled=false + alreadySent=true + cleanupRequired=false + circuitOpen=false + phrase exact ("RESET_WS3_CANARY_STATE" byte-for-byte)
+- token 입력 보안:
+  · input type=password / autocomplete=off / autocorrect=off / autocapitalize=off / spellcheck=false
+  · data-1p-ignore / data-bwignore / data-lpignore (password manager 무시)
+  · maxlength=128
+  · localStorage / sessionStorage / IndexedDB / document.cookie 호출 0건
+  · URL query parameter token 전달 0건
+  · console.log(token) 0건
+  · readTokenAndClear() 패턴: 각 요청 시점 로컬 변수 1회 사용 후 tokenEl.value='' 즉시 클리어
+  · Reset Phrase 도 응답 도착 직후 resetPhraseEl.value='' 즉시 클리어
+- fetch 옵션 일관 (모든 endpoint): mode='cors' / credentials='omit' / cache='no-store' / redirect='error'
+- meta-level: robots=noindex,nofollow,noarchive / X-Content-Type-Options=nosniff / Referrer-Policy=no-referrer
+- mobile viewport CSS: input/button min-height 44px / button min-width 120px / @media (max-width 420px) button { width 100% } / 가로 스크롤 없음 (max-width 520px + box-sizing border-box)
+- 정적 검증:
+  · localStorage/sessionStorage/IndexedDB/document.cookie 호출 0건 (매치 2건은 모두 정책 부정문맥)
+  · resetCount DOM set 0건 (매치 6건은 모두 정책 footnote / Danger Zone warn / 코드 주석)
+  · bot_token/chat_id/message_id 실 값 노출 0건
+  · diff -q 결과 두 파일 0건 (18422 bytes / 466 라인 일치)
+  · embedded <script> 11257 chars Node parse 통과
+- 보호 파일 (worker.js + wrangler.toml + index.html + manifest.json + service-worker.js + v3/ 25종 + WS3_CODE_CONTRACT.md + WS3_WORKFLOW_TEMPLATE.md + workers/ws3-telegram-canary-worker.js + workers/ws3-canary-state-kv-adapter.js + wrangler-canary.example.toml + .gitignore) diff 0건
+- 미스테이지 유지: workers/ws3-telegram-canary-entry.mjs / wrangler-canary.toml / .claude/ / .wrangler/ / .tmp_canary_*
+- Cloudflare 변경 0건 (Pages project 생성 0건 / Access 정책 0건 / Pages deploy 0건 / worker 재배포 0건 / WS3_CANARY_ALLOWED_ORIGINS 변경 0건 / secrets 변경 0건)
+- 실 호출 0건 (/state / /send-canary / /cleanup-confirm / /operator-reset 모두 0건) / 실 Telegram API 호출 0건 / 실 KV write 0건
+- production deploy 순서 박제 (실 실행은 별도 Gate):
+  · Step 1 Cloudflare Pages project 생성
+  · Step 2 Cloudflare Access 정책 설정 (Email allowlist + OTP/SSO)
+  · Step 3 Pages deploy (Build output: web/ws3-canary-console/)
+  · Step 4 WS3_CANARY_ALLOWED_ORIGINS 임시 추가 (Phase 1)
+  · Step 5 Worker redeploy
+  · Step 6 production console Check State 만 검증 (Send Canary / Cleanup Confirm / Operator Reset 클릭 0건)
+  · Step 7 production 안정 후 localhost 제거 + Worker redeploy (Phase 2)
+- 다음 후보:
+  · v0.26 production deploy Gate (별도 Cloudflare Pages 생성 / Access / allowlist / Worker redeploy)
+  · v0.26.x: build script / shared source 도입 (두 파일 자동 동기화)
+  · v0.27+: Actual Coin Live Preflight / Durable Objects strict one-time guarantee
+  · v0.28+: Snapshot / Evaluation / Audit KV write boundary
+  · worker /state response 자체에서 resetCount 제거 (v0.27+, 현재는 UI 비노출만)
+  · env-based resetPhrase / circuit reset endpoint / failure counter reset endpoint
+  · invoke token rotate automation / ipHash + WS3_CANARY_HASH_SALT
+```
 
 ## v0.25.0 Staging Success (실 Cloudflare 검증 박제)
 
