@@ -7,6 +7,18 @@
 
 ## [v0.27.0] — 2026-05-18 (Actual Coin Live Preflight)
 
+### Verified (Cloudflare Worker redeploy + Pages deploy + production Live Preflight 1회 실 호출 — 코드 변경 0건 / tracked source 변경 0건)
+- v0.27 Worker was deployed successfully (production version, `/live-preflight` route 포함).
+- v0.27 Web Console was deployed successfully to `ws3-canary-console.pages.dev` (production branch, Live Preflight Section 6 UI 반영).
+- Production console Check State returned `version=WS3_v0.27.0_actual_coin_live_preflight` / `canaryEnabled=false` / `persistenceAvailable=true` / `alreadySent=false` / `cleanupRequired=false` / `circuitOpen=false` / `currentPhase=RESET_CONFIRMED`.
+- `/live-preflight` was executed **once** for `upbit` / `KRW-BTC` / `5m` / `limit=30`.
+- The result returned `code=LIVE_PREFLIGHT_OK` / `mode=LIVE_PREFLIGHT_ONLY`.
+- `candleCount=30`, `latestTime=2026-05-18T16:35:00Z`, `lastClose=113892000`, `changePct=0.11075365223353198`, `volumeRatio=0.2566780720123906`.
+- `telegramSent=false` and `kvWritten=false` (and `candidateStored=false` / `trackingStarted=false`).
+- Candidate storage and tracking were not started.
+- Send Canary / Cleanup Confirm / Operator Reset were not triggered.
+- raw exchange full response, Invoke Token, invite code, invite hash, KV namespace ID — **not recorded** in repo / chat / log.
+
 ### 목적 (실코인 자동 알람 아님)
 v0.27 = 실 거래소 공개 시세 데이터를 read-only 1회 fetch + 정규화 preview. **실 Telegram / KV write / candidate 저장 / tracking 시작 / Cloudflare deploy / 실 거래소 API 호출 — 모두 0건** (mock smoke 만).
 
@@ -127,7 +139,8 @@ S1 no token → 401 / S2 bad token → 403 / S3 no manualTrigger → 400 / S4 in
 ### 기준 commit
 - branch: `claude/heuristic-cori-7865e7`
 - 이전 functional baseline: WS3 v0.26.1 Dev Preview Lightweight Invite Gate + Pages Deploy Success (`81964bf`)
-- 본 commit: (push 후 기록, push 별도 승인)
+- 코드 commit: `d3e80b4` (ws3: v0.27.0 actualCoinLivePreflight, push 완료)
+- live validation closure commit: 본 closure commit (코드 변경 0건 / docs 3개만 — push 별도 승인)
 
 ---
 

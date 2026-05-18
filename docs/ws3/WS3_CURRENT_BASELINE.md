@@ -4,7 +4,7 @@
 > 다음 단계 작업 전에 이 파일로 baseline 을 확인.
 
 **최종 업데이트**: 2026-05-18  
-**기능 단계 (current functional baseline)**: WS3 v0.27.0 Actual Coin Live Preflight code-ready (POST /live-preflight 신규 endpoint — read-only public market data preview, exchange/timeframe allowlist + market 정규식 sanitize + limit ≤ 60, 5s timeout, mock smoke 16/16, Telegram 0건 / KV write 0건 / candidate 저장 0건 / tracking 시작 0건 / 실 거래소 API 호출 0건 / Cloudflare deploy 0건)  
+**기능 단계 (current functional baseline)**: WS3 v0.27.0 Actual Coin Live Preflight + Live Validation Success (Cloudflare Worker v0.27 redeploy + Pages production deploy 완료, production console Check State PASS, `/live-preflight` 1회 실 호출 PASS — upbit/KRW-BTC/5m/limit=30 → LIVE_PREFLIGHT_OK / candleCount=30 / mode=LIVE_PREFLIGHT_ONLY / Telegram 0건 / KV write 0건 / candidate 저장 0건 / tracking 시작 0건)  
 **이전 기능 baseline**: WS3 v0.26.1 Dev Preview Lightweight Invite Gate + Pages Deploy Success (`81964bf`)  
 **운영 문서**: WS3 Workflow Template v0.1 박제 (`d8bebc2`, v0.3.0-docs)  
 **branch**: `claude/heuristic-cori-7865e7`
@@ -52,7 +52,8 @@
 | **WS3 v0.26.0** | **`/web/ws3-canary-console.html` (보강) + `/web/ws3-canary-console/index.html` (신규 mirror) + `/docs/ws3/WS3_v0_26_0_PRODUCTION_WEB_CONSOLE_HOSTING_REPORT.md`** | **`55a00d8`** | **✅ 박제 (Production Web Console Hosting — 5-section UI 구조 + Check State/Cleanup Confirm/Operator Reset 추가 + Danger Zone 시각 분리, resetCount UI 비노출, byte-for-byte mirror production entrypoint, Cloudflare Access 필수 + localhost 2-phase allowlist 정책 박제, worker logic 수정 0건 / 실 Cloudflare 변경 0건 / 실 호출 0건 / 실 KV write 0건)** |
 | **WS3 v0.26.1** | **`/web/ws3-canary-console.html` (보강) + `/web/ws3-canary-console/index.html` (mirror) + `/docs/ws3/WS3_v0_26_1_DEV_PREVIEW_INVITE_GATE_REPORT.md`** | **`634093d`** | **✅ 박제 (Dev Preview Lightweight Invite Gate — Cloudflare Access 필수 정책을 Dev Preview 단계용으로 amendment, client-side invite gate prepend + console UI `<main hidden>` wrap, SHA-256 placeholder commit + constant-time compare + 5회·60초 memory throttle, storage 0건, 두 파일 byte-for-byte mirror 유지, 실 invite code 원문/실 hash repo commit 0건, worker logic 수정 0건 / 실 Cloudflare 변경 0건 / 실 호출 0건 / 실 KV write 0건)** |
 | **WS3 v0.26.1 Pages Deploy** | **`/docs/ws3/WS3_v0_26_1_DEV_PREVIEW_INVITE_GATE_REPORT.md` §16 추가 + `/docs/ws3/WS3_CHANGELOG.md` + `/docs/ws3/WS3_CURRENT_BASELINE.md`** | **`81964bf`** | **✅ 박제 (Dev Preview Pages Deploy Success Closure — 코드 변경 0건 / tracked source 변경 0건 / 문서 3개만. Cloudflare Pages `ws3-canary-console.pages.dev` 배포 / Worker allowlist = Pages origin only / localhost 제거 / lightweight invite gate active / final production Check State PASS / Cloudflare Access deferred / Send Canary 0건 / Telegram 0건 / KV write 0건 / raw invite code & SHA-256 hash repo 박제 0건)** |
-| **WS3 v0.27.0** | **`/workers/ws3-telegram-canary-worker.js` (보강) + `/web/ws3-canary-console.html` (보강) + `/web/ws3-canary-console/index.html` (mirror) + `/docs/ws3/WS3_v0_27_0_ACTUAL_COIN_LIVE_PREFLIGHT_REPORT.md`** | **(push 후 기록)** | **✅ 박제 (Actual Coin Live Preflight — POST /live-preflight 신규 endpoint, 실 거래소 (upbit/bithumb/binance) 공개 시세 read-only fetch + 정규화 preview, 3중 인증 (Origin + Invoke Token + manualTrigger), exchange/timeframe allowlist + market 정규식 sanitize + limit ≤ 60, 5s timeout, mock smoke 16/16. 실 Telegram 0건 / 실 KV write 0건 / 실 거래소 API 호출 0건 / Cloudflare deploy 0건. v0.28+ 후보: dry-run candidate / security hardening before live coin)** |
+| **WS3 v0.27.0** | **`/workers/ws3-telegram-canary-worker.js` (보강) + `/web/ws3-canary-console.html` (보강) + `/web/ws3-canary-console/index.html` (mirror) + `/docs/ws3/WS3_v0_27_0_ACTUAL_COIN_LIVE_PREFLIGHT_REPORT.md`** | **`d3e80b4`** | **✅ 박제 (Actual Coin Live Preflight — POST /live-preflight 신규 endpoint, 실 거래소 (upbit/bithumb/binance) 공개 시세 read-only fetch + 정규화 preview, 3중 인증 (Origin + Invoke Token + manualTrigger), exchange/timeframe allowlist + market 정규식 sanitize + limit ≤ 60, 5s timeout, mock smoke 16/16. 실 Telegram 0건 / 실 KV write 0건 / 실 거래소 API 호출 0건 / Cloudflare deploy 0건. v0.28+ 후보: dry-run candidate / security hardening before live coin)** |
+| **WS3 v0.27.0 Live Validation** | **`/docs/ws3/WS3_v0_27_0_ACTUAL_COIN_LIVE_PREFLIGHT_REPORT.md` §20 추가 + `/docs/ws3/WS3_CHANGELOG.md` + `/docs/ws3/WS3_CURRENT_BASELINE.md`** | **(closure commit 후 기록)** | **✅ 박제 (Live Validation Success Closure — 코드 변경 0건 / tracked source 변경 0건 / 문서 3개만. Cloudflare Worker v0.27 redeploy + Pages production deploy 완료, production console Check State PASS (v0.27 version 반영 확인), `/live-preflight` 1회 실 호출 PASS — upbit / KRW-BTC / 5m / limit=30 → LIVE_PREFLIGHT_OK / candleCount=30 / mode=LIVE_PREFLIGHT_ONLY / Telegram 0건 / KV write 0건 / candidate 저장 0건 / tracking 시작 0건. 노출된 폐기 hash repo-wide 매치 0건, raw exchange full response / Invoke Token / KV namespace ID 노출 0건)** |
 
 ## REJECTED — repo 반영 보류
 
@@ -371,6 +372,44 @@ workers/ws3-telegram-canary-worker.js + web/ws3-canary-console.html  (v0.22.0/v0
 ```
 
 ---
+
+## v0.27.0 Live Validation Success (실 Cloudflare 검증 박제)
+
+```text
+v0.27.0 Live Validation Success:
+- Worker deploy: completed (Version single fragment 19f89bf6, size 136.03 KiB / gzip 21.71 KiB)
+- Pages deploy: completed (production URL ws3-canary-console.pages.dev, --branch=main, lightweight invite gate 활성 유지)
+- Production console Check State PASS:
+  · version=WS3_v0.27.0_actual_coin_live_preflight
+  · persistenceAvailable=true
+  · canaryEnabled=false
+  · alreadySent=false
+  · cleanupRequired=false
+  · circuitOpen=false
+  · currentPhase=RESET_CONFIRMED
+- /live-preflight actual read-only call PASS (1회):
+  · exchange=upbit / market=KRW-BTC / timeframe=5m / limit=30
+  · code=LIVE_PREFLIGHT_OK / mode=LIVE_PREFLIGHT_ONLY
+  · candleCount=30 / latestTime=2026-05-18T16:35:00Z
+  · lastClose=113892000 / changePct=0.11075365223353198 / volumeRatio=0.2566780720123906
+- safety flags 모두 false: telegramSent / kvWritten / candidateStored / trackingStarted
+- Send Canary count: 0 / Cleanup Confirm count: 0 / Operator Reset count: 0
+- Telegram API calls: 0 / KV writes: 0
+- CANARY_ENABLED=false maintained / AUTHORIZED_AT=0 maintained
+- WS3_CANARY_ALLOWED_ORIGINS = https://ws3-canary-console.pages.dev (Pages-only) 유지
+- raw exchange full response (candle_date_time_kst / opening_price / candle_acc_trade_price 등): not recorded
+- Invoke Token: not recorded / KV namespace ID: not recorded
+- raw invite code / SHA-256 hash: not recorded (placeholder repo 박제 유지, git grep repo-wide 노출 폐기 hash 매치 0건)
+- deployment ID 전체값: not recorded (Version ID 단편만)
+- Gate 진행 흐름: Step A (preflight sanity) → Step B (Worker redeploy) → Step C (hash reuse) → Step D (.tmp_pages_deploy 생성) → Step E (assignment line 1건만 hash 교체) → Step F (Pages deploy --branch=main) → Step G (temp cleanup + 검증) → Step H (사용자 Check State PASS) → Step I (사용자 Live Preflight 1회 PASS)
+- 본 검증 한계 (재인용): 1 isolate / 1 사용자 / 1 market (upbit KRW-BTC 5m) 범위. 다른 exchange (bithumb / binance) / 다른 timeframe / 다른 limit / rate limit 응답 / partial data / market suspension / DNS 차단은 본 검증 범위 밖.
+
+Next:
+v0.28 candidate:
+  - 후보 A: basic candle structure preview
+  - 후보 B: Actual Coin Candidate Dry-run (계산만, Telegram/KV 0건)
+  - 후보 C: Security hardening before live coin stage (Cloudflare Access 재검토 / invoke token rotation / origin allowlist 재검토)
+```
 
 ## v0.27.0 핵심 메모
 

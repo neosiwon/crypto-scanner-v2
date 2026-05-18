@@ -372,3 +372,79 @@ Telegram 발송 0건 / KV write 0건 / candidate 저장 0건 / tracking 시작 0
 실 거래소 API 호출은 별도 staging Gate (본 commit 까지 mock 만)
 실전 스캐너 본체는 v0.28 이후
 ```
+
+---
+
+## 20. Final Live Validation Result
+
+본 섹션은 v0.27.0 코드 commit (`d3e80b4`) 이후 실제 Cloudflare Worker redeploy + Pages production deploy + production console 에서 Check State + `/live-preflight` 1회 실 호출 검증까지 마친 결과 박제다. 코드 변경 0건 / tracked source 변경 0건 / hash 또는 raw invite code repo 박제 0건 / Telegram 발송 0건 / KV write 0건 / candidate 저장 0건 / tracking 시작 0건.
+
+- Worker deploy: **completed** (Version single fragment `19f89bf6`, `ws3-telegram-canary.neosiwon.workers.dev` 동일 URL, size 136.03 KiB / gzip 21.71 KiB)
+- Pages deploy: **completed** (production URL `ws3-canary-console.pages.dev`, `--branch=main`, lightweight invite gate 활성 유지, working copy hash 주입 후 즉시 cleanup, tracked source diff 0건)
+- Production console Check State: **succeeded**
+  - `version=WS3_v0.27.0_actual_coin_live_preflight`
+  - `persistenceAvailable=true`
+  - `canaryEnabled=false`
+  - `alreadySent=false`
+  - `cleanupRequired=false`
+  - `circuitOpen=false`
+  - `currentPhase=RESET_CONFIRMED`
+- Live Preflight actual read-only call: **succeeded** (1회)
+  - Exchange: `upbit`
+  - Market: `KRW-BTC`
+  - Timeframe: `5m`
+  - Limit result candleCount: `30`
+  - Latest candle time: `2026-05-18T16:35:00Z`
+  - Last close: `113892000`
+  - Change percent: `0.11075365223353198`
+  - Volume ratio: `0.2566780720123906`
+  - Result code: `LIVE_PREFLIGHT_OK`
+  - Mode: `LIVE_PREFLIGHT_ONLY`
+- safety flags:
+  - `telegramSent: false`
+  - `kvWritten: false`
+  - `candidateStored: false`
+  - `trackingStarted: false`
+- Send Canary count during this gate: **0**
+- Cleanup Confirm count during this gate: **0**
+- Operator Reset count during this gate: **0**
+- Telegram API calls during this gate: **0**
+- KV writes during this gate: **0**
+- raw exchange full response **not recorded** (raw native field — `candle_date_time_kst` / `opening_price` / `candle_acc_trade_price` 등 — 보고서 / 채팅 / 로그 노출 0건)
+- Invoke Token **not recorded**
+- raw invite code / SHA-256 hash **not recorded** (placeholder repo 박제 유지, `git grep` repo-wide 노출 폐기 hash 매치 0건)
+- KV namespace ID **not recorded**
+- deployment ID full value **not recorded** (Version ID 단편 + Pages deployment hash 단편만)
+
+### 20.1 Gate 진행 흐름 박제 (Step A → I)
+
+```text
+Step A (자동):  preflight sanity (git/protected diff/wrangler env vars/tracked placeholder)
+Step B (자동):  wrangler deploy --config wrangler-canary.toml → Worker v0.27 production version 활성
+                  · CANARY_ENABLED=false / AUTHORIZED_AT=0 / ALLOWED_ORIGINS=Pages-only 유지
+Step C (자동):  hash reuse 결정 — 이전 세션 SHA-256 재사용, 추가 사용자 입력 요청 0건
+Step D (자동):  .tmp_pages_deploy/ws3-canary-console/index.html 생성 (tracked index.html cp)
+Step E (자동):  assignment 라인 1건만 hash 교체 (line 237) — comment + placeholder check 라인 2건 보존
+Step F (자동):  wrangler pages deploy ... --branch=main → production Pages URL 활성화
+Step G (자동):  .tmp_pages_deploy/ 즉시 삭제 + tracked diff 0건 + placeholder 3+3 박제 + 보호 파일 0건 + git grep 노출 폐기 hash 0건 검증
+Step H (사용자): production console 접속 → invite code 입력 → console UI 표시 → Worker Endpoint / Invoke Token 입력 → Check State 1회 클릭 → 7-field whitelist PASS
+Step I (사용자): Run Live Preflight 1회 클릭 (upbit / KRW-BTC / 5m / limit 30) → LIVE_PREFLIGHT_OK 200 / mode=LIVE_PREFLIGHT_ONLY / candleCount=30 / safety 4 fields 모두 false
+```
+
+### 20.2 v0.27 검증 한계 (재인용)
+
+- 본 검증 = 1 isolate / 1 사용자 / 1 market (upbit KRW-BTC 5m) / 단일 timeframe 시퀀스. 다른 exchange (bithumb / binance) / 다른 timeframe / 다른 limit / rate limit 응답 / partial data / market suspension / DNS 차단 — 본 검증 범위 밖.
+- `/live-preflight` 인증 = Layer 1 (Origin) + Layer 2 (Invoke Token) + Layer 3 (manualTrigger). KV persistent guard 미사용. read-only 이므로 abuse 위험 최소화 위해 limit ≤ 60 / single market 제한.
+- 본 단계 = read-only preflight. candidate 계산 / 점수화 / 후보 저장 / live signal 발송은 v0.28+ 별도 단계.
+
+### 20.3 v0.28+ 다음 단계 후보 (재인용)
+
+```text
+v0.28 후보 A: Live Preflight 결과 기반 basic candle structure preview
+v0.28 후보 B: Actual Coin Candidate Dry-run (후보 계산만, Telegram / KV 0건)
+v0.28 후보 C: Security hardening before live coin stage
+                · Cloudflare Access 재검토 / invoke token rotation / origin allowlist 재검토
+worker /state response 자체에서 resetCount 제거 (v0.28+)
+env-based LIVE_PREFLIGHT_DISABLED kill switch
+rate limit per origin / market / minute / invoke token rotate automation / ipHash + WS3_CANARY_HASH_SALT
+```
