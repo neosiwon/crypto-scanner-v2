@@ -5,6 +5,156 @@
 
 ---
 
+## [v0.28.0] — 2026-05-18 (Actual Coin Candidate Dry-run)
+
+### 목적 (실코인 자동 알람 아님)
+v0.28 = 실 거래소 공개 시세 read-only fetch + candle structure / volume / momentum features 계산 + dry-run score / grade preview. **실 Telegram / KV write / candidate 저장 / tracking 시작 / Cloudflare deploy / 실 거래소 API 호출 — 모두 0건** (mock smoke 만). 점수·등급은 dry-run preview 일뿐 실 알람·매수 조건 아님.
+
+### Added
+- `/docs/ws3/WS3_v0_28_0_CANDIDATE_DRY_RUN_REPORT.md` — v0.28 완료 보고서 (18 sections)
+- `/workers/ws3-telegram-canary-worker.js` 확장 (1336 → 1718 라인, +382):
+  - `VERSION = 'WS3_v0.28.0_candidate_dry_run'`
+  - 신규 상수: `CANDIDATE_DRY_RUN_MODE = 'CANDIDATE_DRY_RUN_ONLY'` / `CANDIDATE_DRY_RUN_LIMIT_MIN = 1` / `CANDIDATE_DRY_RUN_LIMIT_MAX = 120` / `CANDIDATE_DRY_RUN_REASON_CHIP_MAX = 8` (exchanges / timeframes / market pattern 은 v0.27 `LIVE_PREFLIGHT_*` 상수 재사용)
+  - 신규 helper 함수 (인라인, 신규 require 0건):
+    - `safeDivide(num, den, fallback)` — NaN/Infinity 방지 division
+    - `validateCandidateDryRunRequest(body)` — 입력 검증 + 정규화
+    - `mapFetchCodeToCandidateDryRunCode(code)` — v0.27 fetch/normalize 에러 코드를 v0.28 코드로 매핑
+    - `calculateCandleStructureFeatures(candles)` — bodyPct / rangePct / upperWickPct / lowerWickPct / closePosition / changePct
+    - `calculateVolumeFeatures(candles)` — lastVolume / avgVolume / volumeRatio / volumeAccel (n≥13 시)
+    - `calculateMomentumFeatures(candles)` — shortMomentumPct / midMomentumPct / highBreakProximity / lowBreakRisk
+    - `calculateCandidateDryRunScore(inputs)` — 0..100 clamp + reason chips (max 8)
+    - `classifyCandidateDryRunGrade(score)` — P-S/P-A/P-B/P-C
+    - `buildCandidateDryRunResponse(req, sf, vf, mf, score, grade, chips)` — whitelist 응답
+  - **POST `/candidate-dry-run`** 엔드포인트 (Origin allowlist + invoke token + manualTrigger 3중 인증 / Content-Type / Content-Length / body byte limit / v0.27 helper 재사용 — buildLivePreflightUrl / fetchLiveCandles / normalizeCandles / 5s timeout / KV 미사용)
+  - OPTIONS preflight 허용 path 확장: `/health` / `/send-canary` / `/state` / `/cleanup-confirm` / `/operator-reset` / `/live-preflight` / `/candidate-dry-run`
+- `/web/ws3-canary-console.html` Section 7 "Candidate Dry-run (v0.28 read-only)" 신규 추가 (791 → 990 라인, +199):
+  - Exchange / Market / Timeframe / Limit input + Run Candidate Dry-run 버튼 (1.5s throttle, 클릭시에만 1회 fetch)
+  - 결과 panel whitelist 22 fields (code / mode / exchange / market / timeframe / candleCount / latestTime / lastClose / changePct / volumeRatio / volumeAccel / closePosition / upperWickPct / rangePct / score / grade / reasonChips / isCandidate / telegramSent / kvWritten / candidateStored / trackingStarted)
+- `/web/ws3-canary-console/index.html` 위 동일 변경 (byte-for-byte mirror 유지, 33380 → 45836 bytes / 791 → 990 라인 일치)
+
+### Changed
+- `/docs/ws3/WS3_CHANGELOG.md` (본 파일): `[v0.28.0]` entry 상단 추가
+- `/docs/ws3/WS3_CURRENT_BASELINE.md`: baseline → v0.28.0 + 완료된 단계 row 추가 + v0.28.0 핵심 메모 추가
+- worker `VERSION` 상수: `WS3_v0.27.0_actual_coin_live_preflight` → `WS3_v0.28.0_candidate_dry_run`
+
+### /candidate-dry-run 인증 (3중)
+| # | 조건 | 위반 시 |
+|---|---|---|
+| 1 | Origin allowlist 통과 | `ORIGIN_MISSING` 403 / `ORIGIN_NOT_ALLOWED` 403 |
+| 2 | `X-WS3-Canary-Token === env.WS3_CANARY_INVOKE_TOKEN` exact | `MISSING_INVOKE_TOKEN` 401 / `INVOKE_TOKEN_MISMATCH` 403 |
+| 3 | `body.manualTrigger === true` | `MANUAL_TRIGGER_REQUIRED` 400 |
+
+KV / circuit / persistent guard 미사용 (read-only). abuse 위험 최소화 위해 limit ≤ 120 / single market 제한.
+
+### request body 검증 (v0.27 helper 호환)
+- `exchange`: allowlist 3종 (lowercase 정규화) — v0.27 와 동일
+- `market`: `^[A-Za-z0-9_\-]{2,32}$` — v0.27 와 동일
+- `timeframe`: allowlist 4종 — v0.27 와 동일
+- `limit`: integer in `[1, 120]` (v0.27 60 보다 상향, feature 계산용 데이터 폭)
+
+### v0.27 helper 재사용
+- `buildLivePreflightUrl(exchange, market, timeframe, limit)` — 그대로 호출 (upbit/bithumb/binance URL 패턴 100% 재사용)
+- `fetchLiveCandles(deps, url, 5000)` — 그대로 호출 (5초 AbortController timeout)
+- `normalizeCandles(exchange, raw, limit)` — 그대로 호출 (uniform OHLCV oldest→latest)
+- 에러 코드 매핑: `mapFetchCodeToCandidateDryRunCode` 가 `LIVE_PREFLIGHT_*` → `CANDIDATE_DRY_RUN_*` 변환
+
+### feature 계산
+- candle structure: 13 fields (candleCount / latestTime / lastOpen,High,Low,Close / prevClose / changePct / bodyPct / upperWickPct / lowerWickPct / closePosition / rangePct)
+- volume: 4 fields (lastVolume / avgVolume / volumeRatio / volumeAccel)
+- momentum: 4 fields (shortMomentumPct / midMomentumPct / highBreakProximity / lowBreakRisk)
+- 모든 divide 는 `safeDivide(num, den, fallback)` — open=0 / high=low / avgVolume=0 등 분기 명시. NaN/Infinity 반환 0건.
+
+### dry-run score / grade
+- score: 0..100 clamp + reason chips (max 8)
+  - volumeRatio / changePct / closePosition / shortMomentumPct 가산
+  - upperWick risk / wide range risk 감산
+- grade: `P-S` (≥75) / `P-A` (≥60) / `P-B` (≥45) / `P-C` (<45)
+- isCandidate: `(grade === 'P-S' || grade === 'P-A')` UI flag — **실 알람·매수 조건 아님**
+- 기존 WOOS S+/S/A 등급과 혼동 금지 (별도 namespace)
+
+### 신규 safe code (11종)
+- `CANDIDATE_DRY_RUN_OK` 200
+- `CANDIDATE_DRY_RUN_INVALID_EXCHANGE` 400
+- `CANDIDATE_DRY_RUN_INVALID_MARKET` 400
+- `CANDIDATE_DRY_RUN_INVALID_TIMEFRAME` 400
+- `CANDIDATE_DRY_RUN_LIMIT_EXCEEDED` 400
+- `CANDIDATE_DRY_RUN_FETCH_TIMEOUT` 504
+- `CANDIDATE_DRY_RUN_NETWORK_ERROR` 502
+- `CANDIDATE_DRY_RUN_PARSE_ERROR` 502
+- `CANDIDATE_DRY_RUN_EMPTY_CANDLES` 502
+- `CANDIDATE_DRY_RUN_UNSUPPORTED_SOURCE` 400
+- `CANDIDATE_DRY_RUN_FEATURE_ERROR` 500
+
+기존 v0.25 / v0.26.1 / v0.27 safe code 모두 유지.
+
+### no-write 구조 보장 (/candidate-dry-run scope grep)
+- `writeAlreadySent` / `writeCleanupRequired` / `writeCircuit` / `writeInvokeFail` / `writeOperatorReset` / `markAlreadySentReset` / `env[` — 매치 **0건**
+- `sendCanary` / `dispatchCanary` / `sendMessage` 호출 — 매치 **0건**
+- KV binding 자체에 접근 0건
+
+### mock smoke 결과 (21 시나리오 — spec 20 + 1 추가 parse error)
+```
+TOTAL=21 PASS=21 FAIL=0
+```
+S1 no token → 401 / S2 bad token → 403 / S3 no manualTrigger → 400 / S4 invalid exchange → 400 / S5 invalid timeframe → 400 / S6 limit>120 → 400 / S7 upbit success → 200 / S8 empty → 502 / S9 network → 502 / S10 timeout → 504 / S10b parse error → 502 / S11 features 14 fields all finite / S12 score clamp [0,100] / S13 grade ∈ {P-S/A/B/C} / S14 reasonChips ≤ 8 / S15 Telegram fetch 0 / S16 KV put/delete 0 / S17 raw exchange field leak CLEAN / S18 invoke token leak CLEAN / S19 candidateStored=false / S20 trackingStarted=false.
+
+실 거래소 API (api.upbit.com / api.bithumb.com / api.binance.com) 호출 0건 (mock fetchImpl 만). 실 KV API 호출 0건 (mock KV null).
+
+### Web Console UI 보강
+- Section 7 "Candidate Dry-run (v0.28 read-only)" 신규
+- 사용자 클릭시에만 1회 fetch, auto refresh 0건, 페이지 로드 시 자동 호출 0건
+- 1.5초 throttle, token `readTokenAndClear()` 즉시 클리어
+- client-side market 정규식 `^[A-Za-z0-9_\-]{2,32}$` (server-side 와 일치)
+- client-side limit `^[0-9]{1,3}$` → parseInt → [1, 120] 범위 검사
+- 결과 panel whitelist 22 fields 외 노출 0건
+- 매수 추천 / 수익 보장 문구 0건
+
+### Protected (수정 0건)
+- 본선 `worker.js` / `wrangler.toml` (repo 미존재) / `index.html` / `manifest.json` / `service-worker.js` — 미수정
+- `v3/` 25종 엔진 — 미수정
+- `docs/ws3/WS3_CODE_CONTRACT.md` / `WS3_WORKFLOW_TEMPLATE.md` — 미수정
+- `workers/ws3-canary-state-kv-adapter.js` — 미수정 (v0.25.0 그대로)
+- `wrangler-canary.example.toml` / `.gitignore` — 미수정
+- `workers/ws3-telegram-canary-entry.mjs` — 미스테이지 유지
+
+### 보안 / 누출 검증 (0건 확인)
+- bot token / chatId / invoke token / KV namespace id / Telegram message_id / raw Telegram response / IP / cookie / session id / browser fingerprint — 노출 0건
+- exchange API raw native field — response 본문 노출 0건 (smoke S17 leak guard PASS)
+- 노출된 폐기 hash repo-wide 매치 0건
+- masked / first-4 / last-4 / redacted preview 0건
+- localStorage / sessionStorage / IndexedDB / document.cookie 호출 0건 (web grep 매치 2건 모두 정책 부정문맥)
+- URL query parameter token 전달 0건
+- console.log 출력 0건
+- 매수 추천 / 수익 보장 문구 0건
+
+### Cloudflare 변경 0건
+- worker 재배포 0건 (v0.27 production Version 그대로)
+- Pages 재배포 0건
+- KV namespace 생성/변경 0건
+- KV binding 변경 0건
+- secrets 변경 0건
+- `WS3_CANARY_ALLOWED_ORIGINS` 변경 0건
+- 실 Telegram API 호출 0건
+- 실 KV write 0건
+- 실 `/candidate-dry-run` 호출 0건
+- 실 거래소 API 호출 0건
+
+### 의도된 미구현 (다음 Gate)
+- v0.28 Deploy/Live Validation Gate (별도): Worker redeploy (v0.28 production version 반영) + Pages redeploy + production console 에서 Check State + Candidate Dry-run 1회 실 호출 검증
+- v0.29 후보 A: Basic Multi-market Dry-run (predefined small list, Telegram·KV 0건)
+- v0.29 후보 B: Candidate Dry-run result history in UI (browser memory-only)
+- v0.29 후보 C: Security hardening before live candidate alert
+- worker `/state` response 자체에서 resetCount 제거 (v0.29+ 후보)
+- env-based `CANDIDATE_DRY_RUN_DISABLED` kill switch
+- rate limit per origin / market / minute / invoke token rotate automation / ipHash + `WS3_CANARY_HASH_SALT`
+
+### 기준 commit
+- branch: `claude/heuristic-cori-7865e7`
+- 이전 functional baseline: WS3 v0.27.0 Actual Coin Live Preflight + Live Validation Success (`488cb08`)
+- 본 commit: (push 후 기록, push 별도 승인)
+
+---
+
 ## [v0.27.0] — 2026-05-18 (Actual Coin Live Preflight)
 
 ### Verified (Cloudflare Worker redeploy + Pages deploy + production Live Preflight 1회 실 호출 — 코드 변경 0건 / tracked source 변경 0건)

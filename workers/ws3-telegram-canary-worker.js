@@ -58,7 +58,7 @@ var TelegramCanarySender = require('../v3/v3-telegram-canary-sender.js');
 var CanaryStateKvAdapter = require('./ws3-canary-state-kv-adapter.js');
 
 // §constants ───────────────────────────────────────────────────────────
-var VERSION = 'WS3_v0.27.0_actual_coin_live_preflight';
+var VERSION = 'WS3_v0.28.0_candidate_dry_run';
 var SERVICE = 'WS3_CANARY_WEB_MVP';
 var STATUS_READY_CODE = 'CANARY_READY';
 var MAX_BODY_BYTES = 1024;
@@ -90,6 +90,15 @@ var LIVE_PREFLIGHT_ALLOWED_EXCHANGES = ['upbit', 'bithumb', 'binance'];
 var LIVE_PREFLIGHT_ALLOWED_TIMEFRAMES = ['1m', '5m', '15m', '1h'];
 // market string sanitize — alphanumeric + - _ only, length 2..32
 var LIVE_PREFLIGHT_MARKET_PATTERN = /^[A-Za-z0-9_\-]{2,32}$/;
+
+// v0.28 — Actual Coin Candidate Dry-run (read-only feature calc + dry-run score)
+//   NO Telegram send / NO KV write / NO candidate store / NO tracking start.
+//   Reuses v0.27 fetch/normalize helpers + adds feature/score/grade calc.
+var CANDIDATE_DRY_RUN_MODE = 'CANDIDATE_DRY_RUN_ONLY';
+var CANDIDATE_DRY_RUN_LIMIT_MIN = 1;
+var CANDIDATE_DRY_RUN_LIMIT_MAX = 120;
+var CANDIDATE_DRY_RUN_REASON_CHIP_MAX = 8;
+// Exchanges / timeframes / market pattern reuse LIVE_PREFLIGHT_* constants (same v0.27 allowlist).
 
 // §per-process state (Cloudflare isolate cold-start 시 초기화 — best effort)
 var CANARY_PROCESS_STATE = {
@@ -590,6 +599,262 @@ function buildLivePreflightResponse(req, summary) {
   };
 }
 
+// §v0.28 Candidate Dry-run helpers ─────────────────────────────────────
+// All pure functions. NO fetch / NO KV / NO Telegram. Reuses v0.27
+// buildLivePreflightUrl / fetchLiveCandles / normalizeCandles upstream.
+
+function safeDivide(num, den, fallback) {
+  if (typeof num !== 'number' || typeof den !== 'number') return fallback;
+  if (!isFinite(num) || !isFinite(den)) return fallback;
+  if (den === 0) return fallback;
+  var r = num / den;
+  if (!isFinite(r)) return fallback;
+  return r;
+}
+
+function validateCandidateDryRunRequest(body) {
+  if (!isPlainObject(body)) {
+    return { ok: false, code: 'INVALID_JSON', httpStatus: 400 };
+  }
+  if (body.manualTrigger !== true) {
+    return { ok: false, code: 'MANUAL_TRIGGER_REQUIRED', httpStatus: 400 };
+  }
+  var exchange = (typeof body.exchange === 'string') ? body.exchange.toLowerCase() : null;
+  if (exchange === null || indexOfString(LIVE_PREFLIGHT_ALLOWED_EXCHANGES, exchange) === -1) {
+    return { ok: false, code: 'CANDIDATE_DRY_RUN_INVALID_EXCHANGE', httpStatus: 400 };
+  }
+  var market = (typeof body.market === 'string') ? body.market : null;
+  if (market === null || !LIVE_PREFLIGHT_MARKET_PATTERN.test(market)) {
+    return { ok: false, code: 'CANDIDATE_DRY_RUN_INVALID_MARKET', httpStatus: 400 };
+  }
+  var timeframe = (typeof body.timeframe === 'string') ? body.timeframe : null;
+  if (timeframe === null || indexOfString(LIVE_PREFLIGHT_ALLOWED_TIMEFRAMES, timeframe) === -1) {
+    return { ok: false, code: 'CANDIDATE_DRY_RUN_INVALID_TIMEFRAME', httpStatus: 400 };
+  }
+  var limit = body.limit;
+  if (typeof limit !== 'number' || !isFinite(limit) || Math.floor(limit) !== limit) {
+    return { ok: false, code: 'CANDIDATE_DRY_RUN_LIMIT_EXCEEDED', httpStatus: 400 };
+  }
+  if (limit < CANDIDATE_DRY_RUN_LIMIT_MIN || limit > CANDIDATE_DRY_RUN_LIMIT_MAX) {
+    return { ok: false, code: 'CANDIDATE_DRY_RUN_LIMIT_EXCEEDED', httpStatus: 400 };
+  }
+  return {
+    ok: true,
+    normalized: {
+      exchange: exchange,
+      market: market,
+      timeframe: timeframe,
+      limit: limit
+    }
+  };
+}
+
+function mapFetchCodeToCandidateDryRunCode(code) {
+  if (code === 'LIVE_PREFLIGHT_FETCH_TIMEOUT') return 'CANDIDATE_DRY_RUN_FETCH_TIMEOUT';
+  if (code === 'LIVE_PREFLIGHT_NETWORK_ERROR') return 'CANDIDATE_DRY_RUN_NETWORK_ERROR';
+  if (code === 'LIVE_PREFLIGHT_PARSE_ERROR') return 'CANDIDATE_DRY_RUN_PARSE_ERROR';
+  if (code === 'LIVE_PREFLIGHT_EMPTY_CANDLES') return 'CANDIDATE_DRY_RUN_EMPTY_CANDLES';
+  if (code === 'LIVE_PREFLIGHT_UNSUPPORTED_SOURCE') return 'CANDIDATE_DRY_RUN_UNSUPPORTED_SOURCE';
+  return 'CANDIDATE_DRY_RUN_FEATURE_ERROR';
+}
+
+// candles oldest→latest, n >= 1
+function calculateCandleStructureFeatures(candles) {
+  var n = candles.length;
+  var last = candles[n - 1];
+  var prev = (n >= 2) ? candles[n - 2] : null;
+  var lastOpen = last.open;
+  var lastHigh = last.high;
+  var lastLow = last.low;
+  var lastClose = last.close;
+  var prevClose = prev ? prev.close : last.open;
+
+  var changePct = safeDivide(lastClose - prevClose, prevClose, 0) * 100;
+  var bodyPct = safeDivide(Math.abs(lastClose - lastOpen), lastOpen, 0) * 100;
+  var rangePct = safeDivide(lastHigh - lastLow, lastOpen, 0) * 100;
+  var upperWickPct = safeDivide(lastHigh - Math.max(lastOpen, lastClose), lastOpen, 0) * 100;
+  var lowerWickPct = safeDivide(Math.min(lastOpen, lastClose) - lastLow, lastOpen, 0) * 100;
+  var closePosition = (lastHigh === lastLow)
+    ? 0.5
+    : safeDivide(lastClose - lastLow, lastHigh - lastLow, 0.5);
+
+  return {
+    candleCount: n,
+    latestTime: last.time,
+    lastOpen: lastOpen,
+    lastHigh: lastHigh,
+    lastLow: lastLow,
+    lastClose: lastClose,
+    prevClose: prevClose,
+    changePct: changePct,
+    bodyPct: bodyPct,
+    upperWickPct: upperWickPct,
+    lowerWickPct: lowerWickPct,
+    closePosition: closePosition,
+    rangePct: rangePct
+  };
+}
+
+function calculateVolumeFeatures(candles) {
+  var n = candles.length;
+  var last = candles[n - 1];
+  var lastVolume = last.volume;
+  var sum = 0;
+  for (var i = 0; i < n; i++) { sum += candles[i].volume; }
+  var avgVolume = (n > 0) ? (sum / n) : 0;
+  var volumeRatio = safeDivide(lastVolume, avgVolume, 0);
+
+  var volumeAccel = 0;
+  if (n >= 13) {
+    var recent3Sum = 0;
+    for (var j = n - 3; j < n; j++) recent3Sum += candles[j].volume;
+    var prior10Sum = 0;
+    for (var k = n - 13; k < n - 3; k++) prior10Sum += candles[k].volume;
+    var recent3Avg = recent3Sum / 3;
+    var prior10Avg = prior10Sum / 10;
+    volumeAccel = safeDivide(recent3Avg, prior10Avg, 0);
+  }
+
+  return {
+    lastVolume: lastVolume,
+    avgVolume: avgVolume,
+    volumeRatio: volumeRatio,
+    volumeAccel: volumeAccel
+  };
+}
+
+function calculateMomentumFeatures(candles) {
+  var n = candles.length;
+  var last = candles[n - 1];
+  var lastClose = last.close;
+
+  var shortMomentumPct = 0;
+  if (n >= 5) {
+    var c4 = candles[n - 5].close;
+    shortMomentumPct = safeDivide(lastClose, c4, 1) - 1;
+  }
+  var midMomentumPct = 0;
+  if (n >= 11) {
+    var c10 = candles[n - 11].close;
+    midMomentumPct = safeDivide(lastClose, c10, 1) - 1;
+  }
+
+  var recentHigh = -Infinity;
+  var recentLow = Infinity;
+  for (var i = 0; i < n; i++) {
+    if (candles[i].high > recentHigh) recentHigh = candles[i].high;
+    if (candles[i].low < recentLow) recentLow = candles[i].low;
+  }
+  var highBreakProximity = (isFinite(recentHigh) && recentHigh !== 0)
+    ? (safeDivide(lastClose, recentHigh, 1) - 1) : 0;
+  var lowBreakRisk = (isFinite(recentLow) && recentLow !== 0)
+    ? (safeDivide(lastClose, recentLow, 1) - 1) : 0;
+
+  return {
+    shortMomentumPct: shortMomentumPct,
+    midMomentumPct: midMomentumPct,
+    highBreakProximity: highBreakProximity,
+    lowBreakRisk: lowBreakRisk
+  };
+}
+
+function calculateCandidateDryRunScore(inputs) {
+  var score = 0;
+  var chips = [];
+
+  var vr = inputs.volumeRatio;
+  if (vr >= 3.0) { score += 25; chips.push('VOLUME_SURGE'); }
+  else if (vr >= 2.0) { score += 18; chips.push('VOLUME_SURGE'); }
+  else if (vr >= 1.5) { score += 12; }
+  else if (vr >= 1.2) { score += 6; }
+  else if (vr > 0 && vr < 0.5) { chips.push('LOW_VOLUME'); }
+
+  var cp = inputs.changePct;
+  if (cp >= 3.0) { score += 20; chips.push('POSITIVE_CHANGE'); }
+  else if (cp >= 1.5) { score += 14; chips.push('POSITIVE_CHANGE'); }
+  else if (cp >= 0.5) { score += 8; }
+  else if (cp > 0) { score += 4; }
+
+  var pos = inputs.closePosition;
+  if (pos >= 0.8) { score += 15; chips.push('HIGH_CLOSE_POSITION'); }
+  else if (pos >= 0.6) { score += 10; }
+  else if (pos >= 0.4) { score += 5; }
+
+  // shortMomentumPct stored as decimal (e.g., 0.02 = 2%). Convert to percent for threshold.
+  var sm = inputs.shortMomentumPct * 100;
+  if (sm >= 2.0) { score += 15; chips.push('SHORT_MOMENTUM'); }
+  else if (sm >= 1.0) { score += 10; chips.push('SHORT_MOMENTUM'); }
+  else if (sm >= 0.3) { score += 5; }
+
+  if (inputs.upperWickPct >= inputs.bodyPct * 2 && inputs.closePosition < 0.6) {
+    score -= 15;
+    chips.push('UPPER_WICK_RISK');
+  }
+  if (inputs.rangePct >= 8) {
+    score -= 10;
+    chips.push('WIDE_RANGE_RISK');
+  }
+
+  if (score < 0) score = 0;
+  if (score > 100) score = 100;
+  if (chips.length > CANDIDATE_DRY_RUN_REASON_CHIP_MAX) {
+    chips = chips.slice(0, CANDIDATE_DRY_RUN_REASON_CHIP_MAX);
+  }
+  return { score: score, reasonChips: chips };
+}
+
+function classifyCandidateDryRunGrade(score) {
+  if (typeof score !== 'number' || !isFinite(score)) return 'P-C';
+  if (score >= 75) return 'P-S';
+  if (score >= 60) return 'P-A';
+  if (score >= 45) return 'P-B';
+  return 'P-C';
+}
+
+function buildCandidateDryRunResponse(req, sf, vf, mf, score, grade, chips) {
+  return {
+    ok: true,
+    status: 'OK',
+    code: 'CANDIDATE_DRY_RUN_OK',
+    httpStatus: 200,
+    version: VERSION,
+    mode: CANDIDATE_DRY_RUN_MODE,
+    exchange: req.exchange,
+    market: req.market,
+    timeframe: req.timeframe,
+    limit: req.limit,
+    features: {
+      candleCount: sf.candleCount,
+      latestTime: sf.latestTime,
+      lastClose: sf.lastClose,
+      changePct: sf.changePct,
+      bodyPct: sf.bodyPct,
+      upperWickPct: sf.upperWickPct,
+      lowerWickPct: sf.lowerWickPct,
+      closePosition: sf.closePosition,
+      rangePct: sf.rangePct,
+      lastVolume: vf.lastVolume,
+      avgVolume: vf.avgVolume,
+      volumeRatio: vf.volumeRatio,
+      volumeAccel: vf.volumeAccel,
+      shortMomentumPct: mf.shortMomentumPct,
+      midMomentumPct: mf.midMomentumPct
+    },
+    dryRun: {
+      score: score,
+      grade: grade,
+      reasonChips: chips,
+      isCandidate: (grade === 'P-S' || grade === 'P-A')
+    },
+    safety: {
+      telegramSent: false,
+      kvWritten: false,
+      candidateStored: false,
+      trackingStarted: false
+    }
+  };
+}
+
 // §main entry ──────────────────────────────────────────────────────────
 
 async function handleFetch(request, env, ctx, deps) {
@@ -614,7 +879,7 @@ async function handleFetch(request, env, ctx, deps) {
 
   // OPTIONS preflight
   if (method === 'OPTIONS') {
-    if (path !== '/health' && path !== '/send-canary' && path !== '/state' && path !== '/cleanup-confirm' && path !== '/operator-reset' && path !== '/live-preflight') {
+    if (path !== '/health' && path !== '/send-canary' && path !== '/state' && path !== '/cleanup-confirm' && path !== '/operator-reset' && path !== '/live-preflight' && path !== '/candidate-dry-run') {
       return jsonResponse({ ok: false, status: 'ERROR', code: 'METHOD_NOT_ALLOWED', httpStatus: 405 }, 405, false, null);
     }
     if (!origin) {
@@ -1287,6 +1552,110 @@ async function handleFetch(request, env, ctx, deps) {
     return jsonResponse(lpResponse, 200, true, origin);
   }
 
+  // POST /candidate-dry-run  (v0.28 — read-only feature/score/grade dry-run; NO Telegram, NO KV write, NO candidate store, NO tracking start)
+  if (path === '/candidate-dry-run' && method === 'POST') {
+    if (!origin) {
+      return jsonResponse({ ok: false, status: 'BLOCKED', code: 'ORIGIN_MISSING', httpStatus: 403 }, 403, false, null);
+    }
+    if (!allowed) {
+      return jsonResponse({ ok: false, status: 'BLOCKED', code: 'ORIGIN_NOT_ALLOWED', httpStatus: 403 }, 403, false, null);
+    }
+    var cdrToken = request.headers.get('X-WS3-Canary-Token');
+    if (typeof cdrToken !== 'string' || cdrToken.length === 0) {
+      return jsonResponse({ ok: false, status: 'BLOCKED', code: 'MISSING_INVOKE_TOKEN', httpStatus: 401 }, 401, true, origin);
+    }
+    if (typeof env.WS3_CANARY_INVOKE_TOKEN !== 'string' || env.WS3_CANARY_INVOKE_TOKEN.length === 0) {
+      return jsonResponse({ ok: false, status: 'BLOCKED', code: 'MISSING_INVOKE_TOKEN', httpStatus: 503 }, 503, true, origin);
+    }
+    if (cdrToken !== env.WS3_CANARY_INVOKE_TOKEN) {
+      return jsonResponse({ ok: false, status: 'BLOCKED', code: 'INVOKE_TOKEN_MISMATCH', httpStatus: 403 }, 403, true, origin);
+    }
+
+    var cdrCt = request.headers.get('Content-Type');
+    if (typeof cdrCt !== 'string' || cdrCt.toLowerCase().indexOf('application/json') === -1) {
+      return jsonResponse({ ok: false, status: 'BLOCKED', code: 'UNSUPPORTED_MEDIA_TYPE', httpStatus: 415 }, 415, true, origin);
+    }
+    var cdrCl = request.headers.get('Content-Length');
+    if (typeof cdrCl === 'string' && cdrCl.length > 0) {
+      var cdrN = parseInt(cdrCl, 10);
+      if (isFinite(cdrN) && cdrN > MAX_BODY_BYTES) {
+        return jsonResponse({ ok: false, status: 'BLOCKED', code: 'PAYLOAD_TOO_LARGE', httpStatus: 413 }, 413, true, origin);
+      }
+    }
+    var cdrBodyText = '';
+    try { cdrBodyText = await request.text(); } catch (e) {
+      return jsonResponse({ ok: false, status: 'ERROR', code: 'INVALID_JSON', httpStatus: 400 }, 400, true, origin);
+    }
+    if (typeof cdrBodyText === 'string' && cdrBodyText.length > MAX_BODY_BYTES) {
+      return jsonResponse({ ok: false, status: 'BLOCKED', code: 'PAYLOAD_TOO_LARGE', httpStatus: 413 }, 413, true, origin);
+    }
+    var cdrBody;
+    try { cdrBody = JSON.parse(cdrBodyText); } catch (e) {
+      return jsonResponse({ ok: false, status: 'ERROR', code: 'INVALID_JSON', httpStatus: 400 }, 400, true, origin);
+    }
+
+    var cdrValidate = validateCandidateDryRunRequest(cdrBody);
+    if (cdrValidate.ok !== true) {
+      return jsonResponse({ ok: false, status: 'BLOCKED', code: cdrValidate.code, httpStatus: cdrValidate.httpStatus }, cdrValidate.httpStatus, true, origin);
+    }
+    var cdrReq = cdrValidate.normalized;
+
+    var cdrUrl = buildLivePreflightUrl(cdrReq.exchange, cdrReq.market, cdrReq.timeframe, cdrReq.limit);
+    if (cdrUrl === null) {
+      return jsonResponse({ ok: false, status: 'BLOCKED', code: 'CANDIDATE_DRY_RUN_UNSUPPORTED_SOURCE', httpStatus: 400 }, 400, true, origin);
+    }
+
+    var cdrDepsRes = buildWorkerRuntimeDeps(resolvedDeps, nowMs, state);
+    if (cdrDepsRes.ok !== true) {
+      return jsonResponse({ ok: false, status: 'ERROR', code: 'UNKNOWN_ERROR', httpStatus: 500 }, 500, true, origin);
+    }
+    var cdrDeps = cdrDepsRes.deps;
+
+    var cdrFetchRes = await fetchLiveCandles(cdrDeps, cdrUrl, LIVE_PREFLIGHT_FETCH_TIMEOUT_MS);
+    if (cdrFetchRes.ok !== true) {
+      var mappedFetchCode = mapFetchCodeToCandidateDryRunCode(cdrFetchRes.code);
+      var cdrFetchStatus = 502;
+      if (mappedFetchCode === 'CANDIDATE_DRY_RUN_FETCH_TIMEOUT') cdrFetchStatus = 504;
+      if (mappedFetchCode === 'CANDIDATE_DRY_RUN_UNSUPPORTED_SOURCE') cdrFetchStatus = 400;
+      return jsonResponse({ ok: false, status: 'ERROR', code: mappedFetchCode, httpStatus: cdrFetchStatus }, cdrFetchStatus, true, origin);
+    }
+
+    var cdrNorm = normalizeCandles(cdrReq.exchange, cdrFetchRes.raw, cdrReq.limit);
+    if (cdrNorm.ok !== true) {
+      var mappedNormCode = mapFetchCodeToCandidateDryRunCode(cdrNorm.code);
+      return jsonResponse({ ok: false, status: 'ERROR', code: mappedNormCode, httpStatus: 502 }, 502, true, origin);
+    }
+
+    try {
+      var sf = calculateCandleStructureFeatures(cdrNorm.candles);
+      var vf = calculateVolumeFeatures(cdrNorm.candles);
+      var mf = calculateMomentumFeatures(cdrNorm.candles);
+      var scoreInputs = {
+        bodyPct: sf.bodyPct,
+        closePosition: sf.closePosition,
+        changePct: sf.changePct,
+        rangePct: sf.rangePct,
+        upperWickPct: sf.upperWickPct,
+        volumeRatio: vf.volumeRatio,
+        shortMomentumPct: mf.shortMomentumPct
+      };
+      var scoreResult = calculateCandidateDryRunScore(scoreInputs);
+      // Validate all feature numbers are finite (defense in depth).
+      var allFinite = isFinite(sf.changePct) && isFinite(sf.bodyPct) && isFinite(sf.rangePct)
+        && isFinite(sf.upperWickPct) && isFinite(sf.lowerWickPct) && isFinite(sf.closePosition)
+        && isFinite(vf.volumeRatio) && isFinite(vf.volumeAccel)
+        && isFinite(mf.shortMomentumPct) && isFinite(mf.midMomentumPct);
+      if (!allFinite || !isFinite(scoreResult.score)) {
+        return jsonResponse({ ok: false, status: 'ERROR', code: 'CANDIDATE_DRY_RUN_FEATURE_ERROR', httpStatus: 500 }, 500, true, origin);
+      }
+      var grade = classifyCandidateDryRunGrade(scoreResult.score);
+      var cdrResponse = buildCandidateDryRunResponse(cdrReq, sf, vf, mf, scoreResult.score, grade, scoreResult.reasonChips);
+      return jsonResponse(cdrResponse, 200, true, origin);
+    } catch (e) {
+      return jsonResponse({ ok: false, status: 'ERROR', code: 'CANDIDATE_DRY_RUN_FEATURE_ERROR', httpStatus: 500 }, 500, true, origin);
+    }
+  }
+
   // Fallback — unknown path/method
   return jsonResponse({ ok: false, status: 'ERROR', code: 'METHOD_NOT_ALLOWED', httpStatus: 405 }, 405, allowed === true, origin);
 }
@@ -1326,6 +1695,19 @@ module.exports = {
   summarizeCandles: summarizeCandles,
   fetchLiveCandles: fetchLiveCandles,
   buildLivePreflightResponse: buildLivePreflightResponse,
+  CANDIDATE_DRY_RUN_MODE: CANDIDATE_DRY_RUN_MODE,
+  CANDIDATE_DRY_RUN_LIMIT_MIN: CANDIDATE_DRY_RUN_LIMIT_MIN,
+  CANDIDATE_DRY_RUN_LIMIT_MAX: CANDIDATE_DRY_RUN_LIMIT_MAX,
+  CANDIDATE_DRY_RUN_REASON_CHIP_MAX: CANDIDATE_DRY_RUN_REASON_CHIP_MAX,
+  validateCandidateDryRunRequest: validateCandidateDryRunRequest,
+  mapFetchCodeToCandidateDryRunCode: mapFetchCodeToCandidateDryRunCode,
+  calculateCandleStructureFeatures: calculateCandleStructureFeatures,
+  calculateVolumeFeatures: calculateVolumeFeatures,
+  calculateMomentumFeatures: calculateMomentumFeatures,
+  calculateCandidateDryRunScore: calculateCandidateDryRunScore,
+  classifyCandidateDryRunGrade: classifyCandidateDryRunGrade,
+  buildCandidateDryRunResponse: buildCandidateDryRunResponse,
+  safeDivide: safeDivide,
   mapErrorCodeToWeb: mapErrorCodeToWeb,
   isAllowedOrigin: isAllowedOrigin,
   buildMinimalPreflightGate: buildMinimalPreflightGate,

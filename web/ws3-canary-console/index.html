@@ -219,6 +219,70 @@
   </p>
 </div>
 
+<div class="section">
+  <h2>7. Candidate Dry-run (v0.28 read-only)</h2>
+  <p class="note">
+    실코인 알람 아님. 단일 market 공개 시세 read-only fetch + candle structure / volume / momentum features + dry-run score / grade 계산만 표시. Telegram 발송 0건 / KV write 0건 / candidate 저장 0건 / tracking 시작 0건. 점수와 등급은 preview 일뿐 실 알람·매수 조건이 아닙니다. 사용자 클릭시에만 실행 (auto refresh 0건).
+  </p>
+  <div class="row">
+    <label for="cdr_exchange">Exchange</label>
+    <select id="cdr_exchange">
+      <option value="upbit">upbit</option>
+      <option value="bithumb">bithumb</option>
+      <option value="binance">binance</option>
+    </select>
+  </div>
+  <div class="row">
+    <label for="cdr_market">Market</label>
+    <input id="cdr_market" type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" maxlength="32" placeholder="upbit=KRW-BTC / bithumb=BTC_KRW / binance=BTCUSDT" value="KRW-BTC">
+  </div>
+  <div class="row">
+    <label for="cdr_timeframe">Timeframe</label>
+    <select id="cdr_timeframe">
+      <option value="1m">1m</option>
+      <option value="5m" selected>5m</option>
+      <option value="15m">15m</option>
+      <option value="1h">1h</option>
+    </select>
+  </div>
+  <div class="row">
+    <label for="cdr_limit">Limit (1-120)</label>
+    <input id="cdr_limit" type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" inputmode="numeric" pattern="[0-9]*" maxlength="3" value="60">
+  </div>
+  <div class="row">
+    <button id="cdr_runBtn" class="primary" type="button">Run Candidate Dry-run</button>
+  </div>
+  <div class="row panel">
+    <div><span class="k">code:</span> <span id="cdr_code" class="v n">-</span></div>
+    <div><span class="k">mode:</span> <span id="cdr_o_mode" class="v n">-</span></div>
+    <div><span class="k">exchange:</span> <span id="cdr_o_exchange" class="v n">-</span></div>
+    <div><span class="k">market:</span> <span id="cdr_o_market" class="v n">-</span></div>
+    <div><span class="k">timeframe:</span> <span id="cdr_o_timeframe" class="v n">-</span></div>
+    <div><span class="k">candleCount:</span> <span id="cdr_o_count" class="v n">-</span></div>
+    <div><span class="k">latestTime:</span> <span id="cdr_o_latestTime" class="v n">-</span></div>
+    <div><span class="k">lastClose:</span> <span id="cdr_o_lastClose" class="v n">-</span></div>
+    <div><span class="k">changePct:</span> <span id="cdr_o_changePct" class="v n">-</span></div>
+    <div><span class="k">volumeRatio:</span> <span id="cdr_o_volumeRatio" class="v n">-</span></div>
+    <div><span class="k">volumeAccel:</span> <span id="cdr_o_volumeAccel" class="v n">-</span></div>
+    <div><span class="k">closePosition:</span> <span id="cdr_o_closePosition" class="v n">-</span></div>
+    <div><span class="k">upperWickPct:</span> <span id="cdr_o_upperWickPct" class="v n">-</span></div>
+    <div><span class="k">rangePct:</span> <span id="cdr_o_rangePct" class="v n">-</span></div>
+    <div><span class="k">score:</span> <span id="cdr_o_score" class="v n">-</span></div>
+    <div><span class="k">grade:</span> <span id="cdr_o_grade" class="v n">-</span></div>
+    <div><span class="k">reasonChips:</span> <span id="cdr_o_reasonChips" class="v n">-</span></div>
+    <div><span class="k">isCandidate:</span> <span id="cdr_o_isCandidate" class="v n">-</span></div>
+    <div><span class="k">telegramSent:</span> <span id="cdr_o_telegramSent" class="v n">-</span></div>
+    <div><span class="k">kvWritten:</span> <span id="cdr_o_kvWritten" class="v n">-</span></div>
+    <div><span class="k">candidateStored:</span> <span id="cdr_o_candidateStored" class="v n">-</span></div>
+    <div><span class="k">trackingStarted:</span> <span id="cdr_o_trackingStarted" class="v n">-</span></div>
+  </div>
+  <p class="footnote">
+    표시 허용: code / mode / exchange / market / timeframe / candleCount / latestTime / lastClose / changePct / volumeRatio / volumeAccel / closePosition / upperWickPct / rangePct / score / grade / reasonChips / isCandidate / telegramSent / kvWritten / candidateStored / trackingStarted.
+    <br>
+    표시 금지: raw exchange response / full headers / stack trace / token / secret / resetCount / KV namespace ID / Telegram message_id / bot token / chatId / 매수 추천 문구 / 수익 보장 문구. 점수·등급은 dry-run preview 이며 실 알람·매수 조건 아님.
+  </p>
+</div>
+
 </main>
 
 <script>
@@ -779,11 +843,146 @@
     });
   });
 
+  // === v0.28 Candidate Dry-run (read-only) ===
+  // No Telegram / no KV write / no candidate store / no tracking start.
+  // Click-only execution (no auto refresh). Score/grade is dry-run preview only.
+  var cdrExchangeEl = document.getElementById('cdr_exchange');
+  var cdrMarketEl = document.getElementById('cdr_market');
+  var cdrTimeframeEl = document.getElementById('cdr_timeframe');
+  var cdrLimitEl = document.getElementById('cdr_limit');
+  var cdrRunBtn = document.getElementById('cdr_runBtn');
+  var cdrCodeEl = document.getElementById('cdr_code');
+  var cdrOModeEl = document.getElementById('cdr_o_mode');
+  var cdrOExchangeEl = document.getElementById('cdr_o_exchange');
+  var cdrOMarketEl = document.getElementById('cdr_o_market');
+  var cdrOTimeframeEl = document.getElementById('cdr_o_timeframe');
+  var cdrOCountEl = document.getElementById('cdr_o_count');
+  var cdrOLatestTimeEl = document.getElementById('cdr_o_latestTime');
+  var cdrOLastCloseEl = document.getElementById('cdr_o_lastClose');
+  var cdrOChangePctEl = document.getElementById('cdr_o_changePct');
+  var cdrOVolumeRatioEl = document.getElementById('cdr_o_volumeRatio');
+  var cdrOVolumeAccelEl = document.getElementById('cdr_o_volumeAccel');
+  var cdrOClosePositionEl = document.getElementById('cdr_o_closePosition');
+  var cdrOUpperWickPctEl = document.getElementById('cdr_o_upperWickPct');
+  var cdrORangePctEl = document.getElementById('cdr_o_rangePct');
+  var cdrOScoreEl = document.getElementById('cdr_o_score');
+  var cdrOGradeEl = document.getElementById('cdr_o_grade');
+  var cdrOReasonChipsEl = document.getElementById('cdr_o_reasonChips');
+  var cdrOIsCandidateEl = document.getElementById('cdr_o_isCandidate');
+  var cdrOTelegramSentEl = document.getElementById('cdr_o_telegramSent');
+  var cdrOKvWrittenEl = document.getElementById('cdr_o_kvWritten');
+  var cdrOCandidateStoredEl = document.getElementById('cdr_o_candidateStored');
+  var cdrOTrackingStartedEl = document.getElementById('cdr_o_trackingStarted');
+
+  function cdrClearOutputs() {
+    setStrField(cdrCodeEl, null);
+    setStrField(cdrOModeEl, null);
+    setStrField(cdrOExchangeEl, null);
+    setStrField(cdrOMarketEl, null);
+    setStrField(cdrOTimeframeEl, null);
+    setNumField(cdrOCountEl, null);
+    setStrField(cdrOLatestTimeEl, null, 96);
+    setNumField(cdrOLastCloseEl, null);
+    setNumField(cdrOChangePctEl, null);
+    setNumField(cdrOVolumeRatioEl, null);
+    setNumField(cdrOVolumeAccelEl, null);
+    setNumField(cdrOClosePositionEl, null);
+    setNumField(cdrOUpperWickPctEl, null);
+    setNumField(cdrORangePctEl, null);
+    setNumField(cdrOScoreEl, null);
+    setStrField(cdrOGradeEl, null);
+    setStrField(cdrOReasonChipsEl, null, 256);
+    setBoolField(cdrOIsCandidateEl, null);
+    setBoolField(cdrOTelegramSentEl, null);
+    setBoolField(cdrOKvWrittenEl, null);
+    setBoolField(cdrOCandidateStoredEl, null);
+    setBoolField(cdrOTrackingStartedEl, null);
+  }
+  function cdrSetErrorCode(code) {
+    setStatus('ERROR');
+    setStrField(cdrCodeEl, (typeof code === 'string' && code.length > 0) ? code : 'UNKNOWN_ERROR');
+  }
+  function cdrJoinChips(chips) {
+    if (!Array.isArray(chips)) return null;
+    var safe = [];
+    for (var i = 0; i < chips.length && i < 8; i++) {
+      if (typeof chips[i] === 'string' && chips[i].length > 0 && chips[i].length < 64) safe.push(chips[i]);
+    }
+    return safe.length > 0 ? safe.join(', ') : null;
+  }
+
+  cdrRunBtn.addEventListener('click', function() {
+    var endpoint = safeEndpoint();
+    if (!endpoint) { cdrSetErrorCode('MISSING_ENDPOINT'); return; }
+    var token = readTokenAndClear();
+    if (!token) { cdrSetErrorCode('MISSING_INVOKE_TOKEN'); return; }
+    var exchange = (typeof cdrExchangeEl.value === 'string') ? cdrExchangeEl.value : '';
+    var market = (typeof cdrMarketEl.value === 'string') ? cdrMarketEl.value.replace(/^\s+|\s+$/g, '') : '';
+    var timeframe = (typeof cdrTimeframeEl.value === 'string') ? cdrTimeframeEl.value : '';
+    var limitRaw = (typeof cdrLimitEl.value === 'string') ? cdrLimitEl.value.replace(/^\s+|\s+$/g, '') : '';
+    if (!exchange) { cdrSetErrorCode('CANDIDATE_DRY_RUN_INVALID_EXCHANGE'); return; }
+    if (!market || !/^[A-Za-z0-9_\-]{2,32}$/.test(market)) { cdrSetErrorCode('CANDIDATE_DRY_RUN_INVALID_MARKET'); return; }
+    if (!timeframe) { cdrSetErrorCode('CANDIDATE_DRY_RUN_INVALID_TIMEFRAME'); return; }
+    if (!/^[0-9]{1,3}$/.test(limitRaw)) { cdrSetErrorCode('CANDIDATE_DRY_RUN_LIMIT_EXCEEDED'); return; }
+    var limit = parseInt(limitRaw, 10);
+    if (!isFinite(limit) || limit < 1 || limit > 120) { cdrSetErrorCode('CANDIDATE_DRY_RUN_LIMIT_EXCEEDED'); return; }
+
+    var url = buildUrl(endpoint, '/candidate-dry-run');
+    if (!url) { cdrSetErrorCode('INVALID_ENDPOINT'); return; }
+
+    setStatus('CHECKING');
+    cdrClearOutputs();
+    cdrRunBtn.disabled = true;
+    setTimeout(function() { cdrRunBtn.disabled = false; }, 1500);
+
+    postJson(url, token, {
+      manualTrigger: true,
+      exchange: exchange,
+      market: market,
+      timeframe: timeframe,
+      limit: limit
+    }).then(function(resp) {
+      return resp.json().then(function(body) { return { resp: resp, body: body }; });
+    }).then(function(r) {
+      var b = (r && r.body) ? r.body : {};
+      var s = (typeof b.status === 'string') ? b.status : 'ERROR';
+      setStrField(cdrCodeEl, (typeof b.code === 'string') ? b.code : null);
+      setStrField(cdrOModeEl, (typeof b.mode === 'string') ? b.mode : null);
+      setStrField(cdrOExchangeEl, (typeof b.exchange === 'string') ? b.exchange : null);
+      setStrField(cdrOMarketEl, (typeof b.market === 'string') ? b.market : null);
+      setStrField(cdrOTimeframeEl, (typeof b.timeframe === 'string') ? b.timeframe : null);
+      var feat = (b && typeof b === 'object' && b.features && typeof b.features === 'object') ? b.features : null;
+      setNumField(cdrOCountEl, feat && typeof feat.candleCount === 'number' ? feat.candleCount : null);
+      setStrField(cdrOLatestTimeEl, feat && typeof feat.latestTime === 'string' ? feat.latestTime : null, 96);
+      setNumField(cdrOLastCloseEl, feat && typeof feat.lastClose === 'number' ? feat.lastClose : null);
+      setNumField(cdrOChangePctEl, feat && typeof feat.changePct === 'number' ? feat.changePct : null);
+      setNumField(cdrOVolumeRatioEl, feat && typeof feat.volumeRatio === 'number' ? feat.volumeRatio : null);
+      setNumField(cdrOVolumeAccelEl, feat && typeof feat.volumeAccel === 'number' ? feat.volumeAccel : null);
+      setNumField(cdrOClosePositionEl, feat && typeof feat.closePosition === 'number' ? feat.closePosition : null);
+      setNumField(cdrOUpperWickPctEl, feat && typeof feat.upperWickPct === 'number' ? feat.upperWickPct : null);
+      setNumField(cdrORangePctEl, feat && typeof feat.rangePct === 'number' ? feat.rangePct : null);
+      var dr = (b && typeof b === 'object' && b.dryRun && typeof b.dryRun === 'object') ? b.dryRun : null;
+      setNumField(cdrOScoreEl, dr && typeof dr.score === 'number' ? dr.score : null);
+      setStrField(cdrOGradeEl, dr && typeof dr.grade === 'string' ? dr.grade : null);
+      setStrField(cdrOReasonChipsEl, dr ? cdrJoinChips(dr.reasonChips) : null, 256);
+      setBoolField(cdrOIsCandidateEl, dr && typeof dr.isCandidate === 'boolean' ? dr.isCandidate : null);
+      var saf = (b && typeof b === 'object' && b.safety && typeof b.safety === 'object') ? b.safety : null;
+      setBoolField(cdrOTelegramSentEl, saf && typeof saf.telegramSent === 'boolean' ? saf.telegramSent : null);
+      setBoolField(cdrOKvWrittenEl, saf && typeof saf.kvWritten === 'boolean' ? saf.kvWritten : null);
+      setBoolField(cdrOCandidateStoredEl, saf && typeof saf.candidateStored === 'boolean' ? saf.candidateStored : null);
+      setBoolField(cdrOTrackingStartedEl, saf && typeof saf.trackingStarted === 'boolean' ? saf.trackingStarted : null);
+      setStatus(s);
+    }).catch(function() {
+      cdrSetErrorCode('NETWORK_ERROR');
+    });
+  });
+
   // Initial paint.
   setStatus('READY');
   clearStateFields();
   clearResultFields();
   lpClearOutputs();
+  cdrClearOutputs();
   refreshButtons();
 })();
 </script>
