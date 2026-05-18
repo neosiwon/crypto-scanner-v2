@@ -484,3 +484,78 @@ client-side gate 우회 가능 (DOM/hash/network 분석)
 실 worker action 은 기존 Invoke Token + server-side guard 가 보호
 실 invite code 원문 / 실 hash repo commit 0건 (placeholder 만)
 ```
+
+---
+
+## 16. Final Pages Deploy Result
+
+본 섹션은 v0.26.1 코드 commit (`634093d`) 이후 실제 Cloudflare Pages 배포 + Worker allowlist 임시 추가/제거 + production console 1회 한정 Check State 검증까지 마친 결과 박제다. 코드 변경 0건 / tracked source 변경 0건 / hash 또는 raw invite code repo 박제 0건 / Telegram 발송 0건 / KV write 0건 / Worker action 호출 0건.
+
+- Pages project: `ws3-canary-console`
+- Production URL: `ws3-canary-console.pages.dev`
+- Invite gate: **active** (lightweight Dev Preview, placeholder hash → 실 SHA-256 hash 로 working copy 1회 substitution → Pages deploy)
+- Cloudflare Access: **deferred by user decision** (v0.26.0 정책 amendment, production-grade 운영 / 실코인 연결 전 재검토)
+- Worker allowlist (최종): **`https://ws3-canary-console.pages.dev` only**
+- localhost origin: **removed** (Phase 2 적용, Step F 완료)
+- Final Check State (Step G 사용자 브라우저 검증):
+  - `version=WS3_v0.25.0_operator_reset_state_lifecycle`
+  - `persistenceAvailable=true`
+  - `canaryEnabled=false`
+  - `alreadySent=false`
+  - `cleanupRequired=false`
+  - `circuitOpen=false`
+  - `currentPhase=RESET_CONFIRMED`
+- Send Canary count during this gate: **0**
+- Cleanup Confirm count during this gate: **0**
+- Operator Reset count during this gate: **0**
+- Telegram API calls during this gate: **0**
+- KV writes during this gate: **0**
+- `CANARY_ENABLED=false` maintained
+- `AUTHORIZED_AT=0` maintained
+- raw invite code **not recorded** (사용자 본인 메모리/vault 외 어디에도 보관 0건)
+- SHA-256 hash **not committed** (placeholder `REPLACE_WITH_INVITE_CODE_SHA256` 박제 유지, `git grep` repo-wide 결과 hash 매치 0건)
+- Invoke Token **not recorded**
+- KV namespace ID **not recorded**
+
+### 16.1 Gate 진행 흐름 박제 (Step A → G)
+
+```text
+Step A (사용자):  invite code 결정 + PowerShell SHA-256 hash 생성 (raw code 채팅 노출 0건)
+Step B (자동):    .tmp_pages_deploy/ws3-canary-console/index.html 생성 → 임시 substitution → wrangler pages deploy
+                  → branch alias 배포됨 (--branch=main 미지정, wrangler default = current git branch)
+                  → temp cleanup → tracked diff 0건 확인
+Step B' (자동):   사용자 옵션 A 결정 — production URL 활성화 위해 corrective deploy
+                  → wrangler pages deploy ... --branch=main 1회
+                  → ws3-canary-console.pages.dev 활성화 → temp cleanup → tracked diff 0건 확인
+Step C (사용자):  production URL 접속 → invite gate 표시 / 잘못된 코드 차단 / 실 invite code 통과 후 console UI 표시
+                  → Worker Endpoint / Invoke Token 입력 0건 / Check State 0건
+Step D (자동):    wrangler-canary.toml WS3_CANARY_ALLOWED_ORIGINS 임시 확장
+                  = "http://localhost:8788,https://ws3-canary-console.pages.dev" (Phase 1, localhost 검증용 임시 유지)
+                  → wrangler deploy --config wrangler-canary.toml 1회 (Worker Version 39c8ca59)
+                  → safety vars 유지: CANARY_ENABLED=false / AUTHORIZED_AT=0
+Step E (사용자):  production console 에서 Worker Endpoint / Invoke Token 입력 → Check State 1회 클릭
+                  → 7-field whitelist 전부 PASS / Send Canary / Cleanup Confirm / Operator Reset 클릭 0건
+Step F (자동):    wrangler-canary.toml WS3_CANARY_ALLOWED_ORIGINS 정정
+                  = "https://ws3-canary-console.pages.dev" (Phase 2, localhost 제거)
+                  → wrangler deploy --config wrangler-canary.toml 1회 (Worker Version 45fd4787)
+                  → wrangler binding display 에서 풀값 노출 확인 / safety vars 유지
+Step G (사용자):  final production Check State 1회 → 동일 결과 PASS / Worker action 호출 0건
+```
+
+### 16.2 한계 재확인 (v0.26.1 amendment 박제)
+
+- 본 Pages Deploy Gate = Dev Preview 단계. Cloudflare Access **미적용**.
+- client-side invite gate = DOM inspect / hash 추출 / network 분석 / 초대코드 공유로 우회 가능.
+- 단 실 worker action 은 다음 모두 필요: Invoke Token (Layer 2) + Origin allowlist (`https://ws3-canary-console.pages.dev`) + Worker server-side guard (Layer 3, 7중 조건 + persistent KV + currentPhase).
+- production-grade 운영 / 실코인 연결 전 Cloudflare Access 재검토 권장 (v0.27 진입 전).
+
+### 16.3 다음 단계 후보
+
+```text
+v0.27 = Actual Coin Live Preflight (실코인 데이터 preflight layer, 실 알림 연결 전 단계)
+v0.26.x = build script / shared source 도입 (두 console 파일 자동 동기화)
+worker /state response 자체에서 resetCount 제거 (v0.27+)
+env-based resetPhrase / circuit reset endpoint / failure counter reset endpoint
+invoke token rotate automation / ipHash + WS3_CANARY_HASH_SALT
+Cloudflare Access 재적용 (production-grade 운영 / 실코인 연결 전)
+```

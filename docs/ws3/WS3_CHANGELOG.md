@@ -7,6 +7,20 @@
 
 ## [v0.26.1] — 2026-05-18 (Dev Preview Lightweight Invite Gate)
 
+### Verified (Cloudflare Pages Deploy — 코드 변경 0건, tracked source 변경 0건)
+- Dev Preview Pages deploy completed (Pages project `ws3-canary-console`, production URL `ws3-canary-console.pages.dev`).
+- Lightweight invite gate was active on the production Pages URL (placeholder hash → 실 SHA-256 hash working copy 1회 substitution).
+- Production console Check State succeeded — 7-field whitelist (version / persistenceAvailable / canaryEnabled / alreadySent / cleanupRequired / circuitOpen / currentPhase) 모두 정상.
+- Worker allowlist was reduced to Pages origin only (Phase 2 적용, `WS3_CANARY_ALLOWED_ORIGINS = "https://ws3-canary-console.pages.dev"`).
+- localhost origin was removed after Phase 1 validation (Step F).
+- `CANARY_ENABLED=false` remained enforced.
+- `AUTHORIZED_AT=0` remained enforced.
+- Send Canary / Cleanup Confirm / Operator Reset were not triggered (Step C / E / G 모두 Check State 만).
+- Telegram API calls remained 0.
+- KV writes remained 0.
+- raw invite code and SHA-256 hash were not recorded in repo (placeholder `REPLACE_WITH_INVITE_CODE_SHA256` 박제 유지, `git grep` repo-wide 결과 hash 매치 0건).
+- Invoke Token / KV namespace ID 노출 0건.
+
 ### 목적 (실코인 연결 아님 / Cloudflare Access 보류)
 v0.26.0 까지 박제됐던 "Cloudflare Access 필수 / Access 없는 public Pages 비채택" 정책을 **Dev Preview 단계용으로 amendment** 하여, Cloudflare Access 대신 **lightweight client-side invite gate** 적용. production-grade 운영 / 실코인 연결 단계 진입 시 Cloudflare Access 재검토.
 
@@ -138,7 +152,8 @@ v0.26.0 까지 박제됐던 "Cloudflare Access 필수 / Access 없는 public Pag
 ### 기준 commit
 - branch: `claude/heuristic-cori-7865e7`
 - 이전 functional baseline: WS3 v0.26.0 Production Web Console Hosting (`55a00d8`)
-- 본 commit: (push 후 기록, push 별도 승인)
+- 코드 commit: `634093d` (ws3: v0.26.1 devPreviewInviteGate, push 완료)
+- staging closure commit: 본 closure commit (코드 변경 0건 / docs 3개만 — push 별도 승인)
 
 ---
 

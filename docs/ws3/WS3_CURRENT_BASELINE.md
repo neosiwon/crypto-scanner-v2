@@ -4,7 +4,7 @@
 > 다음 단계 작업 전에 이 파일로 baseline 을 확인.
 
 **최종 업데이트**: 2026-05-18  
-**기능 단계 (current functional baseline)**: WS3 v0.26.1 Dev Preview Lightweight Invite Gate (v0.26.0 Cloudflare Access 필수 정책을 Dev Preview 단계용으로 amendment, lightweight client-side invite gate 도입, console UI `<main hidden>` wrap, SHA-256 placeholder commit + constant-time compare + 5회·60초 memory throttle, storage 0건, 새로고침 시 재인증, 두 파일 byte-for-byte mirror 유지, 실 invite code 원문/실 hash repo commit 0건, 실 Cloudflare 변경 0건 / 실 호출 0건)  
+**기능 단계 (current functional baseline)**: WS3 v0.26.1 Dev Preview Lightweight Invite Gate + Pages Deploy Success (Cloudflare Pages 배포 + lightweight invite gate active on `ws3-canary-console.pages.dev` + Worker allowlist = Pages origin only / localhost 제거 / final production Check State 통과 / Cloudflare Access deferred / Send Canary 0건 / Telegram 0건 / KV write 0건 / raw invite code & SHA-256 hash repo 박제 0건)  
 **이전 기능 baseline**: WS3 v0.26.0 Production Web Console Hosting (`55a00d8`)  
 **운영 문서**: WS3 Workflow Template v0.1 박제 (`d8bebc2`, v0.3.0-docs)  
 **branch**: `claude/heuristic-cori-7865e7`
@@ -50,7 +50,8 @@
 | **WS3 v0.25.0** | **`/workers/ws3-telegram-canary-worker.js` + `/workers/ws3-canary-state-kv-adapter.js` + `/docs/ws3/WS3_v0_25_0_OPERATOR_RESET_STATE_LIFECYCLE_REPORT.md`** | **`c3c5ace`** | **✅ 박제 (Operator Reset / State Lifecycle — POST /operator-reset 엔드포인트 7중 조건 + circuit 차단 + 60s cooldown, /state 8→10 fields + currentPhase 9-phase 분류, KV operatorReset 신규 key, mock smoke 19/19. 실 Cloudflare staging deploy + /operator-reset 1회 호출 성공 — alreadySent true→false / resetCount 0→1 / currentPhase OPERATOR_RESETTABLE→RESET_CONFIRMED / Telegram 발송 0건 검증 완료)** |
 | **WS3 v0.25.0 closure** | **`/docs/ws3/WS3_v0_25_0_OPERATOR_RESET_STATE_LIFECYCLE_REPORT.md` §18 추가 + `/docs/ws3/WS3_CHANGELOG.md` + `/docs/ws3/WS3_CURRENT_BASELINE.md`** | **`f2d7ddd`** | **✅ 박제 (Operator Reset Staging Success Closure — 코드 변경 0건, 문서 3개만, Cloudflare 변경 0건, /operator-reset 재호출 0건, Telegram 발송 0건)** |
 | **WS3 v0.26.0** | **`/web/ws3-canary-console.html` (보강) + `/web/ws3-canary-console/index.html` (신규 mirror) + `/docs/ws3/WS3_v0_26_0_PRODUCTION_WEB_CONSOLE_HOSTING_REPORT.md`** | **`55a00d8`** | **✅ 박제 (Production Web Console Hosting — 5-section UI 구조 + Check State/Cleanup Confirm/Operator Reset 추가 + Danger Zone 시각 분리, resetCount UI 비노출, byte-for-byte mirror production entrypoint, Cloudflare Access 필수 + localhost 2-phase allowlist 정책 박제, worker logic 수정 0건 / 실 Cloudflare 변경 0건 / 실 호출 0건 / 실 KV write 0건)** |
-| **WS3 v0.26.1** | **`/web/ws3-canary-console.html` (보강) + `/web/ws3-canary-console/index.html` (mirror) + `/docs/ws3/WS3_v0_26_1_DEV_PREVIEW_INVITE_GATE_REPORT.md`** | **(push 후 기록)** | **✅ 박제 (Dev Preview Lightweight Invite Gate — Cloudflare Access 필수 정책을 Dev Preview 단계용으로 amendment, client-side invite gate prepend + console UI `<main hidden>` wrap, SHA-256 placeholder commit + constant-time compare + 5회·60초 memory throttle, storage 0건, 두 파일 byte-for-byte mirror 유지, 실 invite code 원문/실 hash repo commit 0건, worker logic 수정 0건 / 실 Cloudflare 변경 0건 / 실 호출 0건 / 실 KV write 0건)** |
+| **WS3 v0.26.1** | **`/web/ws3-canary-console.html` (보강) + `/web/ws3-canary-console/index.html` (mirror) + `/docs/ws3/WS3_v0_26_1_DEV_PREVIEW_INVITE_GATE_REPORT.md`** | **`634093d`** | **✅ 박제 (Dev Preview Lightweight Invite Gate — Cloudflare Access 필수 정책을 Dev Preview 단계용으로 amendment, client-side invite gate prepend + console UI `<main hidden>` wrap, SHA-256 placeholder commit + constant-time compare + 5회·60초 memory throttle, storage 0건, 두 파일 byte-for-byte mirror 유지, 실 invite code 원문/실 hash repo commit 0건, worker logic 수정 0건 / 실 Cloudflare 변경 0건 / 실 호출 0건 / 실 KV write 0건)** |
+| **WS3 v0.26.1 Pages Deploy** | **`/docs/ws3/WS3_v0_26_1_DEV_PREVIEW_INVITE_GATE_REPORT.md` §16 추가 + `/docs/ws3/WS3_CHANGELOG.md` + `/docs/ws3/WS3_CURRENT_BASELINE.md`** | **(closure commit 후 기록)** | **✅ 박제 (Dev Preview Pages Deploy Success Closure — 코드 변경 0건 / tracked source 변경 0건 / 문서 3개만. Cloudflare Pages `ws3-canary-console.pages.dev` 배포 / Worker allowlist = Pages origin only / localhost 제거 / lightweight invite gate active / final production Check State PASS / Cloudflare Access deferred / Send Canary 0건 / Telegram 0건 / KV write 0건 / raw invite code & SHA-256 hash repo 박제 0건)** |
 
 ## REJECTED — repo 반영 보류
 
@@ -369,6 +370,37 @@ workers/ws3-telegram-canary-worker.js + web/ws3-canary-console.html  (v0.22.0/v0
 ```
 
 ---
+
+## v0.26.1 Pages Deploy Success (실 Cloudflare 검증 박제)
+
+```text
+v0.26.1 Pages Deploy Success:
+- Pages project: ws3-canary-console
+- Production URL: ws3-canary-console.pages.dev (active)
+- Lightweight invite gate: active (placeholder → 실 SHA-256 hash working copy 1회 substitution → Pages deploy)
+- Cloudflare Access: deferred by user decision (production-grade 운영 / 실코인 연결 전 재검토)
+- Worker allowlist (Phase 2 최종): https://ws3-canary-console.pages.dev only
+- localhost origin: removed (Step F)
+- final production Check State PASS:
+  · version=WS3_v0.25.0_operator_reset_state_lifecycle
+  · persistenceAvailable=true
+  · canaryEnabled=false
+  · alreadySent=false
+  · cleanupRequired=false
+  · circuitOpen=false
+  · currentPhase=RESET_CONFIRMED
+- Send Canary count: 0 / Cleanup Confirm count: 0 / Operator Reset count: 0
+- Telegram API calls: 0 / KV writes: 0
+- CANARY_ENABLED=false maintained / AUTHORIZED_AT=0 maintained
+- raw invite code: not recorded (사용자 본인 vault 외 0건)
+- SHA-256 hash: not committed (placeholder REPLACE_WITH_INVITE_CODE_SHA256 박제 유지, git grep repo-wide 매치 0건)
+- Invoke Token: not recorded / KV namespace ID: not recorded
+- Gate 진행 흐름: Step A (사용자 hash 생성) → Step B (branch alias deploy) → Step B' (production --branch=main corrective deploy) → Step C (사용자 invite gate UI 확인) → Step D (Worker allowlist Phase 1 확장 + redeploy) → Step E (사용자 Check State PASS) → Step F (localhost 제거 Phase 2 + redeploy) → Step G (사용자 final Check State PASS)
+- 본 staging 한계 (재인용): client-side invite gate 우회 가능 (DOM/hash/network/공유). 실 worker action 은 Invoke Token + Origin allowlist + Worker server-side guard 필요.
+
+Next:
+v0.27 candidate: Actual Coin Live Preflight (실코인 데이터 preflight layer)
+```
 
 ## v0.26.1 핵심 메모
 
