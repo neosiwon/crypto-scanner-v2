@@ -40,6 +40,12 @@
   .danger-zone .warn { font-size: 12px; color: #722; font-weight: 700; margin: 0 0 10px; line-height: 1.4; }
   .danger-zone .row { margin: 10px 0; }
   .footnote { font-size: 11px; color: #888; margin-top: 18px; line-height: 1.5; }
+  .invite-gate { border: 1px solid #cce; border-radius: 6px; padding: 16px; background: #f8faff; }
+  .invite-gate .lead { font-size: 13px; color: #335; line-height: 1.5; margin: 0 0 12px; }
+  .invite-status { font-family: ui-monospace, SFMono-Regular, monospace; font-size: 12px; color: #555; padding: 8px 10px; background: #f3f3f3; border-radius: 4px; min-height: 32px; }
+  .invite-status.err { color: #802; background: #fdd; }
+  .invite-status.warn { color: #553; background: #ffe; }
+  .invite-status.ok { color: #252; background: #efe; }
   @media (max-width: 420px) {
     body { margin: 12px auto; padding: 12px; }
     .panel .k { min-width: 110px; }
@@ -49,6 +55,33 @@
 </head>
 <body>
 <h1>WS3 Canary Console</h1>
+
+<!-- ============================================================ -->
+<!-- Dev Preview Invite Gate (v0.26.1).                            -->
+<!-- Lightweight client-side check. Source inspect / DOM 조작 /     -->
+<!-- offline brute force 가능. 실 worker action 은 별도              -->
+<!-- WS3_CANARY_INVOKE_TOKEN + server-side guard 로 보호.            -->
+<!-- 통과 상태는 메모리에만 유지. 새로고침 시 재인증.                -->
+<!-- ============================================================ -->
+<section id="inviteGate" class="section invite-gate" aria-label="Invite Gate">
+  <p class="lead">
+    Dev Preview 단계입니다. 친구/지인 테스트용 가벼운 초대코드 게이트입니다.
+    실 worker action 은 별도 Invoke Token + server-side guard 로 추가 보호되며,
+    Cloudflare Access 는 production-grade 운영 단계에서 재검토합니다.
+  </p>
+  <div class="row">
+    <label for="inviteCodeInput">Invite Code</label>
+    <input id="inviteCodeInput" type="password" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-1p-ignore data-bwignore data-lpignore maxlength="128" placeholder="invite code (1회 입력, 즉시 클리어)">
+  </div>
+  <div class="row">
+    <button id="inviteEnterBtn" type="button" class="primary">Enter</button>
+  </div>
+  <div class="row">
+    <div id="inviteStatus" class="invite-status">상태: 대기</div>
+  </div>
+</section>
+
+<main id="consoleApp" class="console-app" hidden>
 
 <p class="note">
   실 운영 canary 전용 콘솔. Telegram bot token / chat id / invoke token / KV namespace ID / Telegram message_id / raw Telegram response 의 실제 값은
@@ -131,6 +164,148 @@
     표시 금지: resetCount / lastResetAt / lastSentAt / lastCleanupAt / sentAt / blockedUntil / failureCount / consecutiveFailures / Telegram message_id / raw Telegram response / bot token / chatId / invoke token / Origin 실제 값 / IP / KV namespace ID / full headers / stack trace / internal exception message.
   </p>
 </div>
+
+</main>
+
+<script>
+/* ===========================================================
+   v0.26.1 Dev Preview Invite Gate
+   - placeholder hash = "REPLACE_WITH_INVITE_CODE_SHA256"
+   - Pages deploy 전 별도 Gate 에서 실 SHA-256 (lowercase hex 64) 으로 교체
+   - 통과 상태는 메모리에만 유지 (localStorage/sessionStorage/IndexedDB/cookie 사용 0건)
+   - 새로고침 시 재인증
+   - client-side gate 는 우회 가능 (DOM inspect / hash 추출 / network 분석)
+   - 실 worker action 은 별도 Invoke Token + server-side guard 가 차단
+   =========================================================== */
+(function() {
+  'use strict';
+
+  var WS3_INVITE_CODE_SHA256 = 'REPLACE_WITH_INVITE_CODE_SHA256';
+
+  var inviteGateEl = document.getElementById('inviteGate');
+  var consoleAppEl = document.getElementById('consoleApp');
+  var inviteInputEl = document.getElementById('inviteCodeInput');
+  var inviteEnterBtn = document.getElementById('inviteEnterBtn');
+  var inviteStatusEl = document.getElementById('inviteStatus');
+
+  // Memory-only throttle. No storage.
+  var inviteFailureCount = 0;
+  var inviteThrottleUntilMs = 0;
+  var THROTTLE_LIMIT = 5;
+  var THROTTLE_DURATION_MS = 60 * 1000;
+
+  function setInviteStatus(text, kind) {
+    inviteStatusEl.textContent = '상태: ' + text;
+    inviteStatusEl.className = 'invite-status' + (kind ? (' ' + kind) : '');
+  }
+
+  function isPlaceholderHash(h) {
+    if (typeof h !== 'string') return true;
+    if (h === 'REPLACE_WITH_INVITE_CODE_SHA256') return true;
+    if (!/^[0-9a-f]{64}$/.test(h)) return true;
+    return false;
+  }
+
+  function sha256Hex(input) {
+    if (!window.crypto || !window.crypto.subtle) {
+      return Promise.reject(new Error('WEBCRYPTO_UNAVAILABLE'));
+    }
+    var enc = new TextEncoder();
+    var data = enc.encode(input);
+    return window.crypto.subtle.digest('SHA-256', data).then(function(buf) {
+      var arr = new Uint8Array(buf);
+      var hex = '';
+      for (var i = 0; i < arr.length; i++) {
+        var h = arr[i].toString(16);
+        if (h.length === 1) hex += '0';
+        hex += h;
+      }
+      return hex;
+    });
+  }
+
+  function constantTimeEqual(a, b) {
+    if (typeof a !== 'string' || typeof b !== 'string') return false;
+    if (a.length !== b.length) return false;
+    var diff = 0;
+    for (var i = 0; i < a.length; i++) {
+      diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+    }
+    return diff === 0;
+  }
+
+  function showConsole() {
+    inviteGateEl.hidden = true;
+    consoleAppEl.hidden = false;
+    inviteFailureCount = 0;
+    inviteThrottleUntilMs = 0;
+  }
+
+  function verifyInviteCode() {
+    var nowMs = Date.now();
+
+    if (nowMs < inviteThrottleUntilMs) {
+      var remainSec = Math.max(1, Math.ceil((inviteThrottleUntilMs - nowMs) / 1000));
+      setInviteStatus('THROTTLED — ' + remainSec + '초 후 재시도', 'warn');
+      return;
+    }
+
+    var input = inviteInputEl.value;
+    // Clear immediately. Do not persist plaintext.
+    inviteInputEl.value = '';
+
+    if (typeof input !== 'string' || input.length === 0) {
+      setInviteStatus('MISSING_INVITE_CODE', 'err');
+      return;
+    }
+
+    if (isPlaceholderHash(WS3_INVITE_CODE_SHA256)) {
+      setInviteStatus('PLACEHOLDER — deploy gate 에서 실 hash 주입 필요', 'warn');
+      return;
+    }
+
+    setInviteStatus('CHECKING', 'warn');
+    inviteEnterBtn.disabled = true;
+
+    sha256Hex(input).then(function(hashHex) {
+      // Discard plaintext input reference.
+      input = null;
+      var expected = WS3_INVITE_CODE_SHA256.toLowerCase();
+      if (constantTimeEqual(hashHex, expected)) {
+        setInviteStatus('OK', 'ok');
+        showConsole();
+      } else {
+        inviteFailureCount += 1;
+        if (inviteFailureCount >= THROTTLE_LIMIT) {
+          inviteThrottleUntilMs = Date.now() + THROTTLE_DURATION_MS;
+          setInviteStatus(THROTTLE_LIMIT + '회 실패 — 60초 대기', 'err');
+        } else {
+          setInviteStatus('INVALID_INVITE_CODE (' + inviteFailureCount + '/' + THROTTLE_LIMIT + ')', 'err');
+        }
+      }
+    }).catch(function() {
+      setInviteStatus('HASH_ERROR', 'err');
+    }).then(function() {
+      inviteEnterBtn.disabled = false;
+    });
+  }
+
+  inviteEnterBtn.addEventListener('click', verifyInviteCode);
+  inviteInputEl.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      verifyInviteCode();
+    }
+  });
+
+  // Initial paint
+  if (isPlaceholderHash(WS3_INVITE_CODE_SHA256)) {
+    setInviteStatus('PLACEHOLDER — deploy gate 전 통과 불가', 'warn');
+  } else {
+    setInviteStatus('대기', '');
+  }
+})();
+</script>
 
 <script>
 (function() {

@@ -5,6 +5,143 @@
 
 ---
 
+## [v0.26.1] — 2026-05-18 (Dev Preview Lightweight Invite Gate)
+
+### 목적 (실코인 연결 아님 / Cloudflare Access 보류)
+v0.26.0 까지 박제됐던 "Cloudflare Access 필수 / Access 없는 public Pages 비채택" 정책을 **Dev Preview 단계용으로 amendment** 하여, Cloudflare Access 대신 **lightweight client-side invite gate** 적용. production-grade 운영 / 실코인 연결 단계 진입 시 Cloudflare Access 재검토.
+
+실 Cloudflare Access 설정 / Zero Trust 설정 / Pages deploy / Worker 재배포 / `WS3_CANARY_ALLOWED_ORIGINS` 변경 / `/state` / `/send-canary` / `/cleanup-confirm` / `/operator-reset` 호출 / Telegram API 호출 / KV write — **모두 0건**.
+
+### Added
+- `/docs/ws3/WS3_v0_26_1_DEV_PREVIEW_INVITE_GATE_REPORT.md` — v0.26.1 완료 보고서 (15 sections)
+
+### Changed
+- `/web/ws3-canary-console.html` 466 → 641 라인 (+175):
+  - 신규 `<section id="inviteGate">` prepend — invite code 입력칸 + Enter 버튼 + status panel
+  - 기존 5-section UI (Configuration/Status/Controlled Operation/Danger Zone/Safe Result) 를 `<main id="consoleApp" hidden>` 으로 wrap
+  - CSS `.invite-gate` / `.invite-status` (err/warn/ok 3-state) 추가
+  - 신규 IIFE 블록 (4428 chars) — invite gate 로직 (placeholder check / SHA-256 / constant-time compare / 5회·60초 throttle / 새로고침 시 재인증)
+  - 기존 IIFE 블록 (11257 chars) — 변경 0건
+- `/web/ws3-canary-console/index.html` 466 → 641 라인 (+175) — `/web/ws3-canary-console.html` 의 byte-for-byte mirror 유지
+- `/docs/ws3/WS3_CHANGELOG.md` (본 파일): `[v0.26.1]` entry 상단 추가
+- `/docs/ws3/WS3_CURRENT_BASELINE.md`: baseline → v0.26.1 + 완료된 단계 row 추가 + v0.26.1 핵심 메모 추가
+
+### v0.26.0 정책 amendment
+| 항목 | v0.26.0 | v0.26.1 |
+|---|---|---|
+| Cloudflare Access | 필수 | 보류 (production-grade 운영 / 실코인 연결 전 재검토) |
+| Pages deploy | Access 없으면 비채택 | Dev Preview 용도로 가능하되 이번 단계 미실행 |
+| Console UI 보호 | Access (network-level, identity verified) | client-side invite gate (lightweight) |
+| Worker action 보호 | Invoke Token + server-side guard | 동일 유지 (변경 0건) |
+
+변경 이유: 현재 단계 = 개발/지인 테스트 목적. Cloudflare Zero Trust 설정 학습/운영 비용이 큼. 운영자 email allowlist 관리보다 가벼운 테스트 접근성 우선.
+
+변경 영향: Layer 1 (UI 노출 차단) 만 약화. Layer 2 (Invoke Token) / Layer 3 (Worker server-side guard) 동일 유지. **Telegram 발송 / KV write / operator-reset 위험은 본 amendment 가 높이지 않음.**
+
+### invite gate 구조
+- DOM: `<section id="inviteGate">` (always-visible) + `<main id="consoleApp" hidden>` (기존 5-section)
+- placeholder hash 상수: `var WS3_INVITE_CODE_SHA256 = 'REPLACE_WITH_INVITE_CODE_SHA256';`
+- placeholder 감지: `isPlaceholderHash` (lowercase hex 64자 정규식) — placeholder 상태에서 hash 비교 0회, `PLACEHOLDER — deploy gate 에서 실 hash 주입 필요` 표시
+- SHA-256: `window.crypto.subtle.digest('SHA-256', ...)` → lowercase hex 변환
+- 비교: `constantTimeEqual` (char XOR accumulation, native `===` 회피)
+- throttle: 5회 연속 실패 → 60초 disable, counter/timestamp 메모리 only, 새로고침 reset
+- 통과 후: `inviteGate.hidden=true` / `consoleApp.hidden=false` + counter/throttle reset
+- 입력 즉시 클리어: `inviteCodeInput.value = ''` (verifyInviteCode 진입 직후)
+- 초대코드 원문 변수 명시 해제: `input = null`
+
+### invite code commit 정책 (옵션 A 채택)
+- **placeholder 만 commit** — 초대코드 원문 / 실 SHA-256 hash 값 모두 repo 박제 0건
+- Pages deploy 전 별도 Gate 에서 hash 교체 (working copy only, commit 0건)
+
+### client-side gate 한계 (재인용)
+- DOM inspect 우회 가능 (`inviteGate.hidden=true` / `consoleApp.hidden=false` 수동 조작) → UI 노출 가능, 단 실 worker action 은 Invoke Token 없이 불가
+- hash 추출 → offline brute force / rainbow table 가능. 완화: 16자 이상 랜덤 초대코드, 짧은 단어/이름/생일/프로젝트명 금지
+- network pattern 학습 가능. 단 실 호출에는 Invoke Token + Origin allowlist + server-side gate 모두 필요
+- 초대코드 공유 / 유출 가능. 유출 의심 시 hash 교체 + Pages redeploy
+
+### invite gate UI 안전 정책 (Web Console)
+- `input type="password"` / `autocomplete="off"` / `autocorrect="off"` / `autocapitalize="off"` / `spellcheck="false"`
+- `data-1p-ignore` / `data-bwignore` / `data-lpignore`
+- `maxlength="128"`
+- **`localStorage` / `sessionStorage` / `IndexedDB` / `document.cookie` 호출 0건**
+- URL query parameter invite code 전달 0건
+- `console.log` 출력 0건
+- 통과 상태 storage 저장 0건 → 새로고침 시 invite gate 재표시
+- 초대코드 원문 변수 저장 0건
+
+### 정적 검증 결과
+- `grep -Rni "localStorage|sessionStorage|indexedDB|document.cookie" web/` → 매치 4건 (양쪽 파일), 모두 정책 부정문맥. 실 storage API 호출 0건.
+- `grep -Rni "resetCount" web/` → 매치 6건 (양쪽 파일), 모두 footnote / Danger Zone warn / 코드 주석. 실 DOM set 0건.
+- `grep -Rni "REPLACE_WITH_INVITE_CODE_SHA256|WS3_INVITE_CODE_SHA256" web/` → 매치 12건 (양쪽 파일), placeholder 정상 존재.
+- `grep -Rni "bot_token|chat_id|message_id|first-4|last-4|masked|redacted" web/` → 정책 안내 문맥만. 실 값 노출 0건.
+- `diff -q web/ws3-canary-console.html web/ws3-canary-console/index.html` → 빈 출력 (25087 bytes / 641 라인 일치).
+- embedded `<script>` 블록 2개 (4428 + 11257 chars) Node `new Function(js)` parse 모두 통과.
+
+### Protected (수정 0건)
+- 본선 `worker.js` / `wrangler.toml` (repo 미존재) / `index.html` / `manifest.json` / `service-worker.js` — 미수정
+- `v3/` 25종 엔진 — 미수정
+- `docs/ws3/WS3_CODE_CONTRACT.md` / `WS3_WORKFLOW_TEMPLATE.md` — 미수정
+- `workers/ws3-telegram-canary-worker.js` / `workers/ws3-canary-state-kv-adapter.js` — 미수정 (v0.25.0 그대로)
+- `wrangler-canary.example.toml` / `.gitignore` — 미수정
+- `workers/ws3-telegram-canary-entry.mjs` / `wrangler-canary.toml` / `.claude/` / `.wrangler/` / `.tmp_canary_*` — 미스테이지 유지
+
+### 보안 / 누출 검증 (0건 확인)
+- 실 invite code 원문 / 실 SHA-256 hash 값 — repo / 채팅 / 보고서 / 로그 노출 0건 (placeholder 만 박제)
+- bot token / chatId / invoke token 실 값 — 노출 0건
+- KV namespace id / Telegram message_id / raw Telegram response — 노출 0건
+- Origin 실 값 / IP / cookie / session id / browser fingerprint — 노출 0건
+- masked / first-4 / last-4 / redacted preview — 0건
+- localStorage / sessionStorage / IndexedDB / document.cookie 호출 — 0건
+- URL query parameter token / invite code 전달 — 0건
+- console.log 출력 — 0건
+
+### Cloudflare 변경 0건
+- Cloudflare Access 설정 0건 / Zero Trust 설정 0건
+- Pages deploy 0건 (별도 Gate)
+- Worker 재배포 0건 (v0.25.0 production Version 그대로)
+- `WS3_CANARY_ALLOWED_ORIGINS` 변경 0건
+- secrets (BOT_TOKEN / CHAT_ID / INVOKE_TOKEN) 변경 0건
+- `/state` / `/send-canary` / `/cleanup-confirm` / `/operator-reset` 실 호출 0건
+- Telegram API 호출 0건
+- KV write 0건
+
+### Pages deploy 전 절차 (별도 Gate 박제)
+```text
+1. 사용자가 실제 invite code 결정 (외부, 채팅 노출 금지)
+2. SHA-256 hash 생성
+3. HTML placeholder → 실 hash 교체 (working copy only)
+4. commit 0건
+5. Pages deploy
+6. Pages origin Worker allowlist 추가 결정 (별도 Step)
+7. localhost 제거 결정 (별도 Step)
+```
+
+### v0.27 진입 전 보안 재평가 권장
+- Cloudflare Access 재적용 여부
+- invite gate 유지 / Access 동시 적용 여부
+- 실코인 연결 시 page-level 보호 강화 필요 여부
+- invoke token rotation 여부
+- origin allowlist 정책 (production-only)
+
+권장: **실코인 연결 전 Cloudflare Access 또는 동등한 page-level 보호 재검토.**
+
+### 의도된 미구현 (다음 단계 후보)
+- v0.26 Production Pages Deploy Gate (별도, invite hash 교체 + Pages deploy)
+- v0.26.x: build script / shared source 도입 (두 파일 자동 동기화)
+- v0.27: Actual Coin Live Preflight (실코인 데이터를 canary/live execution 경로에 넣기 전 preflight layer)
+- v0.28+: Snapshot / Evaluation / Audit KV write boundary
+- worker `/state` response 자체에서 resetCount 제거 (v0.27+, 현재는 UI 비노출만)
+- env-based resetPhrase / circuit reset endpoint / failure counter reset endpoint
+- invoke token rotate automation
+- ipHash + `WS3_CANARY_HASH_SALT`
+
+### 기준 commit
+- branch: `claude/heuristic-cori-7865e7`
+- 이전 functional baseline: WS3 v0.26.0 Production Web Console Hosting (`55a00d8`)
+- 본 commit: (push 후 기록, push 별도 승인)
+
+---
+
 ## [v0.26.0] — 2026-05-18 (Production Web Console Hosting)
 
 ### 목적 (실코인 연결 아님)

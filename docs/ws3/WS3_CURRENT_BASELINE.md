@@ -4,8 +4,8 @@
 > 다음 단계 작업 전에 이 파일로 baseline 을 확인.
 
 **최종 업데이트**: 2026-05-18  
-**기능 단계 (current functional baseline)**: WS3 v0.26.0 Production Web Console Hosting (local-only Web Console → production-safe static hosting 구조, 5-section UI + Danger Zone 시각 분리 + Check State/Cleanup Confirm/Operator Reset 추가, resetCount UI 비노출, web/ws3-canary-console/index.html byte-for-byte mirror entrypoint 신규, Cloudflare Access 필수 정책 + localhost 2-phase allowlist 정책 박제, 실 Cloudflare 변경 0건 / 실 호출 0건)  
-**이전 기능 baseline**: WS3 v0.25.0 Operator Reset / State Lifecycle + Staging Success (`f2d7ddd`)  
+**기능 단계 (current functional baseline)**: WS3 v0.26.1 Dev Preview Lightweight Invite Gate (v0.26.0 Cloudflare Access 필수 정책을 Dev Preview 단계용으로 amendment, lightweight client-side invite gate 도입, console UI `<main hidden>` wrap, SHA-256 placeholder commit + constant-time compare + 5회·60초 memory throttle, storage 0건, 새로고침 시 재인증, 두 파일 byte-for-byte mirror 유지, 실 invite code 원문/실 hash repo commit 0건, 실 Cloudflare 변경 0건 / 실 호출 0건)  
+**이전 기능 baseline**: WS3 v0.26.0 Production Web Console Hosting (`55a00d8`)  
 **운영 문서**: WS3 Workflow Template v0.1 박제 (`d8bebc2`, v0.3.0-docs)  
 **branch**: `claude/heuristic-cori-7865e7`
 
@@ -49,7 +49,8 @@
 | **WS3 v0.24.0** | **`/docs/ws3/WS3_v0_24_0_PERSISTENT_GUARD_STAGING_VALIDATION_REPORT.md`** | **`cd002dc`** | **✅ 박제 (Persistent Guard Staging Validation — 운영 검증 Gate, 코드 변경 0건. 실 Cloudflare KV 에서 1회 한정 Telegram canary 발송 → alreadySent/cleanupRequired KV 저장 + 2차 ALREADY_SENT_PERSISTENT 차단 + /cleanup-confirm + alreadySent=true 유지 + CANARY_ENABLED=false 복귀 9건 검증 완료)** |
 | **WS3 v0.25.0** | **`/workers/ws3-telegram-canary-worker.js` + `/workers/ws3-canary-state-kv-adapter.js` + `/docs/ws3/WS3_v0_25_0_OPERATOR_RESET_STATE_LIFECYCLE_REPORT.md`** | **`c3c5ace`** | **✅ 박제 (Operator Reset / State Lifecycle — POST /operator-reset 엔드포인트 7중 조건 + circuit 차단 + 60s cooldown, /state 8→10 fields + currentPhase 9-phase 분류, KV operatorReset 신규 key, mock smoke 19/19. 실 Cloudflare staging deploy + /operator-reset 1회 호출 성공 — alreadySent true→false / resetCount 0→1 / currentPhase OPERATOR_RESETTABLE→RESET_CONFIRMED / Telegram 발송 0건 검증 완료)** |
 | **WS3 v0.25.0 closure** | **`/docs/ws3/WS3_v0_25_0_OPERATOR_RESET_STATE_LIFECYCLE_REPORT.md` §18 추가 + `/docs/ws3/WS3_CHANGELOG.md` + `/docs/ws3/WS3_CURRENT_BASELINE.md`** | **`f2d7ddd`** | **✅ 박제 (Operator Reset Staging Success Closure — 코드 변경 0건, 문서 3개만, Cloudflare 변경 0건, /operator-reset 재호출 0건, Telegram 발송 0건)** |
-| **WS3 v0.26.0** | **`/web/ws3-canary-console.html` (보강) + `/web/ws3-canary-console/index.html` (신규 mirror) + `/docs/ws3/WS3_v0_26_0_PRODUCTION_WEB_CONSOLE_HOSTING_REPORT.md`** | **(push 후 기록)** | **✅ 박제 (Production Web Console Hosting — 5-section UI 구조 + Check State/Cleanup Confirm/Operator Reset 추가 + Danger Zone 시각 분리, resetCount UI 비노출, byte-for-byte mirror production entrypoint, Cloudflare Access 필수 + localhost 2-phase allowlist 정책 박제, worker logic 수정 0건 / 실 Cloudflare 변경 0건 / 실 호출 0건 / 실 KV write 0건)** |
+| **WS3 v0.26.0** | **`/web/ws3-canary-console.html` (보강) + `/web/ws3-canary-console/index.html` (신규 mirror) + `/docs/ws3/WS3_v0_26_0_PRODUCTION_WEB_CONSOLE_HOSTING_REPORT.md`** | **`55a00d8`** | **✅ 박제 (Production Web Console Hosting — 5-section UI 구조 + Check State/Cleanup Confirm/Operator Reset 추가 + Danger Zone 시각 분리, resetCount UI 비노출, byte-for-byte mirror production entrypoint, Cloudflare Access 필수 + localhost 2-phase allowlist 정책 박제, worker logic 수정 0건 / 실 Cloudflare 변경 0건 / 실 호출 0건 / 실 KV write 0건)** |
+| **WS3 v0.26.1** | **`/web/ws3-canary-console.html` (보강) + `/web/ws3-canary-console/index.html` (mirror) + `/docs/ws3/WS3_v0_26_1_DEV_PREVIEW_INVITE_GATE_REPORT.md`** | **(push 후 기록)** | **✅ 박제 (Dev Preview Lightweight Invite Gate — Cloudflare Access 필수 정책을 Dev Preview 단계용으로 amendment, client-side invite gate prepend + console UI `<main hidden>` wrap, SHA-256 placeholder commit + constant-time compare + 5회·60초 memory throttle, storage 0건, 두 파일 byte-for-byte mirror 유지, 실 invite code 원문/실 hash repo commit 0건, worker logic 수정 0건 / 실 Cloudflare 변경 0건 / 실 호출 0건 / 실 KV write 0건)** |
 
 ## REJECTED — repo 반영 보류
 
@@ -368,6 +369,87 @@ workers/ws3-telegram-canary-worker.js + web/ws3-canary-console.html  (v0.22.0/v0
 ```
 
 ---
+
+## v0.26.1 핵심 메모
+
+```text
+- web/ws3-canary-console.html 466 → 641 라인 (+175 보강)
+- web/ws3-canary-console/index.html 466 → 641 라인 (byte-for-byte mirror 유지)
+- 신규 산출: /docs/ws3/WS3_v0_26_1_DEV_PREVIEW_INVITE_GATE_REPORT.md (15 sections)
+- v0.26.1 의 핵심: 실코인 연결 아님 / Cloudflare Access 단계 아님 / Dev Preview lightweight invite gate 단계.
+- v0.26.0 정책 amendment:
+  · Cloudflare Access 필수 → 보류 (production-grade 운영 / 실코인 연결 전 재검토)
+  · Access 없는 public Pages 비채택 → Dev Preview 용도로 가능 (이번 단계 미실행)
+  · Console 보호 → client-side invite gate
+  · Worker action 보호 → 기존 Invoke Token + server-side guard 유지 (변경 0건)
+- 변경 영향:
+  · Layer 1 (UI 노출 차단): 약화 — Access (network-level identity verified) → client-side invite gate (DOM/hash/network 분석 가능)
+  · Layer 2 (Invoke Token): 동일 유지
+  · Layer 3 (Worker server-side guard, 7중 조건 등): 동일 유지
+  · Telegram 발송 / KV write / operator-reset 위험은 본 amendment 가 높이지 않음
+- invite gate 구조:
+  · DOM: <section id="inviteGate"> always-visible + <main id="consoleApp" hidden> (기존 5-section)
+  · placeholder hash 상수: var WS3_INVITE_CODE_SHA256 = 'REPLACE_WITH_INVITE_CODE_SHA256';
+  · placeholder 감지: isPlaceholderHash (lowercase hex 64자 정규식 외 = placeholder)
+  · SHA-256: window.crypto.subtle.digest('SHA-256', ...) → lowercase hex
+  · 비교: constantTimeEqual (char XOR accumulation, native === 회피)
+  · 5회/60초 throttle: counter/timestamp 메모리 only, 새로고침 reset
+  · 통과 후: inviteGate.hidden=true / consoleApp.hidden=false + counter/throttle reset
+  · 입력 즉시 클리어: inviteCodeInput.value='' (verifyInviteCode 진입 직후)
+  · 초대코드 원문 변수 명시 해제: input = null
+  · 통과 상태 storage 0건 → 새로고침 시 invite gate 재표시
+- invite code commit 정책 (옵션 A):
+  · placeholder 만 commit
+  · 실 invite code 원문 / 실 SHA-256 hash 값 repo 박제 0건
+  · Pages deploy 전 별도 Gate 에서 working copy only hash 교체 (commit 0건)
+- client-side gate 한계 (재인용): DOM inspect 우회 / hash 추출 brute force / network 분석 / 초대코드 공유 — 모두 가능. 단 실 worker action 은 Invoke Token + Origin allowlist + server-side gate 필요.
+- 완화책:
+  · 16자 이상 랜덤 초대코드 권장
+  · 짧은 단어 / 이름 / 생일 / 프로젝트명 금지
+  · 유출 의심 시 hash 교체 + Pages redeploy
+  · Invoke Token 절대 공유 금지
+  · CANARY_ENABLED=false 유지
+- token / invite 입력 보안:
+  · input type=password / autocomplete=off / autocorrect=off / autocapitalize=off / spellcheck=false
+  · data-1p-ignore / data-bwignore / data-lpignore
+  · maxlength=128
+  · localStorage / sessionStorage / IndexedDB / document.cookie 호출 0건
+  · URL query parameter token/invite code 전달 0건
+  · console.log 출력 0건
+- 정적 검증:
+  · storage API 호출 0건 (grep 매치 4건 모두 정책 부정문맥)
+  · resetCount DOM set 0건 (grep 매치 6건 모두 footnote/warn/주석)
+  · placeholder 정상 존재 (grep 매치 12건)
+  · secret 실 값 0건
+  · 두 파일 byte-for-byte diff 0건 (25087 bytes / 641 라인 일치)
+  · embedded <script> 블록 2개 (4428 + 11257 chars) Node parse OK
+- 보호 파일 (worker.js + wrangler.toml + index.html + manifest.json + service-worker.js + v3/ 25종 + WS3_CODE_CONTRACT.md + WS3_WORKFLOW_TEMPLATE.md + workers/ws3-telegram-canary-worker.js + workers/ws3-canary-state-kv-adapter.js + wrangler-canary.example.toml + .gitignore) diff 0건
+- 미스테이지 유지: workers/ws3-telegram-canary-entry.mjs / wrangler-canary.toml / .claude/ / .wrangler/ / .tmp_canary_*
+- Cloudflare 변경 0건 (Access 설정 0건 / Zero Trust 설정 0건 / Pages deploy 0건 / Worker 재배포 0건 / WS3_CANARY_ALLOWED_ORIGINS 변경 0건 / secrets 변경 0건)
+- 실 호출 0건 (/state / /send-canary / /cleanup-confirm / /operator-reset 모두 0건) / 실 Telegram API 0건 / 실 KV write 0건
+- Pages deploy 전 절차 (별도 Gate):
+  · 사용자가 실 invite code 결정 (외부, 채팅 노출 금지)
+  · SHA-256 hash 생성
+  · HTML placeholder → 실 hash 교체 (working copy only)
+  · commit 0건
+  · Pages deploy
+  · Pages origin Worker allowlist 추가 결정 (별도 Step)
+  · localhost 제거 결정 (별도 Step)
+- v0.27 진입 전 보안 재평가 권장:
+  · Cloudflare Access 재적용 여부
+  · invite gate 유지 / Access 동시 적용 여부
+  · 실코인 연결 시 page-level 보호 강화 필요 여부
+  · invoke token rotation 여부
+  · origin allowlist 정책 (production-only)
+- 다음 후보:
+  · v0.26 Production Pages Deploy Gate (별도, invite hash 교체 + Pages deploy)
+  · v0.26.x: build script / shared source 도입 (두 파일 자동 동기화)
+  · v0.27: Actual Coin Live Preflight (실코인 데이터 preflight layer)
+  · v0.28+: Snapshot / Evaluation / Audit KV write boundary
+  · worker /state response 자체에서 resetCount 제거 (v0.27+)
+  · env-based resetPhrase / circuit reset endpoint / failure counter reset endpoint
+  · invoke token rotate automation / ipHash + WS3_CANARY_HASH_SALT
+```
 
 ## v0.26.0 핵심 메모
 
