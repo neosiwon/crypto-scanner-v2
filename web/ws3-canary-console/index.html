@@ -165,6 +165,60 @@
   </p>
 </div>
 
+<div class="section">
+  <h2>6. Live Preflight (v0.27 read-only)</h2>
+  <p class="note">
+    실코인 알람 아님. 실 거래소 공개 시세 1회 read-only fetch + 정규화 preview 만 표시. Telegram 발송 0건 / KV write 0건 / candidate 저장 0건 / tracking 시작 0건. 사용자 클릭시에만 실행 (auto refresh 0건).
+  </p>
+  <div class="row">
+    <label for="lp_exchange">Exchange</label>
+    <select id="lp_exchange">
+      <option value="upbit">upbit</option>
+      <option value="bithumb">bithumb</option>
+      <option value="binance">binance</option>
+    </select>
+  </div>
+  <div class="row">
+    <label for="lp_market">Market</label>
+    <input id="lp_market" type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" maxlength="32" placeholder="upbit=KRW-BTC / bithumb=BTC_KRW / binance=BTCUSDT" value="KRW-BTC">
+  </div>
+  <div class="row">
+    <label for="lp_timeframe">Timeframe</label>
+    <select id="lp_timeframe">
+      <option value="1m">1m</option>
+      <option value="5m" selected>5m</option>
+      <option value="15m">15m</option>
+      <option value="1h">1h</option>
+    </select>
+  </div>
+  <div class="row">
+    <label for="lp_limit">Limit (1-60)</label>
+    <input id="lp_limit" type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" inputmode="numeric" pattern="[0-9]*" maxlength="2" value="30">
+  </div>
+  <div class="row">
+    <button id="lp_runBtn" class="primary" type="button">Run Live Preflight</button>
+  </div>
+  <div class="row panel">
+    <div><span class="k">code:</span> <span id="lp_code" class="v n">-</span></div>
+    <div><span class="k">exchange:</span> <span id="lp_o_exchange" class="v n">-</span></div>
+    <div><span class="k">market:</span> <span id="lp_o_market" class="v n">-</span></div>
+    <div><span class="k">timeframe:</span> <span id="lp_o_timeframe" class="v n">-</span></div>
+    <div><span class="k">candleCount:</span> <span id="lp_o_count" class="v n">-</span></div>
+    <div><span class="k">latestTime:</span> <span id="lp_o_latestTime" class="v n">-</span></div>
+    <div><span class="k">lastClose:</span> <span id="lp_o_lastClose" class="v n">-</span></div>
+    <div><span class="k">changePct:</span> <span id="lp_o_changePct" class="v n">-</span></div>
+    <div><span class="k">volumeRatio:</span> <span id="lp_o_volumeRatio" class="v n">-</span></div>
+    <div><span class="k">mode:</span> <span id="lp_o_mode" class="v n">-</span></div>
+    <div><span class="k">telegramSent:</span> <span id="lp_o_telegramSent" class="v n">-</span></div>
+    <div><span class="k">kvWritten:</span> <span id="lp_o_kvWritten" class="v n">-</span></div>
+  </div>
+  <p class="footnote">
+    표시 허용: code / exchange / market / timeframe / candleCount / latestTime / lastClose / changePct / volumeRatio / mode / telegramSent / kvWritten.
+    <br>
+    표시 금지: raw exchange response / full headers / stack trace / token / secret / resetCount / KV namespace ID / Telegram message_id / bot token / chatId.
+  </p>
+</div>
+
 </main>
 
 <script>
@@ -630,10 +684,106 @@
   // Refresh button gating when reset phrase input changes.
   resetPhraseEl.addEventListener('input', refreshButtons);
 
+  // === v0.27 Live Preflight (read-only) ===
+  // No Telegram / no KV write / no candidate store / no tracking start.
+  // Click-only execution (no auto refresh).
+  var lpExchangeEl = document.getElementById('lp_exchange');
+  var lpMarketEl = document.getElementById('lp_market');
+  var lpTimeframeEl = document.getElementById('lp_timeframe');
+  var lpLimitEl = document.getElementById('lp_limit');
+  var lpRunBtn = document.getElementById('lp_runBtn');
+  var lpCodeEl = document.getElementById('lp_code');
+  var lpOExchangeEl = document.getElementById('lp_o_exchange');
+  var lpOMarketEl = document.getElementById('lp_o_market');
+  var lpOTimeframeEl = document.getElementById('lp_o_timeframe');
+  var lpOCountEl = document.getElementById('lp_o_count');
+  var lpOLatestTimeEl = document.getElementById('lp_o_latestTime');
+  var lpOLastCloseEl = document.getElementById('lp_o_lastClose');
+  var lpOChangePctEl = document.getElementById('lp_o_changePct');
+  var lpOVolumeRatioEl = document.getElementById('lp_o_volumeRatio');
+  var lpOModeEl = document.getElementById('lp_o_mode');
+  var lpOTelegramSentEl = document.getElementById('lp_o_telegramSent');
+  var lpOKvWrittenEl = document.getElementById('lp_o_kvWritten');
+
+  function lpClearOutputs() {
+    setStrField(lpCodeEl, null);
+    setStrField(lpOExchangeEl, null);
+    setStrField(lpOMarketEl, null);
+    setStrField(lpOTimeframeEl, null);
+    setNumField(lpOCountEl, null);
+    setStrField(lpOLatestTimeEl, null, 96);
+    setNumField(lpOLastCloseEl, null);
+    setNumField(lpOChangePctEl, null);
+    setNumField(lpOVolumeRatioEl, null);
+    setStrField(lpOModeEl, null);
+    setBoolField(lpOTelegramSentEl, null);
+    setBoolField(lpOKvWrittenEl, null);
+  }
+  function lpSetErrorCode(code) {
+    setStatus('ERROR');
+    setStrField(lpCodeEl, (typeof code === 'string' && code.length > 0) ? code : 'UNKNOWN_ERROR');
+  }
+
+  lpRunBtn.addEventListener('click', function() {
+    var endpoint = safeEndpoint();
+    if (!endpoint) { lpSetErrorCode('MISSING_ENDPOINT'); return; }
+    var token = readTokenAndClear();
+    if (!token) { lpSetErrorCode('MISSING_INVOKE_TOKEN'); return; }
+    var exchange = (typeof lpExchangeEl.value === 'string') ? lpExchangeEl.value : '';
+    var market = (typeof lpMarketEl.value === 'string') ? lpMarketEl.value.replace(/^\s+|\s+$/g, '') : '';
+    var timeframe = (typeof lpTimeframeEl.value === 'string') ? lpTimeframeEl.value : '';
+    var limitRaw = (typeof lpLimitEl.value === 'string') ? lpLimitEl.value.replace(/^\s+|\s+$/g, '') : '';
+    if (!exchange) { lpSetErrorCode('LIVE_PREFLIGHT_INVALID_EXCHANGE'); return; }
+    if (!market || !/^[A-Za-z0-9_\-]{2,32}$/.test(market)) { lpSetErrorCode('LIVE_PREFLIGHT_INVALID_MARKET'); return; }
+    if (!timeframe) { lpSetErrorCode('LIVE_PREFLIGHT_INVALID_TIMEFRAME'); return; }
+    if (!/^[0-9]{1,2}$/.test(limitRaw)) { lpSetErrorCode('LIVE_PREFLIGHT_LIMIT_EXCEEDED'); return; }
+    var limit = parseInt(limitRaw, 10);
+    if (!isFinite(limit) || limit < 1 || limit > 60) { lpSetErrorCode('LIVE_PREFLIGHT_LIMIT_EXCEEDED'); return; }
+
+    var url = buildUrl(endpoint, '/live-preflight');
+    if (!url) { lpSetErrorCode('INVALID_ENDPOINT'); return; }
+
+    setStatus('CHECKING');
+    lpClearOutputs();
+    lpRunBtn.disabled = true;
+    setTimeout(function() { lpRunBtn.disabled = false; }, 1500);
+
+    postJson(url, token, {
+      manualTrigger: true,
+      exchange: exchange,
+      market: market,
+      timeframe: timeframe,
+      limit: limit
+    }).then(function(resp) {
+      return resp.json().then(function(body) { return { resp: resp, body: body }; });
+    }).then(function(r) {
+      var b = (r && r.body) ? r.body : {};
+      var s = (typeof b.status === 'string') ? b.status : 'ERROR';
+      setStrField(lpCodeEl, (typeof b.code === 'string') ? b.code : null);
+      setStrField(lpOExchangeEl, (typeof b.exchange === 'string') ? b.exchange : null);
+      setStrField(lpOMarketEl, (typeof b.market === 'string') ? b.market : null);
+      setStrField(lpOTimeframeEl, (typeof b.timeframe === 'string') ? b.timeframe : null);
+      var norm = (b && typeof b === 'object' && b.normalized && typeof b.normalized === 'object') ? b.normalized : null;
+      setNumField(lpOCountEl, norm && typeof norm.candleCount === 'number' ? norm.candleCount : null);
+      setStrField(lpOLatestTimeEl, norm && typeof norm.latestTime === 'string' ? norm.latestTime : null, 96);
+      setNumField(lpOLastCloseEl, norm && typeof norm.lastClose === 'number' ? norm.lastClose : null);
+      setNumField(lpOChangePctEl, norm && typeof norm.changePct === 'number' ? norm.changePct : null);
+      setNumField(lpOVolumeRatioEl, norm && typeof norm.volumeRatio === 'number' ? norm.volumeRatio : null);
+      setStrField(lpOModeEl, (typeof b.mode === 'string') ? b.mode : null);
+      var saf = (b && typeof b === 'object' && b.safety && typeof b.safety === 'object') ? b.safety : null;
+      setBoolField(lpOTelegramSentEl, saf && typeof saf.telegramSent === 'boolean' ? saf.telegramSent : null);
+      setBoolField(lpOKvWrittenEl, saf && typeof saf.kvWritten === 'boolean' ? saf.kvWritten : null);
+      setStatus(s);
+    }).catch(function() {
+      lpSetErrorCode('NETWORK_ERROR');
+    });
+  });
+
   // Initial paint.
   setStatus('READY');
   clearStateFields();
   clearResultFields();
+  lpClearOutputs();
   refreshButtons();
 })();
 </script>

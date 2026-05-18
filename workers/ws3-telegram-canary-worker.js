@@ -58,7 +58,7 @@ var TelegramCanarySender = require('../v3/v3-telegram-canary-sender.js');
 var CanaryStateKvAdapter = require('./ws3-canary-state-kv-adapter.js');
 
 // §constants ───────────────────────────────────────────────────────────
-var VERSION = 'WS3_v0.25.0_operator_reset_state_lifecycle';
+var VERSION = 'WS3_v0.27.0_actual_coin_live_preflight';
 var SERVICE = 'WS3_CANARY_WEB_MVP';
 var STATUS_READY_CODE = 'CANARY_READY';
 var MAX_BODY_BYTES = 1024;
@@ -78,6 +78,18 @@ var CLEANUP_REASON_LIVE_SENT = 'LIVE_CANARY_SENT';
 var OPERATOR_RESET_PHRASE = 'RESET_WS3_CANARY_STATE';
 var OPERATOR_RESET_COOLDOWN_MS = 60 * 1000;
 var OPERATOR_RESET_REASON = 'OPERATOR_RESET_CONFIRMED';
+
+// v0.27 — Actual Coin Live Preflight (read-only public market data preview)
+//   NO Telegram send / NO KV write / NO candidate store / NO tracking start.
+//   Direct exchange public endpoint fetch with 5s timeout.
+var LIVE_PREFLIGHT_MODE = 'LIVE_PREFLIGHT_ONLY';
+var LIVE_PREFLIGHT_FETCH_TIMEOUT_MS = 5000;
+var LIVE_PREFLIGHT_LIMIT_MIN = 1;
+var LIVE_PREFLIGHT_LIMIT_MAX = 60;
+var LIVE_PREFLIGHT_ALLOWED_EXCHANGES = ['upbit', 'bithumb', 'binance'];
+var LIVE_PREFLIGHT_ALLOWED_TIMEFRAMES = ['1m', '5m', '15m', '1h'];
+// market string sanitize — alphanumeric + - _ only, length 2..32
+var LIVE_PREFLIGHT_MARKET_PATTERN = /^[A-Za-z0-9_\-]{2,32}$/;
 
 // §per-process state (Cloudflare isolate cold-start 시 초기화 — best effort)
 var CANARY_PROCESS_STATE = {
@@ -286,6 +298,298 @@ function mapErrorCodeToWeb(errorCode) {
   return { code: 'UNKNOWN_ERROR', httpStatus: 500, status: 'ERROR' };
 }
 
+// §v0.27 Live Preflight helpers ────────────────────────────────────────
+// All pure functions. No fetch/KV/Telegram inside helpers (except
+// fetchLiveCandles which uses injected deps.fetchImpl).
+
+function indexOfString(arr, s) {
+  if (!Array.isArray(arr)) return -1;
+  for (var i = 0; i < arr.length; i++) {
+    if (arr[i] === s) return i;
+  }
+  return -1;
+}
+
+function validateLivePreflightRequest(body) {
+  if (!isPlainObject(body)) {
+    return { ok: false, code: 'INVALID_JSON', httpStatus: 400 };
+  }
+  if (body.manualTrigger !== true) {
+    return { ok: false, code: 'MANUAL_TRIGGER_REQUIRED', httpStatus: 400 };
+  }
+  var exchange = (typeof body.exchange === 'string') ? body.exchange.toLowerCase() : null;
+  if (exchange === null || indexOfString(LIVE_PREFLIGHT_ALLOWED_EXCHANGES, exchange) === -1) {
+    return { ok: false, code: 'LIVE_PREFLIGHT_INVALID_EXCHANGE', httpStatus: 400 };
+  }
+  var market = (typeof body.market === 'string') ? body.market : null;
+  if (market === null || !LIVE_PREFLIGHT_MARKET_PATTERN.test(market)) {
+    return { ok: false, code: 'LIVE_PREFLIGHT_INVALID_MARKET', httpStatus: 400 };
+  }
+  var timeframe = (typeof body.timeframe === 'string') ? body.timeframe : null;
+  if (timeframe === null || indexOfString(LIVE_PREFLIGHT_ALLOWED_TIMEFRAMES, timeframe) === -1) {
+    return { ok: false, code: 'LIVE_PREFLIGHT_INVALID_TIMEFRAME', httpStatus: 400 };
+  }
+  var limit = body.limit;
+  if (typeof limit !== 'number' || !isFinite(limit) || Math.floor(limit) !== limit) {
+    return { ok: false, code: 'LIVE_PREFLIGHT_LIMIT_EXCEEDED', httpStatus: 400 };
+  }
+  if (limit < LIVE_PREFLIGHT_LIMIT_MIN || limit > LIVE_PREFLIGHT_LIMIT_MAX) {
+    return { ok: false, code: 'LIVE_PREFLIGHT_LIMIT_EXCEEDED', httpStatus: 400 };
+  }
+  return {
+    ok: true,
+    normalized: {
+      exchange: exchange,
+      market: market,
+      timeframe: timeframe,
+      limit: limit
+    }
+  };
+}
+
+function mapTimeframeToUpbitUnit(tf) {
+  if (tf === '1m') return '1';
+  if (tf === '5m') return '5';
+  if (tf === '15m') return '15';
+  if (tf === '1h') return '60';
+  return null;
+}
+
+function mapTimeframeToBithumbInterval(tf) {
+  if (tf === '1m') return '1m';
+  if (tf === '5m') return '5m';
+  if (tf === '15m') return '15m';
+  if (tf === '1h') return '1h';
+  return null;
+}
+
+function mapTimeframeToBinanceInterval(tf) {
+  if (tf === '1m') return '1m';
+  if (tf === '5m') return '5m';
+  if (tf === '15m') return '15m';
+  if (tf === '1h') return '1h';
+  return null;
+}
+
+function buildLivePreflightUrl(exchange, market, timeframe, limit) {
+  if (exchange === 'upbit') {
+    var unit = mapTimeframeToUpbitUnit(timeframe);
+    if (unit === null) return null;
+    return 'https://api.upbit.com/v1/candles/minutes/' + unit
+      + '?market=' + encodeURIComponent(market)
+      + '&count=' + encodeURIComponent(String(limit));
+  }
+  if (exchange === 'bithumb') {
+    var bInt = mapTimeframeToBithumbInterval(timeframe);
+    if (bInt === null) return null;
+    // Bithumb path-based interval; limit not server-controlled.
+    return 'https://api.bithumb.com/public/candlestick/' + encodeURIComponent(market) + '/' + bInt;
+  }
+  if (exchange === 'binance') {
+    var bnInt = mapTimeframeToBinanceInterval(timeframe);
+    if (bnInt === null) return null;
+    return 'https://api.binance.com/api/v3/klines'
+      + '?symbol=' + encodeURIComponent(market)
+      + '&interval=' + bnInt
+      + '&limit=' + encodeURIComponent(String(limit));
+  }
+  return null;
+}
+
+// Normalize raw exchange JSON → uniform array of OHLCV objects sorted oldest→latest.
+// Each candle: { time: ISO string, open, high, low, close, volume } (all numbers).
+function normalizeCandles(exchange, raw, limit) {
+  if (exchange === 'upbit') {
+    if (!Array.isArray(raw)) return { ok: false, code: 'LIVE_PREFLIGHT_PARSE_ERROR' };
+    if (raw.length === 0) return { ok: false, code: 'LIVE_PREFLIGHT_EMPTY_CANDLES' };
+    // Upbit: latest-first → reverse to oldest-first
+    var rev = raw.slice().reverse();
+    var out = [];
+    for (var i = 0; i < rev.length && i < limit; i++) {
+      var r = rev[i];
+      if (!isPlainObject(r)) return { ok: false, code: 'LIVE_PREFLIGHT_PARSE_ERROR' };
+      var op = Number(r.opening_price);
+      var hp = Number(r.high_price);
+      var lp = Number(r.low_price);
+      var cp = Number(r.trade_price);
+      var vol = Number(r.candle_acc_trade_volume);
+      var t = (typeof r.candle_date_time_utc === 'string') ? r.candle_date_time_utc : null;
+      if (!t || !isFinite(op) || !isFinite(hp) || !isFinite(lp) || !isFinite(cp) || !isFinite(vol)) {
+        return { ok: false, code: 'LIVE_PREFLIGHT_PARSE_ERROR' };
+      }
+      // Upbit candle_date_time_utc is like '2026-05-18T00:00:00' (no Z). Force ISO Z form.
+      var iso = (t.charAt(t.length - 1) === 'Z') ? t : (t + 'Z');
+      out.push({ time: iso, open: op, high: hp, low: lp, close: cp, volume: vol });
+    }
+    if (out.length === 0) return { ok: false, code: 'LIVE_PREFLIGHT_EMPTY_CANDLES' };
+    return { ok: true, candles: out };
+  }
+  if (exchange === 'bithumb') {
+    if (!isPlainObject(raw)) return { ok: false, code: 'LIVE_PREFLIGHT_PARSE_ERROR' };
+    if (raw.status !== '0000') return { ok: false, code: 'LIVE_PREFLIGHT_PARSE_ERROR' };
+    if (!Array.isArray(raw.data)) return { ok: false, code: 'LIVE_PREFLIGHT_PARSE_ERROR' };
+    if (raw.data.length === 0) return { ok: false, code: 'LIVE_PREFLIGHT_EMPTY_CANDLES' };
+    // Bithumb: oldest→latest. Take last `limit`.
+    var src = raw.data;
+    var start = (src.length > limit) ? (src.length - limit) : 0;
+    var bOut = [];
+    for (var j = start; j < src.length; j++) {
+      var row = src[j];
+      if (!Array.isArray(row) || row.length < 6) {
+        return { ok: false, code: 'LIVE_PREFLIGHT_PARSE_ERROR' };
+      }
+      var tms = Number(row[0]);
+      var bOp = Number(row[1]);
+      var bCp = Number(row[2]);
+      var bHp = Number(row[3]);
+      var bLp = Number(row[4]);
+      var bVol = Number(row[5]);
+      if (!isFinite(tms) || !isFinite(bOp) || !isFinite(bHp) || !isFinite(bLp) || !isFinite(bCp) || !isFinite(bVol)) {
+        return { ok: false, code: 'LIVE_PREFLIGHT_PARSE_ERROR' };
+      }
+      var bIso;
+      try { bIso = new Date(tms).toISOString(); } catch (e) { return { ok: false, code: 'LIVE_PREFLIGHT_PARSE_ERROR' }; }
+      bOut.push({ time: bIso, open: bOp, high: bHp, low: bLp, close: bCp, volume: bVol });
+    }
+    if (bOut.length === 0) return { ok: false, code: 'LIVE_PREFLIGHT_EMPTY_CANDLES' };
+    return { ok: true, candles: bOut };
+  }
+  if (exchange === 'binance') {
+    if (!Array.isArray(raw)) return { ok: false, code: 'LIVE_PREFLIGHT_PARSE_ERROR' };
+    if (raw.length === 0) return { ok: false, code: 'LIVE_PREFLIGHT_EMPTY_CANDLES' };
+    var cOut = [];
+    for (var k = 0; k < raw.length && k < limit; k++) {
+      var kln = raw[k];
+      if (!Array.isArray(kln) || kln.length < 6) {
+        return { ok: false, code: 'LIVE_PREFLIGHT_PARSE_ERROR' };
+      }
+      var koT = Number(kln[0]);
+      var kOp = Number(kln[1]);
+      var kHp = Number(kln[2]);
+      var kLp = Number(kln[3]);
+      var kCp = Number(kln[4]);
+      var kVol = Number(kln[5]);
+      if (!isFinite(koT) || !isFinite(kOp) || !isFinite(kHp) || !isFinite(kLp) || !isFinite(kCp) || !isFinite(kVol)) {
+        return { ok: false, code: 'LIVE_PREFLIGHT_PARSE_ERROR' };
+      }
+      var kIso;
+      try { kIso = new Date(koT).toISOString(); } catch (e) { return { ok: false, code: 'LIVE_PREFLIGHT_PARSE_ERROR' }; }
+      cOut.push({ time: kIso, open: kOp, high: kHp, low: kLp, close: kCp, volume: kVol });
+    }
+    if (cOut.length === 0) return { ok: false, code: 'LIVE_PREFLIGHT_EMPTY_CANDLES' };
+    return { ok: true, candles: cOut };
+  }
+  return { ok: false, code: 'LIVE_PREFLIGHT_UNSUPPORTED_SOURCE' };
+}
+
+function summarizeCandles(candles) {
+  // candles oldest→latest. Safe defaults when length < 2.
+  var n = candles.length;
+  var last = candles[n - 1];
+  var prev = (n >= 2) ? candles[n - 2] : null;
+  var lastClose = last.close;
+  var prevClose = prev ? prev.close : last.open;
+  var changePct = 0;
+  if (isFinite(prevClose) && prevClose !== 0) {
+    changePct = ((lastClose - prevClose) / prevClose) * 100;
+  }
+  var lastVolume = last.volume;
+  var sumVol = 0;
+  for (var i = 0; i < n; i++) { sumVol += candles[i].volume; }
+  var avgVolume = (n > 0) ? (sumVol / n) : 0;
+  var volumeRatio = (avgVolume > 0) ? (lastVolume / avgVolume) : 0;
+  return {
+    candleCount: n,
+    latestTime: last.time,
+    lastClose: lastClose,
+    prevClose: prevClose,
+    changePct: changePct,
+    lastVolume: lastVolume,
+    avgVolume: avgVolume,
+    volumeRatio: volumeRatio
+  };
+}
+
+// fetchLiveCandles — uses injected deps.fetchImpl with AbortController timeout.
+// Returns { ok: bool, code: 'LIVE_PREFLIGHT_OK' | 'LIVE_PREFLIGHT_FETCH_TIMEOUT' | 'LIVE_PREFLIGHT_NETWORK_ERROR' | 'LIVE_PREFLIGHT_PARSE_ERROR', raw }
+async function fetchLiveCandles(deps, url, timeoutMs) {
+  if (!deps || typeof deps.fetchImpl !== 'function') {
+    return { ok: false, code: 'LIVE_PREFLIGHT_NETWORK_ERROR' };
+  }
+  var controller = null;
+  if (typeof deps.AbortControllerImpl === 'function') {
+    try { controller = deps.AbortControllerImpl(); } catch (e) { controller = null; }
+  }
+  var timedOut = false;
+  var timer = null;
+  if (controller && typeof deps.setTimeoutImpl === 'function' && typeof deps.clearTimeoutImpl === 'function') {
+    timer = deps.setTimeoutImpl(function() {
+      timedOut = true;
+      try { controller.abort(); } catch (e) {}
+    }, timeoutMs);
+  }
+  var resp;
+  try {
+    var opts = controller ? { signal: controller.signal } : {};
+    resp = await deps.fetchImpl(url, opts);
+  } catch (e) {
+    if (timer && typeof deps.clearTimeoutImpl === 'function') {
+      try { deps.clearTimeoutImpl(timer); } catch (e2) {}
+    }
+    if (timedOut) return { ok: false, code: 'LIVE_PREFLIGHT_FETCH_TIMEOUT' };
+    var name = (e && e.name) || '';
+    if (name === 'AbortError') return { ok: false, code: 'LIVE_PREFLIGHT_FETCH_TIMEOUT' };
+    return { ok: false, code: 'LIVE_PREFLIGHT_NETWORK_ERROR' };
+  }
+  if (timer && typeof deps.clearTimeoutImpl === 'function') {
+    try { deps.clearTimeoutImpl(timer); } catch (e3) {}
+  }
+  if (!resp || typeof resp.status !== 'number') {
+    return { ok: false, code: 'LIVE_PREFLIGHT_NETWORK_ERROR' };
+  }
+  if (resp.status < 200 || resp.status >= 300) {
+    return { ok: false, code: 'LIVE_PREFLIGHT_NETWORK_ERROR' };
+  }
+  var raw;
+  try {
+    raw = await resp.json();
+  } catch (e4) {
+    return { ok: false, code: 'LIVE_PREFLIGHT_PARSE_ERROR' };
+  }
+  return { ok: true, code: 'LIVE_PREFLIGHT_OK', raw: raw };
+}
+
+function buildLivePreflightResponse(req, summary) {
+  return {
+    ok: true,
+    status: 'OK',
+    code: 'LIVE_PREFLIGHT_OK',
+    httpStatus: 200,
+    version: VERSION,
+    mode: LIVE_PREFLIGHT_MODE,
+    exchange: req.exchange,
+    market: req.market,
+    timeframe: req.timeframe,
+    limit: req.limit,
+    normalized: {
+      candleCount: summary.candleCount,
+      latestTime: summary.latestTime,
+      lastClose: summary.lastClose,
+      prevClose: summary.prevClose,
+      changePct: summary.changePct,
+      lastVolume: summary.lastVolume,
+      avgVolume: summary.avgVolume,
+      volumeRatio: summary.volumeRatio
+    },
+    safety: {
+      telegramSent: false,
+      kvWritten: false,
+      candidateStored: false,
+      trackingStarted: false
+    }
+  };
+}
+
 // §main entry ──────────────────────────────────────────────────────────
 
 async function handleFetch(request, env, ctx, deps) {
@@ -310,7 +614,7 @@ async function handleFetch(request, env, ctx, deps) {
 
   // OPTIONS preflight
   if (method === 'OPTIONS') {
-    if (path !== '/health' && path !== '/send-canary' && path !== '/state' && path !== '/cleanup-confirm' && path !== '/operator-reset') {
+    if (path !== '/health' && path !== '/send-canary' && path !== '/state' && path !== '/cleanup-confirm' && path !== '/operator-reset' && path !== '/live-preflight') {
       return jsonResponse({ ok: false, status: 'ERROR', code: 'METHOD_NOT_ALLOWED', httpStatus: 405 }, 405, false, null);
     }
     if (!origin) {
@@ -907,6 +1211,82 @@ async function handleFetch(request, env, ctx, deps) {
     return jsonResponse({ ok: true, status: 'OK', code: 'OPERATOR_RESET_CONFIRMED', httpStatus: 200 }, 200, true, origin);
   }
 
+  // POST /live-preflight  (v0.27 — read-only public market data preview; NO Telegram, NO KV write, NO candidate store)
+  if (path === '/live-preflight' && method === 'POST') {
+    if (!origin) {
+      return jsonResponse({ ok: false, status: 'BLOCKED', code: 'ORIGIN_MISSING', httpStatus: 403 }, 403, false, null);
+    }
+    if (!allowed) {
+      return jsonResponse({ ok: false, status: 'BLOCKED', code: 'ORIGIN_NOT_ALLOWED', httpStatus: 403 }, 403, false, null);
+    }
+    var lpToken = request.headers.get('X-WS3-Canary-Token');
+    if (typeof lpToken !== 'string' || lpToken.length === 0) {
+      return jsonResponse({ ok: false, status: 'BLOCKED', code: 'MISSING_INVOKE_TOKEN', httpStatus: 401 }, 401, true, origin);
+    }
+    if (typeof env.WS3_CANARY_INVOKE_TOKEN !== 'string' || env.WS3_CANARY_INVOKE_TOKEN.length === 0) {
+      return jsonResponse({ ok: false, status: 'BLOCKED', code: 'MISSING_INVOKE_TOKEN', httpStatus: 503 }, 503, true, origin);
+    }
+    if (lpToken !== env.WS3_CANARY_INVOKE_TOKEN) {
+      return jsonResponse({ ok: false, status: 'BLOCKED', code: 'INVOKE_TOKEN_MISMATCH', httpStatus: 403 }, 403, true, origin);
+    }
+
+    var lpCt = request.headers.get('Content-Type');
+    if (typeof lpCt !== 'string' || lpCt.toLowerCase().indexOf('application/json') === -1) {
+      return jsonResponse({ ok: false, status: 'BLOCKED', code: 'UNSUPPORTED_MEDIA_TYPE', httpStatus: 415 }, 415, true, origin);
+    }
+    var lpCl = request.headers.get('Content-Length');
+    if (typeof lpCl === 'string' && lpCl.length > 0) {
+      var lpN = parseInt(lpCl, 10);
+      if (isFinite(lpN) && lpN > MAX_BODY_BYTES) {
+        return jsonResponse({ ok: false, status: 'BLOCKED', code: 'PAYLOAD_TOO_LARGE', httpStatus: 413 }, 413, true, origin);
+      }
+    }
+    var lpBodyText = '';
+    try { lpBodyText = await request.text(); } catch (e) {
+      return jsonResponse({ ok: false, status: 'ERROR', code: 'INVALID_JSON', httpStatus: 400 }, 400, true, origin);
+    }
+    if (typeof lpBodyText === 'string' && lpBodyText.length > MAX_BODY_BYTES) {
+      return jsonResponse({ ok: false, status: 'BLOCKED', code: 'PAYLOAD_TOO_LARGE', httpStatus: 413 }, 413, true, origin);
+    }
+    var lpBody;
+    try { lpBody = JSON.parse(lpBodyText); } catch (e) {
+      return jsonResponse({ ok: false, status: 'ERROR', code: 'INVALID_JSON', httpStatus: 400 }, 400, true, origin);
+    }
+
+    var lpValidate = validateLivePreflightRequest(lpBody);
+    if (lpValidate.ok !== true) {
+      return jsonResponse({ ok: false, status: 'BLOCKED', code: lpValidate.code, httpStatus: lpValidate.httpStatus }, lpValidate.httpStatus, true, origin);
+    }
+    var lpReq = lpValidate.normalized;
+
+    var lpUrl = buildLivePreflightUrl(lpReq.exchange, lpReq.market, lpReq.timeframe, lpReq.limit);
+    if (lpUrl === null) {
+      return jsonResponse({ ok: false, status: 'BLOCKED', code: 'LIVE_PREFLIGHT_UNSUPPORTED_SOURCE', httpStatus: 400 }, 400, true, origin);
+    }
+
+    var lpDepsRes = buildWorkerRuntimeDeps(resolvedDeps, nowMs, state);
+    if (lpDepsRes.ok !== true) {
+      return jsonResponse({ ok: false, status: 'ERROR', code: 'UNKNOWN_ERROR', httpStatus: 500 }, 500, true, origin);
+    }
+    var lpDeps = lpDepsRes.deps;
+
+    var lpFetchRes = await fetchLiveCandles(lpDeps, lpUrl, LIVE_PREFLIGHT_FETCH_TIMEOUT_MS);
+    if (lpFetchRes.ok !== true) {
+      var lpFetchStatus = 502;
+      if (lpFetchRes.code === 'LIVE_PREFLIGHT_FETCH_TIMEOUT') lpFetchStatus = 504;
+      return jsonResponse({ ok: false, status: 'ERROR', code: lpFetchRes.code, httpStatus: lpFetchStatus }, lpFetchStatus, true, origin);
+    }
+
+    var lpNorm = normalizeCandles(lpReq.exchange, lpFetchRes.raw, lpReq.limit);
+    if (lpNorm.ok !== true) {
+      var lpNormStatus = (lpNorm.code === 'LIVE_PREFLIGHT_EMPTY_CANDLES') ? 502 : 502;
+      return jsonResponse({ ok: false, status: 'ERROR', code: lpNorm.code, httpStatus: lpNormStatus }, lpNormStatus, true, origin);
+    }
+    var lpSummary = summarizeCandles(lpNorm.candles);
+    var lpResponse = buildLivePreflightResponse(lpReq, lpSummary);
+    return jsonResponse(lpResponse, 200, true, origin);
+  }
+
   // Fallback — unknown path/method
   return jsonResponse({ ok: false, status: 'ERROR', code: 'METHOD_NOT_ALLOWED', httpStatus: 405 }, 405, allowed === true, origin);
 }
@@ -933,6 +1313,19 @@ module.exports = {
   OPERATOR_RESET_PHRASE: OPERATOR_RESET_PHRASE,
   OPERATOR_RESET_COOLDOWN_MS: OPERATOR_RESET_COOLDOWN_MS,
   OPERATOR_RESET_REASON: OPERATOR_RESET_REASON,
+  LIVE_PREFLIGHT_MODE: LIVE_PREFLIGHT_MODE,
+  LIVE_PREFLIGHT_FETCH_TIMEOUT_MS: LIVE_PREFLIGHT_FETCH_TIMEOUT_MS,
+  LIVE_PREFLIGHT_LIMIT_MIN: LIVE_PREFLIGHT_LIMIT_MIN,
+  LIVE_PREFLIGHT_LIMIT_MAX: LIVE_PREFLIGHT_LIMIT_MAX,
+  LIVE_PREFLIGHT_ALLOWED_EXCHANGES: LIVE_PREFLIGHT_ALLOWED_EXCHANGES,
+  LIVE_PREFLIGHT_ALLOWED_TIMEFRAMES: LIVE_PREFLIGHT_ALLOWED_TIMEFRAMES,
+  LIVE_PREFLIGHT_MARKET_PATTERN: LIVE_PREFLIGHT_MARKET_PATTERN,
+  validateLivePreflightRequest: validateLivePreflightRequest,
+  buildLivePreflightUrl: buildLivePreflightUrl,
+  normalizeCandles: normalizeCandles,
+  summarizeCandles: summarizeCandles,
+  fetchLiveCandles: fetchLiveCandles,
+  buildLivePreflightResponse: buildLivePreflightResponse,
   mapErrorCodeToWeb: mapErrorCodeToWeb,
   isAllowedOrigin: isAllowedOrigin,
   buildMinimalPreflightGate: buildMinimalPreflightGate,

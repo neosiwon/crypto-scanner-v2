@@ -4,8 +4,8 @@
 > 다음 단계 작업 전에 이 파일로 baseline 을 확인.
 
 **최종 업데이트**: 2026-05-18  
-**기능 단계 (current functional baseline)**: WS3 v0.26.1 Dev Preview Lightweight Invite Gate + Pages Deploy Success (Cloudflare Pages 배포 + lightweight invite gate active on `ws3-canary-console.pages.dev` + Worker allowlist = Pages origin only / localhost 제거 / final production Check State 통과 / Cloudflare Access deferred / Send Canary 0건 / Telegram 0건 / KV write 0건 / raw invite code & SHA-256 hash repo 박제 0건)  
-**이전 기능 baseline**: WS3 v0.26.0 Production Web Console Hosting (`55a00d8`)  
+**기능 단계 (current functional baseline)**: WS3 v0.27.0 Actual Coin Live Preflight code-ready (POST /live-preflight 신규 endpoint — read-only public market data preview, exchange/timeframe allowlist + market 정규식 sanitize + limit ≤ 60, 5s timeout, mock smoke 16/16, Telegram 0건 / KV write 0건 / candidate 저장 0건 / tracking 시작 0건 / 실 거래소 API 호출 0건 / Cloudflare deploy 0건)  
+**이전 기능 baseline**: WS3 v0.26.1 Dev Preview Lightweight Invite Gate + Pages Deploy Success (`81964bf`)  
 **운영 문서**: WS3 Workflow Template v0.1 박제 (`d8bebc2`, v0.3.0-docs)  
 **branch**: `claude/heuristic-cori-7865e7`
 
@@ -51,7 +51,8 @@
 | **WS3 v0.25.0 closure** | **`/docs/ws3/WS3_v0_25_0_OPERATOR_RESET_STATE_LIFECYCLE_REPORT.md` §18 추가 + `/docs/ws3/WS3_CHANGELOG.md` + `/docs/ws3/WS3_CURRENT_BASELINE.md`** | **`f2d7ddd`** | **✅ 박제 (Operator Reset Staging Success Closure — 코드 변경 0건, 문서 3개만, Cloudflare 변경 0건, /operator-reset 재호출 0건, Telegram 발송 0건)** |
 | **WS3 v0.26.0** | **`/web/ws3-canary-console.html` (보강) + `/web/ws3-canary-console/index.html` (신규 mirror) + `/docs/ws3/WS3_v0_26_0_PRODUCTION_WEB_CONSOLE_HOSTING_REPORT.md`** | **`55a00d8`** | **✅ 박제 (Production Web Console Hosting — 5-section UI 구조 + Check State/Cleanup Confirm/Operator Reset 추가 + Danger Zone 시각 분리, resetCount UI 비노출, byte-for-byte mirror production entrypoint, Cloudflare Access 필수 + localhost 2-phase allowlist 정책 박제, worker logic 수정 0건 / 실 Cloudflare 변경 0건 / 실 호출 0건 / 실 KV write 0건)** |
 | **WS3 v0.26.1** | **`/web/ws3-canary-console.html` (보강) + `/web/ws3-canary-console/index.html` (mirror) + `/docs/ws3/WS3_v0_26_1_DEV_PREVIEW_INVITE_GATE_REPORT.md`** | **`634093d`** | **✅ 박제 (Dev Preview Lightweight Invite Gate — Cloudflare Access 필수 정책을 Dev Preview 단계용으로 amendment, client-side invite gate prepend + console UI `<main hidden>` wrap, SHA-256 placeholder commit + constant-time compare + 5회·60초 memory throttle, storage 0건, 두 파일 byte-for-byte mirror 유지, 실 invite code 원문/실 hash repo commit 0건, worker logic 수정 0건 / 실 Cloudflare 변경 0건 / 실 호출 0건 / 실 KV write 0건)** |
-| **WS3 v0.26.1 Pages Deploy** | **`/docs/ws3/WS3_v0_26_1_DEV_PREVIEW_INVITE_GATE_REPORT.md` §16 추가 + `/docs/ws3/WS3_CHANGELOG.md` + `/docs/ws3/WS3_CURRENT_BASELINE.md`** | **(closure commit 후 기록)** | **✅ 박제 (Dev Preview Pages Deploy Success Closure — 코드 변경 0건 / tracked source 변경 0건 / 문서 3개만. Cloudflare Pages `ws3-canary-console.pages.dev` 배포 / Worker allowlist = Pages origin only / localhost 제거 / lightweight invite gate active / final production Check State PASS / Cloudflare Access deferred / Send Canary 0건 / Telegram 0건 / KV write 0건 / raw invite code & SHA-256 hash repo 박제 0건)** |
+| **WS3 v0.26.1 Pages Deploy** | **`/docs/ws3/WS3_v0_26_1_DEV_PREVIEW_INVITE_GATE_REPORT.md` §16 추가 + `/docs/ws3/WS3_CHANGELOG.md` + `/docs/ws3/WS3_CURRENT_BASELINE.md`** | **`81964bf`** | **✅ 박제 (Dev Preview Pages Deploy Success Closure — 코드 변경 0건 / tracked source 변경 0건 / 문서 3개만. Cloudflare Pages `ws3-canary-console.pages.dev` 배포 / Worker allowlist = Pages origin only / localhost 제거 / lightweight invite gate active / final production Check State PASS / Cloudflare Access deferred / Send Canary 0건 / Telegram 0건 / KV write 0건 / raw invite code & SHA-256 hash repo 박제 0건)** |
+| **WS3 v0.27.0** | **`/workers/ws3-telegram-canary-worker.js` (보강) + `/web/ws3-canary-console.html` (보강) + `/web/ws3-canary-console/index.html` (mirror) + `/docs/ws3/WS3_v0_27_0_ACTUAL_COIN_LIVE_PREFLIGHT_REPORT.md`** | **(push 후 기록)** | **✅ 박제 (Actual Coin Live Preflight — POST /live-preflight 신규 endpoint, 실 거래소 (upbit/bithumb/binance) 공개 시세 read-only fetch + 정규화 preview, 3중 인증 (Origin + Invoke Token + manualTrigger), exchange/timeframe allowlist + market 정규식 sanitize + limit ≤ 60, 5s timeout, mock smoke 16/16. 실 Telegram 0건 / 실 KV write 0건 / 실 거래소 API 호출 0건 / Cloudflare deploy 0건. v0.28+ 후보: dry-run candidate / security hardening before live coin)** |
 
 ## REJECTED — repo 반영 보류
 
@@ -370,6 +371,71 @@ workers/ws3-telegram-canary-worker.js + web/ws3-canary-console.html  (v0.22.0/v0
 ```
 
 ---
+
+## v0.27.0 핵심 메모
+
+```text
+- workers/ws3-telegram-canary-worker.js 943 → 1336 라인 (+393 보강, 신규 require 0건, 모두 인라인)
+- web/ws3-canary-console.html 641 → 791 라인 (+150)
+- web/ws3-canary-console/index.html 641 → 791 라인 (byte-for-byte mirror 유지, 25087 → 33380 bytes)
+- 신규 산출: /docs/ws3/WS3_v0_27_0_ACTUAL_COIN_LIVE_PREFLIGHT_REPORT.md (19 sections)
+- v0.27 의 핵심: 실코인 자동 알람 아님 / read-only live data preflight layer.
+- 신규 엔드포인트: POST /live-preflight
+  · OPTIONS allowlist 확장: /live-preflight 추가
+  · 인증 3중: Origin allowlist + X-WS3-Canary-Token + manualTrigger
+  · KV / circuit / persistent guard 미사용 (read-only)
+- input 검증:
+  · exchange = ['upbit', 'bithumb', 'binance'] (lowercase 정규화)
+  · market = ^[A-Za-z0-9_\-]{2,32}$ (exchange-native 형식: upbit=KRW-BTC / bithumb=BTC_KRW / binance=BTCUSDT)
+  · timeframe = ['1m', '5m', '15m', '1h']
+  · limit = integer in [1, 60]
+- exchange URL 매핑:
+  · upbit: https://api.upbit.com/v1/candles/minutes/{unit}?market={...}&count={limit} (unit=1/5/15/60)
+  · bithumb: https://api.bithumb.com/public/candlestick/{market}/{interval} (interval=1m/5m/15m/1h)
+  · binance: https://api.binance.com/api/v3/klines?symbol={market}&interval={1m/5m/15m/1h}&limit={limit}
+- normalize: raw → uniform [{ time(ISO Z), open, high, low, close, volume }] (oldest → latest)
+  · upbit latest-first → reverse / bithumb 6-tuple [ts_ms, open, close, high, low, volume] / binance kline 배열
+  · 모든 필드 Number + isFinite 검증, invalid → LIVE_PREFLIGHT_PARSE_ERROR
+  · 빈 배열 → LIVE_PREFLIGHT_EMPTY_CANDLES
+- summarize 출력 필드: candleCount / latestTime / lastClose / prevClose / changePct / lastVolume / avgVolume / volumeRatio
+  · prevClose fallback (n<2): candles[n-1].open
+  · changePct=0 (prevClose=0 일 때) / volumeRatio=0 (avgVolume=0 일 때)
+- response whitelist 17 fields: ok / status / code / httpStatus / version / mode (=LIVE_PREFLIGHT_ONLY) / exchange / market / timeframe / limit / normalized.{8} / safety.{telegramSent, kvWritten, candidateStored, trackingStarted} 모두 false 고정
+- response 금지: raw exchange native field (candle_date_time_kst / opening_price / candle_acc_trade_price 등) / token / secret / chatId / bot_token / KV namespace ID / Telegram message_id / full headers / stack trace / internal exception
+- 신규 safe code 11종: LIVE_PREFLIGHT_OK 200 / DISABLED (예약) / INVALID_EXCHANGE 400 / INVALID_MARKET 400 / INVALID_TIMEFRAME 400 / LIMIT_EXCEEDED 400 / FETCH_TIMEOUT 504 / NETWORK_ERROR 502 / PARSE_ERROR 502 / EMPTY_CANDLES 502 / UNSUPPORTED_SOURCE 400
+- fetch: 5초 timeout (AbortController) / buildWorkerRuntimeDeps 기존 deps 패턴 재사용 (fetchImpl / AbortControllerImpl / setTimeoutImpl / clearTimeoutImpl)
+- no-write 구조 보장 (handler scope grep):
+  · writeAlreadySent / writeCleanupRequired / writeCircuit / writeInvokeFail / writeOperatorReset / markAlreadySentReset / KV_BINDING_NAME / env[ — 매치 0건
+  · sendCanary / dispatchCanary / sendMessage — 매치 0건
+  · "Telegram" 키워드 — 핸들러 코멘트 헤더 1줄만 (정책 부정문맥 "NO Telegram, NO KV write, NO candidate store")
+- Web Console UI Section 6 "Live Preflight (v0.27 read-only)":
+  · Exchange select (upbit default) / Market text (KRW-BTC default) / Timeframe select (5m default) / Limit (30 default)
+  · Run Live Preflight 버튼 (1.5초 throttle, 클릭시에만 1회 fetch)
+  · 결과 panel whitelist 12 fields (code / exchange / market / timeframe / candleCount / latestTime / lastClose / changePct / volumeRatio / mode / telegramSent / kvWritten)
+  · auto refresh 0건 / 페이지 로드 시 자동 호출 0건
+  · token readTokenAndClear() 즉시 클리어
+  · client-side sanitize: market 정규식 + limit ^[0-9]{1,2}$ → parseInt → [1, 60]
+- mock smoke 16/16 PASS:
+  · S1 no token → 401 / S2 bad token → 403 / S3 no manualTrigger → 400
+  · S4-S7 input 검증 4종 → 400
+  · S8 upbit mocked success → 200 (candleCount=30 / safety 4 fields 모두 false)
+  · S9 empty → 502 / S10 network → 502 / S11 timeout (AbortError) → 504 / S12 parse → 502
+  · S13 Telegram fetch count 0 / S14 KV put/delete count 0
+  · S15 raw exchange native field leak guard CLEAN / S16 invoke token leak guard CLEAN
+- 보호 파일 (worker.js + wrangler.toml + index.html + manifest.json + service-worker.js + v3/ 25종 + WS3_CODE_CONTRACT.md + WS3_WORKFLOW_TEMPLATE.md + workers/ws3-canary-state-kv-adapter.js + wrangler-canary.example.toml + .gitignore) diff 0건
+- 미스테이지 유지: workers/ws3-telegram-canary-entry.mjs / wrangler-canary.toml / .claude/ / .wrangler/ / .tmp_canary_*
+- Cloudflare 변경 0건 (worker 재배포 / Pages 배포 / KV namespace 생성·변경 / allowed origins 변경 / secrets 변경 모두 0건)
+- 실 호출 0건 (/live-preflight production/staging / 실 거래소 API / Telegram API / KV write 모두 0건)
+- 다음 후보:
+  · v0.27 Deploy Gate (별도, Worker redeploy + /live-preflight 실 호출 검증)
+  · v0.28 후보 A: candle structure preview
+  · v0.28 후보 B: candidate dry-run (계산만, Telegram/KV 0건)
+  · v0.28 후보 C: security hardening (Cloudflare Access 재검토 / invoke token rotation / origin allowlist 재검토)
+  · worker /state response 자체에서 resetCount 제거 (v0.28+)
+  · env-based LIVE_PREFLIGHT_DISABLED kill switch
+  · rate limit per origin / market / minute
+- v0.27 한계: mock smoke only. real 거래소 응답 다양성 (rate limit / partial data / market suspension) 은 별도 staging Gate 에서 검증. limit ≤ 60 / single market 으로 abuse 위험 최소화.
+```
 
 ## v0.26.1 Pages Deploy Success (실 Cloudflare 검증 박제)
 

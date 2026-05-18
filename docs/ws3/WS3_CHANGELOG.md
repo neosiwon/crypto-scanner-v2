@@ -5,6 +5,132 @@
 
 ---
 
+## [v0.27.0] — 2026-05-18 (Actual Coin Live Preflight)
+
+### 목적 (실코인 자동 알람 아님)
+v0.27 = 실 거래소 공개 시세 데이터를 read-only 1회 fetch + 정규화 preview. **실 Telegram / KV write / candidate 저장 / tracking 시작 / Cloudflare deploy / 실 거래소 API 호출 — 모두 0건** (mock smoke 만).
+
+### Added
+- `/docs/ws3/WS3_v0_27_0_ACTUAL_COIN_LIVE_PREFLIGHT_REPORT.md` — v0.27 완료 보고서 (19 sections)
+- `/workers/ws3-telegram-canary-worker.js` 확장 (943 → 1336 라인, +393):
+  - `VERSION = 'WS3_v0.27.0_actual_coin_live_preflight'`
+  - 신규 상수: `LIVE_PREFLIGHT_MODE = 'LIVE_PREFLIGHT_ONLY'` / `LIVE_PREFLIGHT_FETCH_TIMEOUT_MS = 5000` / `LIVE_PREFLIGHT_LIMIT_MIN = 1` / `LIVE_PREFLIGHT_LIMIT_MAX = 60` / `LIVE_PREFLIGHT_ALLOWED_EXCHANGES = ['upbit','bithumb','binance']` / `LIVE_PREFLIGHT_ALLOWED_TIMEFRAMES = ['1m','5m','15m','1h']` / `LIVE_PREFLIGHT_MARKET_PATTERN = /^[A-Za-z0-9_\-]{2,32}$/`
+  - 신규 helper 함수 (인라인, 신규 require 0건): `indexOfString` / `validateLivePreflightRequest` / `mapTimeframeToUpbitUnit` / `mapTimeframeToBithumbInterval` / `mapTimeframeToBinanceInterval` / `buildLivePreflightUrl` / `normalizeCandles` / `summarizeCandles` / `fetchLiveCandles` / `buildLivePreflightResponse`
+  - **POST `/live-preflight`** 엔드포인트 (Origin allowlist + invoke token + manualTrigger 3중 인증 / Content-Type / Content-Length / body byte limit / 5s timeout / KV 미사용)
+  - OPTIONS preflight 허용 path 확장: `/health` / `/send-canary` / `/state` / `/cleanup-confirm` / `/operator-reset` / `/live-preflight`
+- `/web/ws3-canary-console.html` Section 6 "Live Preflight (v0.27 read-only)" 신규 추가 (641 → 791 라인, +150):
+  - Exchange select (upbit / bithumb / binance, default upbit)
+  - Market input (autocomplete=off / maxlength=32 / 기본 KRW-BTC)
+  - Timeframe select (1m / 5m / 15m / 1h, default 5m)
+  - Limit input (inputmode=numeric / 기본 30)
+  - Run Live Preflight 버튼 (1.5초 throttle, 클릭시에만 1회 fetch)
+  - 결과 panel 12 fields whitelist (code / exchange / market / timeframe / candleCount / latestTime / lastClose / changePct / volumeRatio / mode / telegramSent / kvWritten)
+- `/web/ws3-canary-console/index.html` 위 동일 변경 (byte-for-byte mirror 유지, 25087 → 33380 bytes / 641 → 791 라인 일치)
+
+### Changed
+- `/docs/ws3/WS3_CHANGELOG.md` (본 파일): `[v0.27.0]` entry 상단 추가
+- `/docs/ws3/WS3_CURRENT_BASELINE.md`: baseline → v0.27.0 + 완료된 단계 row 추가 + v0.27.0 핵심 메모 추가
+- worker `VERSION` 상수: `WS3_v0.25.0_operator_reset_state_lifecycle` → `WS3_v0.27.0_actual_coin_live_preflight`
+
+### /live-preflight 인증 (3중)
+| # | 조건 | 위반 시 |
+|---|---|---|
+| 1 | Origin allowlist 통과 | `ORIGIN_MISSING` 403 / `ORIGIN_NOT_ALLOWED` 403 |
+| 2 | `X-WS3-Canary-Token === env.WS3_CANARY_INVOKE_TOKEN` exact | `MISSING_INVOKE_TOKEN` 401 / `INVOKE_TOKEN_MISMATCH` 403 |
+| 3 | `body.manualTrigger === true` | `MANUAL_TRIGGER_REQUIRED` 400 |
+
+KV / circuit / persistent guard 미사용 (read-only 이므로 abuse 위험 최소화 위해 limit ≤ 60 / single market 제한).
+
+### request body 검증
+- `exchange`: allowlist 3종 (case-insensitive, lowercase 정규화)
+- `market`: `^[A-Za-z0-9_\-]{2,32}$` (exchange-native 형식)
+- `timeframe`: allowlist 4종
+- `limit`: integer in `[1, 60]`
+
+### exchange URL 매핑
+| exchange | URL pattern |
+|---|---|
+| upbit | `https://api.upbit.com/v1/candles/minutes/{1\|5\|15\|60}?market={...}&count={limit}` |
+| bithumb | `https://api.bithumb.com/public/candlestick/{market}/{1m\|5m\|15m\|1h}` |
+| binance | `https://api.binance.com/api/v3/klines?symbol={market}&interval={1m\|5m\|15m\|1h}&limit={limit}` |
+
+### normalize / summarize
+- raw exchange JSON → uniform `[{ time(ISO Z), open, high, low, close, volume }]` (oldest → latest)
+- upbit: latest-first → reverse / bithumb: oldest-first 6-tuple `[ts_ms, open, close, high, low, volume]` / binance: oldest-first kline 배열
+- 모든 필드 `Number(...)` + `isFinite` 검증, invalid 시 `LIVE_PREFLIGHT_PARSE_ERROR`
+- 빈 배열 → `LIVE_PREFLIGHT_EMPTY_CANDLES`
+- summarize: `candleCount` / `latestTime` / `lastClose` / `prevClose` / `changePct` / `lastVolume` / `avgVolume` / `volumeRatio`
+
+### 신규 safe code (11종)
+- `LIVE_PREFLIGHT_OK` 200 / `LIVE_PREFLIGHT_DISABLED` (예약) / `LIVE_PREFLIGHT_INVALID_EXCHANGE` 400 / `LIVE_PREFLIGHT_INVALID_MARKET` 400 / `LIVE_PREFLIGHT_INVALID_TIMEFRAME` 400 / `LIVE_PREFLIGHT_LIMIT_EXCEEDED` 400 / `LIVE_PREFLIGHT_FETCH_TIMEOUT` 504 / `LIVE_PREFLIGHT_NETWORK_ERROR` 502 / `LIVE_PREFLIGHT_PARSE_ERROR` 502 / `LIVE_PREFLIGHT_EMPTY_CANDLES` 502 / `LIVE_PREFLIGHT_UNSUPPORTED_SOURCE` 400
+
+기존 v0.25 / v0.26.1 safe code 모두 유지.
+
+### no-write 구조 보장 (/live-preflight scope grep)
+- `writeAlreadySent` / `writeCleanupRequired` / `writeCircuit` / `writeInvokeFail` / `writeOperatorReset` / `markAlreadySentReset` / `KV_BINDING_NAME` / `env[` — `/live-preflight` 핸들러 내 매치 **0건**
+- `sendCanary` / `dispatchCanary` / `sendMessage` 호출 — 핸들러 내 매치 **0건**
+- KV binding 자체에 접근 0건 (`env[KV_BINDING_NAME]` 미사용)
+
+### mock smoke 결과 (16 시나리오 — 14 spec + 2 leak guard)
+```
+TOTAL=16 PASS=16 FAIL=0
+```
+S1 no token → 401 / S2 bad token → 403 / S3 no manualTrigger → 400 / S4 invalid exchange → 400 / S5 invalid timeframe → 400 / S6 limit > 60 → 400 / S7 invalid market → 400 / S8 upbit mocked success → 200 LIVE_PREFLIGHT_OK / S9 empty candles → 502 / S10 network error → 502 / S11 fetch timeout → 504 / S12 parse error → 502 / S13 Telegram fetch count = 0 / S14 KV put/delete count = 0 / S15 raw exchange native field (candle_date_time_kst / opening_price / candle_acc_trade_price) leak guard CLEAN / S16 invoke token leak in body CLEAN.
+
+실 거래소 API (api.upbit.com / api.bithumb.com / api.binance.com) 호출 0건 (mock fetchImpl 만). 실 KV API 호출 0건 (mock KV null).
+
+### Web Console UI 보강
+- Section 6 "Live Preflight (v0.27 read-only)" 신규
+- 사용자 클릭시에만 1회 fetch, auto refresh 0건, 페이지 로드 시 자동 호출 0건
+- 1.5초 throttle, token `readTokenAndClear()` 즉시 클리어
+- client-side market 정규식 `^[A-Za-z0-9_\-]{2,32}$` (server-side 와 일치)
+- client-side limit `^[0-9]{1,2}$` → parseInt → [1, 60] 범위 검사
+- 결과 panel whitelist 12 fields 외 노출 0건
+
+### Protected (수정 0건)
+- 본선 `worker.js` / `wrangler.toml` (repo 미존재) / `index.html` / `manifest.json` / `service-worker.js` — 미수정
+- `v3/` 25종 엔진 (telegramCanarySender / secureRuntimeStateAdapter / bithumbClient / etc.) — 미수정
+- `docs/ws3/WS3_CODE_CONTRACT.md` / `WS3_WORKFLOW_TEMPLATE.md` — 미수정
+- `workers/ws3-canary-state-kv-adapter.js` — 미수정 (v0.25.0 그대로)
+- `wrangler-canary.example.toml` / `.gitignore` — 미수정
+- `workers/ws3-telegram-canary-entry.mjs` — 미스테이지 유지
+
+### 보안 / 누출 검증 (0건 확인)
+- bot token / chatId / invoke token / KV namespace id / Telegram message_id / raw Telegram response / IP / cookie / session id / browser fingerprint — 코드 / 보고서 / 로그 노출 0건
+- exchange API raw native field — response 본문 노출 0건 (smoke S15 leak guard PASS)
+- masked / first-4 / last-4 / redacted preview 0건
+- localStorage / sessionStorage / IndexedDB / document.cookie 호출 0건 (web grep 매치 4건 모두 정책 부정문맥)
+- URL query parameter token 전달 0건
+- console.log 출력 0건
+
+### Cloudflare 변경 0건
+- worker 재배포 0건 (v0.25.0 production Version 그대로)
+- KV namespace 생성/변경 0건
+- KV binding 변경 0건
+- secrets 변경 0건
+- `WS3_CANARY_ALLOWED_ORIGINS` 변경 0건
+- Pages project 생성/배포 0건
+- 실 Telegram API 호출 0건
+- 실 KV write 0건
+- 실 `/live-preflight` 호출 0건
+- 실 거래소 API 호출 0건
+
+### 의도된 미구현 (다음 Gate)
+- v0.27 Deploy Gate (별도): Worker redeploy (v0.27 production version 반영) + Pages redeploy (필요 시) + production console 에서 `/live-preflight` 1회 호출 검증
+- v0.28 후보 A: Live Preflight 결과 기반 basic candle structure preview
+- v0.28 후보 B: Actual Coin Candidate Dry-run (후보 계산만, Telegram / KV 0건)
+- v0.28 후보 C: Security hardening before live coin stage (Cloudflare Access 재검토 / invoke token rotation / origin allowlist 재검토)
+- worker `/state` response 자체에서 `resetCount` 제거 (v0.28+ 후보)
+- env-based `LIVE_PREFLIGHT_DISABLED` flag (자동 disable kill switch)
+- rate limit per origin / market / minute / invoke token rotate automation / ipHash + `WS3_CANARY_HASH_SALT`
+
+### 기준 commit
+- branch: `claude/heuristic-cori-7865e7`
+- 이전 functional baseline: WS3 v0.26.1 Dev Preview Lightweight Invite Gate + Pages Deploy Success (`81964bf`)
+- 본 commit: (push 후 기록, push 별도 승인)
+
+---
+
 ## [v0.26.1] — 2026-05-18 (Dev Preview Lightweight Invite Gate)
 
 ### Verified (Cloudflare Pages Deploy — 코드 변경 0건, tracked source 변경 0건)
