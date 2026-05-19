@@ -524,3 +524,141 @@ KV write 가능 범위 = candidate test duplicate guard 단일 key 만 (kvWriteS
 실 Telegram 발송 / 실 KV write / 실 거래소 API 호출 = 별도 Deploy Validation Gate 에서만 1회 한정
 실전 스캐너 알람은 v0.30 이후 별도 승인으로만 진행
 ```
+
+---
+
+## 18. Final Live Validation Result
+
+본 섹션은 v0.29.0 코드 commit (`f923b86`) 이후 실제 Cloudflare Worker redeploy + Pages production deploy + production console 에서 Check State + `/multi-candidate-dry-run` 1회 실 호출 검증까지 마친 결과 박제다. 코드 변경 0건 / tracked source 변경 0건 / hash 또는 raw invite code repo 박제 0건 / Telegram 발송 0건 / KV write 0건 / candidate 저장 0건 / tracking 시작 0건.
+
+본 결과는 **후보 미발생 = LOW_SIGNAL_NORMAL 정상 판정**. 실패가 아니라 dry-run 분류기가 정확히 동작했음을 의미.
+
+### 18.1 Worker / Pages
+
+- Worker deploy: **completed** (Version single fragment `901d73dc`, `ws3-telegram-canary.neosiwon.workers.dev` 동일 URL, size 177.16 KiB / gzip 27.61 KiB)
+- Pages deploy: **completed** (production URL `ws3-canary-console.pages.dev`, `--branch=main`, lightweight invite gate 활성 유지, working copy hash 주입 후 즉시 cleanup, tracked source diff 0건)
+- Console: Dev Preview Invite Gate 통과 / Multi-market Candidate Dry-run Section 표시 / Limited Live Mode remains DISABLED
+- 신규 env: `WS3_CANDIDATE_TEST_ENABLED` 미설정 (default 'false' 동작) — 본 Gate 에서 활성화 0건
+
+### 18.2 Check State (Step H)
+
+- `version=WS3_v0.29.0_integrated_limited_live_pipeline` (v0.29 production 반영 확인)
+- `persistenceAvailable=true`
+- `canaryEnabled=false`
+- `alreadySent=false`
+- `cleanupRequired=false`
+- `circuitOpen=false`
+- `currentPhase=RESET_CONFIRMED`
+
+### 18.3 Multi-market Candidate Dry-run (Step I) — 1회 실 호출
+
+- Result code: `MULTI_CANDIDATE_DRY_RUN_OK`
+- Mode: `MULTI_CANDIDATE_DRY_RUN_ONLY`
+- Exchange: `upbit`
+- Timeframe: `5m`
+- Market count: `10`
+- Candidate count: `0`
+- **Result: `LOW_SIGNAL_NORMAL`** (후보 없음 = 정상 분류)
+- Top market: `KRW-NEAR`
+- Top score: `24`
+- Top grade: `P-C`
+- Top reason chips: `HIGH_CLOSE_POSITION`
+- Top latest candle time: `2026-05-19T07:50:00Z`
+- Top last close: `2480`
+
+### 18.4 Top 10 Summary
+
+```text
+#1 KRW-NEAR P-C score=24 chips=HIGH_CLOSE_POSITION
+#2 KRW-LINK P-C score=20 chips=-
+#3 KRW-DOGE P-C score=20 chips=LOW_VOLUME,HIGH_CLOSE_POSITION
+#4 KRW-XRP P-C score=15 chips=LOW_VOLUME,HIGH_CLOSE_POSITION
+#5 KRW-AVAX P-C score=10 chips=VOLUME_SURGE,UPPER_WICK_RISK
+#6 KRW-ETH P-C score=0 chips=-
+#7 KRW-BTC P-C score=0 chips=LOW_VOLUME,UPPER_WICK_RISK
+#8 KRW-SOL P-C score=0 chips=LOW_VOLUME,UPPER_WICK_RISK
+#9 KRW-ADA P-C score=0 chips=LOW_VOLUME,UPPER_WICK_RISK
+#10 KRW-SEI P-C score=0 chips=LOW_VOLUME,UPPER_WICK_RISK
+```
+
+### 18.5 점수 산식 검증 포인트 (KRW-AVAX 사례)
+
+- KRW-AVAX: `volRatio=15.102` / `volAccel=10.831` — volume surge 매우 강함 → `VOLUME_SURGE` chip +25 가산
+- 동시에 `upperWickPct >= bodyPct * 2 AND closePosition < 0.6` → `UPPER_WICK_RISK` -15 감점 + chip 추가
+- 결과 score=10 / grade=P-C / isCandidate=false
+- 결론: **단순 volume surge 만으로는 후보 판정 안 함** (위험 감점 로직 정상). v0.28 산식이 multi-market 환경에서 false positive 방지 동작 확인.
+
+### 18.6 Safety (모두 0건 / false)
+
+- Candidate TEST_ONLY Telegram: **skipped** (candidateCount=0 → Case 1 LOW_SIGNAL 분기, Step J 결정)
+- `WS3_CANDIDATE_TEST_ENABLED=true` 활성화: **not activated** (Step K 생략)
+- Step K/L/M: **모두 생략** (후보 없음 → TEST_ONLY 발송 경로 미진입)
+- Send Candidate TEST_ONLY count during this gate: **0**
+- Send Canary count during this gate: **0**
+- Cleanup Confirm count during this gate: **0**
+- Operator Reset count during this gate: **0**
+- Live Preflight extra calls: **0**
+- Candidate Dry-run extra calls: **0**
+- Telegram API calls during this gate: **0**
+- KV writes during this gate: **0**
+- Limited Live Mode: **DISABLED** (변경 0건)
+- `telegramSent=false` / `kvWritten=false` / `candidateStored=false` / `trackingStarted=false`
+
+### 18.7 누출 검증
+
+- raw exchange full response **not recorded** (raw native field — `candle_date_time_kst` / `opening_price` / `candle_acc_trade_price` 등 — 보고서 / 채팅 / 로그 노출 0건)
+- raw Telegram response **not recorded** (이번 Gate 에서 Telegram 호출 자체 0건)
+- Invoke Token **not recorded**
+- raw invite code / SHA-256 hash **not recorded** (placeholder repo 박제 유지, 노출된 폐기 hash repo-wide 매치 0건)
+- KV namespace ID **not recorded**
+- deployment ID full value **not recorded** (Version ID 단편 + Pages deployment hash 단편만)
+
+### 18.8 판정 결론
+
+```text
+Multi-market dry-run 실검증 성공
+후보 없음 = LOW_SIGNAL 정상 판정 (실패 아님)
+Telegram 미발송 = 정상
+KV write 0건 = 정상
+candidate 저장 0건 = 정상
+tracking 시작 0건 = 정상
+점수 산식 (volume surge 가산 + upper wick risk 감점) 정상 작동 검증
+multi-market 환경 false positive 방지 동작 검증
+```
+
+### 18.9 Gate 진행 흐름 박제 (Step A → J)
+
+```text
+Step A (자동):  preflight sanity (git/protected/wrangler env/tracked placeholder)
+Step B (자동):  wrangler deploy --config wrangler-canary.toml → Worker v0.29 production version 활성 (Version 901d73dc)
+                  · CANARY_ENABLED=false / AUTHORIZED_AT=0 / ALLOWED_ORIGINS=Pages-only 유지 / WS3_CANDIDATE_TEST_ENABLED 미설정
+Step C (자동):  hash reuse 결정 — 이전 세션 SHA-256 재사용, 추가 사용자 입력 요청 0건, narrative 출력 0건
+Step D (자동):  .tmp_pages_deploy/ws3-canary-console/index.html 생성 (tracked index.html cp)
+Step E (자동):  assignment 라인 1건만 hash 교체 (line 409) — comment + placeholder check 라인 2건 보존
+Step F (자동):  wrangler pages deploy ... --branch=main → production Pages URL 활성화 (Sections 8/9/10 UI 반영)
+Step G (자동):  .tmp_pages_deploy/ 즉시 삭제 + tracked diff 0건 + placeholder 3+3 박제 + 보호 파일 0건 + repo-wide 노출 폐기 hash 매치 0건 검증
+Step H (사용자): production console 접속 → invite code 입력 → console UI 표시 → Worker Endpoint / Invoke Token 입력 → Check State 1회 클릭 → 7-field whitelist PASS (v0.29 version 반영 확인)
+Step I (사용자): Run Multi-market Dry-run 1회 클릭 (upbit / 10 markets / 5m / limit 60) → MULTI_CANDIDATE_DRY_RUN_OK 200 / marketCount=10 / candidateCount=0 / 모든 10 markets P-C / topMarket=KRW-NEAR score=24 / safety 4 fields 모두 false
+Step J (자동):  candidateCount=0 분기 → Case 1 LOW_SIGNAL_NORMAL → Step K/L/M 생략 → closure 진행
+```
+
+### 18.10 v0.29 검증 한계 (재인용)
+
+- 본 검증 = 1 isolate / 1 사용자 / 10 markets (Upbit KRW) / 5m timeframe / limit 60 / 단일 시점 시퀀스.
+- 활발한 시장 (강한 surge / 후보 발생 시점) / 다른 timeframe / 다른 exchange / 다른 limit / rate limit 응답 / partial data — 본 검증 범위 밖.
+- **Candidate TEST_ONLY Telegram 발송 경로 (Step L/M) 는 본 Gate 에서 실 검증 미수행**. forced-test candidate mode 또는 surge 시점 재검증은 v0.30+ 별도 단계.
+- score 산식은 multi-market 환경에서 false positive 방지가 강하게 동작함이 검증됨 (KRW-AVAX 사례). 하지만 false negative 위험성 / 후보 자연 발생률은 더 긴 시간 / 더 많은 시장에서 별도 백테스트 필요.
+
+### 18.11 v0.30+ 다음 단계 후보 (재인용 + 본 결과 반영)
+
+```text
+v0.30 후보 A: Candidate Scoring Calibration (산식 threshold 조정 또는 가중치 재배분)
+v0.30 후보 B: Broader Multi-market Dry-run (predefined list 확장 + 더 많은 timeframe / 시장 / watchlist)
+v0.30 후보 C: Candidate TEST_ONLY Telegram validation using forced/test candidate mode (Telegram 경로 검증)
+v0.30 후보 D: Security hardening before live candidate alert (Cloudflare Access / invoke token rotation / origin allowlist)
+worker /state response 자체에서 resetCount 제거 (v0.30+)
+env-based MULTI_CANDIDATE_DISABLED / CANDIDATE_TEST_DISABLED 강제 kill switch
+rate limit per origin / market / minute
+candidate score 산식 백테스트 결과 기반 조정 (본 검증에서 false positive 방지 확인, false negative 분석 필요)
+invoke token rotate automation / ipHash + WS3_CANARY_HASH_SALT
+```

@@ -7,6 +7,25 @@
 
 ## [v0.29.0] — 2026-05-19 (Integrated Limited Live Pipeline Pack)
 
+### Verified (Cloudflare Worker redeploy + Pages deploy + production Multi-market Dry-run 1회 실 호출 — 코드 변경 0건 / tracked source 변경 0건)
+- v0.29 Worker was deployed successfully (production version, `/multi-candidate-dry-run` + `/send-candidate-test` route 포함, `WS3_CANDIDATE_TEST_ENABLED` 미설정 default 'false').
+- v0.29 Web Console was deployed successfully to `ws3-canary-console.pages.dev` (production branch, Sections 8 / 9 / 10 UI 반영).
+- Production console Check State returned `version=WS3_v0.29.0_integrated_limited_live_pipeline` / `canaryEnabled=false` / `persistenceAvailable=true` / `alreadySent=false` / `cleanupRequired=false` / `circuitOpen=false` / `currentPhase=RESET_CONFIRMED`.
+- `/multi-candidate-dry-run` was executed **once** for 10 Upbit KRW markets (KRW-BTC, KRW-ETH, KRW-XRP, KRW-SOL, KRW-DOGE, KRW-ADA, KRW-AVAX, KRW-LINK, KRW-NEAR, KRW-SEI) / `timeframe=5m` / `limit=60`.
+- The run completed successfully and returned `code=MULTI_CANDIDATE_DRY_RUN_OK` / `mode=MULTI_CANDIDATE_DRY_RUN_ONLY` / `marketCount=10` / `candidateCount=0` → **LOW_SIGNAL_NORMAL** (후보 미발생 = 정상 분류).
+- Top result: market=`KRW-NEAR`, score=`24`, grade=`P-C`, reasonChips=`HIGH_CLOSE_POSITION`, latestTime=`2026-05-19T07:50:00Z`, lastClose=`2480`. 모든 10 markets P-C 분류.
+- 점수 산식 검증 포인트: KRW-AVAX volRatio=15.102 / volAccel=10.831 (volume surge 강함) → `VOLUME_SURGE` chip +25 가산. 동시에 `upperWickPct >= bodyPct*2 AND closePosition < 0.6` → `UPPER_WICK_RISK` -15 감점. 최종 score=10 / grade=P-C / isCandidate=false. **단순 volume surge 만으로 후보 판정 안 함** = false positive 방지 로직 정상 작동.
+- Candidate TEST_ONLY Telegram was **skipped** because `candidateCount=0` → Case 1 LOW_SIGNAL 분기.
+- `WS3_CANDIDATE_TEST_ENABLED=true` was **not activated** (Step K/L/M 모두 생략).
+- Limited Live Mode remained **DISABLED**.
+- `telegramSent=false` / `kvWritten=false` / `candidateStored=false` / `trackingStarted=false`.
+- Send Candidate TEST_ONLY / Send Canary / Cleanup Confirm / Operator Reset / Live Preflight / Candidate Dry-run extra calls during this gate: 모두 **0건**.
+- Telegram API calls during this gate: **0**.
+- KV writes during this gate: **0**.
+- Candidate storage and tracking were not started.
+- raw exchange full response, raw Telegram response, Invoke Token, invite code, invite hash, KV namespace ID — **not recorded** in repo / chat / log.
+- 결과 판정: Multi-market dry-run 실검증 성공. 후보 미발생 = LOW_SIGNAL 정상 판정 (실패 아님). 점수 산식 / volume surge 가산 / upper wick risk 감점 / multi-market 환경 false positive 방지 모두 정상 작동.
+
 ### 목적 (실코인 자동 알람 아님 / 통합 제한 라이브 팩)
 v0.29 = **여러 코인 dry-run → 후보 리스트 → 선택 후보 1건 TEST_ONLY Telegram 발송**까지 한 번에 검증하는 통합 제한 라이브 팩. **무제한 자동 알람 / Cron / candidate 저장 / tracking 자동 시작 — 모두 0건**. 실 Telegram / KV write / 실 거래소 API 호출 — 본 commit 까지 mock 만, 실 호출은 별도 Deploy Validation Gate.
 
@@ -159,7 +178,8 @@ KV_DELETE_CALL_COUNT=0
 ### 기준 commit
 - branch: `claude/heuristic-cori-7865e7`
 - 이전 functional baseline: WS3 v0.28.0 Actual Coin Candidate Dry-run + Live Validation Success (`d81b723`)
-- 본 commit: (push 후 기록, push 별도 승인)
+- 코드 commit: `f923b86` (ws3: v0.29.0 integratedLimitedLivePipeline, push 완료)
+- live validation closure commit: 본 closure commit (코드 변경 0건 / docs 3개만 — push 별도 승인)
 
 ---
 
