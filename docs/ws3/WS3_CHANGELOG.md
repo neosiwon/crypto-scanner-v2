@@ -7,6 +7,24 @@
 
 ## [v0.31.0] — 2026-05-19 (Web-first Minimum Operator Mode Pack)
 
+### Verified
+- v0.31 Worker was deployed successfully.
+- v0.31 Web Console was deployed successfully.
+- v0.31.0-fix-1 maxMarkets50 was deployed successfully.
+- Production console Check State returned WS3_v0.31.0_web_first_minimum_operator_mode.
+- 40-market preset scan returned marketCount=40.
+- Disabled limited live send returned LIMITED_LIVE_DISABLED.
+- WS3_LIMITED_LIVE_ENABLED was enabled for validation.
+- LIMITED LIVE / OPERATOR REVIEW Telegram was sent once.
+- The selected market was KRW-DOT with score=29, grade=P-C, operatorReviewLevel=WATCH_REVIEW, reasonChips=VOLUME_SURGE.
+- Telegram message included LIMITED LIVE / OPERATOR REVIEW, 자동 매수/매도 추천 아님, 운영자 검토 필요, and This is not a live trading alert labels.
+- kvWritten=true with kvWriteScope=LIMITED_LIVE_GUARD_ONLY.
+- candidateStored=false and trackingStarted=false.
+- Duplicate second send was blocked with no additional Telegram received.
+- User selected 운영 유지, so WS3_LIMITED_LIVE_ENABLED remains true.
+- Cron and automatic alerts remain disabled.
+- raw Telegram response, raw exchange full response, Invoke Token, invite code, and invite hash were not recorded.
+
 ### 목적 (검증 우선 → 웹 운영 우선 전환 / 자동 알람 아님)
 v0.31 = 검증용 콘솔에서 **운영자 수동 운영 최소 웹 콘솔**로 전환. 30~50개 코인 웹 스캔 + 운영자 후보 카드 검토 + 선택 후보 1건 LIMITED LIVE / OPERATOR REVIEW 라벨 수동 전송. 실 Telegram / KV write / Cloudflare deploy / 실 거래소 API 호출 — 본 commit 까지 mock 만.
 

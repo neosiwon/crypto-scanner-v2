@@ -336,3 +336,50 @@ Limited Live Send 는 운영자 클릭 + confirm phrase 만 가능
 배포 후 자연검증 단계 (필수 안전 테스트 외 사전 검증 최소화)
 실전 스캐너 자동 운영은 v0.32 이후 사용자 명시 승인으로만 진행
 ```
+
+---
+
+## 14. Final Minimum Live Validation Result
+
+- Worker deploy: completed
+- Pages deploy: completed
+- v0.31.0-fix-1 maxMarkets50 redeploy: completed
+- Production console Check State: succeeded
+- 40-market preset scan: succeeded
+- Multi-market result code: MULTI_CANDIDATE_PARTIAL_OK
+- Market count: 40
+- OK count: 19
+- Fail count: 21
+- Candidate count: 0
+- Disabled send test: succeeded
+- Disabled send code: LIMITED_LIVE_DISABLED
+- Limited Live enable: completed
+- WS3_LIMITED_LIVE_ENABLED: true
+- LIMITED LIVE / OPERATOR REVIEW send: succeeded
+- Selected market: KRW-DOT
+- Exchange: upbit
+- Timeframe: 5m
+- Score: 29
+- Grade: P-C
+- Operator review level: WATCH_REVIEW
+- isCandidate: false
+- Reason chips: VOLUME_SURGE
+- Result code: LIMITED_LIVE_REVIEW_SENT
+- Message type: LIMITED_LIVE_OPERATOR_REVIEW
+- Telegram sent: true
+- KV written: true
+- KV write scope: LIMITED_LIVE_GUARD_ONLY
+- Candidate stored: false
+- Tracking started: false
+- Duplicate second send: blocked
+- Additional Telegram after duplicate click: 0
+- Final operation decision: 운영 유지
+- Final WS3_LIMITED_LIVE_ENABLED: true
+- Cron: disabled
+- Automatic alerts: disabled
+- Candidate storage: disabled
+- Tracking start: disabled
+- raw Telegram response not recorded
+- raw exchange full response not recorded
+- Invoke Token not recorded
+- raw invite code / hash not recorded

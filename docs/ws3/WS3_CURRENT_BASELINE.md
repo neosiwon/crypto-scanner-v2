@@ -4,7 +4,7 @@
 > 다음 단계 작업 전에 이 파일로 baseline 을 확인.
 
 **최종 업데이트**: 2026-05-19  
-**기능 단계 (current functional baseline)**: WS3 v0.31.0 Web-first Minimum Operator Mode Pack code-ready (POST /send-limited-live-alert 신규 endpoint — LIMITED LIVE / OPERATOR REVIEW Telegram 수동 발송, 별도 env `WS3_LIMITED_LIVE_ENABLED` (default false), confirmPhrase `SEND_WS3_LIMITED_LIVE_REVIEW`, per-(market,timeframe) 60s KV guard `LIMITED_LIVE_GUARD_ONLY`, multi-candidate-dry-run 결과 `operatorReview` / `operatorReviewLevel` (HOT_REVIEW/WATCH_REVIEW/LOW_SIGNAL) 필드 추가, Web Console Section 8 40-market preset 버튼 + Section 11 신규 Minimum Operator Mode UI, mock smoke 17/17, Telegram 0건 / KV write 0건 / candidate 저장 0건 / tracking 시작 0건 / 실 거래소 API 호출 0건 / Cloudflare deploy 0건)  
+**기능 단계 (current functional baseline)**: WS3 v0.31.0 Web-first Minimum Operator Mode + Limited Live Operation Enabled (Production Check State PASS / Worker version WS3_v0.31.0_web_first_minimum_operator_mode / v0.31.0-fix-1 maxMarkets50 deployed / 40-market preset scan PASS marketCount=40 / disabled send gate `LIMITED_LIVE_DISABLED` 정상 차단 / LIMITED LIVE / OPERATOR REVIEW Telegram 1회 발송 PASS — KRW-DOT upbit 5m score=29 P-C operatorReviewLevel=WATCH_REVIEW reasonChips=VOLUME_SURGE / kvWriteScope=LIMITED_LIVE_GUARD_ONLY / candidateStored=false / trackingStarted=false / duplicate 차단 PASS / 사용자 결정 = 운영 유지 / `WS3_LIMITED_LIVE_ENABLED='true'` 유지 / Cron 0건 / 자동 알람 0건 / candidate 저장 0건 / tracking 시작 0건 / 노출된 폐기 hash repo-wide 매치 0건 / raw Telegram response / raw exchange full response / Invoke Token / KV namespace ID 노출 0건)  
 **이전 기능 baseline**: WS3 v0.30.0 Forced Candidate TEST_ONLY Telegram + Live Validation Success (`46b6d5d`)  
 **운영 문서**: WS3 Workflow Template v0.1 박제 (`d8bebc2`, v0.3.0-docs)  
 **branch**: `claude/heuristic-cori-7865e7`
@@ -61,6 +61,7 @@
 | **WS3 v0.30.0** | **`/workers/ws3-telegram-canary-worker.js` (보강) + `/web/ws3-canary-console.html` (보강) + `/web/ws3-canary-console/index.html` (mirror) + `/docs/ws3/WS3_v0_30_0_FORCED_CANDIDATE_TEST_TELEGRAM_REPORT.md`** | **`3c36d63`** | **✅ 박제 (Forced Candidate TEST_ONLY Telegram Validation Pack — `/send-candidate-test` 확장 (forceTestCandidate=true 모드 신규, 별도 confirmPhrase `SEND_WS3_FORCED_TEST_CANDIDATE` + `forcedTestReason` 정규식 + 128자 + FORCED preamble 강제 + 매수 추천 / 수익 보장 / LIVE BUY / 진입 추천 문구 0건) + UI Section 9 forced 모드 체크박스 + Forced Test Reason 입력 + mode/messageType 결과 panel 표시 + mode 토글 시 confirmPhrase/reason 즉시 클리어 + KV duplicate guard audit (`messageType` 필드로 forced/normal 구분, key 동일 / window 60s 공통) + 신규 safe code 6종 (FORCED_CANDIDATE_TEST_SENT 200 / DISABLED 503 / CONFIRM_PHRASE_REQUIRED 403 / INVALID_PAYLOAD 400 / ALREADY_SENT 429 / TELEGRAM_ERROR 502) + namespace separation (forced↔normal phrase 교차 사용 차단), mock smoke 27/27 PASS. 실 Telegram 0건 / 실 KV write 0건 / 실 candidate 저장 0건 / 실 tracking 시작 0건 / 실 거래소 API 호출 0건 / Cloudflare deploy 0건. 무제한 자동 알람 아님 — forced TEST_ONLY 경로 검증용 1회 발송 endpoint 만 / Limited Live Mode DISABLED 유지)** |
 | **WS3 v0.30.0 Live Validation** | **`/docs/ws3/WS3_v0_30_0_FORCED_CANDIDATE_TEST_TELEGRAM_REPORT.md` §14 추가 + `/docs/ws3/WS3_CHANGELOG.md` + `/docs/ws3/WS3_CURRENT_BASELINE.md`** | **`46b6d5d`** | **✅ 박제 (Forced Candidate TEST_ONLY Telegram Live Validation Success Closure — 코드 변경 0건 / tracked source 변경 0건 / 문서 3개만. Cloudflare Worker v0.30 redeploy 3회 (Step B 초기 + Step K enable + Step M disable) + Pages production deploy 완료, production console Check State PASS (v0.30 version 반영 확인), Multi-market Dry-run 1회 PASS (10 markets LOW_SIGNAL), Step J 명시 승인 후 Step K `WS3_CANDIDATE_TEST_ENABLED='true'` 임시 활성화, Step L FORCED Candidate TEST_ONLY Telegram 1회 PASS — KRW-NEAR / score=19 P-C reasonChips=LOW_VOLUME,HIGH_CLOSE_POSITION / forcedTestReason='path validation after LOW_SIGNAL multi-market dry-run' → FORCED_CANDIDATE_TEST_SENT 200 / mode=FORCED_TEST_ONLY / messageType=FORCED_CANDIDATE_TEST_ONLY / fixedMessageUsed=true / telegramSent=true / kvWritten=true / kvWriteScope=CANDIDATE_TEST_GUARD_ONLY / candidateStored=false / trackingStarted=false / Telegram 수신 정상 (7+4 필수 라벨 확인) / 매수·수익·LIVE 금지 문구 0건, Step M `WS3_CANDIDATE_TEST_ENABLED='false'` 복귀 완료 (production binding display 풀값 노출 확인) / FORCED 추가 발송 차단 / Limited Live Mode DISABLED 유지. Telegram API 호출 1건 (Step L 만) / KV write 1건 (Step L duplicate guard 만, audit messageType 분리) / 추가 호출 0건. 노출된 폐기 hash repo-wide 매치 0건, raw Telegram response / raw exchange full response / Invoke Token / KV namespace ID 노출 0건)** |
 | **WS3 v0.31.0** | **`/workers/ws3-telegram-canary-worker.js` (보강) + `/web/ws3-canary-console.html` (보강) + `/web/ws3-canary-console/index.html` (mirror) + `/docs/ws3/WS3_v0_31_0_WEB_FIRST_MINIMUM_OPERATOR_MODE_REPORT.md`** | **(push 후 기록)** | **✅ 박제 (Web-first Minimum Operator Mode Pack — POST /send-limited-live-alert 신규 endpoint (7-layer 인증 + 별도 env WS3_LIMITED_LIVE_ENABLED + confirmPhrase SEND_WS3_LIMITED_LIVE_REVIEW + selectedCandidate 자격 검증 `isCandidate || (operatorReview && allowOperatorReviewSend)` + per-(market,timeframe) 60s KV guard `LIMITED_LIVE_GUARD_ONLY` + fixed LIMITED LIVE / OPERATOR REVIEW preamble + 자동 매수·매도 추천 / 진입 추천 / 수익 보장 / 확정 신호 / LIVE BUY 문구 0건) + Multi-candidate pipeline 확장 (`operatorReview` / `operatorReviewLevel` HOT_REVIEW/WATCH_REVIEW/LOW_SIGNAL / `operatorReviewReason` 추가, 정렬 priority 변경, `operatorReviewCounts` 응답 신규) + Web Console Section 8 Load 40-market Upbit preset 버튼 + 카드 색상 배지 + [OP-REVIEW] 라벨 + Section 11 신규 Minimum Operator Mode UI (selected card / allowOR / confirm / Send / 결과 panel 9 fields) + Section 8↔11 selector 동기화 + 신규 safe code 6종 (LIMITED_LIVE_REVIEW_SENT 200 / DISABLED 503 / CONFIRM_PHRASE_REQUIRED 403 / INVALID_PAYLOAD 400 / ALREADY_SENT 429 / TELEGRAM_ERROR 502), mock smoke 17/17 PASS. 실 Telegram 0건 / 실 KV write 0건 / 실 candidate 저장 0건 / 실 tracking 시작 0건 / 실 거래소 API 호출 0건 / Cloudflare deploy 0건. 무제한 자동 알람 아님 — operator 카드 선택 + 클릭만 발송 / Limited Live Mode env-gated)** |
+| **WS3 v0.31.0 Minimum Operator Mode Live Validation** | **`/docs/ws3/WS3_v0_31_0_WEB_FIRST_MINIMUM_OPERATOR_MODE_REPORT.md` §14 추가 + `/docs/ws3/WS3_CHANGELOG.md` + `/docs/ws3/WS3_CURRENT_BASELINE.md`** | **(push 후 기록)** | **✅ 박제 (Web-first Minimum Operator Mode Live Validation Success Closure — 코드 변경 0건 / tracked source 변경 0건 / 문서 3개만. Cloudflare Worker v0.31 redeploy 3회 (Step B 초기 + v0.31.0-fix-1 maxMarkets50 + Step K LIMITED_LIVE_ENABLED=true) + Pages production deploy 2회 (Step F + fix-1) 완료, production console Check State PASS (v0.31 version 반영 확인), 40-market preset scan PASS — upbit / 40 KRW markets / 5m → MULTI_CANDIDATE_PARTIAL_OK / marketCount=40 / okCount=19 / failCount=21 / candidateCount=0 (failCount=21은 프리셋 내 미상장/미지원 심볼 가능성 자연검증 후속), Step J disabled 차단 PASS — `WS3_LIMITED_LIVE_ENABLED=false` 상태 /send-limited-live-alert → LIMITED_LIVE_DISABLED 503 정상 (UI safety fields 표시 미흡은 후속 UI 개선 항목), Step K `WS3_LIMITED_LIVE_ENABLED='true'` 임시→유지 활성화 + Worker redeploy, Step L LIMITED LIVE / OPERATOR REVIEW Telegram 1회 PASS — KRW-DOT upbit 5m / score=29 P-C / operatorReviewLevel=WATCH_REVIEW / isCandidate=false / reasonChips=VOLUME_SURGE / allowOperatorReviewSend=true → LIMITED_LIVE_REVIEW_SENT 200 / mode=LIMITED_LIVE_OPERATOR_REVIEW / messageType=LIMITED_LIVE_OPERATOR_REVIEW / fixedMessageUsed=true / telegramSent=true / kvWritten=true / kvWriteScope=LIMITED_LIVE_GUARD_ONLY / candidateStored=false / trackingStarted=false / Telegram 수신 정상 (LIMITED LIVE / OPERATOR REVIEW / 자동 매수·매도 추천 아님 / 운영자 검토 필요 / Manual operator review only / This is not a live trading alert 필수 라벨 확인) / 매수·수익·LIVE 금지 문구 0건, Step M duplicate 차단 PASS — 같은 selected card 2차 클릭 Telegram 추가 수신 0건 / per-(market,timeframe) 60s guard 정상 작동, Step N 사용자 결정 = 운영 유지 / `WS3_LIMITED_LIVE_ENABLED='true'` 유지 / false 복귀 redeploy 0건 / Limited Live는 수동 운영자 검토 전용 / 자동 알람 0건 / Cron 0건 / candidate 저장 0건 / tracking 시작 0건. Telegram API 호출 1건 (Step L 만) / KV write 1건 (Step L LIMITED_LIVE_GUARD_ONLY 만) / 추가 호출 0건. 노출된 폐기 hash repo-wide 매치 0건, raw Telegram response / raw exchange full response / Invoke Token / KV namespace ID 노출 0건)** |
 
 ## REJECTED — repo 반영 보류
 
@@ -461,6 +462,67 @@ workers/ws3-telegram-canary-worker.js + web/ws3-canary-console.html  (v0.22.0/v0
   · invoke token rotate automation / ipHash + WS3_CANARY_HASH_SALT
   · 자동 운영 (Cron / auto Telegram / candidate 저장 / tracking 시작) — v0.32+ 별도, 사용자 명시 승인 필수
 - v0.31 한계: mock smoke only / 40 market 병렬 fetch 부하 자연검증 필요 / operatorReview 산식 단순 우회 규칙 (자연검증 후 조정) / KV guard window=60s per-(market,timeframe) — 동일 시장 즉시 재전송 차단, 다른 시장 즉시 가능 / WS3_LIMITED_LIVE_ENABLED 운영 유지 시 confirm phrase + per-key guard + UI 클릭 3중 보호로 우연 발송 방지.
+```
+
+## v0.31.0 Minimum Live Validation Success (실 Cloudflare 검증 박제)
+
+```text
+v0.31.0 Minimum Live Validation Success:
+- Production Check State succeeded
+- Worker version: WS3_v0.31.0_web_first_minimum_operator_mode
+- v0.31.0-fix-1 maxMarkets50 deployed
+- 40-market preset scan succeeded
+- marketCount=40
+- okCount=19
+- failCount=21
+- candidateCount=0
+- disabled send gate blocked correctly (LIMITED_LIVE_DISABLED 503)
+- LIMITED LIVE / OPERATOR REVIEW Telegram sent once
+- selectedMarket=KRW-DOT
+- exchange=upbit
+- timeframe=5m
+- score=29
+- grade=P-C
+- operatorReviewLevel=WATCH_REVIEW
+- isCandidate=false
+- reasonChips=VOLUME_SURGE
+- resultCode=LIMITED_LIVE_REVIEW_SENT
+- messageType=LIMITED_LIVE_OPERATOR_REVIEW
+- fixedMessageUsed=true
+- telegramSent=true
+- kvWritten=true
+- kvWriteScope=LIMITED_LIVE_GUARD_ONLY
+- candidateStored=false
+- trackingStarted=false
+- duplicate second send blocked (Telegram 추가 수신 0건)
+- final operation decision=운영 유지
+- WS3_LIMITED_LIVE_ENABLED=true
+- Cron disabled
+- automatic alerts disabled
+- candidate storage disabled
+- tracking start disabled
+- Telegram API 호출 1건 (Step L 만)
+- KV write 1건 (Step L LIMITED_LIVE_GUARD_ONLY 만)
+- 추가 호출 0건
+- raw Telegram response not recorded
+- raw exchange full response not recorded
+- Invoke Token not recorded
+- KV namespace ID not recorded
+- raw invite code / SHA-256 hash not recorded
+- 노출된 폐기 hash repo-wide 매치 0건
+- UI 후속 개선: disabled response safety fields 표시 (telegramSent/kvWritten/candidateStored/trackingStarted="-" 현상)
+- 자연검증 후속: failCount=21 프리셋 내 미상장/미지원 심볼 보정
+```
+
+## Next — Natural Validation Phase
+
+```text
+- use web console in real operation
+- refine 40-market preset based on failCount
+- improve disabled response safety fields display
+- tune operatorReview score/thresholds
+- improve mobile card UX
+- keep Cron/candidate storage/tracking disabled until separate approval
 ```
 
 ## v0.30.0 Live Validation Success (실 Cloudflare 검증 박제)
