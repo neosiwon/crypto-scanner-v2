@@ -7,6 +7,33 @@
 
 ## [v0.30.0] — 2026-05-19 (Forced Candidate TEST_ONLY Telegram Validation Pack)
 
+### Verified (Cloudflare Worker redeploy 3회 + Pages deploy + production FORCED Candidate TEST_ONLY Telegram 1회 실 호출 — 코드 변경 0건 / tracked source 변경 0건 / Telegram 발송 1건 / KV write 1건 (CANDIDATE_TEST_GUARD_ONLY))
+- v0.30 Worker was deployed successfully (Step B initial / Step K WS3_CANDIDATE_TEST_ENABLED='true' / Step M 'false' 복귀 — 총 3 Worker version, 모두 size 180.33 KiB / gzip 28.15 KiB).
+- v0.30 Web Console was deployed successfully to `ws3-canary-console.pages.dev` (production branch, Section 9 forced mode UI 반영).
+- Production console Check State returned `version=WS3_v0.30.0_forced_candidate_test_telegram` / `canaryEnabled=false` / `persistenceAvailable=true` / `alreadySent=false` / `cleanupRequired=false` / `circuitOpen=false` / `currentPhase=RESET_CONFIRMED`.
+- Multi-market Candidate Dry-run was executed successfully (`exchange=upbit` / `timeframe=5m` / `marketCount=10`, LOW_SIGNAL 계열 결과).
+- FORCED Candidate TEST_ONLY Telegram was sent **once**.
+- The selected forced test candidate: market=`KRW-NEAR`, score=`19`, grade=`P-C`, reasonChips=`LOW_VOLUME, HIGH_CLOSE_POSITION`, forcedTestReason=`path validation after LOW_SIGNAL multi-market dry-run`, source=`multi-candidate-dry-run`.
+- The Telegram message included all required safety labels (7 strict + 4 audit lines):
+  - `[WOOS WS3 FORCED CANDIDATE TEST_ONLY]`
+  - `This is not a live trading alert.`
+  - `manual forced validation only.`
+  - `실전 알람 아님`
+  - `테스트 전송`
+  - `강제 후보 테스트`
+  - `매수/매도 추천 아님`
+  - `mode: FORCED_TEST_ONLY` / `source: multi-candidate-dry-run` / `candidateStored: false` / `trackingStarted: false`
+- 매수 추천 / 수익 보장 / `LIVE BUY` / 진입 추천 문구 0건. raw exchange data / 가격 / 거래량 숫자 미포함.
+- Response: `code=FORCED_CANDIDATE_TEST_SENT` / `mode=FORCED_TEST_ONLY` / `messageType=FORCED_CANDIDATE_TEST_ONLY` / `fixedMessageUsed=true` / `telegramSent=true` / `kvWritten=true` / `kvWriteScope=CANDIDATE_TEST_GUARD_ONLY` / `candidateStored=false` / `trackingStarted=false`.
+- Step K `WS3_CANDIDATE_TEST_ENABLED="true"` 임시 활성화 → Worker redeploy (Version single fragment `7edff370`).
+- Step M `WS3_CANDIDATE_TEST_ENABLED="false"` 복귀 → Worker redeploy (Version single fragment `492abcda`, binding display 풀값 노출 확인). FORCED Candidate TEST_ONLY 추가 발송 차단 production 반영.
+- Limited Live Mode remained **DISABLED** throughout.
+- Telegram API calls during this gate: **1** (Step L 만).
+- KV writes during this gate: **1** (Step L duplicate guard 만, key `ws3:canary:candidateTestSent`, audit `messageType='FORCED_CANDIDATE_TEST_ONLY'` 포함).
+- Additional Telegram calls after Step L: 0 / Additional KV writes after Step L: 0.
+- raw Telegram response, raw exchange full response, Invoke Token, invite code, invite hash, KV namespace ID — **not recorded** in repo / chat / log.
+- 결과 판정: FORCED Candidate TEST_ONLY Telegram 경로 실검증 성공. forced mode 메시지 안전 라벨 / KV write scope 분리 / candidate 저장·tracking 시작 0건 / WS3_CANDIDATE_TEST_ENABLED='false' 복귀 모두 정상 작동 검증.
+
 ### 목적 (실코인 자동 알람 아님 / forced Telegram 경로 검증)
 v0.30 = **후보 미발생 환경에서도 Candidate Telegram 경로를 1회 검증** 할 수 있도록 `forceTestCandidate=true` 모드 추가. isCandidate=false dry-run 결과도 강제로 1회 TEST_ONLY Telegram 발송 가능. 실 Telegram / KV write / Cloudflare deploy — 본 commit 까지 mock 만, 실 호출은 별도 Deploy Validation Gate.
 
@@ -159,7 +186,8 @@ TOTAL=27 PASS=27 FAIL=0
 ### 기준 commit
 - branch: `claude/heuristic-cori-7865e7`
 - 이전 functional baseline: WS3 v0.29.0 Integrated Limited Live Pipeline + Multi-market LOW_SIGNAL Validation Success (`afa7284`)
-- 본 commit: (push 후 기록, push 별도 승인)
+- 코드 commit: `3c36d63` (ws3: v0.30.0 forcedCandidateTestTelegram, push 완료)
+- live validation closure commit: 본 closure commit (코드 변경 0건 / docs 3개만 — push 별도 승인)
 
 ---
 

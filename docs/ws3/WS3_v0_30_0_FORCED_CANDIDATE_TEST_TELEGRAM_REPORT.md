@@ -324,3 +324,150 @@ Limited Live Mode 변경 0건 (DISABLED 유지)
 실 Telegram 발송 / 실 KV write / 실 deploy = 별도 Deploy Validation Gate 에서만 1회 한정
 실전 스캐너 알람은 v0.31 이후 별도 승인으로만 진행
 ```
+
+---
+
+## 14. Final Live Validation Result
+
+본 섹션은 v0.30.0 코드 commit (`3c36d63`) 이후 실제 Cloudflare Worker redeploy + Pages production deploy + production console Check State + Multi-market Dry-run + FORCED Candidate TEST_ONLY Telegram 1회 실 호출 + `WS3_CANDIDATE_TEST_ENABLED='false'` 복귀까지 마친 결과 박제다. 코드 변경 0건 / tracked source 변경 0건 / hash 또는 raw invite code repo 박제 0건.
+
+### 14.1 Worker / Pages
+
+- Worker deploy: **completed** (총 3회 — Step B Version single fragment `8394b023` v0.30 초기 / Step K `7edff370` `WS3_CANDIDATE_TEST_ENABLED='true'` 임시 활성화 / Step M `492abcda` `'false'` 복귀, 모두 size 180.33 KiB / gzip 28.15 KiB, `ws3-telegram-canary.neosiwon.workers.dev` 동일 URL)
+- Pages deploy: **completed** (production URL `ws3-canary-console.pages.dev`, `--branch=main`, Section 9 forced mode UI 반영, working copy hash 주입 후 즉시 cleanup, tracked source diff 0건)
+- Console: Dev Preview Invite Gate 통과 / Section 9 Forced Candidate TEST_ONLY UI 표시 / Limited Live Mode remains DISABLED
+
+### 14.2 Step H Check State
+
+- `version=WS3_v0.30.0_forced_candidate_test_telegram` (v0.30 production 반영 확인)
+- `persistenceAvailable=true`
+- `canaryEnabled=false`
+- `alreadySent=false`
+- `cleanupRequired=false`
+- `circuitOpen=false`
+- `currentPhase=RESET_CONFIRMED`
+
+### 14.3 Step I Multi-market Dry-run
+
+- `/multi-candidate-dry-run` 1회 성공
+- `exchange=upbit` / `timeframe=5m` / `marketCount=10` / LOW_SIGNAL 계열 결과
+- forced test 대상 선택: KRW-NEAR / score=19 / grade=P-C / reasonChips=LOW_VOLUME,HIGH_CLOSE_POSITION
+- safety 4 fields 모두 false (telegramSent / kvWritten / candidateStored / trackingStarted)
+
+### 14.4 Step K Candidate Test Gate Enable
+
+- `WS3_CANDIDATE_TEST_ENABLED="true"` 임시 활성화 (wrangler-canary.toml line 13 신규 추가)
+- Worker redeploy 성공 (Version `7edff370`)
+- `CANARY_ENABLED=false` 유지 / `AUTHORIZED_AT=0` 유지 / `WS3_CANARY_ALLOWED_ORIGINS="https://ws3-canary-console.pages.dev"` 유지
+- KV binding 유지 / secrets 변경 0건
+
+### 14.5 Step L FORCED Candidate TEST_ONLY Telegram 1회 성공
+
+선택된 forced test candidate:
+- Exchange: `upbit`
+- Market: `KRW-NEAR`
+- Timeframe: `5m`
+- Score: `19`
+- Grade: `P-C`
+- Reason chips: `LOW_VOLUME, HIGH_CLOSE_POSITION`
+- Forced reason: `path validation after LOW_SIGNAL multi-market dry-run`
+- source: `multi-candidate-dry-run`
+
+응답:
+- Result code: `FORCED_CANDIDATE_TEST_SENT` / httpStatus=200
+- Mode: `FORCED_TEST_ONLY`
+- Message type: `FORCED_CANDIDATE_TEST_ONLY`
+- Fixed message used: `true`
+- Telegram sent: `true`
+- KV written: `true`
+- **KV write scope: `CANDIDATE_TEST_GUARD_ONLY`** (candidate 저장 / tracking 시작과 무관, duplicate guard 단일 key 만)
+- Candidate stored: `false`
+- Tracking started: `false`
+- Telegram 수신 정상
+
+Telegram 메시지 필수 라벨 7건 + 안내 4건 검증 완료:
+
+```text
+[WOOS WS3 FORCED CANDIDATE TEST_ONLY]
+This is not a live trading alert.
+manual forced validation only.
+실전 알람 아님
+테스트 전송
+강제 후보 테스트
+매수/매도 추천 아님
+
+mode: FORCED_TEST_ONLY
+source: multi-candidate-dry-run
+candidateStored: false
+trackingStarted: false
+```
+
+- 매수 추천 / 수익 보장 / `LIVE BUY` / 진입 추천 문구 0건
+- raw exchange data / 가격 / 거래량 숫자 미포함 (score/grade/chips/forcedReason 만)
+
+### 14.6 Step M Candidate Test Gate Disable (안전 복귀)
+
+- `WS3_CANDIDATE_TEST_ENABLED="false"` 복귀 완료 (wrangler-canary.toml line 13 만 `"true"` → `"false"` Edit)
+- Worker redeploy 성공 (Version `492abcda`, binding display 풀값 `env.WS3_CANDIDATE_TEST_ENABLED ("false")` 노출 확인)
+- FORCED Candidate TEST_ONLY 추가 발송 차단 production 반영
+- Step L 직후 즉시 비활성화 — 활성화 ↔ 비활성화 총 시간 짧음
+- `CANARY_ENABLED=false` 유지 / `AUTHORIZED_AT=0` 유지 / `WS3_CANARY_ALLOWED_ORIGINS` 유지 / Limited Live Mode DISABLED 유지
+
+### 14.7 Safety 판정 (모두 통과)
+
+- FORCED Candidate TEST_ONLY Telegram: 1건 성공
+- Telegram API calls during this gate: **1** (Step L 만)
+- KV writes during this gate: **1** (Step L duplicate guard 만)
+- KV write scope: `CANDIDATE_TEST_GUARD_ONLY` (key `ws3:canary:candidateTestSent` 만, audit payload `messageType='FORCED_CANDIDATE_TEST_ONLY'` 포함)
+- candidate 저장 0건 / tracking 시작 0건 / snapshot/evaluation/audit 0건
+- raw Telegram response **not recorded** (resp.text() 결과 폐기, body 에 message_id / result / from / chat 미포함)
+- raw exchange full response **not recorded**
+- Invoke Token **not recorded** / 노출된 폐기 hash repo-wide 매치 **0건**
+- raw invite code / SHA-256 hash **not recorded**
+- KV namespace ID **not recorded**
+- deployment ID full value **not recorded** (Version ID 단편만)
+- `WS3_CANDIDATE_TEST_ENABLED='false'` 복귀 완료 — 추가 발송 차단 production 반영
+- Limited Live Mode **DISABLED** 유지
+
+### 14.8 Gate 진행 흐름 박제 (Step A → M)
+
+```text
+Step A (자동):  preflight sanity (git/protected/wrangler env/tracked placeholder)
+Step B (자동):  wrangler deploy → Worker v0.30 (Version 8394b023, WS3_CANDIDATE_TEST_ENABLED 미설정 default 'false')
+Step C (자동):  hash reuse (이전 세션 SHA-256 재사용, narrative 출력 0건)
+Step D (자동):  .tmp_pages_deploy 생성 + cp tracked index.html
+Step E (자동):  assignment line 1건만 hash 교체 (line 418) — comment + placeholder check 2건 보존
+Step F (자동):  wrangler pages deploy --branch=main → production Pages URL Section 9 forced mode UI 반영
+Step G (자동):  .tmp_pages_deploy 즉시 삭제 + tracked diff 0건 + placeholder 3+3 박제 + 보호 파일 0건 + repo-wide 노출 폐기 hash 매치 0건 검증
+Step H (사용자): production console 접속 → invite code → Worker Endpoint + Invoke Token → Check State 1회 → 7-field whitelist PASS (v0.30 version 반영 확인)
+Step I (사용자): Run Multi-market Dry-run 1회 → 10 markets LOW_SIGNAL 결과 / forced test 대상 KRW-NEAR P-C 선택
+Step J (사용자): 명시 승인 "FORCED TEST_ONLY 1회 승인"
+Step K (자동):  wrangler-canary.toml line 13 신규 추가 WS3_CANDIDATE_TEST_ENABLED="true" → Worker redeploy (Version 7edff370)
+Step L (사용자): Section 9 Forced Mode 체크 + forcedTestReason 입력 + confirmPhrase SEND_WS3_FORCED_TEST_CANDIDATE → Send 1회 → FORCED_CANDIDATE_TEST_SENT 200 / Telegram 수신 정상 / 7+4 필수 라벨 확인
+Step M (자동):  wrangler-canary.toml line 13 "true" → "false" Edit → Worker redeploy (Version 492abcda) → FORCED Candidate TEST_ONLY 추가 발송 차단 production 반영
+```
+
+### 14.9 v0.30 검증 한계 (재인용)
+
+- 본 검증 = 1 isolate / 1 사용자 / 1 forced candidate (KRW-NEAR P-C) / 5m / 단일 시점 시퀀스
+- forced mode 활성화 → 비활성화 시간 짧음 (Step L 직후 Step M) — 그 사이 추가 호출 0건 확인
+- KV duplicate guard window=60s (forced/normal 공통). 60s 이내 재호출은 차단되었을 것 — 본 Gate 에서 재호출 시도 0건
+- forced 메시지 body 에 raw 가격 / 거래량 숫자 미포함 = 실 후보 알람으로 오인 위험 최소화
+- score / grade 산식은 v0.28 그대로 — multi-market 환경 분포 / forced 메시지 가독성 / Telegram 길이 제한 / rate limit 응답은 v0.31+ 추가 검증 필요
+
+### 14.10 v0.31+ 다음 단계 후보
+
+```text
+v0.31 = Web-first Minimum Operator Mode Pack (속도전, 사용자 자연 검증 경로)
+  · broader market preset
+  · operator review candidate cards
+  · limited live send button
+  · disabled/enabled essential tests only
+  · natural validation after web usage
+v0.32+ = Multi-market history persistence (browser memory-only 확장)
+v0.32+ = Candidate Scoring Calibration (백테스트 기반)
+v0.32+ = Security hardening before live candidate alert (Cloudflare Access 재검토 / invoke token rotation / origin allowlist 재검토)
+env-based MULTI_CANDIDATE_DISABLED / CANDIDATE_TEST_DISABLED 강제 kill switch
+rate limit per origin / market / minute
+invoke token rotate automation / ipHash + WS3_CANARY_HASH_SALT
+```
