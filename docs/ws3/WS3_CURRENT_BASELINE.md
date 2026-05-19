@@ -3,9 +3,9 @@
 > 현재 GitHub 박제 기준 (최신).  
 > 다음 단계 작업 전에 이 파일로 baseline 을 확인.
 
-**최종 업데이트**: 2026-05-18  
-**기능 단계 (current functional baseline)**: WS3 v0.28.0 Actual Coin Candidate Dry-run + Live Validation Success (Cloudflare Worker v0.28 redeploy + Pages production deploy 완료, production console Check State PASS, `/candidate-dry-run` 1회 실 호출 PASS — upbit/KRW-BTC/5m/limit=60 → CANDIDATE_DRY_RUN_OK / candleCount=60 / score=0 / grade=P-C / reasonChips=LOW_VOLUME / isCandidate=false / mode=CANDIDATE_DRY_RUN_ONLY / Telegram 0건 / KV write 0건 / candidate 저장 0건 / tracking 시작 0건)  
-**이전 기능 baseline**: WS3 v0.27.0 Actual Coin Live Preflight + Live Validation Success (`488cb08`)  
+**최종 업데이트**: 2026-05-19  
+**기능 단계 (current functional baseline)**: WS3 v0.29.0 Integrated Limited Live Pipeline code-ready (POST /multi-candidate-dry-run 신규 + POST /send-candidate-test 신규, 통합 제한 라이브 팩 — 멀티코인 dry-run + 후보 리스트 + 선택 1건 TEST_ONLY 수동 발송 endpoint + Limited Live Mode 뼈대 DISABLED, KV scope = `CANDIDATE_TEST_GUARD_ONLY` 단일 key 만, mock smoke 30/30, Telegram 0건 / KV write 0건 / candidate 저장 0건 / tracking 시작 0건 / 실 거래소 API 호출 0건 / Cloudflare deploy 0건)  
+**이전 기능 baseline**: WS3 v0.28.0 Actual Coin Candidate Dry-run + Live Validation Success (`d81b723`)  
 **운영 문서**: WS3 Workflow Template v0.1 박제 (`d8bebc2`, v0.3.0-docs)  
 **branch**: `claude/heuristic-cori-7865e7`
 
@@ -55,7 +55,8 @@
 | **WS3 v0.27.0** | **`/workers/ws3-telegram-canary-worker.js` (보강) + `/web/ws3-canary-console.html` (보강) + `/web/ws3-canary-console/index.html` (mirror) + `/docs/ws3/WS3_v0_27_0_ACTUAL_COIN_LIVE_PREFLIGHT_REPORT.md`** | **`d3e80b4`** | **✅ 박제 (Actual Coin Live Preflight — POST /live-preflight 신규 endpoint, 실 거래소 (upbit/bithumb/binance) 공개 시세 read-only fetch + 정규화 preview, 3중 인증 (Origin + Invoke Token + manualTrigger), exchange/timeframe allowlist + market 정규식 sanitize + limit ≤ 60, 5s timeout, mock smoke 16/16. 실 Telegram 0건 / 실 KV write 0건 / 실 거래소 API 호출 0건 / Cloudflare deploy 0건. v0.28+ 후보: dry-run candidate / security hardening before live coin)** |
 | **WS3 v0.27.0 Live Validation** | **`/docs/ws3/WS3_v0_27_0_ACTUAL_COIN_LIVE_PREFLIGHT_REPORT.md` §20 추가 + `/docs/ws3/WS3_CHANGELOG.md` + `/docs/ws3/WS3_CURRENT_BASELINE.md`** | **`488cb08`** | **✅ 박제 (Live Validation Success Closure — 코드 변경 0건 / tracked source 변경 0건 / 문서 3개만. Cloudflare Worker v0.27 redeploy + Pages production deploy 완료, production console Check State PASS (v0.27 version 반영 확인), `/live-preflight` 1회 실 호출 PASS — upbit / KRW-BTC / 5m / limit=30 → LIVE_PREFLIGHT_OK / candleCount=30 / mode=LIVE_PREFLIGHT_ONLY / Telegram 0건 / KV write 0건 / candidate 저장 0건 / tracking 시작 0건. 노출된 폐기 hash repo-wide 매치 0건, raw exchange full response / Invoke Token / KV namespace ID 노출 0건)** |
 | **WS3 v0.28.0** | **`/workers/ws3-telegram-canary-worker.js` (보강) + `/web/ws3-canary-console.html` (보강) + `/web/ws3-canary-console/index.html` (mirror) + `/docs/ws3/WS3_v0_28_0_CANDIDATE_DRY_RUN_REPORT.md`** | **`cd69760`** | **✅ 박제 (Actual Coin Candidate Dry-run — POST /candidate-dry-run 신규 endpoint, v0.27 fetch/normalize helper 재사용, candle structure 13 + volume 4 + momentum 4 features 계산 + dry-run score 0..100 clamp + P-S/P-A/P-B/P-C grade 분류 + reason chips max 8, exchange/timeframe allowlist + market 정규식 sanitize + limit ≤ 120, mock smoke 21/21. 실 Telegram 0건 / 실 KV write 0건 / 실 candidate 저장 0건 / 실 tracking 시작 0건 / 실 거래소 API 호출 0건 / Cloudflare deploy 0건. 점수·등급은 dry-run preview 일뿐 실 알람·매수 조건 아님)** |
-| **WS3 v0.28.0 Live Validation** | **`/docs/ws3/WS3_v0_28_0_CANDIDATE_DRY_RUN_REPORT.md` §19 추가 + `/docs/ws3/WS3_CHANGELOG.md` + `/docs/ws3/WS3_CURRENT_BASELINE.md`** | **(closure commit 후 기록)** | **✅ 박제 (Live Validation Success Closure — 코드 변경 0건 / tracked source 변경 0건 / 문서 3개만. Cloudflare Worker v0.28 redeploy + Pages production deploy 완료, production console Check State PASS (v0.28 version 반영 확인), `/candidate-dry-run` 1회 실 호출 PASS — upbit / KRW-BTC / 5m / limit=60 → CANDIDATE_DRY_RUN_OK / candleCount=60 / score=0 / grade=P-C / reasonChips=LOW_VOLUME / isCandidate=false / mode=CANDIDATE_DRY_RUN_ONLY / Telegram 0건 / KV write 0건 / candidate 저장 0건 / tracking 시작 0건. 후보 아님 판정 = dry-run 계산 정상 작동. 노출된 폐기 hash repo-wide 매치 0건, raw exchange full response / Invoke Token / KV namespace ID 노출 0건)** |
+| **WS3 v0.28.0 Live Validation** | **`/docs/ws3/WS3_v0_28_0_CANDIDATE_DRY_RUN_REPORT.md` §19 추가 + `/docs/ws3/WS3_CHANGELOG.md` + `/docs/ws3/WS3_CURRENT_BASELINE.md`** | **`d81b723`** | **✅ 박제 (Live Validation Success Closure — 코드 변경 0건 / tracked source 변경 0건 / 문서 3개만. Cloudflare Worker v0.28 redeploy + Pages production deploy 완료, production console Check State PASS (v0.28 version 반영 확인), `/candidate-dry-run` 1회 실 호출 PASS — upbit / KRW-BTC / 5m / limit=60 → CANDIDATE_DRY_RUN_OK / candleCount=60 / score=0 / grade=P-C / reasonChips=LOW_VOLUME / isCandidate=false / mode=CANDIDATE_DRY_RUN_ONLY / Telegram 0건 / KV write 0건 / candidate 저장 0건 / tracking 시작 0건. 후보 아님 판정 = dry-run 계산 정상 작동. 노출된 폐기 hash repo-wide 매치 0건, raw exchange full response / Invoke Token / KV namespace ID 노출 0건)** |
+| **WS3 v0.29.0** | **`/workers/ws3-telegram-canary-worker.js` (보강) + `/web/ws3-canary-console.html` (보강) + `/web/ws3-canary-console/index.html` (mirror) + `/docs/ws3/WS3_v0_29_0_INTEGRATED_LIMITED_LIVE_PIPELINE_REPORT.md`** | **(push 후 기록)** | **✅ 박제 (Integrated Limited Live Pipeline Pack — POST /multi-candidate-dry-run 신규 (병렬 멀티마켓 dry-run, v0.27/v0.28 helper 재사용, score desc 정렬, max 10 markets, limit ≤ 120) + POST /send-candidate-test 신규 (4중 인증 + confirmPhrase + selectedCandidate source 검증 + KV duplicate guard 60s window + fixed safety preamble TEST_ONLY Telegram 1건 + KV scope = `CANDIDATE_TEST_GUARD_ONLY` 단일 key 만) + UI Sections 8/9/10 (Memory-only history max 5 + Danger Zone + Limited Live Mode DISABLED 상태 + 활성화 조건 5개 박제) + 신규 env `WS3_CANDIDATE_TEST_ENABLED` (default 'false') + safe code 16종 신규, mock smoke 30/30 PASS. 실 Telegram 0건 / 실 KV write 0건 / 실 candidate 저장 0건 / 실 tracking 시작 0건 / 실 거래소 API 호출 0건 / Cloudflare deploy 0건. 무제한 자동 알람 아님 — 선택 후보 1건 수동 TEST_ONLY 발송 endpoint 만 / Limited Live Mode 활성화 0건 / Cron 0건)** |
 
 ## REJECTED — repo 반영 보류
 
@@ -374,6 +375,79 @@ workers/ws3-telegram-canary-worker.js + web/ws3-canary-console.html  (v0.22.0/v0
 ```
 
 ---
+
+## v0.29.0 핵심 메모
+
+```text
+- workers/ws3-telegram-canary-worker.js 1718 → 2311 라인 (+593 보강, 신규 require 0건, 모두 인라인, v0.27/v0.28 helper 그대로 재사용)
+- web/ws3-canary-console.html 990 → 1435 라인 (+445, Sections 8/9/10 추가)
+- web/ws3-canary-console/index.html 990 → 1435 라인 (byte-for-byte mirror 유지, 45836 → 68102 bytes)
+- 신규 산출: /docs/ws3/WS3_v0_29_0_INTEGRATED_LIMITED_LIVE_PIPELINE_REPORT.md (17 sections)
+- v0.29 의 핵심: 통합 제한 라이브 팩 / 무제한 자동 알람 아님 / Cron 없음.
+- 신규 엔드포인트 2종 + OPTIONS allowlist 9 path:
+  · POST /multi-candidate-dry-run — 병렬 multi-market dry-run, KV 미사용, Telegram 미호출
+  · POST /send-candidate-test — 선택 후보 1건 수동 TEST_ONLY Telegram 발송 + KV duplicate guard 60s window
+- 인증 layer:
+  · multi: Origin + Invoke Token + manualTrigger 3중
+  · send-candidate-test: 위 3중 + WS3_CANDIDATE_TEST_ENABLED='true' + confirmPhrase 'SEND_WS3_TEST_CANDIDATE' byte-for-byte + selectedCandidate source='multi-candidate-dry-run' 정합 + KV 60s duplicate guard
+- multi-market 파이프라인:
+  · Promise.all 병렬 fetch (각 5s AbortController timeout)
+  · v0.27 buildLivePreflightUrl / fetchLiveCandles / normalizeCandles 그대로
+  · v0.28 calculateCandleStructureFeatures / calculateVolumeFeatures / calculateMomentumFeatures / calculateCandidateDryRunScore / classifyCandidateDryRunGrade 그대로
+  · 정렬: score desc, 동점 시 volumeRatio desc / 실패 결과는 성공 결과 뒤 부착 (rank 연속)
+  · 개별 market 실패 격리 — 한 market 실패가 다른 market 결과 차단 X
+  · markets max 10 (MULTI_CANDIDATE_MAX_MARKETS), limit max 120 (v0.28 와 동일)
+  · markets dedupe (순서 보존)
+- candidate test 메시지 (fixed safety preamble):
+  · [WOOS WS3 CANDIDATE TEST_ONLY] / This is not a live trading alert. / manual limited validation only. / 실전 알람 아님 / 테스트 전송 / 매수/매도 추천 아님
+  · 본문 = Exchange/Market/Timeframe/Score/Grade/Reason chips 만
+  · 매수 추천 / 수익 보장 문구 0건
+  · raw exchange data / 가격 / 거래량 숫자 미포함 (score/grade/chips 만)
+  · chips /^[A-Z_]+$/ 화이트리스트 sanitize
+- candidate test KV scope:
+  · key: ws3:canary:candidateTestSent (CANDIDATE_TEST_GUARD_KEY)
+  · 형식: {schemaVersion:'v1', lastSentAt:nowMs, reason:'CANDIDATE_TEST_SENT'}
+  · 윈도우: 60s (CANDIDATE_TEST_GUARD_WINDOW_MS)
+  · adapter 파일 수정 0건 — CanaryStateKvAdapter.getJson / putJson generic primitives 재사용
+  · alreadySent / cleanupRequired / circuit / invokeFail / operatorReset 등 다른 canary state KV key 일체 read/write 0건
+  · 응답 본문 safety.kvWriteScope='CANDIDATE_TEST_GUARD_ONLY' 명시
+- 신규 env (선언만, default 'false'):
+  · WS3_CANDIDATE_TEST_ENABLED — /send-candidate-test enable gate, CANARY_ENABLED 와 분리
+  · 본 commit 까지 변경 0건, deploy Gate 에서만 임시 'true' 활성화 + 검증 직후 'false' 복귀
+- raw Telegram response 미노출:
+  · sendCandidateTestTelegram = resp.text() 결과 받기만 하고 폐기
+  · 응답 본문에 message_id / result / from / chat 등 native field 미포함 (smoke S26 검증)
+  · bot token / chat id 응답 본문 노출 0건 (smoke S27 검증)
+- 신규 safe code 16종:
+  · Multi (9): MULTI_CANDIDATE_DRY_RUN_OK 200 / PARTIAL_OK 200 / ALL_FAILED 502 / INVALID_EXCHANGE 400 / INVALID_MARKETS 400 / TOO_MANY_MARKETS 400 / INVALID_TIMEFRAME 400 / LIMIT_EXCEEDED 400 / FEATURE_ERROR 500
+  · Candidate test (7): CANDIDATE_TEST_SENT 200 / DISABLED 503 / CONFIRM_PHRASE_REQUIRED 403 / INVALID_PAYLOAD 400 / NO_CANDIDATE 400 / ALREADY_SENT 429 / TELEGRAM_ERROR 502
+- no-write scope grep 검증:
+  · /multi-candidate-dry-run handler scope: writeAlready* / writeCleanup* / writeCircuit / writeInvokeFail / writeOperatorReset / markAlreadySentReset / putJson / .put( / sendCanary / dispatchCanary / sendMessage 매치 0건
+  · /send-candidate-test handler scope: putJson(ctKv, CANDIDATE_TEST_GUARD_KEY, ...) 1건만, 다른 KV writer / canary sender 호출 0건
+- Web Console UI:
+  · Section 8 Multi-market Candidate Dry-run: Exchange/Markets textarea (10 markets default, 콤마 또는 줄바꿈)/Timeframe/Limit + 후보 리스트 (score desc, [CANDIDATE] 라벨 P-S/P-A) + Memory-only history (max 5 runs, localStorage/sessionStorage/IndexedDB/cookie 0건)
+  · Section 9 Candidate TEST_ONLY Send: selected candidate select (round-trip JSON) + confirm phrase + Danger Zone 시각 분리 + 응답 panel kvWriteScope='CANDIDATE_TEST_GUARD_ONLY' 명시 + 발송 후 confirm/selection 즉시 클리어
+  · Section 10 Limited Live Mode: DISABLED 상태 + 활성화 조건 5개 박제 (자동 활성화 코드 0건)
+  · 사용자 클릭시에만 fetch / auto refresh 0건 / 1.5s throttle / token readTokenAndClear() 즉시 클리어
+  · client-side sanitize: market 정규식 + limit ^[0-9]{1,3}$ → [1, 120]
+- mock smoke 30/30 PASS (spec 24 + 6 추가 leak / scope guards):
+  · Multi (S1-S15): 인증 3종 + 입력 검증 4종 + success 10 markets + partial OK + score desc 정렬 + candidateCount 매칭 + safety 4 all false + features 8 all finite + raw exchange field leak CLEAN + token leak CLEAN + KV put/delete 0 + Telegram 0
+  · Candidate test (S16-S27): 인증 + confirm + payload 검증 5종 + enable gate disabled + mock success (kvWriteScope=CANDIDATE_TEST_GUARD_ONLY) + TEST_ONLY messageType + 단일 candidate 강제 + candidate 저장/tracking 0 + duplicate guard 429 + KV scope = guard only + raw Telegram response leak CLEAN + secret leak CLEAN
+  · TELEGRAM_API_CALL_COUNT=1 (S19 mock send only) / KV_PUT_CALL_COUNT=1 (S19 guard write only) / KV_DELETE_CALL_COUNT=0
+- 보호 파일 (worker.js + wrangler.toml + index.html + manifest.json + service-worker.js + v3/ 25종 + WS3_CODE_CONTRACT.md + WS3_WORKFLOW_TEMPLATE.md + workers/ws3-canary-state-kv-adapter.js + wrangler-canary.example.toml + .gitignore) diff 0건
+- 미스테이지 유지: workers/ws3-telegram-canary-entry.mjs / wrangler-canary.toml / .claude/ / .wrangler/ / .tmp_canary_* / .tmp_pages_deploy/ / smoke 임시 파일 검증 직후 즉시 삭제
+- Cloudflare 변경 0건 (worker 재배포 / Pages 재배포 / KV namespace 생성·변경 / allowed origins 변경 / secrets 변경 / WS3_CANDIDATE_TEST_ENABLED env 활성화 모두 0건)
+- 실 호출 0건 (/multi-candidate-dry-run / /send-candidate-test production/staging / 실 거래소 API / Telegram API / KV write 모두 0건)
+- 다음 후보:
+  · v0.29 Deploy Gate (별도, Worker redeploy + Pages redeploy + WS3_CANDIDATE_TEST_ENABLED='true' 임시 활성화 + production console 에서 Multi-market Dry-run 1회 + 후보 있으면 Candidate TEST_ONLY 1회 / 없으면 LOW_SIGNAL 정상 판정 + 검증 직후 'false' 복귀)
+  · v0.30 후보 A: predefined market list expand + watchlist UI
+  · v0.30 후보 B: Multi-market history persistence (browser only)
+  · v0.30 후보 C: Security hardening (Cloudflare Access 재검토 / invoke token rotation / origin allowlist 재검토)
+  · env-based MULTI_CANDIDATE_DISABLED / CANDIDATE_TEST_DISABLED 강제 kill switch
+  · rate limit per origin / market / minute
+  · candidate score 산식 백테스트 결과 기반 조정
+- v0.29 한계: mock smoke only. real 거래소 응답 다양성 / 실 Telegram 발송 / 실 KV write 는 별도 Deploy Validation Gate 에서만 1회 한정. duplicate guard window=60s 는 실 환경 재평가 필요. candidate score 산식은 v0.28 그대로 — multi-market 분포는 별도 백테스트 필요.
+```
 
 ## v0.28.0 Live Validation Success (실 Cloudflare 검증 박제)
 

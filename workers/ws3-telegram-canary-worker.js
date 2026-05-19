@@ -58,7 +58,7 @@ var TelegramCanarySender = require('../v3/v3-telegram-canary-sender.js');
 var CanaryStateKvAdapter = require('./ws3-canary-state-kv-adapter.js');
 
 // §constants ───────────────────────────────────────────────────────────
-var VERSION = 'WS3_v0.28.0_candidate_dry_run';
+var VERSION = 'WS3_v0.29.0_integrated_limited_live_pipeline';
 var SERVICE = 'WS3_CANARY_WEB_MVP';
 var STATUS_READY_CODE = 'CANARY_READY';
 var MAX_BODY_BYTES = 1024;
@@ -99,6 +99,20 @@ var CANDIDATE_DRY_RUN_LIMIT_MIN = 1;
 var CANDIDATE_DRY_RUN_LIMIT_MAX = 120;
 var CANDIDATE_DRY_RUN_REASON_CHIP_MAX = 8;
 // Exchanges / timeframes / market pattern reuse LIVE_PREFLIGHT_* constants (same v0.27 allowlist).
+
+// v0.29 — Integrated Limited Live Pipeline
+//   /multi-candidate-dry-run: multi-market parallel dry-run (NO Telegram / NO KV write)
+//   /send-candidate-test: TEST_ONLY Telegram send for ONE selected candidate (KV duplicate guard write only)
+//   Limited Live Mode skeleton: DISABLED by default. No cron, no auto alert.
+var MULTI_CANDIDATE_DRY_RUN_MODE = 'MULTI_CANDIDATE_DRY_RUN_ONLY';
+var MULTI_CANDIDATE_MAX_MARKETS = 10;
+var CANDIDATE_TEST_MODE = 'CANDIDATE_TEST_ONLY';
+var CANDIDATE_TEST_CONFIRM_PHRASE = 'SEND_WS3_TEST_CANDIDATE';
+var CANDIDATE_TEST_MESSAGE_TYPE = 'CANDIDATE_TEST_ONLY';
+var CANDIDATE_TEST_GUARD_KEY = 'ws3:canary:candidateTestSent';
+var CANDIDATE_TEST_GUARD_REASON = 'CANDIDATE_TEST_SENT';
+var CANDIDATE_TEST_GUARD_WINDOW_MS = 60 * 1000; // 60s minimum gap between sends
+var LIMITED_LIVE_MODE_STATUS = 'DISABLED';
 
 // §per-process state (Cloudflare isolate cold-start 시 초기화 — best effort)
 var CANARY_PROCESS_STATE = {
@@ -855,6 +869,393 @@ function buildCandidateDryRunResponse(req, sf, vf, mf, score, grade, chips) {
   };
 }
 
+// §v0.29 Multi-market + Candidate TEST_ONLY helpers ────────────────────
+// NO automatic cron / NO auto Telegram. Multi-market = dry-run only (NO KV write).
+// /send-candidate-test = ONE manual Telegram send with confirmPhrase + KV duplicate guard.
+
+function validateMultiCandidateDryRunRequest(body) {
+  if (!isPlainObject(body)) {
+    return { ok: false, code: 'INVALID_JSON', httpStatus: 400 };
+  }
+  if (body.manualTrigger !== true) {
+    return { ok: false, code: 'MANUAL_TRIGGER_REQUIRED', httpStatus: 400 };
+  }
+  var exchange = (typeof body.exchange === 'string') ? body.exchange.toLowerCase() : null;
+  if (exchange === null || indexOfString(LIVE_PREFLIGHT_ALLOWED_EXCHANGES, exchange) === -1) {
+    return { ok: false, code: 'MULTI_CANDIDATE_INVALID_EXCHANGE', httpStatus: 400 };
+  }
+  var timeframe = (typeof body.timeframe === 'string') ? body.timeframe : null;
+  if (timeframe === null || indexOfString(LIVE_PREFLIGHT_ALLOWED_TIMEFRAMES, timeframe) === -1) {
+    return { ok: false, code: 'MULTI_CANDIDATE_INVALID_TIMEFRAME', httpStatus: 400 };
+  }
+  var limit = body.limit;
+  if (typeof limit !== 'number' || !isFinite(limit) || Math.floor(limit) !== limit) {
+    return { ok: false, code: 'MULTI_CANDIDATE_LIMIT_EXCEEDED', httpStatus: 400 };
+  }
+  if (limit < CANDIDATE_DRY_RUN_LIMIT_MIN || limit > CANDIDATE_DRY_RUN_LIMIT_MAX) {
+    return { ok: false, code: 'MULTI_CANDIDATE_LIMIT_EXCEEDED', httpStatus: 400 };
+  }
+  if (!Array.isArray(body.markets)) {
+    return { ok: false, code: 'MULTI_CANDIDATE_INVALID_MARKETS', httpStatus: 400 };
+  }
+  var rawMarkets = body.markets;
+  if (rawMarkets.length === 0) {
+    return { ok: false, code: 'MULTI_CANDIDATE_INVALID_MARKETS', httpStatus: 400 };
+  }
+  // Enforce maxMarkets (effective cap = min(spec MAX, body.maxMarkets if any))
+  var effectiveMax = MULTI_CANDIDATE_MAX_MARKETS;
+  if (typeof body.maxMarkets === 'number' && isFinite(body.maxMarkets) && body.maxMarkets > 0) {
+    effectiveMax = Math.min(effectiveMax, Math.floor(body.maxMarkets));
+  }
+  if (rawMarkets.length > effectiveMax) {
+    return { ok: false, code: 'MULTI_CANDIDATE_TOO_MANY_MARKETS', httpStatus: 400 };
+  }
+  // Validate each market string + dedupe (preserve order)
+  var seen = {};
+  var markets = [];
+  for (var i = 0; i < rawMarkets.length; i++) {
+    var m = rawMarkets[i];
+    if (typeof m !== 'string' || !LIVE_PREFLIGHT_MARKET_PATTERN.test(m)) {
+      return { ok: false, code: 'MULTI_CANDIDATE_INVALID_MARKETS', httpStatus: 400 };
+    }
+    if (Object.prototype.hasOwnProperty.call(seen, m)) continue;
+    seen[m] = true;
+    markets.push(m);
+  }
+  if (markets.length === 0) {
+    return { ok: false, code: 'MULTI_CANDIDATE_INVALID_MARKETS', httpStatus: 400 };
+  }
+  return {
+    ok: true,
+    normalized: {
+      exchange: exchange,
+      timeframe: timeframe,
+      limit: limit,
+      markets: markets
+    }
+  };
+}
+
+// Run multi-market pipeline. Returns { results: [...], partial: bool }.
+// NO KV / NO Telegram. Reuses buildLivePreflightUrl + fetchLiveCandles + normalizeCandles + v0.28 feature/score helpers.
+async function runMultiCandidatePipeline(deps, req) {
+  var exchange = req.exchange;
+  var timeframe = req.timeframe;
+  var limit = req.limit;
+  var markets = req.markets;
+
+  // Parallel fetch + normalize + features + score for each market.
+  var promises = [];
+  for (var i = 0; i < markets.length; i++) {
+    (function(market, rank) {
+      var url = buildLivePreflightUrl(exchange, market, timeframe, limit);
+      if (url === null) {
+        promises.push(Promise.resolve({
+          ok: false,
+          market: market,
+          code: 'CANDIDATE_DRY_RUN_UNSUPPORTED_SOURCE'
+        }));
+        return;
+      }
+      var p = fetchLiveCandles(deps, url, LIVE_PREFLIGHT_FETCH_TIMEOUT_MS).then(function(fetchRes) {
+        if (fetchRes.ok !== true) {
+          return { ok: false, market: market, code: mapFetchCodeToCandidateDryRunCode(fetchRes.code) };
+        }
+        var norm = normalizeCandles(exchange, fetchRes.raw, limit);
+        if (norm.ok !== true) {
+          return { ok: false, market: market, code: mapFetchCodeToCandidateDryRunCode(norm.code) };
+        }
+        try {
+          var sf = calculateCandleStructureFeatures(norm.candles);
+          var vf = calculateVolumeFeatures(norm.candles);
+          var mf = calculateMomentumFeatures(norm.candles);
+          var scoreInputs = {
+            bodyPct: sf.bodyPct,
+            closePosition: sf.closePosition,
+            changePct: sf.changePct,
+            rangePct: sf.rangePct,
+            upperWickPct: sf.upperWickPct,
+            volumeRatio: vf.volumeRatio,
+            shortMomentumPct: mf.shortMomentumPct
+          };
+          var scoreResult = calculateCandidateDryRunScore(scoreInputs);
+          var allFinite = isFinite(sf.changePct) && isFinite(sf.bodyPct) && isFinite(sf.rangePct)
+            && isFinite(sf.upperWickPct) && isFinite(sf.lowerWickPct) && isFinite(sf.closePosition)
+            && isFinite(vf.volumeRatio) && isFinite(vf.volumeAccel)
+            && isFinite(mf.shortMomentumPct) && isFinite(mf.midMomentumPct)
+            && isFinite(scoreResult.score);
+          if (!allFinite) {
+            return { ok: false, market: market, code: 'CANDIDATE_DRY_RUN_FEATURE_ERROR' };
+          }
+          var grade = classifyCandidateDryRunGrade(scoreResult.score);
+          return {
+            ok: true,
+            market: market,
+            score: scoreResult.score,
+            grade: grade,
+            reasonChips: scoreResult.reasonChips,
+            isCandidate: (grade === 'P-S' || grade === 'P-A'),
+            changePct: sf.changePct,
+            volumeRatio: vf.volumeRatio,
+            volumeAccel: vf.volumeAccel,
+            closePosition: sf.closePosition,
+            upperWickPct: sf.upperWickPct,
+            rangePct: sf.rangePct,
+            candleCount: sf.candleCount,
+            latestTime: sf.latestTime,
+            lastClose: sf.lastClose
+          };
+        } catch (e) {
+          return { ok: false, market: market, code: 'CANDIDATE_DRY_RUN_FEATURE_ERROR' };
+        }
+      }).catch(function() {
+        return { ok: false, market: market, code: 'CANDIDATE_DRY_RUN_NETWORK_ERROR' };
+      });
+      promises.push(p);
+    })(markets[i], i);
+  }
+
+  var raw = await Promise.all(promises);
+
+  // Sort: successful results by score desc, then volumeRatio desc; failures last.
+  var ok = [];
+  var failed = [];
+  for (var j = 0; j < raw.length; j++) {
+    if (raw[j].ok === true) ok.push(raw[j]);
+    else failed.push(raw[j]);
+  }
+  ok.sort(function(a, b) {
+    if (b.score !== a.score) return b.score - a.score;
+    var va = (typeof a.volumeRatio === 'number') ? a.volumeRatio : 0;
+    var vb = (typeof b.volumeRatio === 'number') ? b.volumeRatio : 0;
+    return vb - va;
+  });
+
+  var allResults = [];
+  for (var k = 0; k < ok.length; k++) {
+    allResults.push({
+      rank: k + 1,
+      market: ok[k].market,
+      score: ok[k].score,
+      grade: ok[k].grade,
+      isCandidate: ok[k].isCandidate,
+      reasonChips: ok[k].reasonChips,
+      changePct: ok[k].changePct,
+      volumeRatio: ok[k].volumeRatio,
+      volumeAccel: ok[k].volumeAccel,
+      closePosition: ok[k].closePosition,
+      upperWickPct: ok[k].upperWickPct,
+      rangePct: ok[k].rangePct,
+      candleCount: ok[k].candleCount,
+      latestTime: ok[k].latestTime,
+      lastClose: ok[k].lastClose,
+      ok: true
+    });
+  }
+  for (var l = 0; l < failed.length; l++) {
+    allResults.push({
+      rank: ok.length + l + 1,
+      market: failed[l].market,
+      ok: false,
+      code: failed[l].code
+    });
+  }
+  return {
+    results: allResults,
+    okCount: ok.length,
+    failCount: failed.length,
+    partial: (ok.length > 0 && failed.length > 0)
+  };
+}
+
+function countCandidates(results) {
+  var n = 0;
+  for (var i = 0; i < results.length; i++) {
+    if (results[i].ok === true && results[i].isCandidate === true) n++;
+  }
+  return n;
+}
+
+function buildMultiCandidateDryRunResponse(req, pipelineResult) {
+  return {
+    ok: true,
+    status: 'OK',
+    code: pipelineResult.partial ? 'MULTI_CANDIDATE_PARTIAL_OK' : 'MULTI_CANDIDATE_DRY_RUN_OK',
+    httpStatus: 200,
+    version: VERSION,
+    mode: MULTI_CANDIDATE_DRY_RUN_MODE,
+    exchange: req.exchange,
+    timeframe: req.timeframe,
+    limit: req.limit,
+    marketCount: req.markets.length,
+    okCount: pipelineResult.okCount,
+    failCount: pipelineResult.failCount,
+    candidateCount: countCandidates(pipelineResult.results),
+    results: pipelineResult.results,
+    safety: {
+      telegramSent: false,
+      kvWritten: false,
+      candidateStored: false,
+      trackingStarted: false
+    }
+  };
+}
+
+// ── /send-candidate-test helpers ──────────────────────────────────────
+
+function validateCandidateTestRequest(body) {
+  if (!isPlainObject(body)) {
+    return { ok: false, code: 'INVALID_JSON', httpStatus: 400 };
+  }
+  if (body.manualTrigger !== true) {
+    return { ok: false, code: 'MANUAL_TRIGGER_REQUIRED', httpStatus: 400 };
+  }
+  if (typeof body.confirmPhrase !== 'string' || body.confirmPhrase !== CANDIDATE_TEST_CONFIRM_PHRASE) {
+    return { ok: false, code: 'CANDIDATE_TEST_CONFIRM_PHRASE_REQUIRED', httpStatus: 403 };
+  }
+  var c = body.selectedCandidate;
+  if (!isPlainObject(c)) {
+    return { ok: false, code: 'CANDIDATE_TEST_NO_CANDIDATE', httpStatus: 400 };
+  }
+  if (typeof c.source !== 'string' || c.source !== 'multi-candidate-dry-run') {
+    return { ok: false, code: 'CANDIDATE_TEST_INVALID_PAYLOAD', httpStatus: 400 };
+  }
+  if (typeof c.exchange !== 'string' || indexOfString(LIVE_PREFLIGHT_ALLOWED_EXCHANGES, c.exchange.toLowerCase()) === -1) {
+    return { ok: false, code: 'CANDIDATE_TEST_INVALID_PAYLOAD', httpStatus: 400 };
+  }
+  if (typeof c.market !== 'string' || !LIVE_PREFLIGHT_MARKET_PATTERN.test(c.market)) {
+    return { ok: false, code: 'CANDIDATE_TEST_INVALID_PAYLOAD', httpStatus: 400 };
+  }
+  if (typeof c.timeframe !== 'string' || indexOfString(LIVE_PREFLIGHT_ALLOWED_TIMEFRAMES, c.timeframe) === -1) {
+    return { ok: false, code: 'CANDIDATE_TEST_INVALID_PAYLOAD', httpStatus: 400 };
+  }
+  if (typeof c.score !== 'number' || !isFinite(c.score) || c.score < 0 || c.score > 100) {
+    return { ok: false, code: 'CANDIDATE_TEST_INVALID_PAYLOAD', httpStatus: 400 };
+  }
+  if (typeof c.grade !== 'string' || (c.grade !== 'P-S' && c.grade !== 'P-A' && c.grade !== 'P-B' && c.grade !== 'P-C')) {
+    return { ok: false, code: 'CANDIDATE_TEST_INVALID_PAYLOAD', httpStatus: 400 };
+  }
+  if (!Array.isArray(c.reasonChips)) {
+    return { ok: false, code: 'CANDIDATE_TEST_INVALID_PAYLOAD', httpStatus: 400 };
+  }
+  var safeChips = [];
+  for (var i = 0; i < c.reasonChips.length && i < CANDIDATE_DRY_RUN_REASON_CHIP_MAX; i++) {
+    var ch = c.reasonChips[i];
+    if (typeof ch === 'string' && ch.length > 0 && ch.length < 64 && /^[A-Z_]+$/.test(ch)) {
+      safeChips.push(ch);
+    }
+  }
+  return {
+    ok: true,
+    normalized: {
+      exchange: c.exchange.toLowerCase(),
+      market: c.market,
+      timeframe: c.timeframe,
+      score: c.score,
+      grade: c.grade,
+      reasonChips: safeChips
+    }
+  };
+}
+
+function buildCandidateTestMessageText(c) {
+  // Fixed safety preamble. NO raw exchange data. NO embedded urls/tokens.
+  var chipsLine = (c.reasonChips.length > 0) ? c.reasonChips.join(', ') : '-';
+  return [
+    '[WOOS WS3 CANDIDATE TEST_ONLY]',
+    'This is not a live trading alert.',
+    'manual limited validation only.',
+    '실전 알람 아님',
+    '테스트 전송',
+    '매수/매도 추천 아님',
+    '',
+    'Exchange: ' + c.exchange,
+    'Market: ' + c.market,
+    'Timeframe: ' + c.timeframe,
+    'Score: ' + c.score,
+    'Grade: ' + c.grade,
+    'Reason chips: ' + chipsLine
+  ].join('\n');
+}
+
+async function sendCandidateTestTelegram(deps, env, text) {
+  if (typeof env.WS3_TELEGRAM_BOT_TOKEN !== 'string' || env.WS3_TELEGRAM_BOT_TOKEN.length === 0) {
+    return { ok: false, code: 'CANDIDATE_TEST_TELEGRAM_ERROR' };
+  }
+  if (typeof env.WS3_TELEGRAM_CHAT_ID !== 'string' || env.WS3_TELEGRAM_CHAT_ID.length === 0) {
+    return { ok: false, code: 'CANDIDATE_TEST_TELEGRAM_ERROR' };
+  }
+  if (!deps || typeof deps.fetchImpl !== 'function') {
+    return { ok: false, code: 'CANDIDATE_TEST_TELEGRAM_ERROR' };
+  }
+  var url = 'https://api.telegram.org/bot' + env.WS3_TELEGRAM_BOT_TOKEN + '/sendMessage';
+  var payload = {
+    chat_id: env.WS3_TELEGRAM_CHAT_ID,
+    text: text,
+    disable_web_page_preview: true,
+    disable_notification: false
+  };
+  var controller = null;
+  if (typeof deps.AbortControllerImpl === 'function') {
+    try { controller = deps.AbortControllerImpl(); } catch (e) { controller = null; }
+  }
+  var timer = null;
+  var timedOut = false;
+  if (controller && typeof deps.setTimeoutImpl === 'function' && typeof deps.clearTimeoutImpl === 'function') {
+    timer = deps.setTimeoutImpl(function() {
+      timedOut = true;
+      try { controller.abort(); } catch (e) {}
+    }, LIVE_PREFLIGHT_FETCH_TIMEOUT_MS);
+  }
+  var resp;
+  try {
+    var opts = {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    };
+    if (controller) opts.signal = controller.signal;
+    resp = await deps.fetchImpl(url, opts);
+  } catch (e) {
+    if (timer && typeof deps.clearTimeoutImpl === 'function') {
+      try { deps.clearTimeoutImpl(timer); } catch (e2) {}
+    }
+    return { ok: false, code: 'CANDIDATE_TEST_TELEGRAM_ERROR' };
+  }
+  if (timer && typeof deps.clearTimeoutImpl === 'function') {
+    try { deps.clearTimeoutImpl(timer); } catch (e3) {}
+  }
+  if (!resp || typeof resp.status !== 'number') {
+    return { ok: false, code: 'CANDIDATE_TEST_TELEGRAM_ERROR' };
+  }
+  if (resp.status < 200 || resp.status >= 300) {
+    return { ok: false, code: 'CANDIDATE_TEST_TELEGRAM_ERROR' };
+  }
+  // Discard raw Telegram response body. Do NOT echo message_id / chat / from.
+  try { await resp.text(); } catch (e4) {}
+  return { ok: true };
+}
+
+function buildCandidateTestResponse(kvWritten) {
+  return {
+    ok: true,
+    status: 'OK',
+    code: 'CANDIDATE_TEST_SENT',
+    httpStatus: 200,
+    version: VERSION,
+    mode: CANDIDATE_TEST_MODE,
+    messageType: CANDIDATE_TEST_MESSAGE_TYPE,
+    fixedMessageUsed: true,
+    safety: {
+      telegramSent: true,
+      kvWritten: (kvWritten === true),
+      kvWriteScope: 'CANDIDATE_TEST_GUARD_ONLY',
+      candidateStored: false,
+      trackingStarted: false
+    }
+  };
+}
+
 // §main entry ──────────────────────────────────────────────────────────
 
 async function handleFetch(request, env, ctx, deps) {
@@ -879,7 +1280,7 @@ async function handleFetch(request, env, ctx, deps) {
 
   // OPTIONS preflight
   if (method === 'OPTIONS') {
-    if (path !== '/health' && path !== '/send-canary' && path !== '/state' && path !== '/cleanup-confirm' && path !== '/operator-reset' && path !== '/live-preflight' && path !== '/candidate-dry-run') {
+    if (path !== '/health' && path !== '/send-canary' && path !== '/state' && path !== '/cleanup-confirm' && path !== '/operator-reset' && path !== '/live-preflight' && path !== '/candidate-dry-run' && path !== '/multi-candidate-dry-run' && path !== '/send-candidate-test') {
       return jsonResponse({ ok: false, status: 'ERROR', code: 'METHOD_NOT_ALLOWED', httpStatus: 405 }, 405, false, null);
     }
     if (!origin) {
@@ -1656,6 +2057,181 @@ async function handleFetch(request, env, ctx, deps) {
     }
   }
 
+  // POST /multi-candidate-dry-run  (v0.29 — multi-market dry-run; NO Telegram, NO KV write, NO candidate store, NO tracking start)
+  if (path === '/multi-candidate-dry-run' && method === 'POST') {
+    if (!origin) {
+      return jsonResponse({ ok: false, status: 'BLOCKED', code: 'ORIGIN_MISSING', httpStatus: 403 }, 403, false, null);
+    }
+    if (!allowed) {
+      return jsonResponse({ ok: false, status: 'BLOCKED', code: 'ORIGIN_NOT_ALLOWED', httpStatus: 403 }, 403, false, null);
+    }
+    var mcToken = request.headers.get('X-WS3-Canary-Token');
+    if (typeof mcToken !== 'string' || mcToken.length === 0) {
+      return jsonResponse({ ok: false, status: 'BLOCKED', code: 'MISSING_INVOKE_TOKEN', httpStatus: 401 }, 401, true, origin);
+    }
+    if (typeof env.WS3_CANARY_INVOKE_TOKEN !== 'string' || env.WS3_CANARY_INVOKE_TOKEN.length === 0) {
+      return jsonResponse({ ok: false, status: 'BLOCKED', code: 'MISSING_INVOKE_TOKEN', httpStatus: 503 }, 503, true, origin);
+    }
+    if (mcToken !== env.WS3_CANARY_INVOKE_TOKEN) {
+      return jsonResponse({ ok: false, status: 'BLOCKED', code: 'INVOKE_TOKEN_MISMATCH', httpStatus: 403 }, 403, true, origin);
+    }
+
+    var mcCt = request.headers.get('Content-Type');
+    if (typeof mcCt !== 'string' || mcCt.toLowerCase().indexOf('application/json') === -1) {
+      return jsonResponse({ ok: false, status: 'BLOCKED', code: 'UNSUPPORTED_MEDIA_TYPE', httpStatus: 415 }, 415, true, origin);
+    }
+    var mcCl = request.headers.get('Content-Length');
+    if (typeof mcCl === 'string' && mcCl.length > 0) {
+      var mcN = parseInt(mcCl, 10);
+      if (isFinite(mcN) && mcN > MAX_BODY_BYTES) {
+        return jsonResponse({ ok: false, status: 'BLOCKED', code: 'PAYLOAD_TOO_LARGE', httpStatus: 413 }, 413, true, origin);
+      }
+    }
+    var mcBodyText = '';
+    try { mcBodyText = await request.text(); } catch (e) {
+      return jsonResponse({ ok: false, status: 'ERROR', code: 'INVALID_JSON', httpStatus: 400 }, 400, true, origin);
+    }
+    if (typeof mcBodyText === 'string' && mcBodyText.length > MAX_BODY_BYTES) {
+      return jsonResponse({ ok: false, status: 'BLOCKED', code: 'PAYLOAD_TOO_LARGE', httpStatus: 413 }, 413, true, origin);
+    }
+    var mcBody;
+    try { mcBody = JSON.parse(mcBodyText); } catch (e) {
+      return jsonResponse({ ok: false, status: 'ERROR', code: 'INVALID_JSON', httpStatus: 400 }, 400, true, origin);
+    }
+
+    var mcValidate = validateMultiCandidateDryRunRequest(mcBody);
+    if (mcValidate.ok !== true) {
+      return jsonResponse({ ok: false, status: 'BLOCKED', code: mcValidate.code, httpStatus: mcValidate.httpStatus }, mcValidate.httpStatus, true, origin);
+    }
+    var mcReq = mcValidate.normalized;
+
+    var mcDepsRes = buildWorkerRuntimeDeps(resolvedDeps, nowMs, state);
+    if (mcDepsRes.ok !== true) {
+      return jsonResponse({ ok: false, status: 'ERROR', code: 'UNKNOWN_ERROR', httpStatus: 500 }, 500, true, origin);
+    }
+    var mcDeps = mcDepsRes.deps;
+
+    var pipelineResult;
+    try {
+      pipelineResult = await runMultiCandidatePipeline(mcDeps, mcReq);
+    } catch (e) {
+      return jsonResponse({ ok: false, status: 'ERROR', code: 'MULTI_CANDIDATE_FEATURE_ERROR', httpStatus: 500 }, 500, true, origin);
+    }
+
+    if (pipelineResult.okCount === 0 && pipelineResult.failCount > 0) {
+      // All markets failed.
+      return jsonResponse({
+        ok: false,
+        status: 'ERROR',
+        code: 'MULTI_CANDIDATE_ALL_FAILED',
+        httpStatus: 502,
+        version: VERSION,
+        mode: MULTI_CANDIDATE_DRY_RUN_MODE,
+        exchange: mcReq.exchange,
+        timeframe: mcReq.timeframe,
+        limit: mcReq.limit,
+        marketCount: mcReq.markets.length,
+        okCount: 0,
+        failCount: pipelineResult.failCount,
+        candidateCount: 0,
+        results: pipelineResult.results,
+        safety: { telegramSent: false, kvWritten: false, candidateStored: false, trackingStarted: false }
+      }, 502, true, origin);
+    }
+
+    var mcResponse = buildMultiCandidateDryRunResponse(mcReq, pipelineResult);
+    return jsonResponse(mcResponse, 200, true, origin);
+  }
+
+  // POST /send-candidate-test  (v0.29 — ONE TEST_ONLY Telegram send + KV duplicate guard ONLY; NO candidate store, NO tracking start)
+  if (path === '/send-candidate-test' && method === 'POST') {
+    if (!origin) {
+      return jsonResponse({ ok: false, status: 'BLOCKED', code: 'ORIGIN_MISSING', httpStatus: 403 }, 403, false, null);
+    }
+    if (!allowed) {
+      return jsonResponse({ ok: false, status: 'BLOCKED', code: 'ORIGIN_NOT_ALLOWED', httpStatus: 403 }, 403, false, null);
+    }
+    var ctToken = request.headers.get('X-WS3-Canary-Token');
+    if (typeof ctToken !== 'string' || ctToken.length === 0) {
+      return jsonResponse({ ok: false, status: 'BLOCKED', code: 'MISSING_INVOKE_TOKEN', httpStatus: 401 }, 401, true, origin);
+    }
+    if (typeof env.WS3_CANARY_INVOKE_TOKEN !== 'string' || env.WS3_CANARY_INVOKE_TOKEN.length === 0) {
+      return jsonResponse({ ok: false, status: 'BLOCKED', code: 'MISSING_INVOKE_TOKEN', httpStatus: 503 }, 503, true, origin);
+    }
+    if (ctToken !== env.WS3_CANARY_INVOKE_TOKEN) {
+      return jsonResponse({ ok: false, status: 'BLOCKED', code: 'INVOKE_TOKEN_MISMATCH', httpStatus: 403 }, 403, true, origin);
+    }
+
+    // Separate enable gate (does NOT reuse CANARY_ENABLED to keep candidate-test scope isolated).
+    var ctEnabled = (typeof env.WS3_CANDIDATE_TEST_ENABLED === 'string' && env.WS3_CANDIDATE_TEST_ENABLED === 'true');
+    if (!ctEnabled) {
+      return jsonResponse({ ok: false, status: 'BLOCKED', code: 'CANDIDATE_TEST_DISABLED', httpStatus: 503 }, 503, true, origin);
+    }
+
+    var ctCt = request.headers.get('Content-Type');
+    if (typeof ctCt !== 'string' || ctCt.toLowerCase().indexOf('application/json') === -1) {
+      return jsonResponse({ ok: false, status: 'BLOCKED', code: 'UNSUPPORTED_MEDIA_TYPE', httpStatus: 415 }, 415, true, origin);
+    }
+    var ctCl = request.headers.get('Content-Length');
+    if (typeof ctCl === 'string' && ctCl.length > 0) {
+      var ctN = parseInt(ctCl, 10);
+      if (isFinite(ctN) && ctN > MAX_BODY_BYTES * 2) {
+        return jsonResponse({ ok: false, status: 'BLOCKED', code: 'PAYLOAD_TOO_LARGE', httpStatus: 413 }, 413, true, origin);
+      }
+    }
+    var ctBodyText = '';
+    try { ctBodyText = await request.text(); } catch (e) {
+      return jsonResponse({ ok: false, status: 'ERROR', code: 'INVALID_JSON', httpStatus: 400 }, 400, true, origin);
+    }
+    if (typeof ctBodyText === 'string' && ctBodyText.length > MAX_BODY_BYTES * 2) {
+      return jsonResponse({ ok: false, status: 'BLOCKED', code: 'PAYLOAD_TOO_LARGE', httpStatus: 413 }, 413, true, origin);
+    }
+    var ctBody;
+    try { ctBody = JSON.parse(ctBodyText); } catch (e) {
+      return jsonResponse({ ok: false, status: 'ERROR', code: 'INVALID_JSON', httpStatus: 400 }, 400, true, origin);
+    }
+
+    var ctValidate = validateCandidateTestRequest(ctBody);
+    if (ctValidate.ok !== true) {
+      return jsonResponse({ ok: false, status: 'BLOCKED', code: ctValidate.code, httpStatus: ctValidate.httpStatus }, ctValidate.httpStatus, true, origin);
+    }
+    var ctCandidate = ctValidate.normalized;
+
+    // KV duplicate guard (read-modify-write only on this dedicated key).
+    var ctKv = isPlainObject(resolvedDeps) && hasOwn(resolvedDeps, 'kv') ? resolvedDeps.kv : (env ? env[KV_BINDING_NAME] : null);
+    if (!ctKv || typeof ctKv.get !== 'function' || typeof ctKv.put !== 'function') {
+      return jsonResponse({ ok: false, status: 'BLOCKED', code: 'PERSISTENCE_UNAVAILABLE', httpStatus: 503 }, 503, true, origin);
+    }
+    var guardRead = await CanaryStateKvAdapter.getJson(ctKv, CANDIDATE_TEST_GUARD_KEY);
+    if (guardRead && guardRead.ok === true && isPlainObject(guardRead.value)) {
+      var lastSent = guardRead.value.lastSentAt;
+      if (typeof lastSent === 'number' && isFinite(lastSent) && (nowMs - lastSent) < CANDIDATE_TEST_GUARD_WINDOW_MS) {
+        return jsonResponse({ ok: false, status: 'BLOCKED', code: 'CANDIDATE_TEST_ALREADY_SENT', httpStatus: 429 }, 429, true, origin);
+      }
+    }
+
+    var ctDepsRes = buildWorkerRuntimeDeps(resolvedDeps, nowMs, state);
+    if (ctDepsRes.ok !== true) {
+      return jsonResponse({ ok: false, status: 'ERROR', code: 'UNKNOWN_ERROR', httpStatus: 500 }, 500, true, origin);
+    }
+    var ctDeps = ctDepsRes.deps;
+
+    var ctMessageText = buildCandidateTestMessageText(ctCandidate);
+    var ctSendRes = await sendCandidateTestTelegram(ctDeps, env, ctMessageText);
+    if (ctSendRes.ok !== true) {
+      return jsonResponse({ ok: false, status: 'ERROR', code: 'CANDIDATE_TEST_TELEGRAM_ERROR', httpStatus: 502 }, 502, true, origin);
+    }
+
+    // Write duplicate guard immediately after successful send.
+    var guardWriteRes = await CanaryStateKvAdapter.putJson(ctKv, CANDIDATE_TEST_GUARD_KEY, {
+      schemaVersion: 'v1',
+      lastSentAt: nowMs,
+      reason: CANDIDATE_TEST_GUARD_REASON
+    });
+    var kvWritten = (guardWriteRes && guardWriteRes.ok === true);
+    return jsonResponse(buildCandidateTestResponse(kvWritten), 200, true, origin);
+  }
+
   // Fallback — unknown path/method
   return jsonResponse({ ok: false, status: 'ERROR', code: 'METHOD_NOT_ALLOWED', httpStatus: 405 }, 405, allowed === true, origin);
 }
@@ -1708,6 +2284,23 @@ module.exports = {
   classifyCandidateDryRunGrade: classifyCandidateDryRunGrade,
   buildCandidateDryRunResponse: buildCandidateDryRunResponse,
   safeDivide: safeDivide,
+  MULTI_CANDIDATE_DRY_RUN_MODE: MULTI_CANDIDATE_DRY_RUN_MODE,
+  MULTI_CANDIDATE_MAX_MARKETS: MULTI_CANDIDATE_MAX_MARKETS,
+  CANDIDATE_TEST_MODE: CANDIDATE_TEST_MODE,
+  CANDIDATE_TEST_CONFIRM_PHRASE: CANDIDATE_TEST_CONFIRM_PHRASE,
+  CANDIDATE_TEST_MESSAGE_TYPE: CANDIDATE_TEST_MESSAGE_TYPE,
+  CANDIDATE_TEST_GUARD_KEY: CANDIDATE_TEST_GUARD_KEY,
+  CANDIDATE_TEST_GUARD_REASON: CANDIDATE_TEST_GUARD_REASON,
+  CANDIDATE_TEST_GUARD_WINDOW_MS: CANDIDATE_TEST_GUARD_WINDOW_MS,
+  LIMITED_LIVE_MODE_STATUS: LIMITED_LIVE_MODE_STATUS,
+  validateMultiCandidateDryRunRequest: validateMultiCandidateDryRunRequest,
+  runMultiCandidatePipeline: runMultiCandidatePipeline,
+  buildMultiCandidateDryRunResponse: buildMultiCandidateDryRunResponse,
+  countCandidates: countCandidates,
+  validateCandidateTestRequest: validateCandidateTestRequest,
+  buildCandidateTestMessageText: buildCandidateTestMessageText,
+  sendCandidateTestTelegram: sendCandidateTestTelegram,
+  buildCandidateTestResponse: buildCandidateTestResponse,
   mapErrorCodeToWeb: mapErrorCodeToWeb,
   isAllowedOrigin: isAllowedOrigin,
   buildMinimalPreflightGate: buildMinimalPreflightGate,

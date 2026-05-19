@@ -283,6 +283,114 @@
   </p>
 </div>
 
+<div class="section">
+  <h2>8. Multi-market Candidate Dry-run (v0.29 read-only)</h2>
+  <p class="note">
+    실코인 알람 아님. 여러 market 공개 시세 read-only fetch + v0.28 dry-run 계산을 한 번에 수행. Telegram 발송 0건 / KV write 0건 / candidate 저장 0건 / tracking 시작 0건. 사용자 클릭시에만 실행 (auto refresh / cron 0건). 점수·등급은 dry-run preview.
+  </p>
+  <div class="row">
+    <label for="mc_exchange">Exchange</label>
+    <select id="mc_exchange">
+      <option value="upbit">upbit</option>
+      <option value="bithumb">bithumb</option>
+      <option value="binance">binance</option>
+    </select>
+  </div>
+  <div class="row">
+    <label for="mc_markets">Markets (콤마 또는 줄바꿈, 최대 10)</label>
+    <textarea id="mc_markets" rows="4" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" style="width:100%; min-height:88px; padding:10px; font-family:ui-monospace, SFMono-Regular, monospace; font-size:13px; border:1px solid #ccc; border-radius:4px; box-sizing:border-box;">KRW-BTC,KRW-ETH,KRW-XRP,KRW-SOL,KRW-DOGE,KRW-ADA,KRW-AVAX,KRW-LINK,KRW-NEAR,KRW-SEI</textarea>
+  </div>
+  <div class="row">
+    <label for="mc_timeframe">Timeframe</label>
+    <select id="mc_timeframe">
+      <option value="1m">1m</option>
+      <option value="5m" selected>5m</option>
+      <option value="15m">15m</option>
+      <option value="1h">1h</option>
+    </select>
+  </div>
+  <div class="row">
+    <label for="mc_limit">Limit (1-120)</label>
+    <input id="mc_limit" type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" inputmode="numeric" pattern="[0-9]*" maxlength="3" value="60">
+  </div>
+  <div class="row">
+    <button id="mc_runBtn" class="primary" type="button">Run Multi-market Dry-run</button>
+  </div>
+  <div class="row panel">
+    <div><span class="k">code:</span> <span id="mc_code" class="v n">-</span></div>
+    <div><span class="k">mode:</span> <span id="mc_o_mode" class="v n">-</span></div>
+    <div><span class="k">marketCount:</span> <span id="mc_o_marketCount" class="v n">-</span></div>
+    <div><span class="k">okCount:</span> <span id="mc_o_okCount" class="v n">-</span></div>
+    <div><span class="k">failCount:</span> <span id="mc_o_failCount" class="v n">-</span></div>
+    <div><span class="k">candidateCount:</span> <span id="mc_o_candidateCount" class="v n">-</span></div>
+    <div><span class="k">telegramSent:</span> <span id="mc_o_telegramSent" class="v n">-</span></div>
+    <div><span class="k">kvWritten:</span> <span id="mc_o_kvWritten" class="v n">-</span></div>
+  </div>
+  <div class="row" id="mc_results_wrap" style="display:none;">
+    <div style="font-size:13px; font-weight:600; margin:8px 0 4px; color:#444;">Candidate List (score desc, top is most likely)</div>
+    <div id="mc_results" class="panel" style="max-height:340px; overflow:auto;"></div>
+  </div>
+  <div class="row" id="mc_history_wrap" style="display:none;">
+    <div style="font-size:13px; font-weight:600; margin:8px 0 4px; color:#444;">Memory-only History (max 5 runs, no storage)</div>
+    <div id="mc_history" class="panel" style="font-size:11px;"></div>
+  </div>
+  <p class="footnote">
+    표시 허용: rank / market / score / grade / isCandidate / reasonChips / changePct / volumeRatio / volumeAccel / closePosition / latestTime / lastClose.
+    <br>
+    표시 금지: raw exchange response / token / secret / KV namespace ID / Telegram message_id / 매수 추천 문구 / 수익 보장 문구. 점수·등급은 dry-run preview 이며 실 알람·매수 조건 아님.
+  </p>
+</div>
+
+<div class="section">
+  <h2>9. Candidate TEST_ONLY Telegram Send (v0.29 manual limited validation)</h2>
+  <div class="danger-zone">
+    <p class="warn">
+      ⚠️ TEST_ONLY 전송. 실제 운영 알람 / 매수 추천 / 수익 보장 아님. 본 버튼은 1건만 발송하고 60s 중복 방지 가드가 동작합니다. server-side `WS3_CANDIDATE_TEST_ENABLED='true'` 필수. confirmPhrase 정확히 일치 + selectedCandidate 선택 필요.
+    </p>
+    <div class="row">
+      <label for="ct_selectedMarket">Selected Candidate (Section 8 결과에서 1건 선택)</label>
+      <select id="ct_selectedMarket">
+        <option value="">-- Run Multi-market Dry-run 후 후보 선택 --</option>
+      </select>
+    </div>
+    <div class="row">
+      <label for="ct_confirmPhrase">Confirm Phrase</label>
+      <input id="ct_confirmPhrase" type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="SEND_WS3_TEST_CANDIDATE (byte-for-byte)">
+    </div>
+    <div class="row">
+      <button id="ct_sendBtn" class="danger" type="button" disabled>Send Candidate TEST_ONLY</button>
+    </div>
+    <div class="row panel">
+      <div><span class="k">code:</span> <span id="ct_code" class="v n">-</span></div>
+      <div><span class="k">messageType:</span> <span id="ct_o_messageType" class="v n">-</span></div>
+      <div><span class="k">fixedMessageUsed:</span> <span id="ct_o_fixedMessageUsed" class="v n">-</span></div>
+      <div><span class="k">telegramSent:</span> <span id="ct_o_telegramSent" class="v n">-</span></div>
+      <div><span class="k">kvWritten:</span> <span id="ct_o_kvWritten" class="v n">-</span></div>
+      <div><span class="k">kvWriteScope:</span> <span id="ct_o_kvWriteScope" class="v n">-</span></div>
+      <div><span class="k">candidateStored:</span> <span id="ct_o_candidateStored" class="v n">-</span></div>
+      <div><span class="k">trackingStarted:</span> <span id="ct_o_trackingStarted" class="v n">-</span></div>
+    </div>
+    <p class="footnote">
+      kvWriteScope=CANDIDATE_TEST_GUARD_ONLY 의미: KV write는 중복 방지 가드 1건만 — candidate 저장 / tracking 시작과 무관. 표시 금지: Telegram message_id / raw response / token / chatId / bot_token / KV namespace ID.
+    </p>
+  </div>
+</div>
+
+<div class="section">
+  <h2>10. Limited Live Mode</h2>
+  <div class="row panel">
+    <div><span class="k">Limited Live Mode:</span> <span class="v f">DISABLED</span></div>
+    <div><span class="k">Manual test only:</span> <span class="v">true</span></div>
+    <div><span class="k">Cron:</span> <span class="v">none</span></div>
+    <div><span class="k">Auto Telegram:</span> <span class="v">none</span></div>
+    <div><span class="k">Tracking:</span> <span class="v">none</span></div>
+  </div>
+  <p class="note">
+    활성화 조건 (모두 충족 시 별도 사용자 명시 승인 + 별도 Gate 진행):<br>
+    1) multi-market dry-run 안정 / 2) candidate test telegram 1회 성공 / 3) duplicate guard 검증 / 4) security 재검토 / 5) 사용자 명시 승인. 본 단계에서 자동 활성화 0건.
+  </p>
+</div>
+
 </main>
 
 <script>
@@ -977,13 +1085,350 @@
     });
   });
 
+  // === v0.29 Multi-market Candidate Dry-run + Candidate TEST_ONLY ===
+  // No Telegram in multi dry-run. No KV write in multi dry-run.
+  // Candidate TEST_ONLY: 1건 manual send, confirmPhrase required, 60s server-side guard.
+  // Memory-only history (max 5 runs). No storage.
+  var mcExchangeEl = document.getElementById('mc_exchange');
+  var mcMarketsEl = document.getElementById('mc_markets');
+  var mcTimeframeEl = document.getElementById('mc_timeframe');
+  var mcLimitEl = document.getElementById('mc_limit');
+  var mcRunBtn = document.getElementById('mc_runBtn');
+  var mcCodeEl = document.getElementById('mc_code');
+  var mcOModeEl = document.getElementById('mc_o_mode');
+  var mcOMarketCountEl = document.getElementById('mc_o_marketCount');
+  var mcOOkCountEl = document.getElementById('mc_o_okCount');
+  var mcOFailCountEl = document.getElementById('mc_o_failCount');
+  var mcOCandidateCountEl = document.getElementById('mc_o_candidateCount');
+  var mcOTelegramSentEl = document.getElementById('mc_o_telegramSent');
+  var mcOKvWrittenEl = document.getElementById('mc_o_kvWritten');
+  var mcResultsWrap = document.getElementById('mc_results_wrap');
+  var mcResultsEl = document.getElementById('mc_results');
+  var mcHistoryWrap = document.getElementById('mc_history_wrap');
+  var mcHistoryEl = document.getElementById('mc_history');
+
+  var ctSelectedMarketEl = document.getElementById('ct_selectedMarket');
+  var ctConfirmPhraseEl = document.getElementById('ct_confirmPhrase');
+  var ctSendBtn = document.getElementById('ct_sendBtn');
+  var ctCodeEl = document.getElementById('ct_code');
+  var ctOMessageTypeEl = document.getElementById('ct_o_messageType');
+  var ctOFixedMessageUsedEl = document.getElementById('ct_o_fixedMessageUsed');
+  var ctOTelegramSentEl = document.getElementById('ct_o_telegramSent');
+  var ctOKvWrittenEl = document.getElementById('ct_o_kvWritten');
+  var ctOKvWriteScopeEl = document.getElementById('ct_o_kvWriteScope');
+  var ctOCandidateStoredEl = document.getElementById('ct_o_candidateStored');
+  var ctOTrackingStartedEl = document.getElementById('ct_o_trackingStarted');
+
+  var CT_CONFIRM_PHRASE_REQUIRED = 'SEND_WS3_TEST_CANDIDATE';
+  // Memory-only state. No storage.
+  var lastMultiRunResults = [];
+  var lastMultiRunReq = null;
+  var multiRunHistory = []; // max 5
+
+  function mcClearOutputs() {
+    setStrField(mcCodeEl, null);
+    setStrField(mcOModeEl, null);
+    setNumField(mcOMarketCountEl, null);
+    setNumField(mcOOkCountEl, null);
+    setNumField(mcOFailCountEl, null);
+    setNumField(mcOCandidateCountEl, null);
+    setBoolField(mcOTelegramSentEl, null);
+    setBoolField(mcOKvWrittenEl, null);
+    mcResultsWrap.style.display = 'none';
+    mcResultsEl.textContent = '';
+  }
+  function mcSetErrorCode(code) {
+    setStatus('ERROR');
+    setStrField(mcCodeEl, (typeof code === 'string' && code.length > 0) ? code : 'UNKNOWN_ERROR');
+  }
+  function mcEscapeHtml(s) {
+    s = String(s == null ? '' : s);
+    return s.replace(/[&<>"']/g, function(c) {
+      return ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' })[c];
+    });
+  }
+  function mcParseMarkets(text) {
+    if (typeof text !== 'string') return [];
+    var pieces = text.split(/[,\n\r]+/);
+    var out = [];
+    var seen = {};
+    for (var i = 0; i < pieces.length; i++) {
+      var p = pieces[i].replace(/^\s+|\s+$/g, '');
+      if (!p) continue;
+      if (!/^[A-Za-z0-9_\-]{2,32}$/.test(p)) return null;
+      if (seen[p]) continue;
+      seen[p] = true;
+      out.push(p);
+      if (out.length >= 10) break;
+    }
+    return out;
+  }
+  function mcRenderResults(results, req) {
+    if (!Array.isArray(results) || results.length === 0) {
+      mcResultsEl.textContent = '(no results)';
+      mcResultsWrap.style.display = 'block';
+      return;
+    }
+    var rows = [];
+    for (var i = 0; i < results.length; i++) {
+      var r = results[i];
+      if (r.ok === false) {
+        rows.push('<div style="padding:6px 4px; border-bottom:1px solid #eee; color:#802;">'
+          + '<span style="font-weight:600;">#' + (r.rank || (i+1)) + '</span> '
+          + mcEscapeHtml(r.market || '-')
+          + ' — FAIL: ' + mcEscapeHtml(r.code || 'UNKNOWN')
+          + '</div>');
+        continue;
+      }
+      var chips = (Array.isArray(r.reasonChips) && r.reasonChips.length > 0)
+        ? r.reasonChips.slice(0, 8).map(mcEscapeHtml).join(', ')
+        : '-';
+      var gradeColor = (r.grade === 'P-S') ? '#060'
+        : (r.grade === 'P-A') ? '#262'
+        : (r.grade === 'P-B') ? '#553'
+        : '#802';
+      rows.push(
+        '<div style="padding:6px 4px; border-bottom:1px solid #eee;">'
+        + '<div><span style="font-weight:600;">#' + r.rank + '</span> '
+        + '<span style="font-family:ui-monospace, SFMono-Regular, monospace;">' + mcEscapeHtml(r.market) + '</span> '
+        + '<span style="color:' + gradeColor + '; font-weight:700;"> ' + mcEscapeHtml(r.grade) + '</span> '
+        + 'score=' + r.score + ' '
+        + (r.isCandidate ? '<span style="color:#060; font-weight:700;">[CANDIDATE]</span>' : '')
+        + '</div>'
+        + '<div style="font-size:11px; color:#555;">'
+        + 'changePct=' + (typeof r.changePct === 'number' ? r.changePct.toFixed(3) : '-') + ' / '
+        + 'volRatio=' + (typeof r.volumeRatio === 'number' ? r.volumeRatio.toFixed(3) : '-') + ' / '
+        + 'volAccel=' + (typeof r.volumeAccel === 'number' ? r.volumeAccel.toFixed(3) : '-') + ' / '
+        + 'closePos=' + (typeof r.closePosition === 'number' ? r.closePosition.toFixed(3) : '-')
+        + '</div>'
+        + '<div style="font-size:11px; color:#666;">chips: ' + chips + '</div>'
+        + '<div style="font-size:11px; color:#888;">'
+        + 'latestTime=' + mcEscapeHtml(r.latestTime || '-')
+        + ' / lastClose=' + (typeof r.lastClose === 'number' ? r.lastClose : '-')
+        + '</div>'
+        + '</div>'
+      );
+    }
+    mcResultsEl.innerHTML = rows.join('');
+    mcResultsWrap.style.display = 'block';
+  }
+  function mcUpdateCandidateSelector(results, req) {
+    // Clear options
+    while (ctSelectedMarketEl.firstChild) ctSelectedMarketEl.removeChild(ctSelectedMarketEl.firstChild);
+    var placeholder = document.createElement('option');
+    placeholder.value = '';
+    placeholder.textContent = '-- 후보 선택 (P-S/P-A 권장) --';
+    ctSelectedMarketEl.appendChild(placeholder);
+    if (!Array.isArray(results) || results.length === 0 || !req) {
+      refreshCtSendButton();
+      return;
+    }
+    for (var i = 0; i < results.length; i++) {
+      var r = results[i];
+      if (r.ok !== true) continue;
+      var opt = document.createElement('option');
+      // Encode all required fields into the option value as JSON string for round-trip.
+      var payload = {
+        source: 'multi-candidate-dry-run',
+        exchange: req.exchange,
+        market: r.market,
+        timeframe: req.timeframe,
+        score: r.score,
+        grade: r.grade,
+        reasonChips: Array.isArray(r.reasonChips) ? r.reasonChips.slice(0, 8) : []
+      };
+      opt.value = JSON.stringify(payload);
+      opt.textContent = '#' + r.rank + ' ' + r.market + ' (' + r.grade + ', score=' + r.score + ')'
+        + (r.isCandidate ? ' [CANDIDATE]' : '');
+      ctSelectedMarketEl.appendChild(opt);
+    }
+    refreshCtSendButton();
+  }
+  function mcUpdateHistory(req, body) {
+    var ts = new Date().toISOString();
+    var topScore = null;
+    var topGrade = null;
+    if (body && Array.isArray(body.results)) {
+      for (var i = 0; i < body.results.length; i++) {
+        var rr = body.results[i];
+        if (rr.ok === true) {
+          if (topScore === null || rr.score > topScore) {
+            topScore = rr.score;
+            topGrade = rr.grade;
+          }
+        }
+      }
+    }
+    multiRunHistory.unshift({
+      lastRunAt: ts,
+      marketCount: req.markets ? req.markets.length : 0,
+      candidateCount: body && typeof body.candidateCount === 'number' ? body.candidateCount : 0,
+      topScore: topScore,
+      topGrade: topGrade
+    });
+    if (multiRunHistory.length > 5) multiRunHistory.length = 5;
+    var lines = [];
+    for (var j = 0; j < multiRunHistory.length; j++) {
+      var h = multiRunHistory[j];
+      lines.push((j === 0 ? '▶ ' : '  ')
+        + h.lastRunAt
+        + ' | markets=' + h.marketCount
+        + ' | candidates=' + h.candidateCount
+        + ' | topScore=' + (h.topScore === null ? '-' : h.topScore)
+        + ' | topGrade=' + (h.topGrade === null ? '-' : h.topGrade));
+    }
+    mcHistoryEl.textContent = lines.join('\n');
+    mcHistoryWrap.style.display = multiRunHistory.length > 0 ? 'block' : 'none';
+  }
+  function refreshCtSendButton() {
+    var hasSel = (typeof ctSelectedMarketEl.value === 'string' && ctSelectedMarketEl.value.length > 0);
+    var phraseOk = (ctConfirmPhraseEl.value === CT_CONFIRM_PHRASE_REQUIRED);
+    ctSendBtn.disabled = !(hasSel && phraseOk);
+  }
+
+  mcRunBtn.addEventListener('click', function() {
+    var endpoint = safeEndpoint();
+    if (!endpoint) { mcSetErrorCode('MISSING_ENDPOINT'); return; }
+    var token = readTokenAndClear();
+    if (!token) { mcSetErrorCode('MISSING_INVOKE_TOKEN'); return; }
+    var exchange = (typeof mcExchangeEl.value === 'string') ? mcExchangeEl.value : '';
+    var markets = mcParseMarkets(mcMarketsEl.value);
+    var timeframe = (typeof mcTimeframeEl.value === 'string') ? mcTimeframeEl.value : '';
+    var limitRaw = (typeof mcLimitEl.value === 'string') ? mcLimitEl.value.replace(/^\s+|\s+$/g, '') : '';
+    if (!exchange) { mcSetErrorCode('MULTI_CANDIDATE_INVALID_EXCHANGE'); return; }
+    if (markets === null) { mcSetErrorCode('MULTI_CANDIDATE_INVALID_MARKETS'); return; }
+    if (markets.length === 0) { mcSetErrorCode('MULTI_CANDIDATE_INVALID_MARKETS'); return; }
+    if (markets.length > 10) { mcSetErrorCode('MULTI_CANDIDATE_TOO_MANY_MARKETS'); return; }
+    if (!timeframe) { mcSetErrorCode('MULTI_CANDIDATE_INVALID_TIMEFRAME'); return; }
+    if (!/^[0-9]{1,3}$/.test(limitRaw)) { mcSetErrorCode('MULTI_CANDIDATE_LIMIT_EXCEEDED'); return; }
+    var limit = parseInt(limitRaw, 10);
+    if (!isFinite(limit) || limit < 1 || limit > 120) { mcSetErrorCode('MULTI_CANDIDATE_LIMIT_EXCEEDED'); return; }
+
+    var url = buildUrl(endpoint, '/multi-candidate-dry-run');
+    if (!url) { mcSetErrorCode('INVALID_ENDPOINT'); return; }
+
+    setStatus('CHECKING');
+    mcClearOutputs();
+    mcRunBtn.disabled = true;
+    setTimeout(function() { mcRunBtn.disabled = false; }, 1500);
+
+    var reqBody = {
+      manualTrigger: true,
+      exchange: exchange,
+      markets: markets,
+      timeframe: timeframe,
+      limit: limit,
+      maxMarkets: 10
+    };
+
+    postJson(url, token, reqBody).then(function(resp) {
+      return resp.json().then(function(body) { return { resp: resp, body: body }; });
+    }).then(function(r) {
+      var b = (r && r.body) ? r.body : {};
+      var s = (typeof b.status === 'string') ? b.status : 'ERROR';
+      setStrField(mcCodeEl, (typeof b.code === 'string') ? b.code : null);
+      setStrField(mcOModeEl, (typeof b.mode === 'string') ? b.mode : null);
+      setNumField(mcOMarketCountEl, typeof b.marketCount === 'number' ? b.marketCount : null);
+      setNumField(mcOOkCountEl, typeof b.okCount === 'number' ? b.okCount : null);
+      setNumField(mcOFailCountEl, typeof b.failCount === 'number' ? b.failCount : null);
+      setNumField(mcOCandidateCountEl, typeof b.candidateCount === 'number' ? b.candidateCount : null);
+      var saf = (b && typeof b === 'object' && b.safety && typeof b.safety === 'object') ? b.safety : null;
+      setBoolField(mcOTelegramSentEl, saf && typeof saf.telegramSent === 'boolean' ? saf.telegramSent : null);
+      setBoolField(mcOKvWrittenEl, saf && typeof saf.kvWritten === 'boolean' ? saf.kvWritten : null);
+      if (Array.isArray(b.results)) {
+        var reqEcho = { exchange: b.exchange, timeframe: b.timeframe, markets: markets };
+        lastMultiRunResults = b.results;
+        lastMultiRunReq = reqEcho;
+        mcRenderResults(b.results, reqEcho);
+        mcUpdateCandidateSelector(b.results, reqEcho);
+        mcUpdateHistory(reqEcho, b);
+      } else {
+        lastMultiRunResults = [];
+        lastMultiRunReq = null;
+        mcUpdateCandidateSelector([], null);
+      }
+      setStatus(s);
+    }).catch(function() {
+      mcSetErrorCode('NETWORK_ERROR');
+    });
+  });
+
+  ctSelectedMarketEl.addEventListener('change', refreshCtSendButton);
+  ctConfirmPhraseEl.addEventListener('input', refreshCtSendButton);
+
+  function ctClearOutputs() {
+    setStrField(ctCodeEl, null);
+    setStrField(ctOMessageTypeEl, null);
+    setBoolField(ctOFixedMessageUsedEl, null);
+    setBoolField(ctOTelegramSentEl, null);
+    setBoolField(ctOKvWrittenEl, null);
+    setStrField(ctOKvWriteScopeEl, null);
+    setBoolField(ctOCandidateStoredEl, null);
+    setBoolField(ctOTrackingStartedEl, null);
+  }
+  function ctSetErrorCode(code) {
+    setStatus('ERROR');
+    setStrField(ctCodeEl, (typeof code === 'string' && code.length > 0) ? code : 'UNKNOWN_ERROR');
+  }
+
+  ctSendBtn.addEventListener('click', function() {
+    var endpoint = safeEndpoint();
+    if (!endpoint) { ctSetErrorCode('MISSING_ENDPOINT'); return; }
+    var token = readTokenAndClear();
+    if (!token) { ctSetErrorCode('MISSING_INVOKE_TOKEN'); return; }
+    var phrase = ctConfirmPhraseEl.value;
+    if (phrase !== CT_CONFIRM_PHRASE_REQUIRED) { ctSetErrorCode('CANDIDATE_TEST_CONFIRM_PHRASE_REQUIRED'); return; }
+    var raw = ctSelectedMarketEl.value;
+    if (!raw) { ctSetErrorCode('CANDIDATE_TEST_NO_CANDIDATE'); return; }
+    var payload;
+    try { payload = JSON.parse(raw); } catch (e) { ctSetErrorCode('CANDIDATE_TEST_INVALID_PAYLOAD'); return; }
+
+    var url = buildUrl(endpoint, '/send-candidate-test');
+    if (!url) { ctSetErrorCode('INVALID_ENDPOINT'); return; }
+
+    setStatus('SENDING');
+    ctClearOutputs();
+    ctSendBtn.disabled = true;
+    setTimeout(refreshCtSendButton, 1500);
+
+    postJson(url, token, {
+      manualTrigger: true,
+      confirmPhrase: phrase,
+      selectedCandidate: payload
+    }).then(function(resp) {
+      // Clear confirm phrase + selection right after submission.
+      ctConfirmPhraseEl.value = '';
+      ctSelectedMarketEl.value = '';
+      return resp.json().then(function(body) { return { resp: resp, body: body }; });
+    }).then(function(r) {
+      var b = (r && r.body) ? r.body : {};
+      var s = (typeof b.status === 'string') ? b.status : 'ERROR';
+      setStrField(ctCodeEl, (typeof b.code === 'string') ? b.code : null);
+      setStrField(ctOMessageTypeEl, (typeof b.messageType === 'string') ? b.messageType : null);
+      setBoolField(ctOFixedMessageUsedEl, typeof b.fixedMessageUsed === 'boolean' ? b.fixedMessageUsed : null);
+      var saf = (b && typeof b === 'object' && b.safety && typeof b.safety === 'object') ? b.safety : null;
+      setBoolField(ctOTelegramSentEl, saf && typeof saf.telegramSent === 'boolean' ? saf.telegramSent : null);
+      setBoolField(ctOKvWrittenEl, saf && typeof saf.kvWritten === 'boolean' ? saf.kvWritten : null);
+      setStrField(ctOKvWriteScopeEl, saf && typeof saf.kvWriteScope === 'string' ? saf.kvWriteScope : null);
+      setBoolField(ctOCandidateStoredEl, saf && typeof saf.candidateStored === 'boolean' ? saf.candidateStored : null);
+      setBoolField(ctOTrackingStartedEl, saf && typeof saf.trackingStarted === 'boolean' ? saf.trackingStarted : null);
+      setStatus(s);
+    }).catch(function() {
+      ctConfirmPhraseEl.value = '';
+      ctSetErrorCode('NETWORK_ERROR');
+    });
+  });
+
   // Initial paint.
   setStatus('READY');
   clearStateFields();
   clearResultFields();
   lpClearOutputs();
   cdrClearOutputs();
+  mcClearOutputs();
+  ctClearOutputs();
   refreshButtons();
+  refreshCtSendButton();
 })();
 </script>
 </body>
