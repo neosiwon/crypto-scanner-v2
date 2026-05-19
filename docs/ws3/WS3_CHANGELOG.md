@@ -5,6 +5,93 @@
 
 ---
 
+## [v0.32.1] — 2026-05-20 (No Invoke Token / Dev Open Operator UX Patch)
+
+### 목적 (속도 우선 / 보안은 최종 배포 전 별도 게이트)
+v0.32.0 production 자연검증 PASS 후, 운영자 매 호출마다 Invoke Token 입력 요구를 제거하여 v2 스캐너처럼 접속 → 바로 사용 가능한 UX로 전환. **보안 강화 아님 — 실사용 UX 속도 개선**. 운영자 일상 워크플로우 (state / multi-candidate-dry-run / send-limited-live-alert / live-preflight / candidate-dry-run) 5개 dev-open routes는 worker 측에서 Invoke Token check skip. side-effect 위험 4개 routes (send-canary / cleanup-confirm / operator-reset / send-candidate-test)는 token check 유지 — 잘못 클릭한 운영자 안전 차단. invite gate는 hidden 처리 (코드 보존, 최종 보안 게이트에서 재활성화 용이). v0.32 자연검증 minor finding [A] textarea label "최대 10" → "최대 50" 통합. final security (Cloudflare Access / Pages Function proxy / server-side token custody / invite gate 재활성화) 는 별도 게이트로 deferred.
+
+### Added
+- `/docs/ws3/WS3_v0_32_1_NO_INVOKE_TOKEN_DEV_OPEN_OPERATOR_UX_REPORT.md` — v0.32.1 완료 보고서 (15 sections)
+- `/workers/ws3-telegram-canary-worker.js` 신규 상수 + helper (line 150-159, after v0.31 LIMITED_LIVE block):
+  - `WS3_OPERATOR_AUTH_MODE = 'DEV_OPEN'`
+  - `isDevOpenOperatorRoute(pathname)` — returns true for /state, /multi-candidate-dry-run, /send-limited-live-alert, /live-preflight, /candidate-dry-run
+
+### Changed
+- `/workers/ws3-telegram-canary-worker.js` — 5 dev-open endpoint의 기존 token check 3-block (missing / env-missing / mismatch) 을 `if (!isDevOpenOperatorRoute(path)) { ... }` 로 wrap. 기존 코드 보존 → final security 게이트에서 isDevOpenOperatorRoute 변경 또는 WS3_OPERATOR_AUTH_MODE flag 변경으로 즉시 재활성화 가능:
+  - `/state` (line 1917)
+  - `/live-preflight` (line 2233)
+  - `/candidate-dry-run` (line 2312)
+  - `/multi-candidate-dry-run` (line 2419)
+  - `/send-limited-live-alert` (line 2608)
+- `/web/ws3-canary-console.html` Section 1 Configuration UI 전환:
+  - Worker Endpoint input (type=text, 사용자 입력) 제거 → panel display (preset endpoint 표시)
+  - Invoke Token input (type=password, 사용자 입력) 제거
+  - `<input id="endpoint" type="hidden" value="...">` / `<input id="token" type="hidden" value="">` 으로 기존 JS refs back-compat 유지
+  - "Operator Mode: DEV_OPEN / Token input: disabled" 상태 표시 추가
+- `/web/ws3-canary-console.html` Dev Open Banner 추가 (Section 1 위) — "Operator Mode: DEV OPEN | Invoke Token input disabled | Endpoint preset / Final security ... deferred to final deploy gate"
+- `/web/ws3-canary-console.html` Invite gate 우회:
+  - `<section id="inviteGate" ... hidden>` (section + JS 코드 모두 보존, hidden 속성만 추가)
+  - `<main id="consoleApp" class="console-app" hidden>` → `<main ...>` (hidden 제거 → 접속 즉시 main 표시)
+- `/web/ws3-canary-console.html` JS dependency 제거:
+  - `WS3_DEFAULT_WORKER_ENDPOINT = 'https://ws3-telegram-canary.neosiwon.workers.dev'` 상수 추가
+  - `safeEndpoint()` → preset endpoint 반환
+  - `readTokenAndClear()` → null 반환 (no-op)
+  - `postJson` / `getJson` — token이 string && length > 0일 때만 `X-WS3-Canary-Token` header set (no-op when null)
+  - 5 dev-open button handler (checkBtn / lpRunBtn / cdrRunBtn / mcRunBtn / llSendBtn) 에서 `if (!token) { ...MISSING_INVOKE_TOKEN... }` 제거
+  - 4 잠금 button handler (sendBtn / cleanupBtn / operatorResetBtn / ctSendBtn) 은 그대로 — token=null → client-side에서 즉시 MISSING_INVOKE_TOKEN 차단
+- `/web/ws3-canary-console.html` [A] textarea label fix 통합 (v0.32 자연검증 minor finding): `<label for="mc_markets">Markets (콤마 또는 줄바꿈, 최대 10)</label>` → `<label ...>Markets (콤마 또는 줄바꿈, 최대 50)</label>`
+- `/web/ws3-canary-console/index.html` 위 동일 변경 (byte-for-byte mirror 유지)
+- `/docs/ws3/WS3_CHANGELOG.md` (본 파일): `[v0.32.1]` entry 재작성 (기존 label-fix-only entry 폐기 후 통합 entry)
+- `/docs/ws3/WS3_CURRENT_BASELINE.md`: baseline → v0.32.1 갱신 + Closure 표 row 갱신 + 핵심 메모 추가
+
+### Not changed (intentional)
+- `/workers/ws3-telegram-canary-worker.js` — 4 잠금 endpoint token check (send-canary 1766 / cleanup-confirm 1999 / operator-reset 2087 / send-candidate-test 2474) 그대로
+- KV write scope (`CANDIDATE_TEST_GUARD_ONLY` / `LIMITED_LIVE_GUARD_ONLY` / alreadySent / cleanupRequired / operatorReset / invokeTokenMismatch) 그대로
+- Telegram fixed-text path / duplicate guard / confirmPhrase / env-gate (`WS3_LIMITED_LIVE_ENABLED`) 그대로
+- VERSION 상수 `WS3_v0.31.0_web_first_minimum_operator_mode` 유지 (response shape 변경 0건)
+- 5 env vars 그대로 (`WS3_LIMITED_LIVE_ENABLED='true'` / `WS3_TELEGRAM_CANARY_ENABLED='false'` / `WS3_CANDIDATE_TEST_ENABLED='false'` / `WS3_TELEGRAM_CANARY_AUTHORIZED_AT='0'` / `WS3_CANARY_ALLOWED_ORIGINS='https://ws3-canary-console.pages.dev'`)
+- Cron / 자동 Telegram / candidate KV 저장 / tracking 시작 — 모두 disabled 유지
+
+### Verified
+- `node --check workers/ws3-telegram-canary-worker.js` PASS
+- `diff -q web/ws3-canary-console.html web/ws3-canary-console/index.html` 0건 (byte-for-byte mirror)
+- Embedded `<script>` 2 blocks `new Function(block)` ALL_BLOCKS_OK (4428 + 75100+ chars)
+- 보호 파일 (`worker.js` / `wrangler.toml` / `index.html` / `manifest.json` / `service-worker.js` / `v3/` 25종 / `WS3_CODE_CONTRACT.md` / `WS3_WORKFLOW_TEMPLATE.md` / `workers/ws3-canary-state-kv-adapter.js` / `wrangler-canary.example.toml` / `.gitignore`) diff 0건
+- storage 검사 — 매치 2건 모두 정책 문맥 (실 호출 0건)
+- token UI 사용자 입력 검사 — `grep "type=\"text\".*id=\"endpoint\"|type=\"password\".*id=\"token\""` 0건 (hidden 으로만 back-compat)
+- 노출된 폐기 hash repo-wide 매치 0건
+- bot_token / chat_id / message_id / Invoke Token / SHA-256 hash / KV namespace ID / raw Telegram response / raw exchange full response — 정책 문맥만 (raw value 0건)
+- 매수 추천 / 진입 추천 / 수익 보장 / 확정 신호 / LIVE BUY — 0건
+- 본 commit 까지 Cloudflare Worker redeploy 0건 / Pages redeploy 0건 / Telegram API 0건 / KV write 0건 / candidate 저장 0건 / tracking 시작 0건 / 실 거래소 API 0건
+
+### Routes 매트릭스
+| Route | Method | Dev-open? | Token | Worker side check |
+|---|---|---|---|---|
+| `/state` | GET | ✅ | skip | Origin only |
+| `/live-preflight` | POST | ✅ | skip | Origin + manualTrigger |
+| `/candidate-dry-run` | POST | ✅ | skip | Origin + manualTrigger |
+| `/multi-candidate-dry-run` | POST | ✅ | skip | Origin + manualTrigger |
+| `/send-limited-live-alert` | POST | ✅ | skip | Origin + manualTrigger + confirmPhrase + WS3_LIMITED_LIVE_ENABLED + per-(market,timeframe) KV guard |
+| `/send-canary` | POST | ❌ | required | Origin + Token + AUTHORIZED_AT + ENABLED + GATE3 + KV guard + circuit |
+| `/cleanup-confirm` | POST | ❌ | required | Origin + Token + cleanupRequired check |
+| `/operator-reset` | POST | ❌ | required | Origin + Token + 7-condition + circuit |
+| `/send-candidate-test` | POST | ❌ | required | Origin + Token + confirmPhrase + WS3_CANDIDATE_TEST_ENABLED + duplicate guard |
+
+### Final security TODO (별도 게이트)
+- Cloudflare Access 재검토 (server-side token custody)
+- Pages Function proxy 검토 (web → Pages Function → worker)
+- server-side token 보관 (Cloudflare secrets / KV)
+- origin allowlist 재정리
+- invite gate 재활성화 또는 대체 (CF Access 토대)
+- operator role 분리 (read-only / scan operator / send operator)
+- production release 전 보안 검증 단계
+
+### 자연검증 누적 (코드 변경 X)
+- [B] failCount=3 (KRW-MANA / KRW-AAVE / +1) — 자연 변동 가능, 추가 누적 후 patch 판단
+- [C] WATCH_REVIEW=7 / LOW_SIGNAL=22 (24%) — 운영자 검토 부담 적정, 추가 누적 후 임계값 미세 조정 가능성
+
+---
+
 ## [v0.32.0] — 2026-05-20 (V2-grade Operator Console Fast Track Pack)
 
 ### 목적 (운영자 판단력 v2-grade 도약 / 속도 우선)

@@ -136,6 +136,27 @@ var LIMITED_LIVE_GUARD_KEY_PREFIX = 'ws3:canary:limitedLiveAlertSent:';
 var LIMITED_LIVE_GUARD_REASON = 'LIMITED_LIVE_REVIEW_SENT';
 var LIMITED_LIVE_GUARD_WINDOW_MS = 60 * 1000; // 60s per-(market,timeframe) cooldown
 
+// v0.32.1 — No Invoke Token / Dev Open Operator UX Patch
+//   Speed-over-security: operator-side routes (state, multi-candidate-dry-run,
+//   send-limited-live-alert, live-preflight, candidate-dry-run) skip the Invoke
+//   Token check so the web console can call them without prompting the operator
+//   for a token. Routes with real side-effect risk (send-canary, cleanup-confirm,
+//   operator-reset, send-candidate-test) keep the token check.
+//   Telegram fixed-text path, KV write scope, duplicate guard, confirmPhrase, and
+//   env-gate (WS3_LIMITED_LIVE_ENABLED) are all unchanged — the only relaxation
+//   is the Invoke Token requirement on operator-UX routes.
+//   Final security (Cloudflare Access / Pages Function proxy / server-side token
+//   custody / origin allowlist hardening / invite gate re-activation) is deferred
+//   to a separate gate before public release.
+var WS3_OPERATOR_AUTH_MODE = 'DEV_OPEN';
+function isDevOpenOperatorRoute(pathname) {
+  return pathname === '/state'
+    || pathname === '/multi-candidate-dry-run'
+    || pathname === '/send-limited-live-alert'
+    || pathname === '/live-preflight'
+    || pathname === '/candidate-dry-run';
+}
+
 // §per-process state (Cloudflare isolate cold-start 시 초기화 — best effort)
 var CANARY_PROCESS_STATE = {
   alreadySent: false,
@@ -1892,15 +1913,18 @@ async function handleFetch(request, env, ctx, deps) {
     if (!allowed) {
       return jsonResponse({ ok: false, status: 'BLOCKED', code: 'ORIGIN_NOT_ALLOWED', httpStatus: 403 }, 403, false, null);
     }
-    var stateToken = request.headers.get('X-WS3-Canary-Token');
-    if (typeof stateToken !== 'string' || stateToken.length === 0) {
-      return jsonResponse({ ok: false, status: 'BLOCKED', code: 'MISSING_INVOKE_TOKEN', httpStatus: 401 }, 401, true, origin);
-    }
-    if (typeof env.WS3_CANARY_INVOKE_TOKEN !== 'string' || env.WS3_CANARY_INVOKE_TOKEN.length === 0) {
-      return jsonResponse({ ok: false, status: 'BLOCKED', code: 'MISSING_INVOKE_TOKEN', httpStatus: 503 }, 503, true, origin);
-    }
-    if (stateToken !== env.WS3_CANARY_INVOKE_TOKEN) {
-      return jsonResponse({ ok: false, status: 'BLOCKED', code: 'INVOKE_TOKEN_MISMATCH', httpStatus: 403 }, 403, true, origin);
+    // v0.32.1 dev-open: skip Invoke Token check for operator-UX routes
+    if (!isDevOpenOperatorRoute(path)) {
+      var stateToken = request.headers.get('X-WS3-Canary-Token');
+      if (typeof stateToken !== 'string' || stateToken.length === 0) {
+        return jsonResponse({ ok: false, status: 'BLOCKED', code: 'MISSING_INVOKE_TOKEN', httpStatus: 401 }, 401, true, origin);
+      }
+      if (typeof env.WS3_CANARY_INVOKE_TOKEN !== 'string' || env.WS3_CANARY_INVOKE_TOKEN.length === 0) {
+        return jsonResponse({ ok: false, status: 'BLOCKED', code: 'MISSING_INVOKE_TOKEN', httpStatus: 503 }, 503, true, origin);
+      }
+      if (stateToken !== env.WS3_CANARY_INVOKE_TOKEN) {
+        return jsonResponse({ ok: false, status: 'BLOCKED', code: 'INVOKE_TOKEN_MISMATCH', httpStatus: 403 }, 403, true, origin);
+      }
     }
 
     var stateKv = isPlainObject(resolvedDeps) && hasOwn(resolvedDeps, 'kv') ? resolvedDeps.kv : (env ? env[KV_BINDING_NAME] : null);
@@ -2205,15 +2229,18 @@ async function handleFetch(request, env, ctx, deps) {
     if (!allowed) {
       return jsonResponse({ ok: false, status: 'BLOCKED', code: 'ORIGIN_NOT_ALLOWED', httpStatus: 403 }, 403, false, null);
     }
-    var lpToken = request.headers.get('X-WS3-Canary-Token');
-    if (typeof lpToken !== 'string' || lpToken.length === 0) {
-      return jsonResponse({ ok: false, status: 'BLOCKED', code: 'MISSING_INVOKE_TOKEN', httpStatus: 401 }, 401, true, origin);
-    }
-    if (typeof env.WS3_CANARY_INVOKE_TOKEN !== 'string' || env.WS3_CANARY_INVOKE_TOKEN.length === 0) {
-      return jsonResponse({ ok: false, status: 'BLOCKED', code: 'MISSING_INVOKE_TOKEN', httpStatus: 503 }, 503, true, origin);
-    }
-    if (lpToken !== env.WS3_CANARY_INVOKE_TOKEN) {
-      return jsonResponse({ ok: false, status: 'BLOCKED', code: 'INVOKE_TOKEN_MISMATCH', httpStatus: 403 }, 403, true, origin);
+    // v0.32.1 dev-open: skip Invoke Token check for operator-UX routes
+    if (!isDevOpenOperatorRoute(path)) {
+      var lpToken = request.headers.get('X-WS3-Canary-Token');
+      if (typeof lpToken !== 'string' || lpToken.length === 0) {
+        return jsonResponse({ ok: false, status: 'BLOCKED', code: 'MISSING_INVOKE_TOKEN', httpStatus: 401 }, 401, true, origin);
+      }
+      if (typeof env.WS3_CANARY_INVOKE_TOKEN !== 'string' || env.WS3_CANARY_INVOKE_TOKEN.length === 0) {
+        return jsonResponse({ ok: false, status: 'BLOCKED', code: 'MISSING_INVOKE_TOKEN', httpStatus: 503 }, 503, true, origin);
+      }
+      if (lpToken !== env.WS3_CANARY_INVOKE_TOKEN) {
+        return jsonResponse({ ok: false, status: 'BLOCKED', code: 'INVOKE_TOKEN_MISMATCH', httpStatus: 403 }, 403, true, origin);
+      }
     }
 
     var lpCt = request.headers.get('Content-Type');
@@ -2281,15 +2308,18 @@ async function handleFetch(request, env, ctx, deps) {
     if (!allowed) {
       return jsonResponse({ ok: false, status: 'BLOCKED', code: 'ORIGIN_NOT_ALLOWED', httpStatus: 403 }, 403, false, null);
     }
-    var cdrToken = request.headers.get('X-WS3-Canary-Token');
-    if (typeof cdrToken !== 'string' || cdrToken.length === 0) {
-      return jsonResponse({ ok: false, status: 'BLOCKED', code: 'MISSING_INVOKE_TOKEN', httpStatus: 401 }, 401, true, origin);
-    }
-    if (typeof env.WS3_CANARY_INVOKE_TOKEN !== 'string' || env.WS3_CANARY_INVOKE_TOKEN.length === 0) {
-      return jsonResponse({ ok: false, status: 'BLOCKED', code: 'MISSING_INVOKE_TOKEN', httpStatus: 503 }, 503, true, origin);
-    }
-    if (cdrToken !== env.WS3_CANARY_INVOKE_TOKEN) {
-      return jsonResponse({ ok: false, status: 'BLOCKED', code: 'INVOKE_TOKEN_MISMATCH', httpStatus: 403 }, 403, true, origin);
+    // v0.32.1 dev-open: skip Invoke Token check for operator-UX routes
+    if (!isDevOpenOperatorRoute(path)) {
+      var cdrToken = request.headers.get('X-WS3-Canary-Token');
+      if (typeof cdrToken !== 'string' || cdrToken.length === 0) {
+        return jsonResponse({ ok: false, status: 'BLOCKED', code: 'MISSING_INVOKE_TOKEN', httpStatus: 401 }, 401, true, origin);
+      }
+      if (typeof env.WS3_CANARY_INVOKE_TOKEN !== 'string' || env.WS3_CANARY_INVOKE_TOKEN.length === 0) {
+        return jsonResponse({ ok: false, status: 'BLOCKED', code: 'MISSING_INVOKE_TOKEN', httpStatus: 503 }, 503, true, origin);
+      }
+      if (cdrToken !== env.WS3_CANARY_INVOKE_TOKEN) {
+        return jsonResponse({ ok: false, status: 'BLOCKED', code: 'INVOKE_TOKEN_MISMATCH', httpStatus: 403 }, 403, true, origin);
+      }
     }
 
     var cdrCt = request.headers.get('Content-Type');
@@ -2385,15 +2415,18 @@ async function handleFetch(request, env, ctx, deps) {
     if (!allowed) {
       return jsonResponse({ ok: false, status: 'BLOCKED', code: 'ORIGIN_NOT_ALLOWED', httpStatus: 403 }, 403, false, null);
     }
-    var mcToken = request.headers.get('X-WS3-Canary-Token');
-    if (typeof mcToken !== 'string' || mcToken.length === 0) {
-      return jsonResponse({ ok: false, status: 'BLOCKED', code: 'MISSING_INVOKE_TOKEN', httpStatus: 401 }, 401, true, origin);
-    }
-    if (typeof env.WS3_CANARY_INVOKE_TOKEN !== 'string' || env.WS3_CANARY_INVOKE_TOKEN.length === 0) {
-      return jsonResponse({ ok: false, status: 'BLOCKED', code: 'MISSING_INVOKE_TOKEN', httpStatus: 503 }, 503, true, origin);
-    }
-    if (mcToken !== env.WS3_CANARY_INVOKE_TOKEN) {
-      return jsonResponse({ ok: false, status: 'BLOCKED', code: 'INVOKE_TOKEN_MISMATCH', httpStatus: 403 }, 403, true, origin);
+    // v0.32.1 dev-open: skip Invoke Token check for operator-UX routes
+    if (!isDevOpenOperatorRoute(path)) {
+      var mcToken = request.headers.get('X-WS3-Canary-Token');
+      if (typeof mcToken !== 'string' || mcToken.length === 0) {
+        return jsonResponse({ ok: false, status: 'BLOCKED', code: 'MISSING_INVOKE_TOKEN', httpStatus: 401 }, 401, true, origin);
+      }
+      if (typeof env.WS3_CANARY_INVOKE_TOKEN !== 'string' || env.WS3_CANARY_INVOKE_TOKEN.length === 0) {
+        return jsonResponse({ ok: false, status: 'BLOCKED', code: 'MISSING_INVOKE_TOKEN', httpStatus: 503 }, 503, true, origin);
+      }
+      if (mcToken !== env.WS3_CANARY_INVOKE_TOKEN) {
+        return jsonResponse({ ok: false, status: 'BLOCKED', code: 'INVOKE_TOKEN_MISMATCH', httpStatus: 403 }, 403, true, origin);
+      }
     }
 
     var mcCt = request.headers.get('Content-Type');
@@ -2571,15 +2604,18 @@ async function handleFetch(request, env, ctx, deps) {
     if (!allowed) {
       return jsonResponse({ ok: false, status: 'BLOCKED', code: 'ORIGIN_NOT_ALLOWED', httpStatus: 403 }, 403, false, null);
     }
-    var llToken = request.headers.get('X-WS3-Canary-Token');
-    if (typeof llToken !== 'string' || llToken.length === 0) {
-      return jsonResponse({ ok: false, status: 'BLOCKED', code: 'MISSING_INVOKE_TOKEN', httpStatus: 401 }, 401, true, origin);
-    }
-    if (typeof env.WS3_CANARY_INVOKE_TOKEN !== 'string' || env.WS3_CANARY_INVOKE_TOKEN.length === 0) {
-      return jsonResponse({ ok: false, status: 'BLOCKED', code: 'MISSING_INVOKE_TOKEN', httpStatus: 503 }, 503, true, origin);
-    }
-    if (llToken !== env.WS3_CANARY_INVOKE_TOKEN) {
-      return jsonResponse({ ok: false, status: 'BLOCKED', code: 'INVOKE_TOKEN_MISMATCH', httpStatus: 403 }, 403, true, origin);
+    // v0.32.1 dev-open: skip Invoke Token check for operator-UX routes
+    if (!isDevOpenOperatorRoute(path)) {
+      var llToken = request.headers.get('X-WS3-Canary-Token');
+      if (typeof llToken !== 'string' || llToken.length === 0) {
+        return jsonResponse({ ok: false, status: 'BLOCKED', code: 'MISSING_INVOKE_TOKEN', httpStatus: 401 }, 401, true, origin);
+      }
+      if (typeof env.WS3_CANARY_INVOKE_TOKEN !== 'string' || env.WS3_CANARY_INVOKE_TOKEN.length === 0) {
+        return jsonResponse({ ok: false, status: 'BLOCKED', code: 'MISSING_INVOKE_TOKEN', httpStatus: 503 }, 503, true, origin);
+      }
+      if (llToken !== env.WS3_CANARY_INVOKE_TOKEN) {
+        return jsonResponse({ ok: false, status: 'BLOCKED', code: 'INVOKE_TOKEN_MISMATCH', httpStatus: 403 }, 403, true, origin);
+      }
     }
 
     var llEnabled = (typeof env.WS3_LIMITED_LIVE_ENABLED === 'string' && env.WS3_LIMITED_LIVE_ENABLED === 'true');

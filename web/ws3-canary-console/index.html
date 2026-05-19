@@ -98,12 +98,11 @@
 
 <!-- ============================================================ -->
 <!-- Dev Preview Invite Gate (v0.26.1).                            -->
-<!-- Lightweight client-side check. Source inspect / DOM 조작 /     -->
-<!-- offline brute force 가능. 실 worker action 은 별도              -->
-<!-- WS3_CANARY_INVOKE_TOKEN + server-side guard 로 보호.            -->
-<!-- 통과 상태는 메모리에만 유지. 새로고침 시 재인증.                -->
+<!-- v0.32.1: bypassed in DEV_OPEN operator mode. Section kept     -->
+<!-- (hidden) for back-compat with existing JS refs — will be      -->
+<!-- re-activated in the final security gate before public release.-->
 <!-- ============================================================ -->
-<section id="inviteGate" class="section invite-gate" aria-label="Invite Gate">
+<section id="inviteGate" class="section invite-gate" aria-label="Invite Gate" hidden>
   <p class="lead">
     Dev Preview 단계입니다. 친구/지인 테스트용 가벼운 초대코드 게이트입니다.
     실 worker action 은 별도 Invoke Token + server-side guard 로 추가 보호되며,
@@ -121,25 +120,37 @@
   </div>
 </section>
 
-<main id="consoleApp" class="console-app" hidden>
+<main id="consoleApp" class="console-app">
+
+<!-- v0.32.1 No Invoke Token / Dev Open Operator UX Patch
+     Operator routes (state / multi-candidate-dry-run / send-limited-live-alert /
+     live-preflight / candidate-dry-run) skip Invoke Token check in worker.
+     Final security is deferred to a separate gate before public release. -->
+<div class="section" id="devOpenBanner" style="border:1px solid #ec9; background:#fff8e7; padding:10px 12px; border-radius:6px; font-size:12px; color:#553; line-height:1.5;">
+  <strong>Operator Mode: DEV OPEN</strong>
+  &nbsp;|&nbsp;Invoke Token input disabled
+  &nbsp;|&nbsp;Endpoint preset
+  <br>
+  <span style="font-size:11px; color:#888;">Final security (Cloudflare Access / server-side token custody / origin allowlist) deferred to final deploy gate.</span>
+</div>
 
 <p class="note">
-  실 운영 canary 전용 콘솔. Telegram bot token / chat id / invoke token / KV namespace ID / Telegram message_id / raw Telegram response 의 실제 값은
+  실 운영 canary 전용 콘솔. Telegram bot token / chat id / KV namespace ID / Telegram message_id / raw Telegram response 의 실제 값은
   본 화면 / localStorage / sessionStorage / IndexedDB / cookie 에 저장하지 않는다.
-  invoke token 은 각 요청마다 직접 입력 후 즉시 입력칸이 비워진다.
   최종 안전 판단은 worker server-side gate 가 수행한다 (UI 활성화는 보조 안전장치).
 </p>
 
 <div class="section">
   <h2>1. Configuration</h2>
-  <div class="row">
-    <label for="endpoint">Worker Endpoint</label>
-    <input id="endpoint" type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="https://your-canary-worker.example.workers.dev">
+  <div class="row panel">
+    <div><span class="k">Worker Endpoint:</span> <span class="v" id="endpointDisplay">ws3-telegram-canary.neosiwon.workers.dev</span></div>
+    <div><span class="k">Operator Mode:</span> <span class="v t">DEV_OPEN</span></div>
+    <div><span class="k">Token input:</span> <span class="v f">disabled</span></div>
   </div>
-  <div class="row">
-    <label for="token">Invoke Token</label>
-    <input id="token" type="password" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-1p-ignore data-bwignore data-lpignore maxlength="128" placeholder="invoke token (요청마다 직접 입력, 자동 클리어)">
-  </div>
+  <!-- v0.32.1: hidden but kept for back-compat with existing JS refs.
+       Will be re-activated in the final security gate. -->
+  <input id="endpoint" type="hidden" value="https://ws3-telegram-canary.neosiwon.workers.dev">
+  <input id="token" type="hidden" value="">
 </div>
 
 <div class="section">
@@ -337,7 +348,7 @@
     </select>
   </div>
   <div class="row">
-    <label for="mc_markets">Markets (콤마 또는 줄바꿈, 최대 10)</label>
+    <label for="mc_markets">Markets (콤마 또는 줄바꿈, 최대 50)</label>
     <textarea id="mc_markets" rows="4" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" style="width:100%; min-height:88px; padding:10px; font-family:ui-monospace, SFMono-Regular, monospace; font-size:13px; border:1px solid #ccc; border-radius:4px; box-sizing:border-box;">KRW-BTC,KRW-ETH,KRW-XRP,KRW-SOL,KRW-DOGE,KRW-ADA,KRW-AVAX,KRW-LINK,KRW-NEAR,KRW-SEI</textarea>
     <div style="margin-top:6px;">
       <button id="mc_loadPreset40Btn" class="controlled" type="button" style="min-width:auto; padding:6px 12px; font-size:12px;">Load Upbit KRW preset</button>
@@ -841,16 +852,30 @@
     setTimeout(function() { refreshButtons(); }, 1500);
   }
 
+  // v0.32.1 No Invoke Token / Dev Open Operator UX Patch
+  //   - Worker endpoint is preset as a constant; user input UI removed.
+  //   - Invoke Token input is disabled in this mode; readTokenAndClear() is a no-op.
+  //   - postJson / getJson omit the X-WS3-Canary-Token header when token is null,
+  //     so worker dev-open routes (/state, /multi-candidate-dry-run,
+  //     /send-limited-live-alert, /live-preflight, /candidate-dry-run) just work.
+  //   - Side-effect routes (/send-canary, /cleanup-confirm, /operator-reset,
+  //     /send-candidate-test) still require a token at worker side and will be
+  //     blocked by the worker if invoked from this dev-open UI.
+  //   - Final security gate will re-enable token UI + invite gate.
+  var WS3_DEFAULT_WORKER_ENDPOINT = 'https://ws3-telegram-canary.neosiwon.workers.dev';
+
   function safeEndpoint() {
-    var e = (typeof endpointEl.value === 'string') ? endpointEl.value.replace(/^\s+|\s+$/g, '') : '';
-    if (!e) return null;
-    return e;
+    // Always return the preset endpoint (dev-open mode).
+    if (endpointEl && typeof endpointEl.value === 'string' && endpointEl.value.replace(/^\s+|\s+$/g, '').length > 0) {
+      return endpointEl.value.replace(/^\s+|\s+$/g, '');
+    }
+    return WS3_DEFAULT_WORKER_ENDPOINT;
   }
   function readTokenAndClear() {
-    var t = tokenEl.value;
-    tokenEl.value = '';
-    if (typeof t !== 'string' || t.length === 0) return null;
-    return t;
+    // Dev-open mode: no token input. Returns null. Worker side-effect routes
+    // remain protected by their own token check.
+    if (tokenEl) tokenEl.value = '';
+    return null;
   }
   function buildUrl(endpoint, path) {
     try {
@@ -861,12 +886,13 @@
   }
 
   function postJson(url, token, body) {
+    var headers = { 'Content-Type': 'application/json' };
+    if (typeof token === 'string' && token.length > 0) {
+      headers['X-WS3-Canary-Token'] = token;
+    }
     return fetch(url, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-WS3-Canary-Token': token
-      },
+      headers: headers,
       body: JSON.stringify(body || {}),
       mode: 'cors',
       credentials: 'omit',
@@ -875,11 +901,13 @@
     });
   }
   function getJson(url, token) {
+    var headers = {};
+    if (typeof token === 'string' && token.length > 0) {
+      headers['X-WS3-Canary-Token'] = token;
+    }
     return fetch(url, {
       method: 'GET',
-      headers: {
-        'X-WS3-Canary-Token': token
-      },
+      headers: headers,
       mode: 'cors',
       credentials: 'omit',
       cache: 'no-store',
@@ -896,8 +924,8 @@
   checkBtn.addEventListener('click', function() {
     var endpoint = safeEndpoint();
     if (!endpoint) { handleErrorCode('MISSING_ENDPOINT'); return; }
+    // v0.32.1 dev-open: /state is an operator-UX route — no token required
     var token = readTokenAndClear();
-    if (!token) { handleErrorCode('MISSING_INVOKE_TOKEN'); return; }
     var url = buildUrl(endpoint, '/state');
     if (!url) { handleErrorCode('INVALID_ENDPOINT'); return; }
 
@@ -1057,8 +1085,8 @@
   lpRunBtn.addEventListener('click', function() {
     var endpoint = safeEndpoint();
     if (!endpoint) { lpSetErrorCode('MISSING_ENDPOINT'); return; }
+    // v0.32.1 dev-open: /live-preflight is an operator-UX route — no token required
     var token = readTokenAndClear();
-    if (!token) { lpSetErrorCode('MISSING_INVOKE_TOKEN'); return; }
     var exchange = (typeof lpExchangeEl.value === 'string') ? lpExchangeEl.value : '';
     var market = (typeof lpMarketEl.value === 'string') ? lpMarketEl.value.replace(/^\s+|\s+$/g, '') : '';
     var timeframe = (typeof lpTimeframeEl.value === 'string') ? lpTimeframeEl.value : '';
@@ -1180,8 +1208,8 @@
   cdrRunBtn.addEventListener('click', function() {
     var endpoint = safeEndpoint();
     if (!endpoint) { cdrSetErrorCode('MISSING_ENDPOINT'); return; }
+    // v0.32.1 dev-open: /candidate-dry-run is an operator-UX route — no token required
     var token = readTokenAndClear();
-    if (!token) { cdrSetErrorCode('MISSING_INVOKE_TOKEN'); return; }
     var exchange = (typeof cdrExchangeEl.value === 'string') ? cdrExchangeEl.value : '';
     var market = (typeof cdrMarketEl.value === 'string') ? cdrMarketEl.value.replace(/^\s+|\s+$/g, '') : '';
     var timeframe = (typeof cdrTimeframeEl.value === 'string') ? cdrTimeframeEl.value : '';
@@ -1716,8 +1744,8 @@
   mcRunBtn.addEventListener('click', function() {
     var endpoint = safeEndpoint();
     if (!endpoint) { mcSetErrorCode('MISSING_ENDPOINT'); return; }
+    // v0.32.1 dev-open: /multi-candidate-dry-run is an operator-UX route — no token required
     var token = readTokenAndClear();
-    if (!token) { mcSetErrorCode('MISSING_INVOKE_TOKEN'); return; }
     var exchange = (typeof mcExchangeEl.value === 'string') ? mcExchangeEl.value : '';
     var markets = mcParseMarkets(mcMarketsEl.value);
     var timeframe = (typeof mcTimeframeEl.value === 'string') ? mcTimeframeEl.value : '';
@@ -2172,8 +2200,9 @@
   llSendBtn.addEventListener('click', function() {
     var endpoint = safeEndpoint();
     if (!endpoint) { llSetErrorCode('MISSING_ENDPOINT'); return; }
+    // v0.32.1 dev-open: /send-limited-live-alert is an operator-UX route — no token required
+    // (confirmPhrase + per-(market,timeframe) KV guard + WS3_LIMITED_LIVE_ENABLED env gate remain)
     var token = readTokenAndClear();
-    if (!token) { llSetErrorCode('MISSING_INVOKE_TOKEN'); return; }
     var phrase = llConfirmPhraseEl.value;
     if (phrase !== LL_CONFIRM_PHRASE_REQUIRED) { llSetErrorCode('LIMITED_LIVE_CONFIRM_PHRASE_REQUIRED'); return; }
     var raw = llSelectedCardEl.value;
