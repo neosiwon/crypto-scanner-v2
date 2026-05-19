@@ -5,6 +5,53 @@
 
 ---
 
+## [v0.31.1] — 2026-05-19 (Natural Validation Stabilization Patch)
+
+### 목적 (운영 안정화 / 새 기능 아님)
+v0.31.0 production 운영 (`WS3_LIMITED_LIVE_ENABLED=true`) 상태에서 자연검증 중 즉시 식별된 운영 안정화 패치. 운영 가능한 최소 웹 콘솔의 첫 안정화 사이클. Web Console fallback만으로 해결, Worker 미수정 / Cloudflare Worker redeploy 불필요.
+
+### Added
+- `/docs/ws3/WS3_v0_31_1_NATURAL_VALIDATION_STABILIZATION_REPORT.md` — v0.31.1 완료 보고서 (10 sections)
+
+### Changed
+- `/web/ws3-canary-console.html` (1724 → 1731 라인, +7):
+  - **`WS3_OPERATOR_REVIEW_PRESET_40` 정리** — 자연검증 중 failCount=21로 식별된 의심 8종 (KRW-MATIC / KRW-RENDER / KRW-JUP / KRW-ONDO / KRW-PEPE / KRW-BONK / KRW-TIA / KRW-PYTH) 제거, 잔여 32 markets. 변수명 그대로 유지 (back-compat). `maxMarkets` cap 50 (worker constant + web validation + request) 미변경
+  - **UI button label**: "Load 40-market Upbit preset" → "Load Upbit KRW preset"
+  - **Section 11 Limited Live Send handler safety fallback** — Worker error response (LIMITED_LIVE_DISABLED 503 / CONFIRM_PHRASE_REQUIRED 403 / INVALID_PAYLOAD 400 / ALREADY_SENT 429 / MANUAL_TRIGGER_REQUIRED 400 / ORIGIN_* 403 / INVOKE_TOKEN_* 401|403 / TELEGRAM_ERROR 502) 시 safety 객체가 없을 때 client renderer fallback 으로 명시적 false 표시. 운영자가 "-" 대신 "false"를 보고 부작용 없음을 즉시 확인 가능. kvWriteScope만 "-" 유지 (no scope semantically)
+- `/web/ws3-canary-console/index.html` (1724 → 1731 라인, byte-for-byte mirror 유지)
+- `/docs/ws3/WS3_CHANGELOG.md` (본 파일): `[v0.31.1]` entry 상단 추가
+- `/docs/ws3/WS3_CURRENT_BASELINE.md`: baseline → v0.31.1 갱신 + 완료된 단계 row 추가 + v0.31.1 핵심 메모 추가
+
+### Not changed (intentional)
+- `/workers/ws3-telegram-canary-worker.js` — Worker response shape 미변경, VERSION 상수 미변경 (`WS3_v0.31.0_web_first_minimum_operator_mode` 유지). Worker redeploy 불필요
+- `WS3_LIMITED_LIVE_ENABLED='true'` 유지 (false 복귀 안 함)
+- `WS3_TELEGRAM_CANARY_ENABLED='false'` / `WS3_CANDIDATE_TEST_ENABLED='false'` / `WS3_TELEGRAM_CANARY_AUTHORIZED_AT='0'` / `WS3_CANARY_ALLOWED_ORIGINS='https://ws3-canary-console.pages.dev'` 유지
+- operator review card 가독성 추가 개편은 minimal patch 원칙 준수 위해 skip — 다음 자연검증 사이클에서 별도 patch
+
+### Verified
+- `node --check workers/ws3-telegram-canary-worker.js` PASS (Worker 미변경 확인용)
+- `diff -q web/ws3-canary-console.html web/ws3-canary-console/index.html` 0건 (byte-for-byte mirror 유지)
+- preset list count = 32 (30~40 유지 요구사항 만족)
+- preset list 중복 0건
+- 제거 대상 8종 모두 preset에서 제외
+- `maxMarkets` cap = 50 (3 spots: worker constant + web validation + web request) 유지
+- 보호 파일 (`worker.js` / `wrangler.toml` / `index.html` / `manifest.json` / `service-worker.js` / `v3/` 25종 / `WS3_CODE_CONTRACT.md` / `WS3_WORKFLOW_TEMPLATE.md` / `workers/ws3-telegram-canary-worker.js` / `workers/ws3-canary-state-kv-adapter.js` / `wrangler-canary.example.toml` / `.gitignore`) diff 0건
+- 노출된 폐기 hash repo-wide 매치 0건
+- bot token / chat id / invoke token / KV namespace id / Telegram message_id / raw Telegram response / raw exchange full response / IP / cookie / session id / browser fingerprint — 노출 0건
+- 본 commit 까지 Cloudflare Worker redeploy 0건 / Pages redeploy 0건 / Telegram API 호출 0건 / KV write 0건 / 실 거래소 API 호출 0건
+
+### 다음 후보 (v0.31.x 자연검증 사이클)
+- preset 추가 정리 (운영 중 추가 fail 식별 시 점진 제거)
+- preset 동적 fetch (사용자 명시 승인 필요)
+- operatorReview score / chip 임계값 자연검증 후 조정
+- HOT_REVIEW / WATCH_REVIEW 카드 추가 시각 강조
+- duplicate guard window 60s 적정성 자연검증
+- 모바일 카드 UX 개선
+- console hosting domain rotate 시점 가이드
+- Cron / auto Telegram / candidate 저장 / tracking 시작은 별도 사용자 명시 승인 전까지 계속 disabled
+
+---
+
 ## [v0.31.0] — 2026-05-19 (Web-first Minimum Operator Mode Pack)
 
 ### Verified

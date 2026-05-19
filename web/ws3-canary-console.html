@@ -300,7 +300,7 @@
     <label for="mc_markets">Markets (콤마 또는 줄바꿈, 최대 10)</label>
     <textarea id="mc_markets" rows="4" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" style="width:100%; min-height:88px; padding:10px; font-family:ui-monospace, SFMono-Regular, monospace; font-size:13px; border:1px solid #ccc; border-radius:4px; box-sizing:border-box;">KRW-BTC,KRW-ETH,KRW-XRP,KRW-SOL,KRW-DOGE,KRW-ADA,KRW-AVAX,KRW-LINK,KRW-NEAR,KRW-SEI</textarea>
     <div style="margin-top:6px;">
-      <button id="mc_loadPreset40Btn" class="controlled" type="button" style="min-width:auto; padding:6px 12px; font-size:12px;">Load 40-market Upbit preset</button>
+      <button id="mc_loadPreset40Btn" class="controlled" type="button" style="min-width:auto; padding:6px 12px; font-size:12px;">Load Upbit KRW preset</button>
       <span style="font-size:11px; color:#666; margin-left:8px;">(Section 11 Operator Review 용)</span>
     </div>
   </div>
@@ -1543,12 +1543,17 @@
   // Section 11 Limited Live Send + Section 8 40-market preset button.
   // No Telegram in multi dry-run. No KV write in multi dry-run.
   // Limited Live Send: per-(market,timeframe) 60s guard, confirmPhrase required, WS3_LIMITED_LIVE_ENABLED='true' required.
+  // v0.31.1 Natural Validation Stabilization: removed 8 suspect tickers
+  // (KRW-MATIC, KRW-RENDER, KRW-JUP, KRW-ONDO, KRW-PEPE, KRW-BONK, KRW-TIA, KRW-PYTH)
+  // identified during v0.31 minimum live validation as Upbit KRW failCount contributors.
+  // Variable name kept as WS3_OPERATOR_REVIEW_PRESET_40 for code-level back-compat.
+  // Actual size = 32. maxMarkets cap unchanged at 50.
   var WS3_OPERATOR_REVIEW_PRESET_40 = [
     'KRW-BTC','KRW-ETH','KRW-XRP','KRW-SOL','KRW-DOGE','KRW-ADA','KRW-AVAX','KRW-LINK',
-    'KRW-NEAR','KRW-SEI','KRW-SUI','KRW-DOT','KRW-MATIC','KRW-APT','KRW-ARB','KRW-OP',
+    'KRW-NEAR','KRW-SEI','KRW-SUI','KRW-DOT','KRW-APT','KRW-ARB','KRW-OP',
     'KRW-STX','KRW-INJ','KRW-ATOM','KRW-ETC','KRW-BCH','KRW-XLM','KRW-HBAR','KRW-ALGO',
-    'KRW-SAND','KRW-MANA','KRW-AAVE','KRW-UNI','KRW-ICP','KRW-FIL','KRW-IMX','KRW-RENDER',
-    'KRW-ONDO','KRW-JUP','KRW-ENS','KRW-PEPE','KRW-BONK','KRW-WLD','KRW-TIA','KRW-PYTH'
+    'KRW-SAND','KRW-MANA','KRW-AAVE','KRW-UNI','KRW-ICP','KRW-FIL','KRW-IMX',
+    'KRW-ENS','KRW-WLD'
   ];
 
   var mcLoadPreset40Btn = document.getElementById('mc_loadPreset40Btn');
@@ -1693,12 +1698,22 @@
       setStrField(llOModeEl, (typeof b.mode === 'string') ? b.mode : null);
       setStrField(llOMessageTypeEl, (typeof b.messageType === 'string') ? b.messageType : null);
       setBoolField(llOFixedMessageUsedEl, typeof b.fixedMessageUsed === 'boolean' ? b.fixedMessageUsed : null);
+      // v0.31.1 Natural Validation Stabilization:
+      // Worker error responses (LIMITED_LIVE_DISABLED 503 / CONFIRM_PHRASE_REQUIRED 403 /
+      // INVALID_PAYLOAD 400 / ALREADY_SENT 429 / MANUAL_TRIGGER_REQUIRED 400 / ORIGIN_* 403 /
+      // INVOKE_TOKEN_* 401|403 / TELEGRAM_ERROR 502) do not include a safety object.
+      // Before v0.31.1 these displayed as "-", which obscured the fact that no side-effect occurred.
+      // We now display explicit false defaults on the client when safety is missing, so the operator
+      // can confirm at a glance that the worker did NOT send Telegram, write KV, store candidate, or start tracking.
+      // kvWriteScope stays as "-" when missing (no scope semantically applicable when nothing was written).
+      // No Worker change required.
       var saf = (b && typeof b === 'object' && b.safety && typeof b.safety === 'object') ? b.safety : null;
-      setBoolField(llOTelegramSentEl, saf && typeof saf.telegramSent === 'boolean' ? saf.telegramSent : null);
-      setBoolField(llOKvWrittenEl, saf && typeof saf.kvWritten === 'boolean' ? saf.kvWritten : null);
-      setStrField(llOKvWriteScopeEl, saf && typeof saf.kvWriteScope === 'string' ? saf.kvWriteScope : null);
-      setBoolField(llOCandidateStoredEl, saf && typeof saf.candidateStored === 'boolean' ? saf.candidateStored : null);
-      setBoolField(llOTrackingStartedEl, saf && typeof saf.trackingStarted === 'boolean' ? saf.trackingStarted : null);
+      var hasSafety = (saf !== null);
+      setBoolField(llOTelegramSentEl, hasSafety && typeof saf.telegramSent === 'boolean' ? saf.telegramSent : false);
+      setBoolField(llOKvWrittenEl, hasSafety && typeof saf.kvWritten === 'boolean' ? saf.kvWritten : false);
+      setStrField(llOKvWriteScopeEl, hasSafety && typeof saf.kvWriteScope === 'string' ? saf.kvWriteScope : null);
+      setBoolField(llOCandidateStoredEl, hasSafety && typeof saf.candidateStored === 'boolean' ? saf.candidateStored : false);
+      setBoolField(llOTrackingStartedEl, hasSafety && typeof saf.trackingStarted === 'boolean' ? saf.trackingStarted : false);
       setStatus(s);
     }).catch(function() {
       llConfirmPhraseEl.value = '';
