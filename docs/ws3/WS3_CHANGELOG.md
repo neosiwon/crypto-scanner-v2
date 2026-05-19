@@ -5,6 +5,164 @@
 
 ---
 
+## [v0.30.0] — 2026-05-19 (Forced Candidate TEST_ONLY Telegram Validation Pack)
+
+### 목적 (실코인 자동 알람 아님 / forced Telegram 경로 검증)
+v0.30 = **후보 미발생 환경에서도 Candidate Telegram 경로를 1회 검증** 할 수 있도록 `forceTestCandidate=true` 모드 추가. isCandidate=false dry-run 결과도 강제로 1회 TEST_ONLY Telegram 발송 가능. 실 Telegram / KV write / Cloudflare deploy — 본 commit 까지 mock 만, 실 호출은 별도 Deploy Validation Gate.
+
+### Added
+- `/docs/ws3/WS3_v0_30_0_FORCED_CANDIDATE_TEST_TELEGRAM_REPORT.md` — v0.30 완료 보고서 (13 sections)
+- `/workers/ws3-telegram-canary-worker.js` 확장 (2311 → 2381 라인, +70):
+  - `VERSION = 'WS3_v0.30.0_forced_candidate_test_telegram'`
+  - 신규 상수 6종: `FORCED_CANDIDATE_TEST_MODE='FORCED_TEST_ONLY'` / `FORCED_CANDIDATE_TEST_MESSAGE_TYPE='FORCED_CANDIDATE_TEST_ONLY'` / `FORCED_CANDIDATE_TEST_CONFIRM_PHRASE='SEND_WS3_FORCED_TEST_CANDIDATE'` / `FORCED_CANDIDATE_TEST_GUARD_REASON='FORCED_CANDIDATE_TEST_SENT'` / `FORCED_CANDIDATE_TEST_REASON_MAX_LEN=128` / `FORCED_CANDIDATE_TEST_REASON_PATTERN=/^[A-Za-z0-9 _\-\.\,\:\!\?\(\)\[\]\/]{1,128}$/`
+  - `validateCandidateTestRequest` 확장: `body.forceTestCandidate === true` 감지 → forced 모드 별도 confirmPhrase + forcedTestReason 검증 + 에러 코드 namespace 전체 `FORCED_CANDIDATE_TEST_*` 로 전환. normal 모드 동작 그대로 유지.
+  - `buildCandidateTestMessageText` 확장: forced 분기 시 별도 preamble (FORCED CANDIDATE TEST_ONLY / manual forced validation only / 강제 후보 테스트 + mode/source/candidateStored/trackingStarted 명시 라인 + Forced reason 라인)
+  - `buildCandidateTestResponse(kvWritten, forced)` 확장: forced 분기 시 `code='FORCED_CANDIDATE_TEST_SENT'` / `mode='FORCED_TEST_ONLY'` / `messageType='FORCED_CANDIDATE_TEST_ONLY'`
+  - `/send-candidate-test` 핸들러 변경: disabled gate check 위치를 body parse 직후로 이동 — body.forceTestCandidate 기반 `CANDIDATE_TEST_DISABLED` vs `FORCED_CANDIDATE_TEST_DISABLED` 분기. duplicate guard / Telegram error 코드도 forced-aware 분기.
+  - KV guard payload audit 확장: `messageType` (FORCED_CANDIDATE_TEST_ONLY / CANDIDATE_TEST_ONLY) + `market` audit 필드 추가 (closure 시점 normal/forced 구분 가능). guard key 는 동일 `ws3:canary:candidateTestSent`.
+- `/web/ws3-canary-console.html` Section 9 확장 (1435 → 1494 라인, +59):
+  - `Forced Test Mode` 체크박스 (default off)
+  - `Forced Test Reason` 입력칸 (forced 시에만 표시, maxlength=128, 정규식 sanitize)
+  - `Confirm Phrase` placeholder + Send 버튼 라벨 모드 따라 swap
+  - 결과 panel 에 `mode` 필드 추가
+  - mode 토글 시 `confirmPhrase` + `forcedTestReason` 모두 즉시 클리어 (carry-over 방지)
+  - 발송 후 / 네트워크 실패 후 `forcedTestReason` 즉시 클리어
+- `/web/ws3-canary-console/index.html` 위 동일 변경 (byte-for-byte mirror 유지, 68102 → 71874 bytes / 1435 → 1494 라인 일치)
+
+### Changed
+- `/docs/ws3/WS3_CHANGELOG.md` (본 파일): `[v0.30.0]` entry 상단 추가
+- `/docs/ws3/WS3_CURRENT_BASELINE.md`: baseline → v0.30.0 + 완료된 단계 row 추가 + v0.30.0 핵심 메모 추가
+- worker `VERSION` 상수: `WS3_v0.29.0_integrated_limited_live_pipeline` → `WS3_v0.30.0_forced_candidate_test_telegram`
+
+### `/send-candidate-test` 인증 (5중, forced 모드)
+| # | 조건 | 위반 시 |
+|---|---|---|
+| 1 | Origin allowlist 통과 | `ORIGIN_MISSING` / `ORIGIN_NOT_ALLOWED` 403 |
+| 2 | `X-WS3-Canary-Token` exact | `MISSING_INVOKE_TOKEN` 401 / `INVOKE_TOKEN_MISMATCH` 403 |
+| 3 | `body.manualTrigger === true` | `MANUAL_TRIGGER_REQUIRED` 400 |
+| 4 | `env.WS3_CANDIDATE_TEST_ENABLED === 'true'` | forced 시 `FORCED_CANDIDATE_TEST_DISABLED` 503 / normal 시 `CANDIDATE_TEST_DISABLED` 503 |
+| 5 | forced 시 `body.confirmPhrase === 'SEND_WS3_FORCED_TEST_CANDIDATE'` + `body.forcedTestReason` 정규식+길이 통과 / normal 시 `body.confirmPhrase === 'SEND_WS3_TEST_CANDIDATE'` | forced 시 `FORCED_CANDIDATE_TEST_CONFIRM_PHRASE_REQUIRED` 403 / `FORCED_CANDIDATE_TEST_INVALID_PAYLOAD` 400 / normal 시 기존 코드 |
+| 6 | `selectedCandidate.source === 'multi-candidate-dry-run'` + 정합 | forced 시 `FORCED_CANDIDATE_TEST_INVALID_PAYLOAD` 400 / normal 시 `CANDIDATE_TEST_NO_CANDIDATE` 400 / `CANDIDATE_TEST_INVALID_PAYLOAD` 400 |
+| 7 | KV `candidateTestSent.lastSentAt` 60s 이내면 차단 | forced 시 `FORCED_CANDIDATE_TEST_ALREADY_SENT` 429 / normal 시 `CANDIDATE_TEST_ALREADY_SENT` 429 |
+
+### forced fixed safety preamble (Telegram 본문)
+```text
+[WOOS WS3 FORCED CANDIDATE TEST_ONLY]
+This is not a live trading alert.
+manual forced validation only.
+실전 알람 아님
+테스트 전송
+강제 후보 테스트
+매수/매도 추천 아님
+
+mode: FORCED_TEST_ONLY
+source: multi-candidate-dry-run
+candidateStored: false
+trackingStarted: false
+
+Exchange / Market / Timeframe / Score / Grade / Reason chips / Forced reason
+```
+- 매수 추천 / 수익 보장 / `LIVE BUY` / 진입 추천 문구 0건 (smoke S13 검증)
+- raw exchange data / 가격 / 거래량 숫자 미포함 (score/grade/chips/forcedReason 만)
+- normal 모드 preamble 은 v0.29 그대로
+
+### normal preamble 미변경 (v0.29 그대로)
+```text
+[WOOS WS3 CANDIDATE TEST_ONLY]
+This is not a live trading alert.
+manual limited validation only.
+실전 알람 아님
+테스트 전송
+매수/매도 추천 아님
+...
+```
+
+### KV duplicate guard (forced/normal 공통, audit 분리)
+- key: `ws3:canary:candidateTestSent` (동일, scope=`CANDIDATE_TEST_GUARD_ONLY`)
+- 형식: `{schemaVersion:'v1', lastSentAt:nowMs, reason:..., messageType:..., market:...}`
+- forced: `reason='FORCED_CANDIDATE_TEST_SENT'` / `messageType='FORCED_CANDIDATE_TEST_ONLY'`
+- normal: `reason='CANDIDATE_TEST_SENT'` / `messageType='CANDIDATE_TEST_ONLY'`
+- 윈도우: 60s (normal/forced 공통)
+- 사용: `CanaryStateKvAdapter.getJson` / `putJson` generic primitives (어댑터 파일 수정 0건)
+- 다른 canary state KV key (alreadySent / cleanupRequired / circuit / invokeFail / operatorReset) 일체 read/write 0건
+
+### 신규 safe code (6종)
+- `FORCED_CANDIDATE_TEST_SENT` 200
+- `FORCED_CANDIDATE_TEST_DISABLED` 503
+- `FORCED_CANDIDATE_TEST_CONFIRM_PHRASE_REQUIRED` 403
+- `FORCED_CANDIDATE_TEST_INVALID_PAYLOAD` 400
+- `FORCED_CANDIDATE_TEST_ALREADY_SENT` 429
+- `FORCED_CANDIDATE_TEST_TELEGRAM_ERROR` 502
+
+기존 v0.25 / v0.26.1 / v0.27 / v0.28 / v0.29 safe code 모두 유지.
+
+### no-write scope grep 검증
+- `/multi-candidate-dry-run` handler scope: KV writer / Telegram 호출 매치 **0건** (v0.29 그대로)
+- `/send-candidate-test` handler scope: `putJson(CANDIDATE_TEST_GUARD_KEY)` **1건만** (normal/forced 공통, audit payload 만 다름). 다른 KV writer / canary sender 호출 0건.
+
+### mock smoke 결과 (27 시나리오 — spec 20 forced + 7 추가 regression/audit)
+```
+TOTAL=27 PASS=27 FAIL=0
+```
+**Forced (S1-S18)**: 인증 3종 + disabled gate + confirm 2종 + payload 검증 4종 + mock success + messageType + Telegram body 필수 라벨 (FORCED CANDIDATE TEST_ONLY / 실전 알람 아님 / 강제 후보 테스트 / mode FORCED_TEST_ONLY 등) + 금지 라벨 (매수하세요 / LIVE BUY 등) 0건 + candidateStored=false + trackingStarted=false + KV put 1건만 + raw Telegram response leak CLEAN + duplicate guard 429.
+**Regression / namespace separation (S19-S25)**: normal candidate path 회귀 / multi-dry-run 회귀 (Telegram 0 / KV 0) / forced bad score 차단 / normal disabled gate 정상 코드 / forced phrase 와 normal phrase 교차 사용 차단 / KV guard audit payload messageType 명시.
+
+실 거래소 API 호출 0건. 실 Telegram API 호출 0건. 실 KV API 호출 0건.
+
+### Web Console Section 9 확장
+- `Forced Test Mode` 체크박스 + `Forced Test Reason` 입력칸 (forced 시 표시) + 모드별 placeholder/버튼 라벨 swap
+- 모드 토글 시 confirmPhrase + forcedTestReason 즉시 클리어 / 발송 후 / 네트워크 실패 후 forcedTestReason 즉시 클리어
+- Send 버튼 enable: `hasSel && phraseOk && (forced ? reasonOk : true)`
+- 결과 panel `mode` 필드 추가
+- client-side `CT_FORCED_REASON_PATTERN` server-side 와 동일
+- 두 console 파일 byte-for-byte mirror 유지
+
+### Protected (수정 0건)
+- 본선 `worker.js` / `wrangler.toml` (repo 미존재) / `index.html` / `manifest.json` / `service-worker.js` — 미수정
+- `v3/` 25종 엔진 — 미수정
+- `docs/ws3/WS3_CODE_CONTRACT.md` / `WS3_WORKFLOW_TEMPLATE.md` — 미수정
+- `workers/ws3-canary-state-kv-adapter.js` — 미수정 (generic getJson/putJson 만 재사용)
+- `wrangler-canary.example.toml` / `.gitignore` — 미수정
+- `workers/ws3-telegram-canary-entry.mjs` — 미스테이지 유지
+
+### 보안 / 누출 검증 (0건 확인)
+- bot token / chatId / invoke token / KV namespace id / Telegram message_id / raw Telegram response / IP / cookie / session id / browser fingerprint — 노출 0건
+- exchange API raw native field — response 본문 노출 0건
+- 노출된 폐기 hash repo-wide 매치 0건
+- masked / first-4 / last-4 / redacted preview 0건
+- localStorage / sessionStorage / IndexedDB / document.cookie 호출 0건
+- URL query parameter token 전달 0건
+- console.log 출력 0건
+- 매수 추천 / 수익 보장 / LIVE BUY / 진입 추천 — 0건 (smoke S13)
+
+### Cloudflare 변경 0건
+- worker 재배포 0건 (v0.29 production Version 그대로)
+- Pages 재배포 0건
+- KV namespace 생성/변경 0건
+- KV binding 변경 0건
+- secrets 변경 0건
+- `WS3_CANARY_ALLOWED_ORIGINS` 변경 0건
+- `WS3_CANDIDATE_TEST_ENABLED` 변경 0건 (선언만 v0.29 그대로 default 'false')
+- 실 Telegram API 호출 0건
+- 실 KV write 0건
+- 실 `/send-candidate-test` (normal/forced) 호출 0건
+- 실 거래소 API 호출 0건
+
+### 의도된 미구현 (다음 Gate)
+- v0.30 Deploy/Live Validation Gate (별도): Worker redeploy + Pages redeploy + `WS3_CANDIDATE_TEST_ENABLED='true'` 임시 활성화 + production console 에서 Multi-market Dry-run → top result 선택 → Section 9 forced 모드 + forcedTestReason + `SEND_WS3_FORCED_TEST_CANDIDATE` 입력 → Send FORCED Candidate TEST_ONLY 1회 → Telegram 수신 확인 (FORCED preamble) → `WS3_CANDIDATE_TEST_ENABLED='false'` 복귀
+- v0.31 후보 A: Candidate Scoring Calibration
+- v0.31 후보 B: Multi-market history persistence (browser memory-only 확장)
+- v0.31 후보 C: Security hardening before live candidate alert
+- env-based `MULTI_CANDIDATE_DISABLED` / `CANDIDATE_TEST_DISABLED` 강제 kill switch
+- rate limit per origin / market / minute / invoke token rotate automation / ipHash + `WS3_CANARY_HASH_SALT`
+
+### 기준 commit
+- branch: `claude/heuristic-cori-7865e7`
+- 이전 functional baseline: WS3 v0.29.0 Integrated Limited Live Pipeline + Multi-market LOW_SIGNAL Validation Success (`afa7284`)
+- 본 commit: (push 후 기록, push 별도 승인)
+
+---
+
 ## [v0.29.0] — 2026-05-19 (Integrated Limited Live Pipeline Pack)
 
 ### Verified (Cloudflare Worker redeploy + Pages deploy + production Multi-market Dry-run 1회 실 호출 — 코드 변경 0건 / tracked source 변경 0건)

@@ -58,7 +58,7 @@ var TelegramCanarySender = require('../v3/v3-telegram-canary-sender.js');
 var CanaryStateKvAdapter = require('./ws3-canary-state-kv-adapter.js');
 
 // §constants ───────────────────────────────────────────────────────────
-var VERSION = 'WS3_v0.29.0_integrated_limited_live_pipeline';
+var VERSION = 'WS3_v0.30.0_forced_candidate_test_telegram';
 var SERVICE = 'WS3_CANARY_WEB_MVP';
 var STATUS_READY_CODE = 'CANARY_READY';
 var MAX_BODY_BYTES = 1024;
@@ -113,6 +113,17 @@ var CANDIDATE_TEST_GUARD_KEY = 'ws3:canary:candidateTestSent';
 var CANDIDATE_TEST_GUARD_REASON = 'CANDIDATE_TEST_SENT';
 var CANDIDATE_TEST_GUARD_WINDOW_MS = 60 * 1000; // 60s minimum gap between sends
 var LIMITED_LIVE_MODE_STATUS = 'DISABLED';
+
+// v0.30 — Forced Candidate TEST_ONLY Telegram (Telegram path validation when no natural candidate)
+//   forceTestCandidate=true 모드 시 isCandidate=false dry-run 결과도 TEST_ONLY 로 1회 발송 가능
+//   별도 confirmPhrase + forcedTestReason 필수 / FORCED preamble 강제 / candidate 저장 0건 / tracking 시작 0건
+//   동일 KV guard key 재사용 (messageType 으로 audit 구분, 60s 윈도우 공통)
+var FORCED_CANDIDATE_TEST_MODE = 'FORCED_TEST_ONLY';
+var FORCED_CANDIDATE_TEST_MESSAGE_TYPE = 'FORCED_CANDIDATE_TEST_ONLY';
+var FORCED_CANDIDATE_TEST_CONFIRM_PHRASE = 'SEND_WS3_FORCED_TEST_CANDIDATE';
+var FORCED_CANDIDATE_TEST_GUARD_REASON = 'FORCED_CANDIDATE_TEST_SENT';
+var FORCED_CANDIDATE_TEST_REASON_MAX_LEN = 128;
+var FORCED_CANDIDATE_TEST_REASON_PATTERN = /^[A-Za-z0-9 _\-\.\,\:\!\?\(\)\[\]\/]{1,128}$/;
 
 // §per-process state (Cloudflare isolate cold-start 시 초기화 — best effort)
 var CANARY_PROCESS_STATE = {
@@ -1110,33 +1121,47 @@ function validateCandidateTestRequest(body) {
   if (body.manualTrigger !== true) {
     return { ok: false, code: 'MANUAL_TRIGGER_REQUIRED', httpStatus: 400 };
   }
-  if (typeof body.confirmPhrase !== 'string' || body.confirmPhrase !== CANDIDATE_TEST_CONFIRM_PHRASE) {
-    return { ok: false, code: 'CANDIDATE_TEST_CONFIRM_PHRASE_REQUIRED', httpStatus: 403 };
+  // v0.30: detect forced mode first (changes confirmPhrase + error code namespace).
+  var forced = (body.forceTestCandidate === true);
+  if (forced) {
+    if (typeof body.confirmPhrase !== 'string' || body.confirmPhrase !== FORCED_CANDIDATE_TEST_CONFIRM_PHRASE) {
+      return { ok: false, code: 'FORCED_CANDIDATE_TEST_CONFIRM_PHRASE_REQUIRED', httpStatus: 403 };
+    }
+    var reason = body.forcedTestReason;
+    if (typeof reason !== 'string' || reason.length === 0 || reason.length > FORCED_CANDIDATE_TEST_REASON_MAX_LEN || !FORCED_CANDIDATE_TEST_REASON_PATTERN.test(reason)) {
+      return { ok: false, code: 'FORCED_CANDIDATE_TEST_INVALID_PAYLOAD', httpStatus: 400 };
+    }
+  } else {
+    if (typeof body.confirmPhrase !== 'string' || body.confirmPhrase !== CANDIDATE_TEST_CONFIRM_PHRASE) {
+      return { ok: false, code: 'CANDIDATE_TEST_CONFIRM_PHRASE_REQUIRED', httpStatus: 403 };
+    }
   }
+  var invalidPayloadCode = forced ? 'FORCED_CANDIDATE_TEST_INVALID_PAYLOAD' : 'CANDIDATE_TEST_INVALID_PAYLOAD';
+  var noCandidateCode = forced ? 'FORCED_CANDIDATE_TEST_INVALID_PAYLOAD' : 'CANDIDATE_TEST_NO_CANDIDATE';
   var c = body.selectedCandidate;
   if (!isPlainObject(c)) {
-    return { ok: false, code: 'CANDIDATE_TEST_NO_CANDIDATE', httpStatus: 400 };
+    return { ok: false, code: noCandidateCode, httpStatus: 400 };
   }
   if (typeof c.source !== 'string' || c.source !== 'multi-candidate-dry-run') {
-    return { ok: false, code: 'CANDIDATE_TEST_INVALID_PAYLOAD', httpStatus: 400 };
+    return { ok: false, code: invalidPayloadCode, httpStatus: 400 };
   }
   if (typeof c.exchange !== 'string' || indexOfString(LIVE_PREFLIGHT_ALLOWED_EXCHANGES, c.exchange.toLowerCase()) === -1) {
-    return { ok: false, code: 'CANDIDATE_TEST_INVALID_PAYLOAD', httpStatus: 400 };
+    return { ok: false, code: invalidPayloadCode, httpStatus: 400 };
   }
   if (typeof c.market !== 'string' || !LIVE_PREFLIGHT_MARKET_PATTERN.test(c.market)) {
-    return { ok: false, code: 'CANDIDATE_TEST_INVALID_PAYLOAD', httpStatus: 400 };
+    return { ok: false, code: invalidPayloadCode, httpStatus: 400 };
   }
   if (typeof c.timeframe !== 'string' || indexOfString(LIVE_PREFLIGHT_ALLOWED_TIMEFRAMES, c.timeframe) === -1) {
-    return { ok: false, code: 'CANDIDATE_TEST_INVALID_PAYLOAD', httpStatus: 400 };
+    return { ok: false, code: invalidPayloadCode, httpStatus: 400 };
   }
   if (typeof c.score !== 'number' || !isFinite(c.score) || c.score < 0 || c.score > 100) {
-    return { ok: false, code: 'CANDIDATE_TEST_INVALID_PAYLOAD', httpStatus: 400 };
+    return { ok: false, code: invalidPayloadCode, httpStatus: 400 };
   }
   if (typeof c.grade !== 'string' || (c.grade !== 'P-S' && c.grade !== 'P-A' && c.grade !== 'P-B' && c.grade !== 'P-C')) {
-    return { ok: false, code: 'CANDIDATE_TEST_INVALID_PAYLOAD', httpStatus: 400 };
+    return { ok: false, code: invalidPayloadCode, httpStatus: 400 };
   }
   if (!Array.isArray(c.reasonChips)) {
-    return { ok: false, code: 'CANDIDATE_TEST_INVALID_PAYLOAD', httpStatus: 400 };
+    return { ok: false, code: invalidPayloadCode, httpStatus: 400 };
   }
   var safeChips = [];
   for (var i = 0; i < c.reasonChips.length && i < CANDIDATE_DRY_RUN_REASON_CHIP_MAX; i++) {
@@ -1153,14 +1178,41 @@ function validateCandidateTestRequest(body) {
       timeframe: c.timeframe,
       score: c.score,
       grade: c.grade,
-      reasonChips: safeChips
+      reasonChips: safeChips,
+      forced: forced,
+      forcedTestReason: forced ? body.forcedTestReason : null
     }
   };
 }
 
 function buildCandidateTestMessageText(c) {
   // Fixed safety preamble. NO raw exchange data. NO embedded urls/tokens.
+  // v0.30: forced mode uses different preamble + adds mode/source/reason lines.
   var chipsLine = (c.reasonChips.length > 0) ? c.reasonChips.join(', ') : '-';
+  if (c.forced === true) {
+    return [
+      '[WOOS WS3 FORCED CANDIDATE TEST_ONLY]',
+      'This is not a live trading alert.',
+      'manual forced validation only.',
+      '실전 알람 아님',
+      '테스트 전송',
+      '강제 후보 테스트',
+      '매수/매도 추천 아님',
+      '',
+      'mode: FORCED_TEST_ONLY',
+      'source: multi-candidate-dry-run',
+      'candidateStored: false',
+      'trackingStarted: false',
+      '',
+      'Exchange: ' + c.exchange,
+      'Market: ' + c.market,
+      'Timeframe: ' + c.timeframe,
+      'Score: ' + c.score,
+      'Grade: ' + c.grade,
+      'Reason chips: ' + chipsLine,
+      'Forced reason: ' + (typeof c.forcedTestReason === 'string' ? c.forcedTestReason : '-')
+    ].join('\n');
+  }
   return [
     '[WOOS WS3 CANDIDATE TEST_ONLY]',
     'This is not a live trading alert.',
@@ -1236,15 +1288,16 @@ async function sendCandidateTestTelegram(deps, env, text) {
   return { ok: true };
 }
 
-function buildCandidateTestResponse(kvWritten) {
+function buildCandidateTestResponse(kvWritten, forced) {
+  var isForced = (forced === true);
   return {
     ok: true,
     status: 'OK',
-    code: 'CANDIDATE_TEST_SENT',
+    code: isForced ? 'FORCED_CANDIDATE_TEST_SENT' : 'CANDIDATE_TEST_SENT',
     httpStatus: 200,
     version: VERSION,
-    mode: CANDIDATE_TEST_MODE,
-    messageType: CANDIDATE_TEST_MESSAGE_TYPE,
+    mode: isForced ? FORCED_CANDIDATE_TEST_MODE : CANDIDATE_TEST_MODE,
+    messageType: isForced ? FORCED_CANDIDATE_TEST_MESSAGE_TYPE : CANDIDATE_TEST_MESSAGE_TYPE,
     fixedMessageUsed: true,
     safety: {
       telegramSent: true,
@@ -2162,11 +2215,8 @@ async function handleFetch(request, env, ctx, deps) {
       return jsonResponse({ ok: false, status: 'BLOCKED', code: 'INVOKE_TOKEN_MISMATCH', httpStatus: 403 }, 403, true, origin);
     }
 
-    // Separate enable gate (does NOT reuse CANARY_ENABLED to keep candidate-test scope isolated).
+    // v0.30: enable gate check moved to AFTER body parse so forced-mode flag can route error code.
     var ctEnabled = (typeof env.WS3_CANDIDATE_TEST_ENABLED === 'string' && env.WS3_CANDIDATE_TEST_ENABLED === 'true');
-    if (!ctEnabled) {
-      return jsonResponse({ ok: false, status: 'BLOCKED', code: 'CANDIDATE_TEST_DISABLED', httpStatus: 503 }, 503, true, origin);
-    }
 
     var ctCt = request.headers.get('Content-Type');
     if (typeof ctCt !== 'string' || ctCt.toLowerCase().indexOf('application/json') === -1) {
@@ -2191,13 +2241,25 @@ async function handleFetch(request, env, ctx, deps) {
       return jsonResponse({ ok: false, status: 'ERROR', code: 'INVALID_JSON', httpStatus: 400 }, 400, true, origin);
     }
 
+    // v0.30: enable gate check (forced-aware code routing based on body.forceTestCandidate).
+    if (!ctEnabled) {
+      var disabledCode = (isPlainObject(ctBody) && ctBody.forceTestCandidate === true)
+        ? 'FORCED_CANDIDATE_TEST_DISABLED'
+        : 'CANDIDATE_TEST_DISABLED';
+      return jsonResponse({ ok: false, status: 'BLOCKED', code: disabledCode, httpStatus: 503 }, 503, true, origin);
+    }
+
     var ctValidate = validateCandidateTestRequest(ctBody);
     if (ctValidate.ok !== true) {
       return jsonResponse({ ok: false, status: 'BLOCKED', code: ctValidate.code, httpStatus: ctValidate.httpStatus }, ctValidate.httpStatus, true, origin);
     }
     var ctCandidate = ctValidate.normalized;
+    var ctForced = (ctCandidate.forced === true);
+    // v0.30: error code namespace switches based on forced mode (already used by validate; below codes are post-validate)
+    var ctAlreadySentCode = ctForced ? 'FORCED_CANDIDATE_TEST_ALREADY_SENT' : 'CANDIDATE_TEST_ALREADY_SENT';
+    var ctTelegramErrorCode = ctForced ? 'FORCED_CANDIDATE_TEST_TELEGRAM_ERROR' : 'CANDIDATE_TEST_TELEGRAM_ERROR';
 
-    // KV duplicate guard (read-modify-write only on this dedicated key).
+    // KV duplicate guard (read-modify-write only on this dedicated key). Shared across normal + forced modes.
     var ctKv = isPlainObject(resolvedDeps) && hasOwn(resolvedDeps, 'kv') ? resolvedDeps.kv : (env ? env[KV_BINDING_NAME] : null);
     if (!ctKv || typeof ctKv.get !== 'function' || typeof ctKv.put !== 'function') {
       return jsonResponse({ ok: false, status: 'BLOCKED', code: 'PERSISTENCE_UNAVAILABLE', httpStatus: 503 }, 503, true, origin);
@@ -2206,7 +2268,7 @@ async function handleFetch(request, env, ctx, deps) {
     if (guardRead && guardRead.ok === true && isPlainObject(guardRead.value)) {
       var lastSent = guardRead.value.lastSentAt;
       if (typeof lastSent === 'number' && isFinite(lastSent) && (nowMs - lastSent) < CANDIDATE_TEST_GUARD_WINDOW_MS) {
-        return jsonResponse({ ok: false, status: 'BLOCKED', code: 'CANDIDATE_TEST_ALREADY_SENT', httpStatus: 429 }, 429, true, origin);
+        return jsonResponse({ ok: false, status: 'BLOCKED', code: ctAlreadySentCode, httpStatus: 429 }, 429, true, origin);
       }
     }
 
@@ -2219,17 +2281,19 @@ async function handleFetch(request, env, ctx, deps) {
     var ctMessageText = buildCandidateTestMessageText(ctCandidate);
     var ctSendRes = await sendCandidateTestTelegram(ctDeps, env, ctMessageText);
     if (ctSendRes.ok !== true) {
-      return jsonResponse({ ok: false, status: 'ERROR', code: 'CANDIDATE_TEST_TELEGRAM_ERROR', httpStatus: 502 }, 502, true, origin);
+      return jsonResponse({ ok: false, status: 'ERROR', code: ctTelegramErrorCode, httpStatus: 502 }, 502, true, origin);
     }
 
-    // Write duplicate guard immediately after successful send.
+    // Write duplicate guard immediately after successful send. messageType audit included for forced/normal distinction.
     var guardWriteRes = await CanaryStateKvAdapter.putJson(ctKv, CANDIDATE_TEST_GUARD_KEY, {
       schemaVersion: 'v1',
       lastSentAt: nowMs,
-      reason: CANDIDATE_TEST_GUARD_REASON
+      reason: ctForced ? FORCED_CANDIDATE_TEST_GUARD_REASON : CANDIDATE_TEST_GUARD_REASON,
+      messageType: ctForced ? FORCED_CANDIDATE_TEST_MESSAGE_TYPE : CANDIDATE_TEST_MESSAGE_TYPE,
+      market: ctCandidate.market
     });
     var kvWritten = (guardWriteRes && guardWriteRes.ok === true);
-    return jsonResponse(buildCandidateTestResponse(kvWritten), 200, true, origin);
+    return jsonResponse(buildCandidateTestResponse(kvWritten, ctForced), 200, true, origin);
   }
 
   // Fallback — unknown path/method
@@ -2293,6 +2357,12 @@ module.exports = {
   CANDIDATE_TEST_GUARD_REASON: CANDIDATE_TEST_GUARD_REASON,
   CANDIDATE_TEST_GUARD_WINDOW_MS: CANDIDATE_TEST_GUARD_WINDOW_MS,
   LIMITED_LIVE_MODE_STATUS: LIMITED_LIVE_MODE_STATUS,
+  FORCED_CANDIDATE_TEST_MODE: FORCED_CANDIDATE_TEST_MODE,
+  FORCED_CANDIDATE_TEST_MESSAGE_TYPE: FORCED_CANDIDATE_TEST_MESSAGE_TYPE,
+  FORCED_CANDIDATE_TEST_CONFIRM_PHRASE: FORCED_CANDIDATE_TEST_CONFIRM_PHRASE,
+  FORCED_CANDIDATE_TEST_GUARD_REASON: FORCED_CANDIDATE_TEST_GUARD_REASON,
+  FORCED_CANDIDATE_TEST_REASON_MAX_LEN: FORCED_CANDIDATE_TEST_REASON_MAX_LEN,
+  FORCED_CANDIDATE_TEST_REASON_PATTERN: FORCED_CANDIDATE_TEST_REASON_PATTERN,
   validateMultiCandidateDryRunRequest: validateMultiCandidateDryRunRequest,
   runMultiCandidatePipeline: runMultiCandidatePipeline,
   buildMultiCandidateDryRunResponse: buildMultiCandidateDryRunResponse,

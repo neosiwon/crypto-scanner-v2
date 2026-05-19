@@ -342,16 +342,24 @@
 </div>
 
 <div class="section">
-  <h2>9. Candidate TEST_ONLY Telegram Send (v0.29 manual limited validation)</h2>
+  <h2>9. Candidate TEST_ONLY Telegram Send (v0.30 — normal + forced mode)</h2>
   <div class="danger-zone">
     <p class="warn">
       ⚠️ TEST_ONLY 전송. 실제 운영 알람 / 매수 추천 / 수익 보장 아님. 본 버튼은 1건만 발송하고 60s 중복 방지 가드가 동작합니다. server-side `WS3_CANDIDATE_TEST_ENABLED='true'` 필수. confirmPhrase 정확히 일치 + selectedCandidate 선택 필요.
+      <br><strong>FORCED 모드</strong>: isCandidate=false 결과도 강제로 1회 Telegram 경로 검증 가능 — 별도 confirmPhrase + forcedTestReason 필수.
     </p>
     <div class="row">
       <label for="ct_selectedMarket">Selected Candidate (Section 8 결과에서 1건 선택)</label>
       <select id="ct_selectedMarket">
-        <option value="">-- Run Multi-market Dry-run 후 후보 선택 --</option>
+        <option value="">-- Run Multi-market Dry-run 후 결과 선택 --</option>
       </select>
+    </div>
+    <div class="row">
+      <label><input id="ct_forceMode" type="checkbox" autocomplete="off"> Forced Test Mode (isCandidate=false 결과도 강제 전송, 실전 알람 아님)</label>
+    </div>
+    <div class="row" id="ct_forcedReasonWrap" style="display:none;">
+      <label for="ct_forcedReason">Forced Test Reason (예: "telegram path validation", "preamble visual check")</label>
+      <input id="ct_forcedReason" type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" maxlength="128" placeholder="forced test 사유 (영문/숫자/공백/기본 문장부호, 1-128자)">
     </div>
     <div class="row">
       <label for="ct_confirmPhrase">Confirm Phrase</label>
@@ -362,6 +370,7 @@
     </div>
     <div class="row panel">
       <div><span class="k">code:</span> <span id="ct_code" class="v n">-</span></div>
+      <div><span class="k">mode:</span> <span id="ct_o_mode" class="v n">-</span></div>
       <div><span class="k">messageType:</span> <span id="ct_o_messageType" class="v n">-</span></div>
       <div><span class="k">fixedMessageUsed:</span> <span id="ct_o_fixedMessageUsed" class="v n">-</span></div>
       <div><span class="k">telegramSent:</span> <span id="ct_o_telegramSent" class="v n">-</span></div>
@@ -371,7 +380,7 @@
       <div><span class="k">trackingStarted:</span> <span id="ct_o_trackingStarted" class="v n">-</span></div>
     </div>
     <p class="footnote">
-      kvWriteScope=CANDIDATE_TEST_GUARD_ONLY 의미: KV write는 중복 방지 가드 1건만 — candidate 저장 / tracking 시작과 무관. 표시 금지: Telegram message_id / raw response / token / chatId / bot_token / KV namespace ID.
+      kvWriteScope=CANDIDATE_TEST_GUARD_ONLY 의미: KV write는 중복 방지 가드 1건만 — candidate 저장 / tracking 시작과 무관. 표시 금지: Telegram message_id / raw response / token / chatId / bot_token / KV namespace ID. FORCED 모드 응답 시 mode=FORCED_TEST_ONLY / messageType=FORCED_CANDIDATE_TEST_ONLY 로 표시되며, 실전 알람·매수·수익보장과 무관함.
     </p>
   </div>
 </div>
@@ -1108,9 +1117,13 @@
   var mcHistoryEl = document.getElementById('mc_history');
 
   var ctSelectedMarketEl = document.getElementById('ct_selectedMarket');
+  var ctForceModeEl = document.getElementById('ct_forceMode');
+  var ctForcedReasonWrapEl = document.getElementById('ct_forcedReasonWrap');
+  var ctForcedReasonEl = document.getElementById('ct_forcedReason');
   var ctConfirmPhraseEl = document.getElementById('ct_confirmPhrase');
   var ctSendBtn = document.getElementById('ct_sendBtn');
   var ctCodeEl = document.getElementById('ct_code');
+  var ctOModeEl = document.getElementById('ct_o_mode');
   var ctOMessageTypeEl = document.getElementById('ct_o_messageType');
   var ctOFixedMessageUsedEl = document.getElementById('ct_o_fixedMessageUsed');
   var ctOTelegramSentEl = document.getElementById('ct_o_telegramSent');
@@ -1119,7 +1132,9 @@
   var ctOCandidateStoredEl = document.getElementById('ct_o_candidateStored');
   var ctOTrackingStartedEl = document.getElementById('ct_o_trackingStarted');
 
-  var CT_CONFIRM_PHRASE_REQUIRED = 'SEND_WS3_TEST_CANDIDATE';
+  var CT_NORMAL_PHRASE_REQUIRED = 'SEND_WS3_TEST_CANDIDATE';
+  var CT_FORCED_PHRASE_REQUIRED = 'SEND_WS3_FORCED_TEST_CANDIDATE';
+  var CT_FORCED_REASON_PATTERN = /^[A-Za-z0-9 _\-\.\,\:\!\?\(\)\[\]\/]{1,128}$/;
   // Memory-only state. No storage.
   var lastMultiRunResults = [];
   var lastMultiRunReq = null;
@@ -1281,9 +1296,20 @@
     mcHistoryWrap.style.display = multiRunHistory.length > 0 ? 'block' : 'none';
   }
   function refreshCtSendButton() {
+    var forced = !!(ctForceModeEl && ctForceModeEl.checked);
     var hasSel = (typeof ctSelectedMarketEl.value === 'string' && ctSelectedMarketEl.value.length > 0);
-    var phraseOk = (ctConfirmPhraseEl.value === CT_CONFIRM_PHRASE_REQUIRED);
-    ctSendBtn.disabled = !(hasSel && phraseOk);
+    var requiredPhrase = forced ? CT_FORCED_PHRASE_REQUIRED : CT_NORMAL_PHRASE_REQUIRED;
+    var phraseOk = (ctConfirmPhraseEl.value === requiredPhrase);
+    // Update placeholder live for clarity (no value leak).
+    ctConfirmPhraseEl.placeholder = requiredPhrase + ' (byte-for-byte)';
+    var reasonOk = true;
+    if (forced) {
+      var r = (ctForcedReasonEl && typeof ctForcedReasonEl.value === 'string') ? ctForcedReasonEl.value : '';
+      reasonOk = (r.length > 0 && r.length <= 128 && CT_FORCED_REASON_PATTERN.test(r));
+    }
+    if (ctForcedReasonWrapEl) ctForcedReasonWrapEl.style.display = forced ? 'block' : 'none';
+    ctSendBtn.textContent = forced ? 'Send FORCED Candidate TEST_ONLY' : 'Send Candidate TEST_ONLY';
+    ctSendBtn.disabled = !(hasSel && phraseOk && reasonOk);
   }
 
   mcRunBtn.addEventListener('click', function() {
@@ -1355,9 +1381,19 @@
 
   ctSelectedMarketEl.addEventListener('change', refreshCtSendButton);
   ctConfirmPhraseEl.addEventListener('input', refreshCtSendButton);
+  if (ctForceModeEl) {
+    ctForceModeEl.addEventListener('change', function() {
+      // Clear confirmPhrase when toggling mode (require fresh entry to avoid carry-over).
+      ctConfirmPhraseEl.value = '';
+      if (ctForcedReasonEl) ctForcedReasonEl.value = '';
+      refreshCtSendButton();
+    });
+  }
+  if (ctForcedReasonEl) ctForcedReasonEl.addEventListener('input', refreshCtSendButton);
 
   function ctClearOutputs() {
     setStrField(ctCodeEl, null);
+    setStrField(ctOModeEl, null);
     setStrField(ctOMessageTypeEl, null);
     setBoolField(ctOFixedMessageUsedEl, null);
     setBoolField(ctOTelegramSentEl, null);
@@ -1372,16 +1408,30 @@
   }
 
   ctSendBtn.addEventListener('click', function() {
+    var forced = !!(ctForceModeEl && ctForceModeEl.checked);
+    var requiredPhrase = forced ? CT_FORCED_PHRASE_REQUIRED : CT_NORMAL_PHRASE_REQUIRED;
+    var errCodeConfirm = forced ? 'FORCED_CANDIDATE_TEST_CONFIRM_PHRASE_REQUIRED' : 'CANDIDATE_TEST_CONFIRM_PHRASE_REQUIRED';
+    var errCodeNoCandidate = forced ? 'FORCED_CANDIDATE_TEST_INVALID_PAYLOAD' : 'CANDIDATE_TEST_NO_CANDIDATE';
+    var errCodeInvalid = forced ? 'FORCED_CANDIDATE_TEST_INVALID_PAYLOAD' : 'CANDIDATE_TEST_INVALID_PAYLOAD';
+
     var endpoint = safeEndpoint();
     if (!endpoint) { ctSetErrorCode('MISSING_ENDPOINT'); return; }
     var token = readTokenAndClear();
     if (!token) { ctSetErrorCode('MISSING_INVOKE_TOKEN'); return; }
     var phrase = ctConfirmPhraseEl.value;
-    if (phrase !== CT_CONFIRM_PHRASE_REQUIRED) { ctSetErrorCode('CANDIDATE_TEST_CONFIRM_PHRASE_REQUIRED'); return; }
+    if (phrase !== requiredPhrase) { ctSetErrorCode(errCodeConfirm); return; }
     var raw = ctSelectedMarketEl.value;
-    if (!raw) { ctSetErrorCode('CANDIDATE_TEST_NO_CANDIDATE'); return; }
+    if (!raw) { ctSetErrorCode(errCodeNoCandidate); return; }
     var payload;
-    try { payload = JSON.parse(raw); } catch (e) { ctSetErrorCode('CANDIDATE_TEST_INVALID_PAYLOAD'); return; }
+    try { payload = JSON.parse(raw); } catch (e) { ctSetErrorCode(errCodeInvalid); return; }
+    var forcedReasonValue = null;
+    if (forced) {
+      forcedReasonValue = (ctForcedReasonEl && typeof ctForcedReasonEl.value === 'string') ? ctForcedReasonEl.value : '';
+      if (!forcedReasonValue || forcedReasonValue.length > 128 || !CT_FORCED_REASON_PATTERN.test(forcedReasonValue)) {
+        ctSetErrorCode('FORCED_CANDIDATE_TEST_INVALID_PAYLOAD');
+        return;
+      }
+    }
 
     var url = buildUrl(endpoint, '/send-candidate-test');
     if (!url) { ctSetErrorCode('INVALID_ENDPOINT'); return; }
@@ -1391,19 +1441,27 @@
     ctSendBtn.disabled = true;
     setTimeout(refreshCtSendButton, 1500);
 
-    postJson(url, token, {
+    var reqBody = {
       manualTrigger: true,
       confirmPhrase: phrase,
       selectedCandidate: payload
-    }).then(function(resp) {
-      // Clear confirm phrase + selection right after submission.
+    };
+    if (forced) {
+      reqBody.forceTestCandidate = true;
+      reqBody.forcedTestReason = forcedReasonValue;
+    }
+
+    postJson(url, token, reqBody).then(function(resp) {
+      // Clear confirm phrase + selection + forced reason right after submission.
       ctConfirmPhraseEl.value = '';
       ctSelectedMarketEl.value = '';
+      if (ctForcedReasonEl) ctForcedReasonEl.value = '';
       return resp.json().then(function(body) { return { resp: resp, body: body }; });
     }).then(function(r) {
       var b = (r && r.body) ? r.body : {};
       var s = (typeof b.status === 'string') ? b.status : 'ERROR';
       setStrField(ctCodeEl, (typeof b.code === 'string') ? b.code : null);
+      setStrField(ctOModeEl, (typeof b.mode === 'string') ? b.mode : null);
       setStrField(ctOMessageTypeEl, (typeof b.messageType === 'string') ? b.messageType : null);
       setBoolField(ctOFixedMessageUsedEl, typeof b.fixedMessageUsed === 'boolean' ? b.fixedMessageUsed : null);
       var saf = (b && typeof b === 'object' && b.safety && typeof b.safety === 'object') ? b.safety : null;
@@ -1415,6 +1473,7 @@
       setStatus(s);
     }).catch(function() {
       ctConfirmPhraseEl.value = '';
+      if (ctForcedReasonEl) ctForcedReasonEl.value = '';
       ctSetErrorCode('NETWORK_ERROR');
     });
   });
