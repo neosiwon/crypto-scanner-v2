@@ -58,7 +58,7 @@ var TelegramCanarySender = require('../v3/v3-telegram-canary-sender.js');
 var CanaryStateKvAdapter = require('./ws3-canary-state-kv-adapter.js');
 
 // §constants ───────────────────────────────────────────────────────────
-var VERSION = 'WS3_v0.30.0_forced_candidate_test_telegram';
+var VERSION = 'WS3_v0.31.0_web_first_minimum_operator_mode';
 var SERVICE = 'WS3_CANARY_WEB_MVP';
 var STATUS_READY_CODE = 'CANARY_READY';
 var MAX_BODY_BYTES = 1024;
@@ -124,6 +124,17 @@ var FORCED_CANDIDATE_TEST_CONFIRM_PHRASE = 'SEND_WS3_FORCED_TEST_CANDIDATE';
 var FORCED_CANDIDATE_TEST_GUARD_REASON = 'FORCED_CANDIDATE_TEST_SENT';
 var FORCED_CANDIDATE_TEST_REASON_MAX_LEN = 128;
 var FORCED_CANDIDATE_TEST_REASON_PATTERN = /^[A-Za-z0-9 _\-\.\,\:\!\?\(\)\[\]\/]{1,128}$/;
+
+// v0.31 — Web-first Minimum Operator Mode (LIMITED LIVE / OPERATOR REVIEW)
+//   Operator-review flag on multi-candidate results + dedicated /send-limited-live-alert endpoint.
+//   Separate enable env (WS3_LIMITED_LIVE_ENABLED) + separate confirmPhrase + per-(market,timeframe) KV guard.
+//   NO Cron / NO auto Telegram / NO candidate store / NO tracking start.
+var LIMITED_LIVE_MODE = 'LIMITED_LIVE_OPERATOR_REVIEW';
+var LIMITED_LIVE_MESSAGE_TYPE = 'LIMITED_LIVE_OPERATOR_REVIEW';
+var LIMITED_LIVE_CONFIRM_PHRASE = 'SEND_WS3_LIMITED_LIVE_REVIEW';
+var LIMITED_LIVE_GUARD_KEY_PREFIX = 'ws3:canary:limitedLiveAlertSent:';
+var LIMITED_LIVE_GUARD_REASON = 'LIMITED_LIVE_REVIEW_SENT';
+var LIMITED_LIVE_GUARD_WINDOW_MS = 60 * 1000; // 60s per-(market,timeframe) cooldown
 
 // §per-process state (Cloudflare isolate cold-start 시 초기화 — best effort)
 var CANARY_PROCESS_STATE = {
@@ -947,8 +958,55 @@ function validateMultiCandidateDryRunRequest(body) {
   };
 }
 
+// v0.31 — Operator Review flag classifier (separate from isCandidate)
+// Returns { operatorReview: bool, operatorReviewLevel: 'HOT_REVIEW'|'WATCH_REVIEW'|'LOW_SIGNAL', operatorReviewReason: [...] }
+function classifyOperatorReview(score, grade, reasonChips, features) {
+  var chipSet = {};
+  if (Array.isArray(reasonChips)) {
+    for (var i = 0; i < reasonChips.length; i++) chipSet[reasonChips[i]] = true;
+  }
+  var hasVolumeSurge = chipSet['VOLUME_SURGE'] === true;
+  var hasHighClose = chipSet['HIGH_CLOSE_POSITION'] === true;
+  var hasShortMomentum = chipSet['SHORT_MOMENTUM'] === true;
+  var hasPositiveChange = chipSet['POSITIVE_CHANGE'] === true;
+  var volumeRatio = (features && typeof features.volumeRatio === 'number' && isFinite(features.volumeRatio)) ? features.volumeRatio : 0;
+  var closePosition = (features && typeof features.closePosition === 'number' && isFinite(features.closePosition)) ? features.closePosition : 0;
+  var changePct = (features && typeof features.changePct === 'number' && isFinite(features.changePct)) ? features.changePct : 0;
+
+  var reasons = [];
+  if (typeof score === 'number' && score >= 20) reasons.push('SCORE_GE_20');
+  if (grade === 'P-S' || grade === 'P-A' || grade === 'P-B') reasons.push('GRADE_GE_PB');
+  if (hasVolumeSurge) reasons.push('VOLUME_SURGE_CHIP');
+  if (hasHighClose && changePct > 0) reasons.push('HIGH_CLOSE_WITH_POSITIVE_CHANGE');
+  if (volumeRatio >= 1.2 && closePosition >= 0.6) reasons.push('VOLUME_RATIO_GE_1_2_CLOSE_POS_GE_0_6');
+  if (hasShortMomentum) reasons.push('SHORT_MOMENTUM_CHIP');
+  if (hasPositiveChange) reasons.push('POSITIVE_CHANGE_CHIP');
+
+  var operatorReview = reasons.length > 0;
+  // Level priority: HOT_REVIEW > WATCH_REVIEW > LOW_SIGNAL
+  var level = 'LOW_SIGNAL';
+  if ((typeof score === 'number' && score >= 45) || grade === 'P-S' || grade === 'P-A' || grade === 'P-B') {
+    level = 'HOT_REVIEW';
+  } else if (operatorReview) {
+    level = 'WATCH_REVIEW';
+  }
+  if (reasons.length > 4) reasons = reasons.slice(0, 4);
+  return {
+    operatorReview: operatorReview,
+    operatorReviewLevel: level,
+    operatorReviewReason: operatorReview ? reasons : []
+  };
+}
+
+function operatorReviewLevelPriority(level) {
+  if (level === 'HOT_REVIEW') return 0;
+  if (level === 'WATCH_REVIEW') return 1;
+  return 2;
+}
+
 // Run multi-market pipeline. Returns { results: [...], partial: bool }.
 // NO KV / NO Telegram. Reuses buildLivePreflightUrl + fetchLiveCandles + normalizeCandles + v0.28 feature/score helpers.
+// v0.31: each ok result now includes operatorReview / operatorReviewLevel / operatorReviewReason.
 async function runMultiCandidatePipeline(deps, req) {
   var exchange = req.exchange;
   var timeframe = req.timeframe;
@@ -999,6 +1057,11 @@ async function runMultiCandidatePipeline(deps, req) {
             return { ok: false, market: market, code: 'CANDIDATE_DRY_RUN_FEATURE_ERROR' };
           }
           var grade = classifyCandidateDryRunGrade(scoreResult.score);
+          var review = classifyOperatorReview(scoreResult.score, grade, scoreResult.reasonChips, {
+            volumeRatio: vf.volumeRatio,
+            closePosition: sf.closePosition,
+            changePct: sf.changePct
+          });
           return {
             ok: true,
             market: market,
@@ -1006,6 +1069,9 @@ async function runMultiCandidatePipeline(deps, req) {
             grade: grade,
             reasonChips: scoreResult.reasonChips,
             isCandidate: (grade === 'P-S' || grade === 'P-A'),
+            operatorReview: review.operatorReview,
+            operatorReviewLevel: review.operatorReviewLevel,
+            operatorReviewReason: review.operatorReviewReason,
             changePct: sf.changePct,
             volumeRatio: vf.volumeRatio,
             volumeAccel: vf.volumeAccel,
@@ -1035,11 +1101,18 @@ async function runMultiCandidatePipeline(deps, req) {
     if (raw[j].ok === true) ok.push(raw[j]);
     else failed.push(raw[j]);
   }
+  // v0.31: sort by operatorReviewLevel priority first, then score desc, then volumeRatio desc, then closePosition desc.
   ok.sort(function(a, b) {
+    var pa = operatorReviewLevelPriority(a.operatorReviewLevel);
+    var pb = operatorReviewLevelPriority(b.operatorReviewLevel);
+    if (pa !== pb) return pa - pb;
     if (b.score !== a.score) return b.score - a.score;
     var va = (typeof a.volumeRatio === 'number') ? a.volumeRatio : 0;
     var vb = (typeof b.volumeRatio === 'number') ? b.volumeRatio : 0;
-    return vb - va;
+    if (vb !== va) return vb - va;
+    var cpa = (typeof a.closePosition === 'number') ? a.closePosition : 0;
+    var cpb = (typeof b.closePosition === 'number') ? b.closePosition : 0;
+    return cpb - cpa;
   });
 
   var allResults = [];
@@ -1050,6 +1123,9 @@ async function runMultiCandidatePipeline(deps, req) {
       score: ok[k].score,
       grade: ok[k].grade,
       isCandidate: ok[k].isCandidate,
+      operatorReview: ok[k].operatorReview,
+      operatorReviewLevel: ok[k].operatorReviewLevel,
+      operatorReviewReason: ok[k].operatorReviewReason,
       reasonChips: ok[k].reasonChips,
       changePct: ok[k].changePct,
       volumeRatio: ok[k].volumeRatio,
@@ -1087,7 +1163,21 @@ function countCandidates(results) {
   return n;
 }
 
+// v0.31 — counts for operator review breakdown.
+function countOperatorReviewByLevel(results) {
+  var counts = { HOT_REVIEW: 0, WATCH_REVIEW: 0, LOW_SIGNAL: 0 };
+  for (var i = 0; i < results.length; i++) {
+    if (results[i].ok !== true) continue;
+    var lvl = results[i].operatorReviewLevel;
+    if (lvl === 'HOT_REVIEW') counts.HOT_REVIEW++;
+    else if (lvl === 'WATCH_REVIEW') counts.WATCH_REVIEW++;
+    else counts.LOW_SIGNAL++;
+  }
+  return counts;
+}
+
 function buildMultiCandidateDryRunResponse(req, pipelineResult) {
+  var orCounts = countOperatorReviewByLevel(pipelineResult.results);
   return {
     ok: true,
     status: 'OK',
@@ -1102,6 +1192,7 @@ function buildMultiCandidateDryRunResponse(req, pipelineResult) {
     okCount: pipelineResult.okCount,
     failCount: pipelineResult.failCount,
     candidateCount: countCandidates(pipelineResult.results),
+    operatorReviewCounts: orCounts,
     results: pipelineResult.results,
     safety: {
       telegramSent: false,
@@ -1309,6 +1400,182 @@ function buildCandidateTestResponse(kvWritten, forced) {
   };
 }
 
+// §v0.31 Limited Live Operator Review helpers ──────────────────────────
+// /send-limited-live-alert: operator-selected candidate (isCandidate OR operatorReview)
+// 1회 LIMITED_LIVE_OPERATOR_REVIEW Telegram 발송. KV guard per-(market,timeframe).
+
+function buildLimitedLiveGuardKey(market, timeframe) {
+  // market: ^[A-Za-z0-9_\-]{2,32}$ (validated upstream)
+  // timeframe: allowlist (validated upstream)
+  return LIMITED_LIVE_GUARD_KEY_PREFIX + market + ':' + timeframe;
+}
+
+function validateLimitedLiveAlertRequest(body) {
+  if (!isPlainObject(body)) {
+    return { ok: false, code: 'INVALID_JSON', httpStatus: 400 };
+  }
+  if (body.manualTrigger !== true) {
+    return { ok: false, code: 'MANUAL_TRIGGER_REQUIRED', httpStatus: 400 };
+  }
+  if (typeof body.confirmPhrase !== 'string' || body.confirmPhrase !== LIMITED_LIVE_CONFIRM_PHRASE) {
+    return { ok: false, code: 'LIMITED_LIVE_CONFIRM_PHRASE_REQUIRED', httpStatus: 403 };
+  }
+  var c = body.selectedCandidate;
+  if (!isPlainObject(c)) {
+    return { ok: false, code: 'LIMITED_LIVE_INVALID_PAYLOAD', httpStatus: 400 };
+  }
+  if (typeof c.source !== 'string' || c.source !== 'multi-candidate-dry-run') {
+    return { ok: false, code: 'LIMITED_LIVE_INVALID_PAYLOAD', httpStatus: 400 };
+  }
+  if (typeof c.exchange !== 'string' || indexOfString(LIVE_PREFLIGHT_ALLOWED_EXCHANGES, c.exchange.toLowerCase()) === -1) {
+    return { ok: false, code: 'LIMITED_LIVE_INVALID_PAYLOAD', httpStatus: 400 };
+  }
+  if (typeof c.market !== 'string' || !LIVE_PREFLIGHT_MARKET_PATTERN.test(c.market)) {
+    return { ok: false, code: 'LIMITED_LIVE_INVALID_PAYLOAD', httpStatus: 400 };
+  }
+  if (typeof c.timeframe !== 'string' || indexOfString(LIVE_PREFLIGHT_ALLOWED_TIMEFRAMES, c.timeframe) === -1) {
+    return { ok: false, code: 'LIMITED_LIVE_INVALID_PAYLOAD', httpStatus: 400 };
+  }
+  if (typeof c.score !== 'number' || !isFinite(c.score) || c.score < 0 || c.score > 100) {
+    return { ok: false, code: 'LIMITED_LIVE_INVALID_PAYLOAD', httpStatus: 400 };
+  }
+  if (typeof c.grade !== 'string' || (c.grade !== 'P-S' && c.grade !== 'P-A' && c.grade !== 'P-B' && c.grade !== 'P-C')) {
+    return { ok: false, code: 'LIMITED_LIVE_INVALID_PAYLOAD', httpStatus: 400 };
+  }
+  // Eligibility: isCandidate OR (operatorReview AND allowOperatorReviewSend === true)
+  var isCandidate = (c.isCandidate === true);
+  var operatorReview = (c.operatorReview === true);
+  var allowOR = (body.allowOperatorReviewSend === true);
+  if (!isCandidate && !(operatorReview && allowOR)) {
+    return { ok: false, code: 'LIMITED_LIVE_INVALID_PAYLOAD', httpStatus: 400 };
+  }
+  var operatorReviewLevel = (typeof c.operatorReviewLevel === 'string')
+    ? c.operatorReviewLevel : 'LOW_SIGNAL';
+  var safeChips = [];
+  if (Array.isArray(c.reasonChips)) {
+    for (var i = 0; i < c.reasonChips.length && i < CANDIDATE_DRY_RUN_REASON_CHIP_MAX; i++) {
+      var ch = c.reasonChips[i];
+      if (typeof ch === 'string' && ch.length > 0 && ch.length < 64 && /^[A-Z_]+$/.test(ch)) {
+        safeChips.push(ch);
+      }
+    }
+  }
+  return {
+    ok: true,
+    normalized: {
+      exchange: c.exchange.toLowerCase(),
+      market: c.market,
+      timeframe: c.timeframe,
+      score: c.score,
+      grade: c.grade,
+      isCandidate: isCandidate,
+      operatorReview: operatorReview,
+      operatorReviewLevel: operatorReviewLevel,
+      reasonChips: safeChips
+    }
+  };
+}
+
+function buildLimitedLiveAlertMessageText(c) {
+  // Fixed safety preamble for LIMITED LIVE / OPERATOR REVIEW.
+  // NO raw exchange data / NO price / NO embedded urls / tokens.
+  var chipsLine = (c.reasonChips.length > 0) ? c.reasonChips.join(', ') : '-';
+  return [
+    '[WOOS WS3 LIMITED LIVE / OPERATOR REVIEW]',
+    '자동 매수/매도 추천 아님',
+    '운영자 검토 필요',
+    'Manual operator review only.',
+    'This is not a live trading alert.',
+    '',
+    'Market: ' + c.market,
+    'Exchange: ' + c.exchange,
+    'Timeframe: ' + c.timeframe,
+    'Score: ' + c.score,
+    'Grade: ' + c.grade,
+    'Operator review level: ' + c.operatorReviewLevel,
+    'isCandidate: ' + (c.isCandidate === true),
+    'Reason chips: ' + chipsLine,
+    'candidateStored: false',
+    'trackingStarted: false'
+  ].join('\n');
+}
+
+async function sendLimitedLiveAlertTelegram(deps, env, text) {
+  if (typeof env.WS3_TELEGRAM_BOT_TOKEN !== 'string' || env.WS3_TELEGRAM_BOT_TOKEN.length === 0) {
+    return { ok: false, code: 'LIMITED_LIVE_TELEGRAM_ERROR' };
+  }
+  if (typeof env.WS3_TELEGRAM_CHAT_ID !== 'string' || env.WS3_TELEGRAM_CHAT_ID.length === 0) {
+    return { ok: false, code: 'LIMITED_LIVE_TELEGRAM_ERROR' };
+  }
+  if (!deps || typeof deps.fetchImpl !== 'function') {
+    return { ok: false, code: 'LIMITED_LIVE_TELEGRAM_ERROR' };
+  }
+  var url = 'https://api.telegram.org/bot' + env.WS3_TELEGRAM_BOT_TOKEN + '/sendMessage';
+  var payload = {
+    chat_id: env.WS3_TELEGRAM_CHAT_ID,
+    text: text,
+    disable_web_page_preview: true,
+    disable_notification: false
+  };
+  var controller = null;
+  if (typeof deps.AbortControllerImpl === 'function') {
+    try { controller = deps.AbortControllerImpl(); } catch (e) { controller = null; }
+  }
+  var timer = null;
+  if (controller && typeof deps.setTimeoutImpl === 'function' && typeof deps.clearTimeoutImpl === 'function') {
+    timer = deps.setTimeoutImpl(function() {
+      try { controller.abort(); } catch (e) {}
+    }, LIVE_PREFLIGHT_FETCH_TIMEOUT_MS);
+  }
+  var resp;
+  try {
+    var opts = {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    };
+    if (controller) opts.signal = controller.signal;
+    resp = await deps.fetchImpl(url, opts);
+  } catch (e) {
+    if (timer && typeof deps.clearTimeoutImpl === 'function') {
+      try { deps.clearTimeoutImpl(timer); } catch (e2) {}
+    }
+    return { ok: false, code: 'LIMITED_LIVE_TELEGRAM_ERROR' };
+  }
+  if (timer && typeof deps.clearTimeoutImpl === 'function') {
+    try { deps.clearTimeoutImpl(timer); } catch (e3) {}
+  }
+  if (!resp || typeof resp.status !== 'number') {
+    return { ok: false, code: 'LIMITED_LIVE_TELEGRAM_ERROR' };
+  }
+  if (resp.status < 200 || resp.status >= 300) {
+    return { ok: false, code: 'LIMITED_LIVE_TELEGRAM_ERROR' };
+  }
+  // Discard raw Telegram response body — never echo message_id / chat / from.
+  try { await resp.text(); } catch (e4) {}
+  return { ok: true };
+}
+
+function buildLimitedLiveAlertResponse(kvWritten) {
+  return {
+    ok: true,
+    status: 'OK',
+    code: 'LIMITED_LIVE_REVIEW_SENT',
+    httpStatus: 200,
+    version: VERSION,
+    mode: LIMITED_LIVE_MODE,
+    messageType: LIMITED_LIVE_MESSAGE_TYPE,
+    fixedMessageUsed: true,
+    safety: {
+      telegramSent: true,
+      kvWritten: (kvWritten === true),
+      kvWriteScope: 'LIMITED_LIVE_GUARD_ONLY',
+      candidateStored: false,
+      trackingStarted: false
+    }
+  };
+}
+
 // §main entry ──────────────────────────────────────────────────────────
 
 async function handleFetch(request, env, ctx, deps) {
@@ -1333,7 +1600,7 @@ async function handleFetch(request, env, ctx, deps) {
 
   // OPTIONS preflight
   if (method === 'OPTIONS') {
-    if (path !== '/health' && path !== '/send-canary' && path !== '/state' && path !== '/cleanup-confirm' && path !== '/operator-reset' && path !== '/live-preflight' && path !== '/candidate-dry-run' && path !== '/multi-candidate-dry-run' && path !== '/send-candidate-test') {
+    if (path !== '/health' && path !== '/send-canary' && path !== '/state' && path !== '/cleanup-confirm' && path !== '/operator-reset' && path !== '/live-preflight' && path !== '/candidate-dry-run' && path !== '/multi-candidate-dry-run' && path !== '/send-candidate-test' && path !== '/send-limited-live-alert') {
       return jsonResponse({ ok: false, status: 'ERROR', code: 'METHOD_NOT_ALLOWED', httpStatus: 405 }, 405, false, null);
     }
     if (!origin) {
@@ -2296,6 +2563,103 @@ async function handleFetch(request, env, ctx, deps) {
     return jsonResponse(buildCandidateTestResponse(kvWritten, ctForced), 200, true, origin);
   }
 
+  // POST /send-limited-live-alert  (v0.31 — LIMITED LIVE / OPERATOR REVIEW Telegram 1회 발송; per-(market,timeframe) KV guard 만)
+  if (path === '/send-limited-live-alert' && method === 'POST') {
+    if (!origin) {
+      return jsonResponse({ ok: false, status: 'BLOCKED', code: 'ORIGIN_MISSING', httpStatus: 403 }, 403, false, null);
+    }
+    if (!allowed) {
+      return jsonResponse({ ok: false, status: 'BLOCKED', code: 'ORIGIN_NOT_ALLOWED', httpStatus: 403 }, 403, false, null);
+    }
+    var llToken = request.headers.get('X-WS3-Canary-Token');
+    if (typeof llToken !== 'string' || llToken.length === 0) {
+      return jsonResponse({ ok: false, status: 'BLOCKED', code: 'MISSING_INVOKE_TOKEN', httpStatus: 401 }, 401, true, origin);
+    }
+    if (typeof env.WS3_CANARY_INVOKE_TOKEN !== 'string' || env.WS3_CANARY_INVOKE_TOKEN.length === 0) {
+      return jsonResponse({ ok: false, status: 'BLOCKED', code: 'MISSING_INVOKE_TOKEN', httpStatus: 503 }, 503, true, origin);
+    }
+    if (llToken !== env.WS3_CANARY_INVOKE_TOKEN) {
+      return jsonResponse({ ok: false, status: 'BLOCKED', code: 'INVOKE_TOKEN_MISMATCH', httpStatus: 403 }, 403, true, origin);
+    }
+
+    var llEnabled = (typeof env.WS3_LIMITED_LIVE_ENABLED === 'string' && env.WS3_LIMITED_LIVE_ENABLED === 'true');
+
+    var llCt = request.headers.get('Content-Type');
+    if (typeof llCt !== 'string' || llCt.toLowerCase().indexOf('application/json') === -1) {
+      return jsonResponse({ ok: false, status: 'BLOCKED', code: 'UNSUPPORTED_MEDIA_TYPE', httpStatus: 415 }, 415, true, origin);
+    }
+    var llCl = request.headers.get('Content-Length');
+    if (typeof llCl === 'string' && llCl.length > 0) {
+      var llN = parseInt(llCl, 10);
+      if (isFinite(llN) && llN > MAX_BODY_BYTES * 2) {
+        return jsonResponse({ ok: false, status: 'BLOCKED', code: 'PAYLOAD_TOO_LARGE', httpStatus: 413 }, 413, true, origin);
+      }
+    }
+    var llBodyText = '';
+    try { llBodyText = await request.text(); } catch (e) {
+      return jsonResponse({ ok: false, status: 'ERROR', code: 'INVALID_JSON', httpStatus: 400 }, 400, true, origin);
+    }
+    if (typeof llBodyText === 'string' && llBodyText.length > MAX_BODY_BYTES * 2) {
+      return jsonResponse({ ok: false, status: 'BLOCKED', code: 'PAYLOAD_TOO_LARGE', httpStatus: 413 }, 413, true, origin);
+    }
+    var llBody;
+    try { llBody = JSON.parse(llBodyText); } catch (e) {
+      return jsonResponse({ ok: false, status: 'ERROR', code: 'INVALID_JSON', httpStatus: 400 }, 400, true, origin);
+    }
+
+    // Disabled gate (after parse so error code is consistent).
+    if (!llEnabled) {
+      return jsonResponse({ ok: false, status: 'BLOCKED', code: 'LIMITED_LIVE_DISABLED', httpStatus: 503 }, 503, true, origin);
+    }
+
+    var llValidate = validateLimitedLiveAlertRequest(llBody);
+    if (llValidate.ok !== true) {
+      return jsonResponse({ ok: false, status: 'BLOCKED', code: llValidate.code, httpStatus: llValidate.httpStatus }, llValidate.httpStatus, true, origin);
+    }
+    var llCandidate = llValidate.normalized;
+
+    // KV duplicate guard (per-(market,timeframe) key, 60s window).
+    var llKv = isPlainObject(resolvedDeps) && hasOwn(resolvedDeps, 'kv') ? resolvedDeps.kv : (env ? env[KV_BINDING_NAME] : null);
+    if (!llKv || typeof llKv.get !== 'function' || typeof llKv.put !== 'function') {
+      return jsonResponse({ ok: false, status: 'BLOCKED', code: 'PERSISTENCE_UNAVAILABLE', httpStatus: 503 }, 503, true, origin);
+    }
+    var llGuardKey = buildLimitedLiveGuardKey(llCandidate.market, llCandidate.timeframe);
+    var llGuardRead = await CanaryStateKvAdapter.getJson(llKv, llGuardKey);
+    if (llGuardRead && llGuardRead.ok === true && isPlainObject(llGuardRead.value)) {
+      var llLastSent = llGuardRead.value.lastSentAt;
+      if (typeof llLastSent === 'number' && isFinite(llLastSent) && (nowMs - llLastSent) < LIMITED_LIVE_GUARD_WINDOW_MS) {
+        return jsonResponse({ ok: false, status: 'BLOCKED', code: 'LIMITED_LIVE_ALREADY_SENT', httpStatus: 429 }, 429, true, origin);
+      }
+    }
+
+    var llDepsRes = buildWorkerRuntimeDeps(resolvedDeps, nowMs, state);
+    if (llDepsRes.ok !== true) {
+      return jsonResponse({ ok: false, status: 'ERROR', code: 'UNKNOWN_ERROR', httpStatus: 500 }, 500, true, origin);
+    }
+    var llDeps = llDepsRes.deps;
+
+    var llMessageText = buildLimitedLiveAlertMessageText(llCandidate);
+    var llSendRes = await sendLimitedLiveAlertTelegram(llDeps, env, llMessageText);
+    if (llSendRes.ok !== true) {
+      return jsonResponse({ ok: false, status: 'ERROR', code: 'LIMITED_LIVE_TELEGRAM_ERROR', httpStatus: 502 }, 502, true, origin);
+    }
+
+    // Write per-(market,timeframe) guard. messageType + market + timeframe audit included.
+    var llGuardWriteRes = await CanaryStateKvAdapter.putJson(llKv, llGuardKey, {
+      schemaVersion: 'v1',
+      lastSentAt: nowMs,
+      reason: LIMITED_LIVE_GUARD_REASON,
+      messageType: LIMITED_LIVE_MESSAGE_TYPE,
+      market: llCandidate.market,
+      timeframe: llCandidate.timeframe,
+      score: llCandidate.score,
+      grade: llCandidate.grade,
+      operatorReviewLevel: llCandidate.operatorReviewLevel
+    });
+    var llKvWritten = (llGuardWriteRes && llGuardWriteRes.ok === true);
+    return jsonResponse(buildLimitedLiveAlertResponse(llKvWritten), 200, true, origin);
+  }
+
   // Fallback — unknown path/method
   return jsonResponse({ ok: false, status: 'ERROR', code: 'METHOD_NOT_ALLOWED', httpStatus: 405 }, 405, allowed === true, origin);
 }
@@ -2363,6 +2727,20 @@ module.exports = {
   FORCED_CANDIDATE_TEST_GUARD_REASON: FORCED_CANDIDATE_TEST_GUARD_REASON,
   FORCED_CANDIDATE_TEST_REASON_MAX_LEN: FORCED_CANDIDATE_TEST_REASON_MAX_LEN,
   FORCED_CANDIDATE_TEST_REASON_PATTERN: FORCED_CANDIDATE_TEST_REASON_PATTERN,
+  LIMITED_LIVE_MODE: LIMITED_LIVE_MODE,
+  LIMITED_LIVE_MESSAGE_TYPE: LIMITED_LIVE_MESSAGE_TYPE,
+  LIMITED_LIVE_CONFIRM_PHRASE: LIMITED_LIVE_CONFIRM_PHRASE,
+  LIMITED_LIVE_GUARD_KEY_PREFIX: LIMITED_LIVE_GUARD_KEY_PREFIX,
+  LIMITED_LIVE_GUARD_REASON: LIMITED_LIVE_GUARD_REASON,
+  LIMITED_LIVE_GUARD_WINDOW_MS: LIMITED_LIVE_GUARD_WINDOW_MS,
+  classifyOperatorReview: classifyOperatorReview,
+  operatorReviewLevelPriority: operatorReviewLevelPriority,
+  countOperatorReviewByLevel: countOperatorReviewByLevel,
+  buildLimitedLiveGuardKey: buildLimitedLiveGuardKey,
+  validateLimitedLiveAlertRequest: validateLimitedLiveAlertRequest,
+  buildLimitedLiveAlertMessageText: buildLimitedLiveAlertMessageText,
+  sendLimitedLiveAlertTelegram: sendLimitedLiveAlertTelegram,
+  buildLimitedLiveAlertResponse: buildLimitedLiveAlertResponse,
   validateMultiCandidateDryRunRequest: validateMultiCandidateDryRunRequest,
   runMultiCandidatePipeline: runMultiCandidatePipeline,
   buildMultiCandidateDryRunResponse: buildMultiCandidateDryRunResponse,

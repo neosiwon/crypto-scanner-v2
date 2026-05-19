@@ -299,6 +299,10 @@
   <div class="row">
     <label for="mc_markets">Markets (콤마 또는 줄바꿈, 최대 10)</label>
     <textarea id="mc_markets" rows="4" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" style="width:100%; min-height:88px; padding:10px; font-family:ui-monospace, SFMono-Regular, monospace; font-size:13px; border:1px solid #ccc; border-radius:4px; box-sizing:border-box;">KRW-BTC,KRW-ETH,KRW-XRP,KRW-SOL,KRW-DOGE,KRW-ADA,KRW-AVAX,KRW-LINK,KRW-NEAR,KRW-SEI</textarea>
+    <div style="margin-top:6px;">
+      <button id="mc_loadPreset40Btn" class="controlled" type="button" style="min-width:auto; padding:6px 12px; font-size:12px;">Load 40-market Upbit preset</button>
+      <span style="font-size:11px; color:#666; margin-left:8px;">(Section 11 Operator Review 용)</span>
+    </div>
   </div>
   <div class="row">
     <label for="mc_timeframe">Timeframe</label>
@@ -398,6 +402,54 @@
     활성화 조건 (모두 충족 시 별도 사용자 명시 승인 + 별도 Gate 진행):<br>
     1) multi-market dry-run 안정 / 2) candidate test telegram 1회 성공 / 3) duplicate guard 검증 / 4) security 재검토 / 5) 사용자 명시 승인. 본 단계에서 자동 활성화 0건.
   </p>
+</div>
+
+<div class="section">
+  <h2>11. Minimum Operator Mode (v0.31 LIMITED LIVE / OPERATOR REVIEW)</h2>
+  <div class="danger-zone">
+    <p class="warn">
+      ⚠️ LIMITED LIVE / OPERATOR REVIEW. <strong>자동 매수/매도 추천 아님 · 운영자 검토 필요 · Manual operator review only.</strong>
+      server-side `WS3_LIMITED_LIVE_ENABLED='true'` 필수 + confirmPhrase = `SEND_WS3_LIMITED_LIVE_REVIEW` + Section 8 결과 카드 선택 필요.
+      KV write scope = `LIMITED_LIVE_GUARD_ONLY` (per-market+timeframe 60s 가드 만, candidate 저장 / tracking 0건).
+    </p>
+    <div class="row panel">
+      <div><span class="k">Limited Live Mode:</span> <span class="v f">DISABLED until env enable</span></div>
+      <div><span class="k">Manual operator only:</span> <span class="v">true</span></div>
+      <div><span class="k">Cron:</span> <span class="v">none</span></div>
+      <div><span class="k">Auto Telegram:</span> <span class="v">none</span></div>
+      <div><span class="k">Tracking:</span> <span class="v">none</span></div>
+    </div>
+    <div class="row">
+      <label for="ll_selectedCard">Selected Operator Review Card (Section 8 결과에서 1건)</label>
+      <select id="ll_selectedCard">
+        <option value="">-- Run Multi-market Dry-run 후 카드 선택 (HOT_REVIEW / WATCH_REVIEW / isCandidate=true 권장) --</option>
+      </select>
+    </div>
+    <div class="row">
+      <label><input id="ll_allowOR" type="checkbox" autocomplete="off"> Allow Operator Review send (isCandidate=false 카드도 LIMITED LIVE / OPERATOR REVIEW 라벨로 전송 허용)</label>
+    </div>
+    <div class="row">
+      <label for="ll_confirmPhrase">Confirm Phrase</label>
+      <input id="ll_confirmPhrase" type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="SEND_WS3_LIMITED_LIVE_REVIEW (byte-for-byte)">
+    </div>
+    <div class="row">
+      <button id="ll_sendBtn" class="danger" type="button" disabled>Send LIMITED LIVE / OPERATOR REVIEW</button>
+    </div>
+    <div class="row panel">
+      <div><span class="k">code:</span> <span id="ll_code" class="v n">-</span></div>
+      <div><span class="k">mode:</span> <span id="ll_o_mode" class="v n">-</span></div>
+      <div><span class="k">messageType:</span> <span id="ll_o_messageType" class="v n">-</span></div>
+      <div><span class="k">fixedMessageUsed:</span> <span id="ll_o_fixedMessageUsed" class="v n">-</span></div>
+      <div><span class="k">telegramSent:</span> <span id="ll_o_telegramSent" class="v n">-</span></div>
+      <div><span class="k">kvWritten:</span> <span id="ll_o_kvWritten" class="v n">-</span></div>
+      <div><span class="k">kvWriteScope:</span> <span id="ll_o_kvWriteScope" class="v n">-</span></div>
+      <div><span class="k">candidateStored:</span> <span id="ll_o_candidateStored" class="v n">-</span></div>
+      <div><span class="k">trackingStarted:</span> <span id="ll_o_trackingStarted" class="v n">-</span></div>
+    </div>
+    <p class="footnote">
+      kvWriteScope=LIMITED_LIVE_GUARD_ONLY 의미: per-market+timeframe 60s 가드 1건만 — candidate 저장 / tracking 시작과 무관. 표시 금지: Telegram message_id / raw response / token / chatId / bot_token / KV namespace ID. 자동 매수/매도 추천 / 진입 추천 / 수익 보장 / LIVE BUY 문구 0건.
+    </p>
+  </div>
 </div>
 
 </main>
@@ -1202,13 +1254,22 @@
         : (r.grade === 'P-A') ? '#262'
         : (r.grade === 'P-B') ? '#553'
         : '#802';
+      var orLevel = (typeof r.operatorReviewLevel === 'string') ? r.operatorReviewLevel : 'LOW_SIGNAL';
+      var orColor = (orLevel === 'HOT_REVIEW') ? '#a00'
+        : (orLevel === 'WATCH_REVIEW') ? '#a60'
+        : '#888';
+      var orBg = (orLevel === 'HOT_REVIEW') ? '#fee'
+        : (orLevel === 'WATCH_REVIEW') ? '#ffe'
+        : '#f0f0f0';
       rows.push(
         '<div style="padding:6px 4px; border-bottom:1px solid #eee;">'
         + '<div><span style="font-weight:600;">#' + r.rank + '</span> '
         + '<span style="font-family:ui-monospace, SFMono-Regular, monospace;">' + mcEscapeHtml(r.market) + '</span> '
         + '<span style="color:' + gradeColor + '; font-weight:700;"> ' + mcEscapeHtml(r.grade) + '</span> '
         + 'score=' + r.score + ' '
-        + (r.isCandidate ? '<span style="color:#060; font-weight:700;">[CANDIDATE]</span>' : '')
+        + '<span style="display:inline-block; padding:1px 6px; background:' + orBg + '; color:' + orColor + '; border-radius:3px; font-size:10px; font-weight:700; margin-left:4px;">' + mcEscapeHtml(orLevel) + '</span> '
+        + (r.isCandidate ? '<span style="color:#060; font-weight:700;"> [CANDIDATE]</span>' : '')
+        + (r.operatorReview === true && r.isCandidate !== true ? '<span style="color:#a60; font-weight:700;"> [OP-REVIEW]</span>' : '')
         + '</div>'
         + '<div style="font-size:11px; color:#555;">'
         + 'changePct=' + (typeof r.changePct === 'number' ? r.changePct.toFixed(3) : '-') + ' / '
@@ -1478,6 +1539,173 @@
     });
   });
 
+  // === v0.31 Web-first Minimum Operator Mode ===
+  // Section 11 Limited Live Send + Section 8 40-market preset button.
+  // No Telegram in multi dry-run. No KV write in multi dry-run.
+  // Limited Live Send: per-(market,timeframe) 60s guard, confirmPhrase required, WS3_LIMITED_LIVE_ENABLED='true' required.
+  var WS3_OPERATOR_REVIEW_PRESET_40 = [
+    'KRW-BTC','KRW-ETH','KRW-XRP','KRW-SOL','KRW-DOGE','KRW-ADA','KRW-AVAX','KRW-LINK',
+    'KRW-NEAR','KRW-SEI','KRW-SUI','KRW-DOT','KRW-MATIC','KRW-APT','KRW-ARB','KRW-OP',
+    'KRW-STX','KRW-INJ','KRW-ATOM','KRW-ETC','KRW-BCH','KRW-XLM','KRW-HBAR','KRW-ALGO',
+    'KRW-SAND','KRW-MANA','KRW-AAVE','KRW-UNI','KRW-ICP','KRW-FIL','KRW-IMX','KRW-RENDER',
+    'KRW-ONDO','KRW-JUP','KRW-ENS','KRW-PEPE','KRW-BONK','KRW-WLD','KRW-TIA','KRW-PYTH'
+  ];
+
+  var mcLoadPreset40Btn = document.getElementById('mc_loadPreset40Btn');
+  if (mcLoadPreset40Btn) {
+    mcLoadPreset40Btn.addEventListener('click', function() {
+      mcMarketsEl.value = WS3_OPERATOR_REVIEW_PRESET_40.join(',\n');
+      // Default limit recommended for operator review = 60
+      if (typeof mcLimitEl.value === 'string' && mcLimitEl.value !== '60') mcLimitEl.value = '60';
+    });
+  }
+
+  // Section 11 Limited Live Send elements
+  var llSelectedCardEl = document.getElementById('ll_selectedCard');
+  var llAllowOrEl = document.getElementById('ll_allowOR');
+  var llConfirmPhraseEl = document.getElementById('ll_confirmPhrase');
+  var llSendBtn = document.getElementById('ll_sendBtn');
+  var llCodeEl = document.getElementById('ll_code');
+  var llOModeEl = document.getElementById('ll_o_mode');
+  var llOMessageTypeEl = document.getElementById('ll_o_messageType');
+  var llOFixedMessageUsedEl = document.getElementById('ll_o_fixedMessageUsed');
+  var llOTelegramSentEl = document.getElementById('ll_o_telegramSent');
+  var llOKvWrittenEl = document.getElementById('ll_o_kvWritten');
+  var llOKvWriteScopeEl = document.getElementById('ll_o_kvWriteScope');
+  var llOCandidateStoredEl = document.getElementById('ll_o_candidateStored');
+  var llOTrackingStartedEl = document.getElementById('ll_o_trackingStarted');
+
+  var LL_CONFIRM_PHRASE_REQUIRED = 'SEND_WS3_LIMITED_LIVE_REVIEW';
+
+  function llClearOutputs() {
+    setStrField(llCodeEl, null);
+    setStrField(llOModeEl, null);
+    setStrField(llOMessageTypeEl, null);
+    setBoolField(llOFixedMessageUsedEl, null);
+    setBoolField(llOTelegramSentEl, null);
+    setBoolField(llOKvWrittenEl, null);
+    setStrField(llOKvWriteScopeEl, null);
+    setBoolField(llOCandidateStoredEl, null);
+    setBoolField(llOTrackingStartedEl, null);
+  }
+  function llSetErrorCode(code) {
+    setStatus('ERROR');
+    setStrField(llCodeEl, (typeof code === 'string' && code.length > 0) ? code : 'UNKNOWN_ERROR');
+  }
+  function refreshLlSendButton() {
+    var hasSel = (typeof llSelectedCardEl.value === 'string' && llSelectedCardEl.value.length > 0);
+    var phraseOk = (llConfirmPhraseEl.value === LL_CONFIRM_PHRASE_REQUIRED);
+    llSendBtn.disabled = !(hasSel && phraseOk);
+  }
+
+  // Populate Section 11 selector when Section 8 results arrive.
+  // We extend mcUpdateCandidateSelector by hooking after each Section 8 run finishes.
+  // Approach: after Section 8 success, mirror eligible results (HOT_REVIEW / WATCH_REVIEW / isCandidate=true) to Section 11.
+  function llUpdateOperatorReviewSelector(results, req) {
+    while (llSelectedCardEl.firstChild) llSelectedCardEl.removeChild(llSelectedCardEl.firstChild);
+    var placeholder = document.createElement('option');
+    placeholder.value = '';
+    placeholder.textContent = '-- 결과에서 카드 선택 (HOT_REVIEW / WATCH_REVIEW / [CANDIDATE] 권장) --';
+    llSelectedCardEl.appendChild(placeholder);
+    if (!Array.isArray(results) || !req) {
+      refreshLlSendButton();
+      return;
+    }
+    for (var i = 0; i < results.length; i++) {
+      var r = results[i];
+      if (r.ok !== true) continue;
+      // Only show eligible (HOT_REVIEW / WATCH_REVIEW / isCandidate=true)
+      var orLvl = (typeof r.operatorReviewLevel === 'string') ? r.operatorReviewLevel : 'LOW_SIGNAL';
+      var eligible = (r.isCandidate === true) || (orLvl === 'HOT_REVIEW') || (orLvl === 'WATCH_REVIEW');
+      if (!eligible) continue;
+      var opt = document.createElement('option');
+      var payload = {
+        source: 'multi-candidate-dry-run',
+        exchange: req.exchange,
+        market: r.market,
+        timeframe: req.timeframe,
+        score: r.score,
+        grade: r.grade,
+        isCandidate: (r.isCandidate === true),
+        operatorReview: (r.operatorReview === true),
+        operatorReviewLevel: orLvl,
+        reasonChips: Array.isArray(r.reasonChips) ? r.reasonChips.slice(0, 8) : []
+      };
+      opt.value = JSON.stringify(payload);
+      opt.textContent = '#' + r.rank + ' ' + r.market
+        + ' (' + r.grade + ', score=' + r.score + ', ' + orLvl + ')'
+        + (r.isCandidate ? ' [CANDIDATE]' : (r.operatorReview ? ' [OP-REVIEW]' : ''));
+      llSelectedCardEl.appendChild(opt);
+    }
+    refreshLlSendButton();
+  }
+
+  // Hook: every time Section 8 finishes (mc click handler), it already updates
+  // lastMultiRunResults + lastMultiRunReq. We add a tail call by monkey-patching mcUpdateCandidateSelector.
+  // Simpler: use a MutationObserver-free approach — wrap with a polling-free direct call inside Section 8 handler.
+  // Since mcRunBtn click handler is already defined above, we observe lastMultiRunResults via the existing
+  // mcUpdateCandidateSelector chain. We piggyback by overriding mcUpdateCandidateSelector at top.
+  var _origMcUpdateCandidateSelector = mcUpdateCandidateSelector;
+  mcUpdateCandidateSelector = function(results, req) {
+    _origMcUpdateCandidateSelector(results, req);
+    llUpdateOperatorReviewSelector(results, req);
+  };
+
+  llSelectedCardEl.addEventListener('change', refreshLlSendButton);
+  llConfirmPhraseEl.addEventListener('input', refreshLlSendButton);
+
+  llSendBtn.addEventListener('click', function() {
+    var endpoint = safeEndpoint();
+    if (!endpoint) { llSetErrorCode('MISSING_ENDPOINT'); return; }
+    var token = readTokenAndClear();
+    if (!token) { llSetErrorCode('MISSING_INVOKE_TOKEN'); return; }
+    var phrase = llConfirmPhraseEl.value;
+    if (phrase !== LL_CONFIRM_PHRASE_REQUIRED) { llSetErrorCode('LIMITED_LIVE_CONFIRM_PHRASE_REQUIRED'); return; }
+    var raw = llSelectedCardEl.value;
+    if (!raw) { llSetErrorCode('LIMITED_LIVE_INVALID_PAYLOAD'); return; }
+    var payload;
+    try { payload = JSON.parse(raw); } catch (e) { llSetErrorCode('LIMITED_LIVE_INVALID_PAYLOAD'); return; }
+
+    var allowOR = !!(llAllowOrEl && llAllowOrEl.checked);
+
+    var url = buildUrl(endpoint, '/send-limited-live-alert');
+    if (!url) { llSetErrorCode('INVALID_ENDPOINT'); return; }
+
+    setStatus('SENDING');
+    llClearOutputs();
+    llSendBtn.disabled = true;
+    setTimeout(refreshLlSendButton, 1500);
+
+    postJson(url, token, {
+      manualTrigger: true,
+      confirmPhrase: phrase,
+      selectedCandidate: payload,
+      allowOperatorReviewSend: allowOR
+    }).then(function(resp) {
+      llConfirmPhraseEl.value = '';
+      llSelectedCardEl.value = '';
+      if (llAllowOrEl) llAllowOrEl.checked = false;
+      return resp.json().then(function(body) { return { resp: resp, body: body }; });
+    }).then(function(r) {
+      var b = (r && r.body) ? r.body : {};
+      var s = (typeof b.status === 'string') ? b.status : 'ERROR';
+      setStrField(llCodeEl, (typeof b.code === 'string') ? b.code : null);
+      setStrField(llOModeEl, (typeof b.mode === 'string') ? b.mode : null);
+      setStrField(llOMessageTypeEl, (typeof b.messageType === 'string') ? b.messageType : null);
+      setBoolField(llOFixedMessageUsedEl, typeof b.fixedMessageUsed === 'boolean' ? b.fixedMessageUsed : null);
+      var saf = (b && typeof b === 'object' && b.safety && typeof b.safety === 'object') ? b.safety : null;
+      setBoolField(llOTelegramSentEl, saf && typeof saf.telegramSent === 'boolean' ? saf.telegramSent : null);
+      setBoolField(llOKvWrittenEl, saf && typeof saf.kvWritten === 'boolean' ? saf.kvWritten : null);
+      setStrField(llOKvWriteScopeEl, saf && typeof saf.kvWriteScope === 'string' ? saf.kvWriteScope : null);
+      setBoolField(llOCandidateStoredEl, saf && typeof saf.candidateStored === 'boolean' ? saf.candidateStored : null);
+      setBoolField(llOTrackingStartedEl, saf && typeof saf.trackingStarted === 'boolean' ? saf.trackingStarted : null);
+      setStatus(s);
+    }).catch(function() {
+      llConfirmPhraseEl.value = '';
+      llSetErrorCode('NETWORK_ERROR');
+    });
+  });
+
   // Initial paint.
   setStatus('READY');
   clearStateFields();
@@ -1486,8 +1714,10 @@
   cdrClearOutputs();
   mcClearOutputs();
   ctClearOutputs();
+  llClearOutputs();
   refreshButtons();
   refreshCtSendButton();
+  refreshLlSendButton();
 })();
 </script>
 </body>
