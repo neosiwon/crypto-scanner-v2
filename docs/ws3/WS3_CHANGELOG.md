@@ -7,6 +7,14 @@
 
 ## [v0.32.1] — 2026-05-20 (No Invoke Token / Dev Open Operator UX Patch)
 
+### Verified
+- v0.32.1 production console opens without invite code / endpoint / token input.
+- Dev-open operator route is reflected in production Worker.
+- Manual scan flow is reachable.
+- WS3_LIMITED_LIVE_ENABLED remains true.
+- Cron / automatic Telegram / candidate storage / tracking remain disabled.
+- Final security hardening is deferred to a later final deploy stage.
+
 ### 목적 (속도 우선 / 보안은 최종 배포 전 별도 게이트)
 v0.32.0 production 자연검증 PASS 후, 운영자 매 호출마다 Invoke Token 입력 요구를 제거하여 v2 스캐너처럼 접속 → 바로 사용 가능한 UX로 전환. **보안 강화 아님 — 실사용 UX 속도 개선**. 운영자 일상 워크플로우 (state / multi-candidate-dry-run / send-limited-live-alert / live-preflight / candidate-dry-run) 5개 dev-open routes는 worker 측에서 Invoke Token check skip. side-effect 위험 4개 routes (send-canary / cleanup-confirm / operator-reset / send-candidate-test)는 token check 유지 — 잘못 클릭한 운영자 안전 차단. invite gate는 hidden 처리 (코드 보존, 최종 보안 게이트에서 재활성화 용이). v0.32 자연검증 minor finding [A] textarea label "최대 10" → "최대 50" 통합. final security (Cloudflare Access / Pages Function proxy / server-side token custody / invite gate 재활성화) 는 별도 게이트로 deferred.
 

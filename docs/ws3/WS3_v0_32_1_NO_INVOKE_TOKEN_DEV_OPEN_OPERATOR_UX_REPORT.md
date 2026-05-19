@@ -400,7 +400,7 @@ workers/ws3-telegram-canary-entry.mjs       ✅ 미스테이지 유지
 
 - branch: `claude/heuristic-cori-7865e7`
 - 이전 functional baseline: WS3 v0.32.0 V2-grade Operator Console Fast Track Pack (`519b094`)
-- 본 commit: (push 후 기록, push 별도 승인)
+- 본 commit: `20e632d` (push 완료)
 
 ---
 
@@ -419,3 +419,21 @@ invite gate 코드 보존 / 최종 보안 단계에서 재활성화 용이.
 [A] textarea label "최대 10" → "최대 50" 통합 (v0.32 자연검증 minor finding).
 [B] failCount [C] WATCH 분포 — 자연검증 누적 후 별도 patch.
 ```
+
+---
+
+## 16. Final Live Validation Result
+
+- Production Pages: v0.32.1 console reflected
+- Production Worker: dev-open operator auth reflected
+- Console entry: succeeded without invite code input
+- Worker Endpoint input: removed
+- Invoke Token input: removed
+- Scan availability: confirmed
+- Limited Live mode: enabled
+- Cron: disabled
+- Automatic Telegram: disabled
+- candidate KV storage: disabled
+- tracking start: disabled
+- Security note: final security hardening deferred to final deploy stage
+- raw invite code / hash / token / KV ID / raw response: not recorded
