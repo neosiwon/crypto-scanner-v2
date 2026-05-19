@@ -5,6 +5,129 @@
 
 ---
 
+## [v0.32.3] — 2026-05-20 (백서 카드 슬롯 + v2 제품형 카드 UI + 빗썸 메인 정렬)
+
+### 목적 (백서 §16 카드 슬롯 + v2 표현 + 빗썸 메인 + 한글 우선 / 기능 변경 0건)
+v0.32.2 v2 UI 톤 이식 후, 백서 §16 카드 슬롯 구조 + v2 스크린샷 카드 헤더/바디 디자인 + 빗썸 메인 거래소 정렬 + reasonChips 한글 매핑 적용. 카드 내용은 백서가 정하고, 카드 표현은 v2 스크린샷이 정함. 기능 로직 / Worker / KV / Telegram / env / route 모두 미변경. v2 데이터 의미 (관심/정밀/표준/24h/진행도/active tracking/completed history/분석기 state pipeline)는 가져오지 않음 (WS3 독립 앱 유지).
+
+### Added
+- `/docs/ws3/WS3_v0_32_3_WHITEPAPER_CARD_SLOT_V2_UI_REPORT.md` — v0.32.3 완료 보고서 (18 sections)
+- `/web/ws3-canary-console.html` 신규 JS 함수 (백서 §16 카드 슬롯 빌더):
+  - `WS3_CHIP_KR_MAP` — reasonChips 영문 → 한글 매핑 7종 (VOLUME_SURGE / LOW_VOLUME / HIGH_CLOSE_POSITION / UPPER_WICK_RISK / WIDE_RANGE_RISK / SHORT_MOMENTUM / POSITIVE_CHANGE)
+  - `ws3MapChipKr(code)` — chip 코드 → `{ label, kind, orig }` 반환 (volume / structure / risk / neutral)
+  - `ws3RenderChipsKr(chips, max)` — chip 배열 → 한글 chip HTML (`.ws3-chip` 클래스)
+  - `ws3ExchangeChipClass(exchange)` / `ws3ExchangeLabel(exchange)` — 빗썸/업비트/바이낸스 chip 색 + 한글
+  - `ws3OrLevelKr(level)` — HOT_REVIEW/WATCH_REVIEW/LOW_SIGNAL → "HOT 검토"/"WATCH 관찰"/"LOW 관망"
+  - `ws3GradeChipClass(grade)` / `ws3GradeLabel(grade)` — P-S+/P-S/P-A/P-B/P-C → chip 클래스
+  - `ws3SplitStrengthsWeaknesses(chips)` — chips kind 기반 강점/약점 분리
+  - `ws3BuildBriefing(r)` — 종합 브리핑 1문장 (selectionReason.summary 슬롯)
+  - `ws3BuildCardBody(r, req, idx)` — 백서 §16.4 18 섹션 slot HTML 빌더 (데이터 없으면 "데이터 수집 중" / "계산 대기" / "후속 단계")
+
+### Changed
+- `/web/ws3-canary-console.html` CSS 신규 v2 카드 클래스:
+  - `.ws3-result-card` (.grade-SP gold #ffd233 / .grade-S pink #ff7ad9 / .grade-A red / .grade-B orange / .grade-C muted) — 좌측 네온 라인 4px + soft bg gradient
+  - `.ws3-card-header` (dot + name + score-big)
+  - `.ws3-card-chips` (chip 묶음)
+  - `.ws3-chip` variant (grade-SP/S/A/B/C / mode-hot/watch/low / candidate / exchange-bit/upb/bin / structure / volume / risk / neutral / time) — v2 hdr-chip 색상 그대로
+  - `.ws3-signal-bar` + `.ws3-signal-fill` (cyan→green gradient + glow)
+  - `.ws3-card-meta` (mono muted)
+  - `.ws3-card-body-toggle` (펼침 토글 버튼)
+  - `.ws3-card-body` (펼침 영역, .expanded로 표시)
+  - `.ws3-card-section` (.collapsed로 접힘) + `.ws3-card-section-title` (cyan) + `.ws3-card-section-body` + `.strong` green / `.weak` red / `.dim` muted
+  - `.toggle-mini` (섹션별 펼침)
+- `/web/ws3-canary-console.html` Dev Open Banner 확장 — 상단 상태 배지 4종 (준비/개발 개방 모드/수동 운영/자동 알림 꺼짐) + **메인 거래소: 빗썸** 강조 line + 업비트 보조 / 바이낸스 참고 안내
+- `/web/ws3-canary-console.html` 거래소 select 3 곳 (Section 6 / 7 / 8) 모두:
+  - 순서: `bithumb (메인)` / `upbit (보조, selected)` / `binance (참고)`
+  - label 보조: "(빗썸 메인 · 업비트 보조 · 바이낸스 참고)"
+- `/web/ws3-canary-console.html` `mcRenderResults` 함수 v2 카드 shell + 백서 §16.4 18 섹션 카드바디로 교체:
+  - 카드 헤더: 좌측 네온 라인 + dot + 코인명 + 큰 점수 + chip 묶음 (등급 / 운영자 검토 / 후보·검토 / 거래소 / 한글 reasonChips 최대 4) + 신호 강도 바 + 메타 row
+  - 카드바디 펼침 (`<button class="ws3-card-body-toggle">근거 펼치기 ▾</button>` 클릭 시 `.expanded` 토글, 텍스트 `▾`↔`▴` 전환)
+  - 카드바디 §16.4 18 섹션 모두 slot 표시 (구현 7개: 핵심 요약 / 카드헤더 해석 / 점수 요약 / 선별 근거 / 강점·약점 / 구조 판단 / 매수세·수급 / 지표 상세 / 고급 상세 · 후속 11개: 시장상황·전략성향·진입가이드·매도전략 A-F·세력판단·반복신호·코인메타·뉴스·시장참고·외부보조·후보검증)
+  - 섹션 펼침 mini toggle (`<span class="toggle-mini">펼치기</span>` → `접기`)
+  - 실패 row v2 톤 (orange dotted, mono)
+- `/web/ws3-canary-console.html` `mcRenderTop5` 함수 한글 chip + v2 score 표시 적용
+- `/web/ws3-canary-console.html` `llRefreshSelectedPreview` (Section 11 선택 후보 미리보기) 한글 라벨 + ws3MapChipKr 한글 chip 적용:
+  - "Selected market" → "선택 마켓"
+  - "Exchange / Timeframe" → "거래소 / 기준봉" (한글 거래소명)
+  - "Score / Grade" → "점수 / 등급"
+  - "Operator review level" → "운영자 검토 레벨" (HOT 검토 / WATCH 관찰 / LOW 관망)
+  - "isCandidate / operatorReview" → "후보 자격 / 운영자 검토" (예/아니요)
+  - "Reason chips" → "근거(한글)"
+  - "latestTime / lastClose / changePct/volRatio" → "최근 시각 / 종가 / 변화율·거래량 배수"
+  - "Risk note" → "위험 메모" (UPPER_WICK_RISK → 윗꼬리 리스크 등 한글)
+- `/web/ws3-canary-console/index.html` byte-for-byte mirror 유지
+- `/docs/ws3/WS3_CHANGELOG.md` (본 파일): `[v0.32.3]` entry 상단 추가
+- `/docs/ws3/WS3_CURRENT_BASELINE.md`: baseline → v0.32.3 갱신 + Closure 표 row 추가
+
+### Not changed (intentional)
+- `/workers/ws3-telegram-canary-worker.js` — Worker 미수정. VERSION 상수 `WS3_v0.31.0_web_first_minimum_operator_mode` 유지. Worker auth dev-open / KV write scope / Telegram fixed-text / duplicate guard / confirmPhrase / env-gate 모두 그대로
+- 기능 변경 0건 (UI 카드 shell + 한글 chip만 정리)
+- ID / class / JS 변수 / 함수 / Worker 응답 매핑 모두 그대로
+- 5 env vars 그대로 (WS3_LIMITED_LIVE_ENABLED='true' 운영 유지)
+- Cron / 자동 Telegram / candidate KV 저장 / tracking 시작 — 모두 disabled 유지
+- 본선 `index.html` / `manifest.json` / `service-worker.js` / `worker.js` / `wrangler.toml` / `v3/` 25종 / `workers/ws3-canary-state-kv-adapter.js` / `WS3_CODE_CONTRACT.md` / `WS3_WORKFLOW_TEMPLATE.md` 0건
+
+### 백서 §16 카드 슬롯 적용 매트릭스
+| 슬롯 | 적용 위치 | 상태 |
+|---|---|---|
+| 등급 | 카드헤더 chip + 좌측 네온 라인 | 구현 |
+| 점수 | 카드헤더 큰 표시 + 신호 강도 바 + 카드바디 §3 | 구현 |
+| 운영자 검토 레벨 | 카드헤더 chip + 카드바디 §1 | 구현 |
+| 후보 자격 | 카드헤더 chip | 구현 |
+| 거래소 | 카드헤더 chip + 카드바디 §1 (빗썸 메인) | 구현 |
+| reasonChips | 카드헤더 chip 한글 매핑 + 카드바디 §3.5 / 강점·약점 | 구현 |
+| 기준봉 / 시각 / 종가 | 카드 메타 + 카드바디 §12 | 구현 |
+| 구조 판단 (changePct/closePos/upperWick/range) | 카드바디 §4 | 구현 |
+| 매수세 (volRatio/volAccel) | 카드바디 §5 | 구현 |
+| 종합 브리핑 | 카드바디 §3.5 (ws3BuildBriefing) | 구현 |
+| 강점 / 약점 | 카드바디 (chips kind 분리) | 구현 |
+| 고급 상세 | 카드바디 §18 (raw fields) | 구현 |
+| 시장상황 / BTC 상태 | 카드바디 §6 | slot 표시 (후속) |
+| 전략 성향 | 카드바디 §7 | slot 표시 (후속) |
+| 진입 가이드 / 대기 구간 | 카드바디 §8 | slot 표시 + 안내문 |
+| 매도전략 A-F | 카드바디 §9 (6 slot) | slot 표시 (후속) |
+| 세력 판단 / 세력예상가 | 카드바디 §10 | slot 표시 (후속) |
+| 반복신호 / 신호 히스토리 | 카드바디 §11 | slot 표시 (후속) |
+| 코인 메타 / 시총 | 카드바디 §13 | slot 표시 (후속) |
+| 뉴스 | 카드바디 §14 | slot 표시 (후속) |
+| 시장 참고 | 카드바디 §15 | slot 표시 (후속) |
+| 외부 보조확인 | 카드바디 §16 | slot 표시 (후속) |
+| 사후평가 / 후보 검증 | 카드바디 §17 | slot 표시 (후속) |
+
+### 백서 기준 준수
+- 카드 내용은 백서 §16 슬롯 구조 따름 (18 섹션 모두 slot 표시, 미구현 시 "데이터 수집 중" / "후속 단계" 안내, 섹션 삭제 0건)
+- v2 데이터 의미 (관심/정밀/표준/24h/진행도/active tracking/completed history) 가져오지 않음
+- WS3 독립 앱 유지
+- 사용자 표시 등급 P-S/P-A/P-B/P-C + S+ 표기 (SPLUS / splus 사용자 노출 0건 — `grep "SPLUS|splus"` 매치 0건 / 코드 주석에서도 제거)
+- 전통 캔들명 (도지 / 망치 / 장악형) 사용자 UI 라벨 + 코드 주석 매치 0건 — 구조값 표현만 (몸통/꼬리/종가위치/박스)
+- 구조값 chip (VOLUME_SURGE / HIGH_CLOSE_POSITION / LOW_VOLUME / UPPER_WICK_RISK / WIDE_RANGE_RISK / SHORT_MOMENTUM / POSITIVE_CHANGE) → 한글 매핑 (거래량 증가 / 종가 상단 / 거래량 부족 / 윗꼬리 리스크 / 변동폭 위험 / 단기 모멘텀 / 상승 전환)
+- 빗썸 메인 정렬 (거래소 select 순서 + label + Dev Open Banner + chip 색 v2 톤)
+
+### Verified
+- `diff -q web/ws3-canary-console.html web/ws3-canary-console/index.html` 0건 (byte-for-byte mirror)
+- Embedded `<script>` 2 blocks `new Function(block)` ALL_BLOCKS_OK
+- `git diff --stat HEAD -- [보호 파일군]` 빈 출력
+- 영어 UI label 잔존 검사 (`grep "Operator Dashboard Summary|Top 5 Fixed Candidates|Failed Market List|Filter Tabs|Selected Candidate Preview|Telegram Message Preview|Memory-only Scan History|Memory-only Sent History"`) — 사용자 UI 매치 0건
+- 금지 표기 검사 (`grep "SPLUS|splus|도지|망치|장악형"`) — 사용자 UI + 코드 주석 매치 0건 (주석에서도 제거)
+- v2 금지 의미 검사 (`grep "정밀|표준|24h|진행도"`) — 매치 0건
+- 노출된 폐기 hash repo-wide 매치 0건
+- bot_token / chat_id / message_id / Invoke Token / SHA-256 hash / KV namespace ID / raw Telegram response / raw exchange full response — 정책 문맥만 (raw value 0건)
+- 매수 추천 / 진입 추천 / 수익 보장 / 확정 신호 / LIVE BUY — 0건
+- 본 commit 까지 Cloudflare Worker redeploy 0건 / Pages redeploy 0건 / Telegram API 0건 / KV write 0건 / candidate 저장 0건 / tracking 시작 0건 / 실 거래소 API 호출 0건
+
+### 다음 후보 (v0.32.x / v0.33)
+- 상단 탭 (스캐너 / 추적 분석)
+- 검색창 / 정렬 버튼 (최신순 / 점수순 / 후보순 / 마감임박)
+- 큰 "스캔 시작" 중심 버튼 (v2 SCAN START 감성)
+- 빗썸 adapter 신규 구현 (v0 Bithumb-only 기준, 별도 단계)
+- 카드바디 미구현 모듈 점진 구현 (marketContext / strategyPlan / volumeClusterZone / signalCycle / coinMeta / newsContext / externalConfluence / evaluationOutcome)
+- S+ 등급 정렬 (P-S/P-A/P-B/P-C + S+ 호환 표기, 정식 정렬은 별도)
+- structureBucket 엔진 (백서 §13)
+- signalCycle / cyclePhase / bucketFamily (백서 §15)
+- Cron / auto Telegram / candidate 저장 / tracking 시작은 별도 사용자 명시 승인 전까지 계속 disabled
+
+---
+
 ## [v0.32.2] — 2026-05-20 (v2 UI 톤 이식 + 한글 우선 문구 정렬)
 
 ### 목적 (백서 정렬 / 실사용 감성 강화 / 기능 변경 0건)

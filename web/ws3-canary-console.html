@@ -259,6 +259,84 @@
   .ws3-selected-card .lbl { font-weight: 600; color: var(--text-secondary); min-width: 130px; display: inline-block; font-family: var(--mono); font-size: 11px; letter-spacing: 0.5px; }
   .ws3-selected-card .val { font-family: var(--mono); color: var(--text-primary); }
   .ws3-mobile-spacer { height: 8px; }
+  /* v0.32.3 — 백서 §16 카드 슬롯 + v2 카드 표현 (result-card / grade-badge / hdr-chip / card-body) */
+  .ws3-result-card {
+    margin: 8px 0;
+    padding: 0;
+    background: linear-gradient(180deg, rgba(0,212,255,0.04), var(--bg-card));
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    position: relative;
+  }
+  .ws3-result-card.grade-SP { border-left: 4px solid #ffd233; background: linear-gradient(180deg, rgba(255,210,51,0.06), var(--bg-card)); }
+  .ws3-result-card.grade-S  { border-left: 4px solid #ff7ad9; background: linear-gradient(180deg, rgba(255,122,217,0.06), var(--bg-card)); }
+  .ws3-result-card.grade-A  { border-left: 4px solid var(--accent-red); background: linear-gradient(180deg, rgba(255,69,96,0.06), var(--bg-card)); }
+  .ws3-result-card.grade-B  { border-left: 4px solid var(--accent-orange); background: linear-gradient(180deg, rgba(255,140,66,0.06), var(--bg-card)); }
+  .ws3-result-card.grade-C  { border-left: 4px solid var(--text-muted); }
+  .ws3-card-header { padding: 10px 12px; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  .ws3-card-header .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent-cyan); box-shadow: var(--glow-cyan); flex-shrink: 0; }
+  .ws3-card-header .name { font-family: var(--mono); font-weight: 700; color: var(--text-primary); font-size: 14px; }
+  .ws3-card-header .score-big { margin-left: auto; font-family: var(--mono); font-weight: 700; font-size: 16px; color: var(--accent-cyan); }
+  .ws3-card-chips { padding: 0 12px 8px; display: flex; flex-wrap: wrap; gap: 4px; }
+  .ws3-chip { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 12px; font-size: 10px; font-weight: 700; font-family: var(--mono); letter-spacing: 0.3px; }
+  .ws3-chip.grade-SP { background: rgba(255,210,51,0.15); color: #ffd233; border: 1px solid rgba(255,210,51,0.35); }
+  .ws3-chip.grade-S  { background: rgba(255,122,217,0.15); color: #ff7ad9; border: 1px solid rgba(255,122,217,0.35); }
+  .ws3-chip.grade-A  { background: rgba(255,69,96,0.15); color: var(--accent-red); border: 1px solid rgba(255,69,96,0.35); }
+  .ws3-chip.grade-B  { background: rgba(255,140,66,0.12); color: var(--accent-orange); border: 1px solid rgba(255,140,66,0.35); }
+  .ws3-chip.grade-C  { background: var(--bg-secondary); color: var(--text-muted); border: 1px solid var(--border-bright); }
+  .ws3-chip.mode-hot   { background: rgba(255,69,96,0.1); color: var(--accent-red); border: 1px solid rgba(255,69,96,0.35); }
+  .ws3-chip.mode-watch { background: rgba(255,140,66,0.1); color: var(--accent-orange); border: 1px solid rgba(255,140,66,0.35); }
+  .ws3-chip.mode-low   { background: var(--bg-secondary); color: var(--text-muted); border: 1px solid var(--border-bright); }
+  .ws3-chip.candidate  { background: rgba(0,230,118,0.1); color: var(--accent-green); border: 1px solid rgba(0,230,118,0.35); }
+  .ws3-chip.exchange-bit { background: rgba(244,102,90,0.18); color: #ff7849; border: 1px solid rgba(244,102,90,0.35); }
+  .ws3-chip.exchange-upb { background: rgba(0,95,255,0.18); color: #5da9ff; border: 1px solid rgba(0,95,255,0.35); }
+  .ws3-chip.exchange-bin { background: rgba(240,185,11,0.18); color: #f0b90b; border: 1px solid rgba(240,185,11,0.35); }
+  .ws3-chip.structure  { background: rgba(0,212,255,0.08); color: var(--accent-cyan); border: 1px solid rgba(0,212,255,0.3); }
+  .ws3-chip.volume     { background: rgba(0,230,118,0.08); color: var(--accent-green); border: 1px solid rgba(0,230,118,0.3); }
+  .ws3-chip.risk       { background: rgba(255,69,96,0.08); color: var(--accent-red); border: 1px solid rgba(255,69,96,0.3); }
+  .ws3-chip.neutral    { background: rgba(122,154,184,0.08); color: var(--text-secondary); border: 1px solid rgba(122,154,184,0.3); }
+  .ws3-chip.time       { background: var(--bg-panel); color: var(--text-muted); border: 1px solid var(--border); font-family: var(--mono); }
+  .ws3-signal-bar { margin: 6px 12px; height: 4px; background: var(--bg-secondary); border-radius: 2px; overflow: hidden; position: relative; }
+  .ws3-signal-fill { height: 100%; background: linear-gradient(90deg, var(--accent-cyan), var(--accent-green)); border-radius: 2px; box-shadow: var(--glow-cyan); transition: width .25s ease; }
+  .ws3-card-meta { padding: 0 12px 10px; font-size: 11px; color: var(--text-muted); font-family: var(--mono); display: flex; flex-wrap: wrap; gap: 4px 10px; }
+  .ws3-card-body-toggle {
+    display: block;
+    width: 100%;
+    padding: 8px 12px;
+    background: var(--bg-secondary);
+    border: none;
+    border-top: 1px solid var(--border);
+    color: var(--text-secondary);
+    font-size: 11px;
+    font-family: var(--sans);
+    text-align: center;
+    cursor: pointer;
+    min-height: 32px;
+  }
+  .ws3-card-body-toggle:hover { color: var(--accent-cyan); background: var(--bg-panel); }
+  .ws3-card-body { padding: 0 12px 12px; background: var(--bg-panel); border-top: 1px solid var(--border); display: none; }
+  .ws3-result-card.expanded .ws3-card-body { display: block; }
+  .ws3-card-section { margin: 12px 0; padding: 10px 12px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 4px; }
+  .ws3-card-section-title { font-size: 11px; font-weight: 700; color: var(--accent-cyan); margin-bottom: 6px; letter-spacing: 0.5px; font-family: var(--mono); }
+  .ws3-card-section-body { font-size: 12px; color: var(--text-primary); line-height: 1.6; }
+  .ws3-card-section-body .dim { color: var(--text-muted); font-style: italic; }
+  .ws3-card-section-body ul { margin: 4px 0; padding-left: 18px; }
+  .ws3-card-section-body li { margin: 2px 0; }
+  .ws3-card-section-body .strong { color: var(--accent-green); }
+  .ws3-card-section-body .weak   { color: var(--accent-red); }
+  .ws3-card-section.collapsed .ws3-card-section-body { display: none; }
+  .ws3-card-section .toggle-mini {
+    float: right;
+    font-size: 10px;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 2px 6px;
+    border: 1px solid var(--border-bright);
+    border-radius: 3px;
+    background: var(--bg-secondary);
+  }
+  .ws3-card-section .toggle-mini:hover { color: var(--accent-cyan); border-color: var(--accent-cyan); }
   @media (max-width: 420px) {
     body { margin: 12px auto; padding: 12px; }
     .panel .k { min-width: 110px; }
@@ -306,12 +384,20 @@
      운영자 routes (state / multi-candidate-dry-run / send-limited-live-alert /
      live-preflight / candidate-dry-run) 는 worker 측 토큰 검사 skip.
      최종 보안 단계는 공개 배포 전 별도 게이트에서 다시 설계. -->
-<div class="section" id="devOpenBanner" style="border:1px solid rgba(255,214,0,0.35); background:rgba(255,214,0,0.04); padding:10px 12px; border-radius:6px; font-size:12px; color:var(--accent-yellow); line-height:1.5;">
-  <strong>운영 모드: 개발 개방(Dev Open)</strong>
-  &nbsp;|&nbsp;호출 토큰 입력 없음
-  &nbsp;|&nbsp;엔드포인트 자동 설정
-  <br>
-  <span style="font-size:11px; color:var(--text-muted);">최종 보안 강화(서버측 토큰 관리·접근 게이트)는 공개 배포 전 별도 단계에서 다시 적용합니다.</span>
+<!-- v0.32.3 상단 상태 배지 + 메인 거래소 안내 -->
+<div class="section" id="devOpenBanner" style="border:1px solid rgba(255,214,0,0.35); background:rgba(255,214,0,0.04); padding:10px 12px; border-radius:6px; font-size:12px; line-height:1.5;">
+  <div style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:6px;">
+    <span style="display:inline-block; padding:2px 8px; background:rgba(0,212,255,0.08); color:var(--accent-cyan); border:1px solid rgba(0,212,255,0.35); border-radius:12px; font-size:11px; font-weight:600;">준비</span>
+    <span style="display:inline-block; padding:2px 8px; background:rgba(255,214,0,0.06); color:var(--accent-yellow); border:1px solid rgba(255,214,0,0.35); border-radius:12px; font-size:11px; font-weight:600;">개발 개방 모드</span>
+    <span style="display:inline-block; padding:2px 8px; background:rgba(0,230,118,0.06); color:var(--accent-green); border:1px solid rgba(0,230,118,0.35); border-radius:12px; font-size:11px; font-weight:600;">수동 운영</span>
+    <span style="display:inline-block; padding:2px 8px; background:var(--bg-secondary); color:var(--text-secondary); border:1px solid var(--border-bright); border-radius:12px; font-size:11px; font-weight:600;">자동 알림 꺼짐</span>
+  </div>
+  <div style="color:var(--accent-yellow);">
+    <strong>메인 거래소: 빗썸</strong>
+    &nbsp;·&nbsp;업비트 보조 검증
+    &nbsp;·&nbsp;바이낸스 참고
+  </div>
+  <span style="font-size:11px; color:var(--text-muted);">호출 토큰 입력 없음 · 엔드포인트 자동 설정 · 최종 보안 강화(서버측 토큰 관리·접근 게이트)는 공개 배포 전 별도 단계.</span>
 </div>
 
 <p class="note">
@@ -402,11 +488,11 @@
     실 알람 아님. 거래소 공개 시세 1회 read-only fetch + 정규화 preview 만 표시합니다. 텔레그램 발송 0건 / KV write 0건 / 후보 저장 0건 / tracking 시작 0건. 사용자 클릭 시에만 실행 (자동 새로고침 0건).
   </p>
   <div class="row">
-    <label for="lp_exchange">거래소</label>
+    <label for="lp_exchange">거래소 <span style="font-size:10px; color:var(--text-muted); margin-left:6px;">(빗썸 메인 · 업비트 보조 · 바이낸스 참고)</span></label>
     <select id="lp_exchange">
-      <option value="upbit">upbit</option>
-      <option value="bithumb">bithumb</option>
-      <option value="binance">binance</option>
+      <option value="bithumb">bithumb (메인)</option>
+      <option value="upbit" selected>upbit (보조)</option>
+      <option value="binance">binance (참고)</option>
     </select>
   </div>
   <div class="row">
@@ -456,11 +542,11 @@
     실 알람 아님. 단일 마켓 공개 시세 read-only fetch + 캔들/거래량/모멘텀 특성 + 점수·등급 계산을 미리보기로 표시합니다. 텔레그램 발송 0건 / KV write 0건 / 후보 저장 0건 / tracking 시작 0건. 점수·등급은 미리보기일 뿐 실 알람·매수 조건이 아닙니다. 사용자 클릭 시에만 실행 (자동 새로고침 0건).
   </p>
   <div class="row">
-    <label for="cdr_exchange">거래소</label>
+    <label for="cdr_exchange">거래소 <span style="font-size:10px; color:var(--text-muted); margin-left:6px;">(빗썸 메인 · 업비트 보조 · 바이낸스 참고)</span></label>
     <select id="cdr_exchange">
-      <option value="upbit">upbit</option>
-      <option value="bithumb">bithumb</option>
-      <option value="binance">binance</option>
+      <option value="bithumb">bithumb (메인)</option>
+      <option value="upbit" selected>upbit (보조)</option>
+      <option value="binance">binance (참고)</option>
     </select>
   </div>
   <div class="row">
@@ -520,11 +606,11 @@
     실 알람 아님. 여러 마켓 공개 시세 read-only fetch + 점수 계산을 한 번에 수행합니다. 텔레그램 발송 0건 / KV write 0건 / 후보 저장 0건 / tracking 시작 0건. 사용자 클릭 시에만 실행 (자동 새로고침 / Cron 0건). 점수·등급은 미리보기.
   </p>
   <div class="row">
-    <label for="mc_exchange">거래소</label>
+    <label for="mc_exchange">거래소 <span style="font-size:10px; color:var(--text-muted); margin-left:6px;">(빗썸 메인 · 업비트 보조 · 바이낸스 참고)</span></label>
     <select id="mc_exchange">
-      <option value="upbit">upbit</option>
-      <option value="bithumb">bithumb</option>
-      <option value="binance">binance</option>
+      <option value="bithumb">bithumb (메인)</option>
+      <option value="upbit" selected>upbit (보조)</option>
+      <option value="binance">binance (참고)</option>
     </select>
   </div>
   <div class="row">
@@ -1561,6 +1647,85 @@
       return ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' })[c];
     });
   }
+  // v0.32.3 — reasonChips 영문 코드 → 한글 라벨 매핑 (백서 §16 / WS3 구조값 chip 기준)
+  // 백서 §16 — 차트 패턴명 중심 표현 금지, 구조값 표현 (몸통/꼬리/종가위치/박스 등)만 사용.
+  var WS3_CHIP_KR_MAP = {
+    'VOLUME_SURGE':         { label: '거래량 증가', kind: 'volume' },
+    'LOW_VOLUME':           { label: '거래량 부족', kind: 'risk' },
+    'HIGH_CLOSE_POSITION':  { label: '종가 상단',   kind: 'structure' },
+    'UPPER_WICK_RISK':      { label: '윗꼬리 리스크', kind: 'risk' },
+    'WIDE_RANGE_RISK':      { label: '변동폭 위험',  kind: 'risk' },
+    'SHORT_MOMENTUM':       { label: '단기 모멘텀',  kind: 'volume' },
+    'POSITIVE_CHANGE':      { label: '상승 전환',    kind: 'volume' }
+  };
+  function ws3MapChipKr(code) {
+    if (typeof code !== 'string') return { label: '기타 근거', kind: 'neutral', orig: '' };
+    var m = WS3_CHIP_KR_MAP[code];
+    if (m) return { label: m.label, kind: m.kind, orig: code };
+    return { label: '기타 근거', kind: 'neutral', orig: code };
+  }
+  function ws3RenderChipsKr(chips, max) {
+    if (!Array.isArray(chips) || chips.length === 0) return '';
+    var limit = (typeof max === 'number' && max > 0) ? max : 8;
+    var html = [];
+    for (var i = 0; i < chips.length && i < limit; i++) {
+      var m = ws3MapChipKr(chips[i]);
+      html.push('<span class="ws3-chip ' + m.kind + '">' + mcEscapeHtml(m.label) + '</span>');
+    }
+    return html.join('');
+  }
+  // v0.32.3 — exchange code → 카드 chip 클래스 매핑
+  function ws3ExchangeChipClass(exchange) {
+    if (exchange === 'bithumb') return 'exchange-bit';
+    if (exchange === 'upbit')   return 'exchange-upb';
+    if (exchange === 'binance') return 'exchange-bin';
+    return 'neutral';
+  }
+  function ws3ExchangeLabel(exchange) {
+    if (exchange === 'bithumb') return '빗썸';
+    if (exchange === 'upbit')   return '업비트';
+    if (exchange === 'binance') return '바이낸스';
+    return mcEscapeHtml(String(exchange || '-'));
+  }
+  // v0.32.3 — 운영자 검토 레벨 한글 + chip 클래스
+  function ws3OrLevelKr(level) {
+    if (level === 'HOT_REVIEW')   return { label: 'HOT 검토', kind: 'mode-hot' };
+    if (level === 'WATCH_REVIEW') return { label: 'WATCH 관찰', kind: 'mode-watch' };
+    return { label: 'LOW 관망', kind: 'mode-low' };
+  }
+  // v0.32.3 — grade chip 클래스 (백서 등급 표기 P-S/P-A/P-B/P-C + S+/S/A/B 호환)
+  function ws3GradeChipClass(grade) {
+    if (grade === 'S+' || grade === 'P-S+') return 'grade-SP';
+    if (grade === 'P-S' || grade === 'S')   return 'grade-S';
+    if (grade === 'P-A' || grade === 'A')   return 'grade-A';
+    if (grade === 'P-B' || grade === 'B')   return 'grade-B';
+    return 'grade-C';
+  }
+  function ws3GradeLabel(grade) {
+    if (typeof grade !== 'string') return '-';
+    return grade;
+  }
+  // v0.32.3 — 강점/약점 분리 (chips 기반)
+  function ws3SplitStrengthsWeaknesses(chips) {
+    var s = [], w = [];
+    if (!Array.isArray(chips)) return { strengths: s, weaknesses: w };
+    for (var i = 0; i < chips.length; i++) {
+      var m = ws3MapChipKr(chips[i]);
+      if (m.kind === 'volume' || m.kind === 'structure') s.push(m.label);
+      else if (m.kind === 'risk') w.push(m.label);
+    }
+    return { strengths: s, weaknesses: w };
+  }
+  // v0.32.3 — 종합 브리핑 1문장 생성 (selectionReason.summary 슬롯, 데이터 부족 시 안내)
+  function ws3BuildBriefing(r) {
+    if (!r || r.ok !== true) return '현재 데이터만으로는 종합 판단이 제한적입니다.';
+    var sw = ws3SplitStrengthsWeaknesses(r.reasonChips);
+    var parts = [];
+    if (sw.strengths.length > 0) parts.push(sw.strengths.join(' / ') + ' 신호가 감지되었습니다.');
+    if (sw.weaknesses.length > 0) parts.push(sw.weaknesses.join(' / ') + ' 으로 추가 확인이 필요한 구간입니다.');
+    if (parts.length === 0) parts.push('현재 데이터만으로는 종합 판단이 제한적입니다.');
+    return parts.join(' ');
+  }
   function mcParseMarkets(text) {
     if (typeof text !== 'string') return [];
     var pieces = text.split(/[,\n\r]+/);
@@ -1692,32 +1857,20 @@
     var rows = [];
     for (var k = 0; k < top.length; k++) {
       var r = top[k];
-      var orLevel = (typeof r.operatorReviewLevel === 'string') ? r.operatorReviewLevel : 'LOW_SIGNAL';
-      var orColor = (orLevel === 'HOT_REVIEW') ? '#a00'
-        : (orLevel === 'WATCH_REVIEW') ? '#a60'
-        : '#888';
-      var orBg = (orLevel === 'HOT_REVIEW') ? '#fee'
-        : (orLevel === 'WATCH_REVIEW') ? '#ffe'
-        : '#f0f0f0';
-      var gradeColor = (r.grade === 'P-S') ? '#060'
-        : (r.grade === 'P-A') ? '#262'
-        : (r.grade === 'P-B') ? '#553'
-        : '#802';
-      var chips = (Array.isArray(r.reasonChips) && r.reasonChips.length > 0)
-        ? r.reasonChips.slice(0, 4).map(mcEscapeHtml).join(', ')
-        : '-';
+      var orInfo = ws3OrLevelKr(r.operatorReviewLevel);
+      var gradeCls = ws3GradeChipClass(r.grade);
       rows.push(
         '<div class="ws3-top5-row">'
         + '<span class="rank">#' + (k + 1) + '</span>'
         + '<span class="mkt">' + mcEscapeHtml(r.market) + '</span>'
-        + '<span style="color:' + gradeColor + '; font-weight:700;">' + mcEscapeHtml(r.grade) + '</span>'
-        + '<span style="color:#444;">score=' + r.score + '</span>'
-        + '<span class="lvl-badge" style="background:' + orBg + '; color:' + orColor + ';">' + mcEscapeHtml(orLevel) + '</span>'
-        + (r.isCandidate ? '<span style="color:#060; font-weight:700;">[CAND]</span>' : '')
-        + (r.operatorReview === true && r.isCandidate !== true ? '<span style="color:#a60; font-weight:700;">[OR]</span>' : '')
-        + '<span style="font-size:10px; color:#666;">chips: ' + chips + '</span>'
-        + '<span style="font-size:10px; color:#888;">@' + mcEscapeHtml(r.latestTime || '-')
-        + ' close=' + (typeof r.lastClose === 'number' ? r.lastClose : '-') + '</span>'
+        + '<span class="ws3-chip ' + gradeCls + '">' + mcEscapeHtml(ws3GradeLabel(r.grade)) + '</span>'
+        + '<span style="color:var(--accent-cyan); font-weight:700;">' + r.score + '점</span>'
+        + '<span class="ws3-chip ' + orInfo.kind + '">' + mcEscapeHtml(orInfo.label) + '</span>'
+        + (r.isCandidate ? '<span class="ws3-chip candidate">후보</span>' : '')
+        + (r.operatorReview === true && r.isCandidate !== true ? '<span class="ws3-chip mode-watch">검토</span>' : '')
+        + ws3RenderChipsKr(r.reasonChips, 3)
+        + '<span style="font-size:10px; color:var(--text-muted); margin-left:auto;">@' + mcEscapeHtml(r.latestTime || '-')
+        + ' · 종가 ' + (typeof r.lastClose === 'number' ? r.lastClose : '-') + '</span>'
         + '</div>'
       );
     }
@@ -1751,13 +1904,118 @@
     mcFailedEl.innerHTML = rows.join('');
     mcFailedWrap.style.display = 'block';
   }
+  // v0.32.3 — 백서 §16.4 카드바디 18 섹션 slot 빌더
+  // 데이터 없는 섹션은 "데이터 수집 중" / "계산 대기" / "후속 단계" 안내, 절대 삭제하지 않음.
+  function ws3BuildCardBody(r, req, idx) {
+    if (!r || r.ok !== true) return '';
+    var sw = ws3SplitStrengthsWeaknesses(r.reasonChips);
+    var briefing = ws3BuildBriefing(r);
+    var orInfo = ws3OrLevelKr(r.operatorReviewLevel);
+    var ex = (req && req.exchange) ? req.exchange : 'upbit';
+    var tf = (req && req.timeframe) ? req.timeframe : '-';
+    var html = [];
+    html.push('<div class="ws3-card-body" id="ws3_body_' + idx + '">');
+    // §16.4.1 핵심 요약
+    html.push('<div class="ws3-card-section"><div class="ws3-card-section-title">1. 핵심 요약</div><div class="ws3-card-section-body">');
+    html.push('현재: <strong>' + mcEscapeHtml(ws3GradeLabel(r.grade)) + '</strong>');
+    html.push(' · 상태: <strong>' + mcEscapeHtml(orInfo.label) + '</strong>');
+    html.push(' · 점수: <strong>' + r.score + '</strong>');
+    html.push(' · 거래소: <strong>' + ws3ExchangeLabel(ex) + '</strong>');
+    html.push(' · 기준봉: <strong>' + mcEscapeHtml(tf) + '</strong>');
+    html.push('</div></div>');
+    // §16.4.2 카드헤더 상세 해석
+    html.push('<div class="ws3-card-section"><div class="ws3-card-section-title">2. 카드헤더 해석</div><div class="ws3-card-section-body">');
+    html.push('등급 ' + mcEscapeHtml(ws3GradeLabel(r.grade)) + ' · ');
+    html.push((r.isCandidate ? '후보 자격(isCandidate=true)' : '운영자 검토 대상(isCandidate=false)'));
+    html.push(' · ' + (r.operatorReview === true ? '운영자 검토 대상' : '관망 대상'));
+    html.push('</div></div>');
+    // §16.4.3 점수 요약
+    html.push('<div class="ws3-card-section"><div class="ws3-card-section-title">3. 점수 요약</div><div class="ws3-card-section-body">');
+    html.push('총점 <strong>' + r.score + '</strong> / 100');
+    html.push(' · 등급 <strong>' + mcEscapeHtml(ws3GradeLabel(r.grade)) + '</strong>');
+    html.push('<div class="ws3-signal-bar" style="margin:8px 0;"><div class="ws3-signal-fill" style="width:' + Math.max(0, Math.min(100, r.score)) + '%;"></div></div>');
+    html.push('</div></div>');
+    // §16.4.3.5 선별 근거 (selectionReason.summary)
+    html.push('<div class="ws3-card-section"><div class="ws3-card-section-title">3.5 선별 근거 / 종합 브리핑</div><div class="ws3-card-section-body">');
+    html.push(mcEscapeHtml(briefing));
+    html.push('</div></div>');
+    // 강점 / 약점
+    html.push('<div class="ws3-card-section"><div class="ws3-card-section-title">강점 / 약점</div><div class="ws3-card-section-body">');
+    if (sw.strengths.length > 0) {
+      html.push('<div class="strong"><strong>강점</strong></div><ul>');
+      for (var s = 0; s < sw.strengths.length; s++) html.push('<li class="strong">' + mcEscapeHtml(sw.strengths[s]) + '</li>');
+      html.push('</ul>');
+    }
+    if (sw.weaknesses.length > 0) {
+      html.push('<div class="weak"><strong>약점</strong></div><ul>');
+      for (var w = 0; w < sw.weaknesses.length; w++) html.push('<li class="weak">' + mcEscapeHtml(sw.weaknesses[w]) + '</li>');
+      html.push('</ul>');
+    }
+    if (sw.strengths.length === 0 && sw.weaknesses.length === 0) html.push('<span class="dim">데이터 수집 중</span>');
+    html.push('</div></div>');
+    // §16.4.4 구조 판단
+    html.push('<div class="ws3-card-section"><div class="ws3-card-section-title">4. 구조 판단</div><div class="ws3-card-section-body">');
+    html.push('변화율(changePct): ' + (typeof r.changePct === 'number' ? r.changePct.toFixed(3) : '-') + '%');
+    html.push(' · 종가 위치(closePos): ' + (typeof r.closePosition === 'number' ? r.closePosition.toFixed(3) : '-'));
+    html.push(' · 윗꼬리(upperWick): ' + (typeof r.upperWickPct === 'number' ? r.upperWickPct.toFixed(3) : '-') + '%');
+    html.push(' · 변동폭(range): ' + (typeof r.rangePct === 'number' ? r.rangePct.toFixed(3) : '-') + '%');
+    html.push('</div></div>');
+    // §16.4.5 매수세 / 수급 판단
+    html.push('<div class="ws3-card-section"><div class="ws3-card-section-title">5. 매수세 / 수급 판단</div><div class="ws3-card-section-body">');
+    html.push('거래량 배수(volRatio): ' + (typeof r.volumeRatio === 'number' ? r.volumeRatio.toFixed(3) : '-'));
+    html.push(' · 거래량 가속(volAccel): ' + (typeof r.volumeAccel === 'number' ? r.volumeAccel.toFixed(3) : '-'));
+    html.push('</div></div>');
+    // §16.4.6 시장상황 / BTC 상태 — 후속 단계
+    html.push('<div class="ws3-card-section collapsed"><div class="ws3-card-section-title">6. 시장상황 / BTC 상태 <span class="toggle-mini">펼치기</span></div><div class="ws3-card-section-body"><span class="dim">후속 단계 (BTC marketContext 모듈)</span></div></div>');
+    // §16.4.7 전략 성향
+    html.push('<div class="ws3-card-section collapsed"><div class="ws3-card-section-title">7. 전략 성향 <span class="toggle-mini">펼치기</span></div><div class="ws3-card-section-body"><span class="dim">후속 단계 (strategyPlan 모듈)</span></div></div>');
+    // §16.4.8 진입 가이드 / 대기 구간
+    html.push('<div class="ws3-card-section collapsed"><div class="ws3-card-section-title">8. 진입 가이드 / 대기 구간 <span class="toggle-mini">펼치기</span></div><div class="ws3-card-section-body"><span class="dim">관찰 권장 구간으로 해석됩니다. 박스 상단 돌파 또는 거래량 재확인 시 추가 검토.</span></div></div>');
+    // §16.4.9 매도전략 A-F
+    html.push('<div class="ws3-card-section collapsed"><div class="ws3-card-section-title">9. 매도전략 A-F <span class="toggle-mini">펼치기</span></div><div class="ws3-card-section-body">');
+    html.push('<ul>');
+    html.push('<li>전략 A · 구조 기반 분할익절 <span class="dim">— 계산 대기</span></li>');
+    html.push('<li>전략 B · ATR 트레일링 <span class="dim">— 계산 대기</span></li>');
+    html.push('<li>전략 C · TP1 이후 본절 방어 <span class="dim">— 계산 대기</span></li>');
+    html.push('<li>전략 D · 구조 무효화 손절 <span class="dim">— 계산 대기</span></li>');
+    html.push('<li>전략 E · 시간 제한 청산 <span class="dim">— 계산 대기</span></li>');
+    html.push('<li>전략 F · 거래량/매수세 소멸 청산 <span class="dim">— 계산 대기</span></li>');
+    html.push('</ul></div></div>');
+    // §16.4.10 세력예상가 / 세력 판단
+    html.push('<div class="ws3-card-section collapsed"><div class="ws3-card-section-title">10. 세력 판단 <span class="toggle-mini">펼치기</span></div><div class="ws3-card-section-body"><span class="dim">데이터 수집 중 (volumeClusterZone / orderBlockZone / boxCenter)</span></div></div>');
+    // §16.4.11 반복신호 / 신호 히스토리
+    html.push('<div class="ws3-card-section collapsed"><div class="ws3-card-section-title">11. 반복신호 / 신호 히스토리 <span class="toggle-mini">펼치기</span></div><div class="ws3-card-section-body"><span class="dim">후속 단계 (signalCycle 모듈)</span></div></div>');
+    // §16.4.12 지표 상세
+    html.push('<div class="ws3-card-section collapsed"><div class="ws3-card-section-title">12. 지표 상세 <span class="toggle-mini">펼치기</span></div><div class="ws3-card-section-body">');
+    html.push('캔들 수: ' + (typeof r.candleCount === 'number' ? r.candleCount : '-'));
+    html.push(' · 최근 시각: ' + mcEscapeHtml(r.latestTime || '-'));
+    html.push(' · 종가: ' + (typeof r.lastClose === 'number' ? r.lastClose : '-'));
+    html.push('</div></div>');
+    // §16.4.13 코인 메타 / 시총 / 섹터
+    html.push('<div class="ws3-card-section collapsed"><div class="ws3-card-section-title">13. 코인 메타 / 시총 <span class="toggle-mini">펼치기</span></div><div class="ws3-card-section-body"><span class="dim">후속 단계 (coinMeta 모듈)</span></div></div>');
+    // §16.4.14 뉴스
+    html.push('<div class="ws3-card-section collapsed"><div class="ws3-card-section-title">14. 뉴스 <span class="toggle-mini">펼치기</span></div><div class="ws3-card-section-body"><span class="dim">후속 단계 (newsContext 모듈)</span></div></div>');
+    // §16.4.15 시장 참고
+    html.push('<div class="ws3-card-section collapsed"><div class="ws3-card-section-title">15. 시장 참고 <span class="toggle-mini">펼치기</span></div><div class="ws3-card-section-body"><span class="dim">후속 단계 (marketReference 모듈)</span></div></div>');
+    // §16.4.16 외부 보조확인
+    html.push('<div class="ws3-card-section collapsed"><div class="ws3-card-section-title">16. 외부 보조확인 <span class="toggle-mini">펼치기</span></div><div class="ws3-card-section-body"><span class="dim">후속 단계 (externalConfluence 모듈, 점수·등급 영향 없음)</span></div></div>');
+    // §16.4.17 사후평가 진행 (후보 검증)
+    html.push('<div class="ws3-card-section collapsed"><div class="ws3-card-section-title">17. 후보 검증 / 사후평가 <span class="toggle-mini">펼치기</span></div><div class="ws3-card-section-body"><span class="dim">후속 단계 (evaluationOutcome 모듈). 현재는 dry-run preview 만 표시.</span></div></div>');
+    // §16.4.18 고급 상세 / 원본 보기
+    html.push('<div class="ws3-card-section collapsed"><div class="ws3-card-section-title">18. 고급 상세 <span class="toggle-mini">펼치기</span></div><div class="ws3-card-section-body" style="font-family:var(--mono); font-size:10px;">');
+    html.push('rank=' + r.rank + ' · isCandidate=' + (r.isCandidate ? 'true' : 'false') + ' · operatorReview=' + (r.operatorReview === true ? 'true' : 'false'));
+    html.push(' · operatorReviewLevel=' + mcEscapeHtml(r.operatorReviewLevel || '-'));
+    html.push('<br>chips: ' + (Array.isArray(r.reasonChips) ? r.reasonChips.slice(0, 8).map(mcEscapeHtml).join(', ') : '-'));
+    html.push('</div></div>');
+    html.push('</div>'); // /ws3-card-body
+    return html.join('');
+  }
   function mcRenderResults(results, req) {
     if (!Array.isArray(results) || results.length === 0) {
-      mcResultsEl.textContent = '(no results)';
+      mcResultsEl.innerHTML = '<div style="padding:12px; color:var(--text-muted); font-size:12px; text-align:center;">(결과 없음)</div>';
       mcResultsWrap.style.display = 'block';
       return;
     }
-    // v0.32 — apply filter; preserve original render style for matching rows + failed rows.
     var visible = [];
     var showFailed = (ws3CurrentFilter === 'ALL');
     for (var i = 0; i < results.length; i++) {
@@ -1769,61 +2027,83 @@
       if (ws3MatchesFilter(r0, ws3CurrentFilter)) visible.push(r0);
     }
     if (visible.length === 0) {
-      mcResultsEl.innerHTML = '<div style="padding:8px; color:#888; font-size:12px; text-align:center;">(no matches for current filter)</div>';
+      mcResultsEl.innerHTML = '<div style="padding:12px; color:var(--text-muted); font-size:12px; text-align:center;">(현재 필터에 해당하는 항목 없음)</div>';
       mcResultsWrap.style.display = 'block';
       return;
     }
+    var ex = (req && req.exchange) ? req.exchange : 'upbit';
+    var tf = (req && req.timeframe) ? req.timeframe : '-';
     var rows = [];
     for (var ii = 0; ii < visible.length; ii++) {
       var r = visible[ii];
       if (r.ok === false) {
-        rows.push('<div style="padding:6px 4px; border-bottom:1px solid #eee; color:#802;">'
-          + '<span style="font-weight:600;">#' + (r.rank || (ii+1)) + '</span> '
+        rows.push('<div style="padding:6px 8px; margin:4px 0; background:rgba(255,140,66,0.04); border:1px dotted rgba(255,140,66,0.25); border-radius:3px; color:var(--accent-orange); font-size:11px; font-family:var(--mono);">'
+          + '#' + (r.rank || (ii+1)) + ' '
           + mcEscapeHtml(r.market || '-')
-          + ' — FAIL: ' + mcEscapeHtml(r.code || 'UNKNOWN')
+          + ' — 실패: ' + mcEscapeHtml(r.code || 'UNKNOWN')
           + '</div>');
         continue;
       }
-      var chips = (Array.isArray(r.reasonChips) && r.reasonChips.length > 0)
-        ? r.reasonChips.slice(0, 8).map(mcEscapeHtml).join(', ')
-        : '-';
-      var gradeColor = (r.grade === 'P-S') ? '#060'
-        : (r.grade === 'P-A') ? '#262'
-        : (r.grade === 'P-B') ? '#553'
-        : '#802';
-      var orLevel = (typeof r.operatorReviewLevel === 'string') ? r.operatorReviewLevel : 'LOW_SIGNAL';
-      var orColor = (orLevel === 'HOT_REVIEW') ? '#a00'
-        : (orLevel === 'WATCH_REVIEW') ? '#a60'
-        : '#888';
-      var orBg = (orLevel === 'HOT_REVIEW') ? '#fee'
-        : (orLevel === 'WATCH_REVIEW') ? '#ffe'
-        : '#f0f0f0';
+      var orInfo = ws3OrLevelKr(r.operatorReviewLevel);
+      var gradeCls = ws3GradeChipClass(r.grade);
+      var sigPct = Math.max(0, Math.min(100, r.score));
+      var exClass = ws3ExchangeChipClass(ex);
+      var cardCls = gradeCls; // result-card에 등급별 좌측 네온 라인
       rows.push(
-        '<div style="padding:6px 4px; border-bottom:1px solid #eee;">'
-        + '<div><span style="font-weight:600;">#' + r.rank + '</span> '
-        + '<span style="font-family:ui-monospace, SFMono-Regular, monospace;">' + mcEscapeHtml(r.market) + '</span> '
-        + '<span style="color:' + gradeColor + '; font-weight:700;"> ' + mcEscapeHtml(r.grade) + '</span> '
-        + 'score=' + r.score + ' '
-        + '<span style="display:inline-block; padding:1px 6px; background:' + orBg + '; color:' + orColor + '; border-radius:3px; font-size:10px; font-weight:700; margin-left:4px;">' + mcEscapeHtml(orLevel) + '</span> '
-        + (r.isCandidate ? '<span style="color:#060; font-weight:700;"> [CANDIDATE]</span>' : '')
-        + (r.operatorReview === true && r.isCandidate !== true ? '<span style="color:#a60; font-weight:700;"> [OP-REVIEW]</span>' : '')
+        '<div class="ws3-result-card ' + cardCls + '" id="ws3_card_' + ii + '">'
+        + '<div class="ws3-card-header">'
+        + '<span class="dot"></span>'
+        + '<span class="name">#' + r.rank + ' ' + mcEscapeHtml(r.market) + '</span>'
+        + '<span class="score-big">' + r.score + '점</span>'
         + '</div>'
-        + '<div style="font-size:11px; color:#555;">'
-        + 'changePct=' + (typeof r.changePct === 'number' ? r.changePct.toFixed(3) : '-') + ' / '
-        + 'volRatio=' + (typeof r.volumeRatio === 'number' ? r.volumeRatio.toFixed(3) : '-') + ' / '
-        + 'volAccel=' + (typeof r.volumeAccel === 'number' ? r.volumeAccel.toFixed(3) : '-') + ' / '
-        + 'closePos=' + (typeof r.closePosition === 'number' ? r.closePosition.toFixed(3) : '-')
+        + '<div class="ws3-card-chips">'
+        + '<span class="ws3-chip ' + gradeCls + '">' + mcEscapeHtml(ws3GradeLabel(r.grade)) + '</span>'
+        + '<span class="ws3-chip ' + orInfo.kind + '">' + mcEscapeHtml(orInfo.label) + '</span>'
+        + (r.isCandidate ? '<span class="ws3-chip candidate">후보</span>' : '')
+        + (r.operatorReview === true && r.isCandidate !== true ? '<span class="ws3-chip mode-watch">검토</span>' : '')
+        + '<span class="ws3-chip ' + exClass + '">' + ws3ExchangeLabel(ex) + '</span>'
+        + ws3RenderChipsKr(r.reasonChips, 4)
         + '</div>'
-        + '<div style="font-size:11px; color:#666;">chips: ' + chips + '</div>'
-        + '<div style="font-size:11px; color:#888;">'
-        + 'latestTime=' + mcEscapeHtml(r.latestTime || '-')
-        + ' / lastClose=' + (typeof r.lastClose === 'number' ? r.lastClose : '-')
+        + '<div class="ws3-signal-bar"><div class="ws3-signal-fill" style="width:' + sigPct + '%;"></div></div>'
+        + '<div class="ws3-card-meta">'
+        + '<span>신호 ' + sigPct + '%</span>'
+        + '<span>· 기준봉 ' + mcEscapeHtml(tf) + '</span>'
+        + '<span>· ' + mcEscapeHtml(r.latestTime || '-') + '</span>'
+        + '<span>· 종가 ' + (typeof r.lastClose === 'number' ? r.lastClose : '-') + '</span>'
         + '</div>'
+        + '<button type="button" class="ws3-card-body-toggle" data-card-idx="' + ii + '">근거 펼치기 ▾</button>'
+        + ws3BuildCardBody(r, req, ii)
         + '</div>'
       );
     }
     mcResultsEl.innerHTML = rows.join('');
     mcResultsWrap.style.display = 'block';
+    // v0.32.3 카드 펼침 토글 hook
+    var toggles = mcResultsEl.querySelectorAll('.ws3-card-body-toggle');
+    for (var t = 0; t < toggles.length; t++) {
+      (function(btn) {
+        btn.addEventListener('click', function(ev) {
+          ev.stopPropagation();
+          var card = btn.closest('.ws3-result-card');
+          if (!card) return;
+          var expanded = card.classList.toggle('expanded');
+          btn.textContent = expanded ? '근거 접기 ▴' : '근거 펼치기 ▾';
+        });
+      })(toggles[t]);
+    }
+    // v0.32.3 카드바디 섹션 펼침 mini toggle
+    var miniToggles = mcResultsEl.querySelectorAll('.ws3-card-section .toggle-mini');
+    for (var m = 0; m < miniToggles.length; m++) {
+      (function(mini) {
+        mini.addEventListener('click', function(ev) {
+          ev.stopPropagation();
+          var sec = mini.closest('.ws3-card-section');
+          if (!sec) return;
+          var collapsed = sec.classList.toggle('collapsed');
+          mini.textContent = collapsed ? '펼치기' : '접기';
+        });
+      })(miniToggles[m]);
+    }
   }
   function mcUpdateCandidateSelector(results, req) {
     // Clear options
@@ -2195,30 +2475,32 @@
         if (r && r.ok === true && r.market === p.market) { extra = r; break; }
       }
     }
-    var chips = (Array.isArray(p.reasonChips) && p.reasonChips.length > 0)
-      ? p.reasonChips.slice(0, 8).map(mcEscapeHtml).join(', ')
-      : '-';
+    // v0.32.3 — 한글 chip 매핑 적용
+    var chipsRaw = Array.isArray(p.reasonChips) && p.reasonChips.length > 0
+      ? p.reasonChips.slice(0, 8) : [];
+    var chipsKr = chipsRaw.length > 0 ? chipsRaw.map(function(c) { return ws3MapChipKr(c).label; }).join(', ') : '-';
+    var orInfoSel = ws3OrLevelKr(p.operatorReviewLevel);
     var lines = [];
-    lines.push('<div><span class="lbl">Selected market:</span> <span class="val">' + mcEscapeHtml(p.market) + '</span></div>');
-    lines.push('<div><span class="lbl">Exchange / Timeframe:</span> <span class="val">' + mcEscapeHtml(p.exchange) + ' / ' + mcEscapeHtml(p.timeframe) + '</span></div>');
-    lines.push('<div><span class="lbl">Score / Grade:</span> <span class="val">' + (typeof p.score === 'number' ? p.score : '-') + ' / ' + mcEscapeHtml(p.grade) + '</span></div>');
-    lines.push('<div><span class="lbl">Operator review level:</span> <span class="val">' + mcEscapeHtml(p.operatorReviewLevel || 'LOW_SIGNAL') + '</span></div>');
-    lines.push('<div><span class="lbl">isCandidate:</span> <span class="val">' + (p.isCandidate === true ? 'true' : 'false') + '</span></div>');
-    lines.push('<div><span class="lbl">operatorReview:</span> <span class="val">' + (p.operatorReview === true ? 'true' : 'false') + '</span></div>');
-    lines.push('<div><span class="lbl">Reason chips:</span> <span class="val">' + chips + '</span></div>');
+    lines.push('<div><span class="lbl">선택 마켓:</span> <span class="val">' + mcEscapeHtml(p.market) + '</span></div>');
+    lines.push('<div><span class="lbl">거래소 / 기준봉:</span> <span class="val">' + ws3ExchangeLabel(p.exchange) + ' / ' + mcEscapeHtml(p.timeframe) + '</span></div>');
+    lines.push('<div><span class="lbl">점수 / 등급:</span> <span class="val">' + (typeof p.score === 'number' ? p.score : '-') + ' / ' + mcEscapeHtml(ws3GradeLabel(p.grade)) + '</span></div>');
+    lines.push('<div><span class="lbl">운영자 검토 레벨:</span> <span class="val">' + mcEscapeHtml(orInfoSel.label) + '</span></div>');
+    lines.push('<div><span class="lbl">후보 자격:</span> <span class="val">' + (p.isCandidate === true ? '예' : '아니요') + '</span></div>');
+    lines.push('<div><span class="lbl">운영자 검토:</span> <span class="val">' + (p.operatorReview === true ? '예' : '아니요') + '</span></div>');
+    lines.push('<div><span class="lbl">근거(한글):</span> <span class="val">' + mcEscapeHtml(chipsKr) + '</span></div>');
     if (extra) {
-      lines.push('<div><span class="lbl">latestTime:</span> <span class="val">' + mcEscapeHtml(extra.latestTime || '-') + '</span></div>');
-      lines.push('<div><span class="lbl">lastClose:</span> <span class="val">' + (typeof extra.lastClose === 'number' ? extra.lastClose : '-') + '</span></div>');
-      lines.push('<div><span class="lbl">changePct / volRatio:</span> <span class="val">' + (typeof extra.changePct === 'number' ? extra.changePct.toFixed(3) : '-') + ' / ' + (typeof extra.volumeRatio === 'number' ? extra.volumeRatio.toFixed(3) : '-') + '</span></div>');
+      lines.push('<div><span class="lbl">최근 시각:</span> <span class="val">' + mcEscapeHtml(extra.latestTime || '-') + '</span></div>');
+      lines.push('<div><span class="lbl">종가:</span> <span class="val">' + (typeof extra.lastClose === 'number' ? extra.lastClose : '-') + '</span></div>');
+      lines.push('<div><span class="lbl">변화율 / 거래량 배수:</span> <span class="val">' + (typeof extra.changePct === 'number' ? extra.changePct.toFixed(3) : '-') + ' / ' + (typeof extra.volumeRatio === 'number' ? extra.volumeRatio.toFixed(3) : '-') + '</span></div>');
     }
-    // Risk note: derive from chips if any.
+    // Risk note: derive from chips if any (한글).
     var riskNote = '-';
     if (Array.isArray(p.reasonChips)) {
-      if (p.reasonChips.indexOf('UPPER_WICK_RISK') !== -1) riskNote = 'UPPER_WICK_RISK 감지 (false positive 가능성)';
-      else if (p.reasonChips.indexOf('WIDE_RANGE_RISK') !== -1) riskNote = 'WIDE_RANGE_RISK 감지';
-      else if (p.reasonChips.indexOf('LOW_VOLUME') !== -1) riskNote = 'LOW_VOLUME (저거래량)';
+      if (p.reasonChips.indexOf('UPPER_WICK_RISK') !== -1) riskNote = '윗꼬리 리스크 감지 (false positive 가능성)';
+      else if (p.reasonChips.indexOf('WIDE_RANGE_RISK') !== -1) riskNote = '변동폭 위험 감지';
+      else if (p.reasonChips.indexOf('LOW_VOLUME') !== -1) riskNote = '거래량 부족';
     }
-    lines.push('<div><span class="lbl">Risk note:</span> <span class="val">' + mcEscapeHtml(riskNote) + '</span></div>');
+    lines.push('<div><span class="lbl">위험 메모:</span> <span class="val">' + mcEscapeHtml(riskNote) + '</span></div>');
     llSelectedInfoEl.innerHTML = lines.join('');
     llSelectedInfoWrap.style.display = 'block';
     llRefreshTelegramPreview(p);
