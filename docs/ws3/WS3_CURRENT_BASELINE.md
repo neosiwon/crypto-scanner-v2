@@ -4,7 +4,7 @@
 > 다음 단계 작업 전에 이 파일로 baseline 을 확인.
 
 **최종 업데이트**: 2026-05-18  
-**기능 단계 (current functional baseline)**: WS3 v0.28.0 Actual Coin Candidate Dry-run code-ready (POST /candidate-dry-run 신규 endpoint — read-only feature/score/grade dry-run, v0.27 fetch/normalize helper 재사용, structure 13 + volume 4 + momentum 4 features 계산, score 0..100 clamp + P-S/P-A/P-B/P-C grade + reason chips max 8, limit ≤ 120, mock smoke 21/21, Telegram 0건 / KV write 0건 / candidate 저장 0건 / tracking 시작 0건 / 실 거래소 API 호출 0건 / Cloudflare deploy 0건)  
+**기능 단계 (current functional baseline)**: WS3 v0.28.0 Actual Coin Candidate Dry-run + Live Validation Success (Cloudflare Worker v0.28 redeploy + Pages production deploy 완료, production console Check State PASS, `/candidate-dry-run` 1회 실 호출 PASS — upbit/KRW-BTC/5m/limit=60 → CANDIDATE_DRY_RUN_OK / candleCount=60 / score=0 / grade=P-C / reasonChips=LOW_VOLUME / isCandidate=false / mode=CANDIDATE_DRY_RUN_ONLY / Telegram 0건 / KV write 0건 / candidate 저장 0건 / tracking 시작 0건)  
 **이전 기능 baseline**: WS3 v0.27.0 Actual Coin Live Preflight + Live Validation Success (`488cb08`)  
 **운영 문서**: WS3 Workflow Template v0.1 박제 (`d8bebc2`, v0.3.0-docs)  
 **branch**: `claude/heuristic-cori-7865e7`
@@ -54,7 +54,8 @@
 | **WS3 v0.26.1 Pages Deploy** | **`/docs/ws3/WS3_v0_26_1_DEV_PREVIEW_INVITE_GATE_REPORT.md` §16 추가 + `/docs/ws3/WS3_CHANGELOG.md` + `/docs/ws3/WS3_CURRENT_BASELINE.md`** | **`81964bf`** | **✅ 박제 (Dev Preview Pages Deploy Success Closure — 코드 변경 0건 / tracked source 변경 0건 / 문서 3개만. Cloudflare Pages `ws3-canary-console.pages.dev` 배포 / Worker allowlist = Pages origin only / localhost 제거 / lightweight invite gate active / final production Check State PASS / Cloudflare Access deferred / Send Canary 0건 / Telegram 0건 / KV write 0건 / raw invite code & SHA-256 hash repo 박제 0건)** |
 | **WS3 v0.27.0** | **`/workers/ws3-telegram-canary-worker.js` (보강) + `/web/ws3-canary-console.html` (보강) + `/web/ws3-canary-console/index.html` (mirror) + `/docs/ws3/WS3_v0_27_0_ACTUAL_COIN_LIVE_PREFLIGHT_REPORT.md`** | **`d3e80b4`** | **✅ 박제 (Actual Coin Live Preflight — POST /live-preflight 신규 endpoint, 실 거래소 (upbit/bithumb/binance) 공개 시세 read-only fetch + 정규화 preview, 3중 인증 (Origin + Invoke Token + manualTrigger), exchange/timeframe allowlist + market 정규식 sanitize + limit ≤ 60, 5s timeout, mock smoke 16/16. 실 Telegram 0건 / 실 KV write 0건 / 실 거래소 API 호출 0건 / Cloudflare deploy 0건. v0.28+ 후보: dry-run candidate / security hardening before live coin)** |
 | **WS3 v0.27.0 Live Validation** | **`/docs/ws3/WS3_v0_27_0_ACTUAL_COIN_LIVE_PREFLIGHT_REPORT.md` §20 추가 + `/docs/ws3/WS3_CHANGELOG.md` + `/docs/ws3/WS3_CURRENT_BASELINE.md`** | **`488cb08`** | **✅ 박제 (Live Validation Success Closure — 코드 변경 0건 / tracked source 변경 0건 / 문서 3개만. Cloudflare Worker v0.27 redeploy + Pages production deploy 완료, production console Check State PASS (v0.27 version 반영 확인), `/live-preflight` 1회 실 호출 PASS — upbit / KRW-BTC / 5m / limit=30 → LIVE_PREFLIGHT_OK / candleCount=30 / mode=LIVE_PREFLIGHT_ONLY / Telegram 0건 / KV write 0건 / candidate 저장 0건 / tracking 시작 0건. 노출된 폐기 hash repo-wide 매치 0건, raw exchange full response / Invoke Token / KV namespace ID 노출 0건)** |
-| **WS3 v0.28.0** | **`/workers/ws3-telegram-canary-worker.js` (보강) + `/web/ws3-canary-console.html` (보강) + `/web/ws3-canary-console/index.html` (mirror) + `/docs/ws3/WS3_v0_28_0_CANDIDATE_DRY_RUN_REPORT.md`** | **(push 후 기록)** | **✅ 박제 (Actual Coin Candidate Dry-run — POST /candidate-dry-run 신규 endpoint, v0.27 fetch/normalize helper 재사용, candle structure 13 + volume 4 + momentum 4 features 계산 + dry-run score 0..100 clamp + P-S/P-A/P-B/P-C grade 분류 + reason chips max 8, exchange/timeframe allowlist + market 정규식 sanitize + limit ≤ 120, mock smoke 21/21. 실 Telegram 0건 / 실 KV write 0건 / 실 candidate 저장 0건 / 실 tracking 시작 0건 / 실 거래소 API 호출 0건 / Cloudflare deploy 0건. 점수·등급은 dry-run preview 일뿐 실 알람·매수 조건 아님)** |
+| **WS3 v0.28.0** | **`/workers/ws3-telegram-canary-worker.js` (보강) + `/web/ws3-canary-console.html` (보강) + `/web/ws3-canary-console/index.html` (mirror) + `/docs/ws3/WS3_v0_28_0_CANDIDATE_DRY_RUN_REPORT.md`** | **`cd69760`** | **✅ 박제 (Actual Coin Candidate Dry-run — POST /candidate-dry-run 신규 endpoint, v0.27 fetch/normalize helper 재사용, candle structure 13 + volume 4 + momentum 4 features 계산 + dry-run score 0..100 clamp + P-S/P-A/P-B/P-C grade 분류 + reason chips max 8, exchange/timeframe allowlist + market 정규식 sanitize + limit ≤ 120, mock smoke 21/21. 실 Telegram 0건 / 실 KV write 0건 / 실 candidate 저장 0건 / 실 tracking 시작 0건 / 실 거래소 API 호출 0건 / Cloudflare deploy 0건. 점수·등급은 dry-run preview 일뿐 실 알람·매수 조건 아님)** |
+| **WS3 v0.28.0 Live Validation** | **`/docs/ws3/WS3_v0_28_0_CANDIDATE_DRY_RUN_REPORT.md` §19 추가 + `/docs/ws3/WS3_CHANGELOG.md` + `/docs/ws3/WS3_CURRENT_BASELINE.md`** | **(closure commit 후 기록)** | **✅ 박제 (Live Validation Success Closure — 코드 변경 0건 / tracked source 변경 0건 / 문서 3개만. Cloudflare Worker v0.28 redeploy + Pages production deploy 완료, production console Check State PASS (v0.28 version 반영 확인), `/candidate-dry-run` 1회 실 호출 PASS — upbit / KRW-BTC / 5m / limit=60 → CANDIDATE_DRY_RUN_OK / candleCount=60 / score=0 / grade=P-C / reasonChips=LOW_VOLUME / isCandidate=false / mode=CANDIDATE_DRY_RUN_ONLY / Telegram 0건 / KV write 0건 / candidate 저장 0건 / tracking 시작 0건. 후보 아님 판정 = dry-run 계산 정상 작동. 노출된 폐기 hash repo-wide 매치 0건, raw exchange full response / Invoke Token / KV namespace ID 노출 0건)** |
 
 ## REJECTED — repo 반영 보류
 
@@ -373,6 +374,48 @@ workers/ws3-telegram-canary-worker.js + web/ws3-canary-console.html  (v0.22.0/v0
 ```
 
 ---
+
+## v0.28.0 Live Validation Success (실 Cloudflare 검증 박제)
+
+```text
+v0.28.0 Live Validation Success:
+- Worker deploy: completed (Version single fragment 75edfb1f, size 151.91 KiB / gzip 24.23 KiB)
+- Pages deploy: completed (production URL ws3-canary-console.pages.dev, --branch=main, lightweight invite gate 활성 유지)
+- Production console Check State PASS:
+  · version=WS3_v0.28.0_candidate_dry_run
+  · persistenceAvailable=true
+  · canaryEnabled=false
+  · alreadySent=false
+  · cleanupRequired=false
+  · circuitOpen=false
+  · currentPhase=RESET_CONFIRMED
+- /candidate-dry-run actual read-only call PASS (1회):
+  · exchange=upbit / market=KRW-BTC / timeframe=5m / limit=60
+  · code=CANDIDATE_DRY_RUN_OK / mode=CANDIDATE_DRY_RUN_ONLY
+  · candleCount=60 / latestTime=2026-05-19T06:00:00Z
+  · lastClose=114446000 / changePct=-0.02795296912943972
+  · volumeRatio=0.22896266841376825 / volumeAccel=0.37174385029772017
+  · closePosition=0.20454545454545456 / upperWickPct=0.0017470453096201047 / rangePct=0.03843499681164231
+  · score=0 / grade=P-C / reasonChips=LOW_VOLUME / isCandidate=false
+- safety flags 모두 false: telegramSent / kvWritten / candidateStored / trackingStarted
+- Send Canary count: 0 / Cleanup Confirm count: 0 / Operator Reset count: 0 / Live Preflight extra calls: 0
+- Telegram API calls: 0 / KV writes: 0
+- CANARY_ENABLED=false maintained / AUTHORIZED_AT=0 maintained
+- WS3_CANARY_ALLOWED_ORIGINS = https://ws3-canary-console.pages.dev (Pages-only) 유지
+- 결과 판정: 후보 아님 (현재 KRW-BTC 5m 상태 — volumeRatio < 0.5 → LOW_VOLUME chip / score 0 / grade P-C). dry-run 계산이 정상 작동 — 알람 실패가 아니라 정상 분류 결과 (false alarm 방지 동작 검증).
+- raw exchange full response: not recorded
+- Invoke Token: not recorded / KV namespace ID: not recorded
+- raw invite code / SHA-256 hash: not recorded (placeholder repo 박제 유지, 노출된 폐기 hash repo-wide 매치 0건)
+- deployment ID 전체값: not recorded (Version ID 단편만)
+- Gate 진행 흐름: Step A (preflight sanity) → Step B (Worker redeploy) → Step C (hash reuse) → Step D (.tmp_pages_deploy 생성) → Step E (assignment line 1건만 hash 교체, line 301) → Step F (Pages deploy --branch=main) → Step G (temp cleanup + 검증) → Step H (사용자 Check State PASS) → Step I (사용자 Candidate Dry-run 1회 PASS, KRW-BTC 5m → P-C / LOW_VOLUME)
+- 본 검증 한계 (재인용): 1 isolate / 1 사용자 / 1 market (upbit KRW-BTC 5m / limit 60) / 단일 timeframe / 단일 시점 범위. 활발한 시장 / surge 시점 / 다른 exchange / 다른 timeframe / 비정상 candle / rate limit / partial data 는 본 검증 범위 밖. score 산식 = 초기 dry-run 공식, v0.29+ 백테스트 결과로 조정 가능.
+
+Next:
+v0.29 candidate:
+  - 후보 A: Multi-market Candidate Dry-run (predefined small list, Telegram·KV 0건)
+  - 후보 B: Candidate Dry-run result history in UI (browser memory-only, 저장 없음)
+  - 후보 C: Security Hardening Before Live Candidate Alert (Cloudflare Access 재검토 / invoke token rotation / origin allowlist 재검토)
+```
 
 ## v0.28.0 핵심 메모
 

@@ -7,6 +7,21 @@
 
 ## [v0.28.0] — 2026-05-18 (Actual Coin Candidate Dry-run)
 
+### Verified (Cloudflare Worker redeploy + Pages deploy + production Candidate Dry-run 1회 실 호출 — 코드 변경 0건 / tracked source 변경 0건)
+- v0.28 Worker was deployed successfully (production version, `/candidate-dry-run` route 포함).
+- v0.28 Web Console was deployed successfully to `ws3-canary-console.pages.dev` (production branch, Candidate Dry-run Section 7 UI 반영).
+- Production console Check State returned `version=WS3_v0.28.0_candidate_dry_run` / `canaryEnabled=false` / `persistenceAvailable=true` / `alreadySent=false` / `cleanupRequired=false` / `circuitOpen=false` / `currentPhase=RESET_CONFIRMED`.
+- `/candidate-dry-run` was executed **once** for `upbit` / `KRW-BTC` / `5m` / `limit=60`.
+- The result returned `code=CANDIDATE_DRY_RUN_OK` / `mode=CANDIDATE_DRY_RUN_ONLY`.
+- `candleCount=60`, `latestTime=2026-05-19T06:00:00Z`, `lastClose=114446000`, `changePct=-0.02795296912943972`.
+- `volumeRatio=0.22896266841376825`, `volumeAccel=0.37174385029772017`, `closePosition=0.20454545454545456`, `upperWickPct=0.0017470453096201047`, `rangePct=0.03843499681164231`.
+- `score=0`, `grade=P-C`, `reasonChips=LOW_VOLUME`, `isCandidate=false`.
+- `telegramSent=false` / `kvWritten=false` / `candidateStored=false` / `trackingStarted=false`.
+- Candidate storage and tracking were not started.
+- Send Canary / Cleanup Confirm / Operator Reset were not triggered.
+- 결과 판정: 후보 아님 (현재 KRW-BTC 5m 상태). dry-run 계산이 정상 작동 — 알람 실패가 아니라 정상 분류 결과 (false alarm 방지 동작).
+- raw exchange full response, Invoke Token, invite code, invite hash, KV namespace ID — **not recorded** in repo / chat / log.
+
 ### 목적 (실코인 자동 알람 아님)
 v0.28 = 실 거래소 공개 시세 read-only fetch + candle structure / volume / momentum features 계산 + dry-run score / grade preview. **실 Telegram / KV write / candidate 저장 / tracking 시작 / Cloudflare deploy / 실 거래소 API 호출 — 모두 0건** (mock smoke 만). 점수·등급은 dry-run preview 일뿐 실 알람·매수 조건 아님.
 
@@ -151,7 +166,8 @@ S1 no token → 401 / S2 bad token → 403 / S3 no manualTrigger → 400 / S4 in
 ### 기준 commit
 - branch: `claude/heuristic-cori-7865e7`
 - 이전 functional baseline: WS3 v0.27.0 Actual Coin Live Preflight + Live Validation Success (`488cb08`)
-- 본 commit: (push 후 기록, push 별도 승인)
+- 코드 commit: `cd69760` (ws3: v0.28.0 candidateDryRun, push 완료)
+- live validation closure commit: 본 closure commit (코드 변경 0건 / docs 3개만 — push 별도 승인)
 
 ---
 

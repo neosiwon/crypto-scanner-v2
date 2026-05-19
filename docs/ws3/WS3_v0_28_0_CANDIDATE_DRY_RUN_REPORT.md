@@ -440,3 +440,94 @@ Telegram 발송 0건 / KV write 0건 / candidate 저장 0건 / tracking 시작 0
 실 거래소 API 호출은 별도 staging Gate (본 commit 까지 mock 만)
 실전 스캐너 알람은 v0.29 이후 별도 승인으로만 진행
 ```
+
+---
+
+## 19. Final Live Validation Result
+
+본 섹션은 v0.28.0 코드 commit (`cd69760`) 이후 실제 Cloudflare Worker redeploy + Pages production deploy + production console 에서 Check State + `/candidate-dry-run` 1회 실 호출 검증까지 마친 결과 박제다. 코드 변경 0건 / tracked source 변경 0건 / hash 또는 raw invite code repo 박제 0건 / Telegram 발송 0건 / KV write 0건 / candidate 저장 0건 / tracking 시작 0건.
+
+- Worker deploy: **completed** (Version single fragment `75edfb1f`, `ws3-telegram-canary.neosiwon.workers.dev` 동일 URL, size 151.91 KiB / gzip 24.23 KiB)
+- Pages deploy: **completed** (production URL `ws3-canary-console.pages.dev`, `--branch=main`, lightweight invite gate 활성 유지, working copy hash 주입 후 즉시 cleanup, tracked source diff 0건)
+- Production console Check State: **succeeded**
+  - `version=WS3_v0.28.0_candidate_dry_run`
+  - `persistenceAvailable=true`
+  - `canaryEnabled=false`
+  - `alreadySent=false`
+  - `cleanupRequired=false`
+  - `circuitOpen=false`
+  - `currentPhase=RESET_CONFIRMED`
+- Candidate Dry-run actual read-only call: **succeeded** (1회)
+  - Exchange: `upbit`
+  - Market: `KRW-BTC`
+  - Timeframe: `5m`
+  - Limit result candleCount: `60`
+  - Latest candle time: `2026-05-19T06:00:00Z`
+  - Last close: `114446000`
+  - Change percent: `-0.02795296912943972`
+  - Volume ratio: `0.22896266841376825`
+  - Volume acceleration: `0.37174385029772017`
+  - Close position: `0.20454545454545456`
+  - Upper wick percent: `0.0017470453096201047`
+  - Range percent: `0.03843499681164231`
+  - Score: `0`
+  - Grade: `P-C`
+  - Reason chips: `LOW_VOLUME`
+  - isCandidate: `false`
+  - Result code: `CANDIDATE_DRY_RUN_OK`
+  - Mode: `CANDIDATE_DRY_RUN_ONLY`
+- safety flags (모두 false):
+  - `telegramSent: false`
+  - `kvWritten: false`
+  - `candidateStored: false`
+  - `trackingStarted: false`
+- Send Canary count during this gate: **0**
+- Cleanup Confirm count during this gate: **0**
+- Operator Reset count during this gate: **0**
+- Live Preflight extra calls during this gate: **0**
+- Telegram API calls during this gate: **0**
+- KV writes during this gate: **0**
+- raw exchange full response **not recorded** (raw native field 보고서 / 채팅 / 로그 노출 0건)
+- Invoke Token **not recorded**
+- raw invite code / SHA-256 hash **not recorded** (placeholder repo 박제 유지, 노출된 폐기 hash repo-wide 매치 0건)
+- KV namespace ID **not recorded**
+- deployment ID full value **not recorded** (Version ID 단편 + Pages deployment hash 단편만)
+
+### 19.1 결과 판정
+
+- 현재 KRW-BTC 5m 상태 = volumeRatio ~0.23 / changePct ~-0.03% / closePosition ~0.20 → **LOW_VOLUME chip + score 0 + grade P-C + isCandidate=false**
+- 이는 "후보 아님" 판정으로, **dry-run 계산이 정상 작동** 했음을 의미 (false alarm 방지 동작). 알람 실패가 아니라 정상 분류 결과.
+- volume gate / change gate / close position gate / momentum gate 모두 threshold 미달 + `volumeRatio < 0.5` 로 `LOW_VOLUME` chip 정확히 부여 — score 산식 검증 완료.
+
+### 19.2 Gate 진행 흐름 박제 (Step A → I)
+
+```text
+Step A (자동):  preflight sanity (git/protected/wrangler env/tracked placeholder)
+Step B (자동):  wrangler deploy --config wrangler-canary.toml → Worker v0.28 production version 활성 (Version 75edfb1f)
+                  · CANARY_ENABLED=false / AUTHORIZED_AT=0 / ALLOWED_ORIGINS=Pages-only 유지
+Step C (자동):  hash reuse 결정 — 이전 세션 SHA-256 재사용, 추가 사용자 입력 요청 0건, narrative 출력 0건
+Step D (자동):  .tmp_pages_deploy/ws3-canary-console/index.html 생성 (tracked index.html cp)
+Step E (자동):  assignment 라인 1건만 hash 교체 (line 301) — comment + placeholder check 라인 2건 보존
+Step F (자동):  wrangler pages deploy ... --branch=main → production Pages URL 활성화 (Candidate Dry-run Section 7 UI 반영)
+Step G (자동):  .tmp_pages_deploy/ 즉시 삭제 + tracked diff 0건 + placeholder 3+3 박제 + 보호 파일 0건 + repo-wide 노출 폐기 hash 매치 0건 검증
+Step H (사용자): production console 접속 → invite code 입력 → console UI 표시 → Worker Endpoint / Invoke Token 입력 → Check State 1회 클릭 → 7-field whitelist PASS (v0.28 version 반영 확인)
+Step I (사용자): Run Candidate Dry-run 1회 클릭 (upbit / KRW-BTC / 5m / limit 60) → CANDIDATE_DRY_RUN_OK 200 / mode=CANDIDATE_DRY_RUN_ONLY / candleCount=60 / score=0 / grade=P-C / reasonChips=LOW_VOLUME / isCandidate=false / safety 4 fields 모두 false
+```
+
+### 19.3 v0.28 검증 한계 (재인용)
+
+- 본 검증 = 1 isolate / 1 사용자 / 1 market (upbit KRW-BTC 5m / limit 60) / 단일 timeframe / 단일 시점 시퀀스. 다른 exchange / 다른 timeframe / 다른 limit / 활발한 시장 / surge 시점 / 비정상 candle / 분모 0 / rate limit 응답 / partial data / market suspension — 본 검증 범위 밖.
+- score / grade 산식 = 초기 dry-run 공식. 실 환경 백테스트 결과로 v0.29+ 에서 조정 가능. 현재 산식이 surge/momentum 시점에서 어떤 grade 분포를 내는지는 별도 검증 필요.
+- `/candidate-dry-run` 인증 = Layer 1 (Origin) + Layer 2 (Invoke Token) + Layer 3 (manualTrigger). KV persistent guard 미사용. abuse 위험 최소화 위해 limit ≤ 120 / single market 제한.
+- 본 단계 = read-only candidate calculation. 실 알람 / 후보 저장 / tracking / live signal 발송은 v0.29+ 별도 단계.
+
+### 19.4 v0.29+ 다음 단계 후보 (재인용)
+
+```text
+v0.29 후보 A: Basic Multi-market Candidate Dry-run (predefined small list, Telegram·KV 0건)
+v0.29 후보 B: Candidate Dry-run result history in UI (browser memory-only, 저장 없음)
+v0.29 후보 C: Security Hardening Before Live Candidate Alert (Cloudflare Access 재검토 / invoke token rotation / origin allowlist 재검토)
+worker /state response 자체에서 resetCount 제거 (v0.29+)
+env-based CANDIDATE_DRY_RUN_DISABLED kill switch
+rate limit per origin / market / minute / invoke token rotate automation / ipHash + WS3_CANARY_HASH_SALT
+```
