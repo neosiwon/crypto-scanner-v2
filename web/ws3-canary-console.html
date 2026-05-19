@@ -46,10 +46,50 @@
   .invite-status.err { color: #802; background: #fdd; }
   .invite-status.warn { color: #553; background: #ffe; }
   .invite-status.ok { color: #252; background: #efe; }
+  /* v0.32 V2-grade Operator Console — dashboard / tabs / top5 / preview / sent history. memory-only, no storage. */
+  .ws3-dash-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; margin: 4px 0 2px; }
+  .ws3-dash-card { padding: 8px 6px; border: 1px solid #ddd; border-radius: 4px; background: #fafafa; text-align: center; }
+  .ws3-dash-card .lbl { font-size: 10px; color: #666; line-height: 1.2; }
+  .ws3-dash-card .val { font-size: 16px; font-weight: 700; color: #222; line-height: 1.4; }
+  .ws3-dash-card.hot { background: #fee; border-color: #ecc; }
+  .ws3-dash-card.hot .val { color: #a00; }
+  .ws3-dash-card.watch { background: #ffe; border-color: #ec9; }
+  .ws3-dash-card.watch .val { color: #a60; }
+  .ws3-dash-card.low { background: #f5f5f5; border-color: #ddd; }
+  .ws3-dash-card.low .val { color: #555; }
+  .ws3-dash-meta { font-size: 11px; color: #666; margin-top: 4px; padding: 4px 0 0; border-top: 1px dashed #ddd; }
+  .ws3-tabs { display: flex; flex-wrap: wrap; gap: 4px; margin: 4px 0; }
+  .ws3-tab { padding: 6px 10px; font-size: 11px; border: 1px solid #bbb; background: #f7f7f7; border-radius: 3px; cursor: pointer; min-height: 32px; min-width: 60px; color: #444; font-weight: 600; }
+  .ws3-tab.active { background: #225; color: #fff; border-color: #225; }
+  .ws3-tab .count { display: inline-block; margin-left: 4px; padding: 1px 5px; background: rgba(0,0,0,0.08); border-radius: 8px; font-size: 10px; font-weight: 700; }
+  .ws3-tab.active .count { background: rgba(255,255,255,0.25); color: #fff; }
+  .ws3-top5-row { padding: 8px 6px; border-bottom: 1px solid #eee; display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: baseline; }
+  .ws3-top5-row:last-child { border-bottom: none; }
+  .ws3-top5-row .rank { font-weight: 700; color: #444; min-width: 18px; }
+  .ws3-top5-row .mkt { font-family: ui-monospace, SFMono-Regular, monospace; font-weight: 700; color: #222; }
+  .ws3-top5-row .lvl-badge { display: inline-block; padding: 1px 6px; border-radius: 3px; font-size: 10px; font-weight: 700; }
+  .ws3-failed-row { padding: 4px 6px; font-size: 11px; color: #802; border-bottom: 1px dotted #ecc; }
+  .ws3-failed-row:last-child { border-bottom: none; }
+  .ws3-preview-box { padding: 10px; background: #f7f7f7; border: 1px dashed #aaa; border-radius: 4px; font-family: ui-monospace, SFMono-Regular, monospace; font-size: 11px; line-height: 1.5; white-space: pre-wrap; color: #333; max-height: 260px; overflow: auto; }
+  .ws3-preview-empty { padding: 10px; background: #f3f3f3; border: 1px dashed #ccc; border-radius: 4px; font-size: 11px; color: #888; text-align: center; }
+  .ws3-sent-row { padding: 6px 4px; border-bottom: 1px solid #eee; font-size: 11px; line-height: 1.4; }
+  .ws3-sent-row:last-child { border-bottom: none; }
+  .ws3-sent-row .sent-time { color: #888; font-family: ui-monospace, SFMono-Regular, monospace; }
+  .ws3-sent-row .sent-mkt { font-family: ui-monospace, SFMono-Regular, monospace; font-weight: 700; color: #222; }
+  .ws3-selected-card { padding: 8px; border: 1px solid #ccd; border-radius: 4px; background: #f8f8ff; font-size: 12px; line-height: 1.6; }
+  .ws3-selected-card .lbl { font-weight: 600; color: #444; min-width: 130px; display: inline-block; }
+  .ws3-selected-card .val { font-family: ui-monospace, SFMono-Regular, monospace; color: #222; }
+  .ws3-mobile-spacer { height: 8px; }
   @media (max-width: 420px) {
     body { margin: 12px auto; padding: 12px; }
     .panel .k { min-width: 110px; }
     button { width: 100%; }
+    .ws3-dash-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; }
+    .ws3-dash-card { padding: 6px 4px; }
+    .ws3-dash-card .val { font-size: 14px; }
+    .ws3-tab { min-width: 56px; font-size: 10px; padding: 5px 8px; }
+    .ws3-selected-card .lbl { min-width: 100px; }
+    .danger-zone .row { margin: 14px 0; }
   }
 </style>
 </head>
@@ -327,15 +367,56 @@
     <div><span class="k">okCount:</span> <span id="mc_o_okCount" class="v n">-</span></div>
     <div><span class="k">failCount:</span> <span id="mc_o_failCount" class="v n">-</span></div>
     <div><span class="k">candidateCount:</span> <span id="mc_o_candidateCount" class="v n">-</span></div>
+    <div><span class="k">operatorReviewCount:</span> <span id="mc_o_operatorReviewCount" class="v n">-</span></div>
     <div><span class="k">telegramSent:</span> <span id="mc_o_telegramSent" class="v n">-</span></div>
     <div><span class="k">kvWritten:</span> <span id="mc_o_kvWritten" class="v n">-</span></div>
   </div>
+  <!-- v0.32 Operator Dashboard Summary: HOT/WATCH/LOW count cards + last scan time -->
+  <div class="row" id="mc_dashboard_wrap" style="display:none;">
+    <div style="font-size:13px; font-weight:600; margin:8px 0 4px; color:#444;">Operator Dashboard Summary</div>
+    <div class="ws3-dash-grid">
+      <div class="ws3-dash-card hot">
+        <div class="lbl">HOT_REVIEW</div>
+        <div class="val" id="mc_dash_hot">0</div>
+      </div>
+      <div class="ws3-dash-card watch">
+        <div class="lbl">WATCH_REVIEW</div>
+        <div class="val" id="mc_dash_watch">0</div>
+      </div>
+      <div class="ws3-dash-card low">
+        <div class="lbl">LOW_SIGNAL</div>
+        <div class="val" id="mc_dash_low">0</div>
+      </div>
+    </div>
+    <div class="ws3-dash-meta">
+      <span>Last scan: <span id="mc_dash_lastScan">-</span></span>
+      &nbsp;|&nbsp;
+      <span>Operator review total: <span id="mc_dash_orTotal">0</span></span>
+      &nbsp;|&nbsp;
+      <span>Candidates: <span id="mc_dash_candCount">0</span></span>
+    </div>
+  </div>
+  <!-- v0.32 Filter Tabs (client-side, memory-only) -->
+  <div class="row" id="mc_filter_wrap" style="display:none;">
+    <div style="font-size:13px; font-weight:600; margin:8px 0 4px; color:#444;">Filter</div>
+    <div id="mc_filter_tabs" class="ws3-tabs" role="tablist" aria-label="Result filter tabs"></div>
+  </div>
+  <!-- v0.32 Top 5 Fixed Candidates -->
+  <div class="row" id="mc_top5_wrap" style="display:none;">
+    <div style="font-size:13px; font-weight:600; margin:8px 0 4px; color:#444;">Top 5 Operator Review Candidates</div>
+    <div id="mc_top5" class="panel" style="padding:4px 6px;"></div>
+  </div>
   <div class="row" id="mc_results_wrap" style="display:none;">
-    <div style="font-size:13px; font-weight:600; margin:8px 0 4px; color:#444;">Candidate List (score desc, top is most likely)</div>
+    <div style="font-size:13px; font-weight:600; margin:8px 0 4px; color:#444;">Candidate List <span id="mc_results_filter_lbl" style="font-size:11px; color:#888; font-weight:400;">(ALL)</span></div>
     <div id="mc_results" class="panel" style="max-height:340px; overflow:auto;"></div>
   </div>
+  <!-- v0.32 Failed Markets List (extracted client-side from results[].ok===false) -->
+  <div class="row" id="mc_failed_wrap" style="display:none;">
+    <div style="font-size:13px; font-weight:600; margin:8px 0 4px; color:#444;">Failed Markets <span style="font-size:11px; color:#888; font-weight:400;">(safe error code only)</span></div>
+    <div id="mc_failed" class="panel" style="padding:4px 6px;"></div>
+  </div>
   <div class="row" id="mc_history_wrap" style="display:none;">
-    <div style="font-size:13px; font-weight:600; margin:8px 0 4px; color:#444;">Memory-only History (max 5 runs, no storage)</div>
+    <div style="font-size:13px; font-weight:600; margin:8px 0 4px; color:#444;">Memory-only Scan History (max 5 runs, no storage)</div>
     <div id="mc_history" class="panel" style="font-size:11px;"></div>
   </div>
   <p class="footnote">
@@ -425,8 +506,19 @@
         <option value="">-- Run Multi-market Dry-run 후 카드 선택 (HOT_REVIEW / WATCH_REVIEW / isCandidate=true 권장) --</option>
       </select>
     </div>
+    <!-- v0.32 Selected Candidate Preview -->
+    <div class="row" id="ll_selectedInfo_wrap" style="display:none;">
+      <div style="font-size:12px; font-weight:600; margin:6px 0 4px; color:#444;">Selected Candidate</div>
+      <div id="ll_selectedInfo" class="ws3-selected-card"></div>
+    </div>
     <div class="row">
       <label><input id="ll_allowOR" type="checkbox" autocomplete="off"> Allow Operator Review send (isCandidate=false 카드도 LIMITED LIVE / OPERATOR REVIEW 라벨로 전송 허용)</label>
+    </div>
+    <!-- v0.32 Telegram Message Preview (client-side display, no API call) -->
+    <div class="row" id="ll_preview_wrap">
+      <div style="font-size:12px; font-weight:600; margin:6px 0 4px; color:#444;">Telegram Message Preview <span style="font-size:10px; color:#888; font-weight:400;">(display only · no API call · no token leak)</span></div>
+      <div id="ll_previewEmpty" class="ws3-preview-empty">선택 카드와 Allow OR (필요 시) 체크 후 preview 표시</div>
+      <div id="ll_previewBox" class="ws3-preview-box" style="display:none;"></div>
     </div>
     <div class="row">
       <label for="ll_confirmPhrase">Confirm Phrase</label>
@@ -445,6 +537,11 @@
       <div><span class="k">kvWriteScope:</span> <span id="ll_o_kvWriteScope" class="v n">-</span></div>
       <div><span class="k">candidateStored:</span> <span id="ll_o_candidateStored" class="v n">-</span></div>
       <div><span class="k">trackingStarted:</span> <span id="ll_o_trackingStarted" class="v n">-</span></div>
+    </div>
+    <!-- v0.32 Memory-only Sent History (no KV, no storage). Cleared on page reload. -->
+    <div class="row" id="ll_sentHistory_wrap" style="display:none;">
+      <div style="font-size:12px; font-weight:600; margin:6px 0 4px; color:#444;">Recent LIMITED LIVE Sent History <span style="font-size:10px; color:#888; font-weight:400;">(max 5, memory-only, no KV)</span></div>
+      <div id="ll_sentHistory" class="panel" style="padding:4px 6px;"></div>
     </div>
     <p class="footnote">
       kvWriteScope=LIMITED_LIVE_GUARD_ONLY 의미: per-market+timeframe 60s 가드 1건만 — candidate 저장 / tracking 시작과 무관. 표시 금지: Telegram message_id / raw response / token / chatId / bot_token / KV namespace ID. 자동 매수/매도 추천 / 진입 추천 / 수익 보장 / LIVE BUY 문구 0건.
@@ -1161,12 +1258,28 @@
   var mcOOkCountEl = document.getElementById('mc_o_okCount');
   var mcOFailCountEl = document.getElementById('mc_o_failCount');
   var mcOCandidateCountEl = document.getElementById('mc_o_candidateCount');
+  var mcOOperatorReviewCountEl = document.getElementById('mc_o_operatorReviewCount');
   var mcOTelegramSentEl = document.getElementById('mc_o_telegramSent');
   var mcOKvWrittenEl = document.getElementById('mc_o_kvWritten');
   var mcResultsWrap = document.getElementById('mc_results_wrap');
   var mcResultsEl = document.getElementById('mc_results');
+  var mcResultsFilterLbl = document.getElementById('mc_results_filter_lbl');
   var mcHistoryWrap = document.getElementById('mc_history_wrap');
   var mcHistoryEl = document.getElementById('mc_history');
+  // v0.32 — Dashboard / Filter / Top 5 / Failed elements
+  var mcDashboardWrap = document.getElementById('mc_dashboard_wrap');
+  var mcDashHotEl = document.getElementById('mc_dash_hot');
+  var mcDashWatchEl = document.getElementById('mc_dash_watch');
+  var mcDashLowEl = document.getElementById('mc_dash_low');
+  var mcDashLastScanEl = document.getElementById('mc_dash_lastScan');
+  var mcDashOrTotalEl = document.getElementById('mc_dash_orTotal');
+  var mcDashCandCountEl = document.getElementById('mc_dash_candCount');
+  var mcFilterWrap = document.getElementById('mc_filter_wrap');
+  var mcFilterTabsEl = document.getElementById('mc_filter_tabs');
+  var mcTop5Wrap = document.getElementById('mc_top5_wrap');
+  var mcTop5El = document.getElementById('mc_top5');
+  var mcFailedWrap = document.getElementById('mc_failed_wrap');
+  var mcFailedEl = document.getElementById('mc_failed');
 
   var ctSelectedMarketEl = document.getElementById('ct_selectedMarket');
   var ctForceModeEl = document.getElementById('ct_forceMode');
@@ -1190,7 +1303,19 @@
   // Memory-only state. No storage.
   var lastMultiRunResults = [];
   var lastMultiRunReq = null;
+  var lastMultiRunBody = null; // v0.32: keep last response body (operatorReviewCounts etc.)
   var multiRunHistory = []; // max 5
+  // v0.32 — filter state (memory-only)
+  var ws3CurrentFilter = 'ALL';
+  var WS3_FILTER_LIST = [
+    { id: 'ALL',              label: 'ALL' },
+    { id: 'HOT_REVIEW',       label: 'HOT' },
+    { id: 'WATCH_REVIEW',     label: 'WATCH' },
+    { id: 'LOW_SIGNAL',       label: 'LOW' },
+    { id: 'VOLUME_SURGE',     label: 'VOL_SURGE' },
+    { id: 'HIGH_CLOSE_POSITION', label: 'HIGH_CLOSE' },
+    { id: 'isCandidate',      label: 'CANDIDATE' }
+  ];
 
   function mcClearOutputs() {
     setStrField(mcCodeEl, null);
@@ -1199,10 +1324,25 @@
     setNumField(mcOOkCountEl, null);
     setNumField(mcOFailCountEl, null);
     setNumField(mcOCandidateCountEl, null);
+    setNumField(mcOOperatorReviewCountEl, null);
     setBoolField(mcOTelegramSentEl, null);
     setBoolField(mcOKvWrittenEl, null);
     mcResultsWrap.style.display = 'none';
     mcResultsEl.textContent = '';
+    // v0.32 clear new panels
+    if (mcDashboardWrap) mcDashboardWrap.style.display = 'none';
+    if (mcDashHotEl) mcDashHotEl.textContent = '0';
+    if (mcDashWatchEl) mcDashWatchEl.textContent = '0';
+    if (mcDashLowEl) mcDashLowEl.textContent = '0';
+    if (mcDashLastScanEl) mcDashLastScanEl.textContent = '-';
+    if (mcDashOrTotalEl) mcDashOrTotalEl.textContent = '0';
+    if (mcDashCandCountEl) mcDashCandCountEl.textContent = '0';
+    if (mcFilterWrap) mcFilterWrap.style.display = 'none';
+    if (mcTop5Wrap) mcTop5Wrap.style.display = 'none';
+    if (mcTop5El) mcTop5El.textContent = '';
+    if (mcFailedWrap) mcFailedWrap.style.display = 'none';
+    if (mcFailedEl) mcFailedEl.textContent = '';
+    if (mcResultsFilterLbl) mcResultsFilterLbl.textContent = '(ALL)';
   }
   function mcSetErrorCode(code) {
     setStatus('ERROR');
@@ -1230,18 +1370,208 @@
     }
     return out;
   }
+  // v0.32 — filter helpers (client-side, memory-only)
+  function ws3MatchesFilter(r, filterId) {
+    if (!r || r.ok !== true) return false;
+    if (filterId === 'ALL') return true;
+    if (filterId === 'HOT_REVIEW') return r.operatorReviewLevel === 'HOT_REVIEW';
+    if (filterId === 'WATCH_REVIEW') return r.operatorReviewLevel === 'WATCH_REVIEW';
+    if (filterId === 'LOW_SIGNAL') return r.operatorReviewLevel === 'LOW_SIGNAL' || !r.operatorReviewLevel;
+    if (filterId === 'isCandidate') return r.isCandidate === true;
+    if (filterId === 'VOLUME_SURGE' || filterId === 'HIGH_CLOSE_POSITION') {
+      return Array.isArray(r.reasonChips) && r.reasonChips.indexOf(filterId) !== -1;
+    }
+    return false;
+  }
+  function mcCountFilterMatches(results, filterId) {
+    if (!Array.isArray(results)) return 0;
+    if (filterId === 'ALL') {
+      var n = 0;
+      for (var i = 0; i < results.length; i++) if (results[i].ok === true) n++;
+      return n;
+    }
+    var c = 0;
+    for (var j = 0; j < results.length; j++) if (ws3MatchesFilter(results[j], filterId)) c++;
+    return c;
+  }
+  function mcInitFilterTabs(results) {
+    if (!mcFilterTabsEl || !mcFilterWrap) return;
+    while (mcFilterTabsEl.firstChild) mcFilterTabsEl.removeChild(mcFilterTabsEl.firstChild);
+    for (var i = 0; i < WS3_FILTER_LIST.length; i++) {
+      (function(spec) {
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'ws3-tab' + (spec.id === ws3CurrentFilter ? ' active' : '');
+        btn.setAttribute('role', 'tab');
+        btn.setAttribute('aria-selected', spec.id === ws3CurrentFilter ? 'true' : 'false');
+        var count = mcCountFilterMatches(results, spec.id);
+        btn.innerHTML = mcEscapeHtml(spec.label) + ' <span class="count">' + count + '</span>';
+        btn.addEventListener('click', function() {
+          mcApplyFilter(spec.id);
+        });
+        mcFilterTabsEl.appendChild(btn);
+      })(WS3_FILTER_LIST[i]);
+    }
+    mcFilterWrap.style.display = 'block';
+  }
+  function mcApplyFilter(filterId) {
+    var ok = false;
+    for (var i = 0; i < WS3_FILTER_LIST.length; i++) if (WS3_FILTER_LIST[i].id === filterId) { ok = true; break; }
+    if (!ok) filterId = 'ALL';
+    ws3CurrentFilter = filterId;
+    // Update active state on tabs without rebuilding (faster).
+    if (mcFilterTabsEl) {
+      var btns = mcFilterTabsEl.querySelectorAll('.ws3-tab');
+      for (var j = 0; j < btns.length; j++) {
+        var b = btns[j];
+        var label = WS3_FILTER_LIST[j] ? WS3_FILTER_LIST[j].label : '';
+        var id = WS3_FILTER_LIST[j] ? WS3_FILTER_LIST[j].id : '';
+        var isActive = (id === filterId);
+        b.className = 'ws3-tab' + (isActive ? ' active' : '');
+        b.setAttribute('aria-selected', isActive ? 'true' : 'false');
+      }
+    }
+    if (mcResultsFilterLbl) {
+      var lbl = filterId;
+      for (var k = 0; k < WS3_FILTER_LIST.length; k++) {
+        if (WS3_FILTER_LIST[k].id === filterId) { lbl = WS3_FILTER_LIST[k].label; break; }
+      }
+      mcResultsFilterLbl.textContent = '(' + lbl + ')';
+    }
+    mcRenderResults(lastMultiRunResults, lastMultiRunReq);
+  }
+  function mcRenderDashboard(body, results) {
+    if (!mcDashboardWrap) return;
+    var orCounts = (body && body.operatorReviewCounts && typeof body.operatorReviewCounts === 'object')
+      ? body.operatorReviewCounts : { HOT_REVIEW: 0, WATCH_REVIEW: 0, LOW_SIGNAL: 0 };
+    var hot = (typeof orCounts.HOT_REVIEW === 'number') ? orCounts.HOT_REVIEW : 0;
+    var watch = (typeof orCounts.WATCH_REVIEW === 'number') ? orCounts.WATCH_REVIEW : 0;
+    var low = (typeof orCounts.LOW_SIGNAL === 'number') ? orCounts.LOW_SIGNAL : 0;
+    if (mcDashHotEl) mcDashHotEl.textContent = String(hot);
+    if (mcDashWatchEl) mcDashWatchEl.textContent = String(watch);
+    if (mcDashLowEl) mcDashLowEl.textContent = String(low);
+    // Last scan time = top result's latestTime or browser local time (no exchange-side time leak — UTC ISO from result).
+    var ls = '-';
+    if (Array.isArray(results) && results.length > 0) {
+      for (var i = 0; i < results.length; i++) {
+        if (results[i].ok === true && typeof results[i].latestTime === 'string' && results[i].latestTime.length > 0) {
+          ls = results[i].latestTime; break;
+        }
+      }
+    }
+    if (mcDashLastScanEl) mcDashLastScanEl.textContent = ls;
+    // Operator review total = HOT + WATCH (eligible cards), exclude LOW_SIGNAL.
+    var orTotal = hot + watch;
+    if (mcDashOrTotalEl) mcDashOrTotalEl.textContent = String(orTotal);
+    var cc = (body && typeof body.candidateCount === 'number') ? body.candidateCount : 0;
+    if (mcDashCandCountEl) mcDashCandCountEl.textContent = String(cc);
+    mcDashboardWrap.style.display = 'block';
+  }
+  function mcRenderTop5(results) {
+    if (!mcTop5Wrap || !mcTop5El) return;
+    if (!Array.isArray(results) || results.length === 0) {
+      mcTop5Wrap.style.display = 'none';
+      mcTop5El.textContent = '';
+      return;
+    }
+    var ok = [];
+    for (var i = 0; i < results.length; i++) if (results[i].ok === true) ok.push(results[i]);
+    if (ok.length === 0) {
+      mcTop5Wrap.style.display = 'none';
+      mcTop5El.textContent = '';
+      return;
+    }
+    var top = ok.slice(0, 5);
+    var rows = [];
+    for (var k = 0; k < top.length; k++) {
+      var r = top[k];
+      var orLevel = (typeof r.operatorReviewLevel === 'string') ? r.operatorReviewLevel : 'LOW_SIGNAL';
+      var orColor = (orLevel === 'HOT_REVIEW') ? '#a00'
+        : (orLevel === 'WATCH_REVIEW') ? '#a60'
+        : '#888';
+      var orBg = (orLevel === 'HOT_REVIEW') ? '#fee'
+        : (orLevel === 'WATCH_REVIEW') ? '#ffe'
+        : '#f0f0f0';
+      var gradeColor = (r.grade === 'P-S') ? '#060'
+        : (r.grade === 'P-A') ? '#262'
+        : (r.grade === 'P-B') ? '#553'
+        : '#802';
+      var chips = (Array.isArray(r.reasonChips) && r.reasonChips.length > 0)
+        ? r.reasonChips.slice(0, 4).map(mcEscapeHtml).join(', ')
+        : '-';
+      rows.push(
+        '<div class="ws3-top5-row">'
+        + '<span class="rank">#' + (k + 1) + '</span>'
+        + '<span class="mkt">' + mcEscapeHtml(r.market) + '</span>'
+        + '<span style="color:' + gradeColor + '; font-weight:700;">' + mcEscapeHtml(r.grade) + '</span>'
+        + '<span style="color:#444;">score=' + r.score + '</span>'
+        + '<span class="lvl-badge" style="background:' + orBg + '; color:' + orColor + ';">' + mcEscapeHtml(orLevel) + '</span>'
+        + (r.isCandidate ? '<span style="color:#060; font-weight:700;">[CAND]</span>' : '')
+        + (r.operatorReview === true && r.isCandidate !== true ? '<span style="color:#a60; font-weight:700;">[OR]</span>' : '')
+        + '<span style="font-size:10px; color:#666;">chips: ' + chips + '</span>'
+        + '<span style="font-size:10px; color:#888;">@' + mcEscapeHtml(r.latestTime || '-')
+        + ' close=' + (typeof r.lastClose === 'number' ? r.lastClose : '-') + '</span>'
+        + '</div>'
+      );
+    }
+    mcTop5El.innerHTML = rows.join('');
+    mcTop5Wrap.style.display = 'block';
+  }
+  function mcRenderFailed(results) {
+    if (!mcFailedWrap || !mcFailedEl) return;
+    if (!Array.isArray(results)) {
+      mcFailedWrap.style.display = 'none';
+      mcFailedEl.textContent = '';
+      return;
+    }
+    var failed = [];
+    for (var i = 0; i < results.length; i++) if (results[i].ok === false) failed.push(results[i]);
+    if (failed.length === 0) {
+      mcFailedWrap.style.display = 'none';
+      mcFailedEl.textContent = '';
+      return;
+    }
+    var rows = [];
+    for (var j = 0; j < failed.length; j++) {
+      var r = failed[j];
+      rows.push(
+        '<div class="ws3-failed-row">'
+        + mcEscapeHtml(r.market || '-')
+        + ' — ' + mcEscapeHtml(r.code || 'UNKNOWN')
+        + '</div>'
+      );
+    }
+    mcFailedEl.innerHTML = rows.join('');
+    mcFailedWrap.style.display = 'block';
+  }
   function mcRenderResults(results, req) {
     if (!Array.isArray(results) || results.length === 0) {
       mcResultsEl.textContent = '(no results)';
       mcResultsWrap.style.display = 'block';
       return;
     }
-    var rows = [];
+    // v0.32 — apply filter; preserve original render style for matching rows + failed rows.
+    var visible = [];
+    var showFailed = (ws3CurrentFilter === 'ALL');
     for (var i = 0; i < results.length; i++) {
-      var r = results[i];
+      var r0 = results[i];
+      if (r0.ok === false) {
+        if (showFailed) visible.push(r0);
+        continue;
+      }
+      if (ws3MatchesFilter(r0, ws3CurrentFilter)) visible.push(r0);
+    }
+    if (visible.length === 0) {
+      mcResultsEl.innerHTML = '<div style="padding:8px; color:#888; font-size:12px; text-align:center;">(no matches for current filter)</div>';
+      mcResultsWrap.style.display = 'block';
+      return;
+    }
+    var rows = [];
+    for (var ii = 0; ii < visible.length; ii++) {
+      var r = visible[ii];
       if (r.ok === false) {
         rows.push('<div style="padding:6px 4px; border-bottom:1px solid #eee; color:#802;">'
-          + '<span style="font-weight:600;">#' + (r.rank || (i+1)) + '</span> '
+          + '<span style="font-weight:600;">#' + (r.rank || (ii+1)) + '</span> '
           + mcEscapeHtml(r.market || '-')
           + ' — FAIL: ' + mcEscapeHtml(r.code || 'UNKNOWN')
           + '</div>');
@@ -1335,10 +1665,18 @@
         }
       }
     }
+    // v0.32 — include operatorReviewCounts in history rows
+    var orc = (body && body.operatorReviewCounts && typeof body.operatorReviewCounts === 'object')
+      ? body.operatorReviewCounts : { HOT_REVIEW: 0, WATCH_REVIEW: 0, LOW_SIGNAL: 0 };
     multiRunHistory.unshift({
       lastRunAt: ts,
       marketCount: req.markets ? req.markets.length : 0,
+      okCount: body && typeof body.okCount === 'number' ? body.okCount : 0,
+      failCount: body && typeof body.failCount === 'number' ? body.failCount : 0,
       candidateCount: body && typeof body.candidateCount === 'number' ? body.candidateCount : 0,
+      hot: (typeof orc.HOT_REVIEW === 'number') ? orc.HOT_REVIEW : 0,
+      watch: (typeof orc.WATCH_REVIEW === 'number') ? orc.WATCH_REVIEW : 0,
+      low: (typeof orc.LOW_SIGNAL === 'number') ? orc.LOW_SIGNAL : 0,
       topScore: topScore,
       topGrade: topGrade
     });
@@ -1348,10 +1686,12 @@
       var h = multiRunHistory[j];
       lines.push((j === 0 ? '▶ ' : '  ')
         + h.lastRunAt
-        + ' | markets=' + h.marketCount
-        + ' | candidates=' + h.candidateCount
-        + ' | topScore=' + (h.topScore === null ? '-' : h.topScore)
-        + ' | topGrade=' + (h.topGrade === null ? '-' : h.topGrade));
+        + ' | mkt=' + h.marketCount
+        + ' | ok=' + h.okCount
+        + ' | fail=' + h.failCount
+        + ' | cand=' + h.candidateCount
+        + ' | H/W/L=' + h.hot + '/' + h.watch + '/' + h.low
+        + ' | top=' + (h.topScore === null ? '-' : (h.topScore + '/' + (h.topGrade || '-'))));
     }
     mcHistoryEl.textContent = lines.join('\n');
     mcHistoryWrap.style.display = multiRunHistory.length > 0 ? 'block' : 'none';
@@ -1419,6 +1759,13 @@
       setNumField(mcOOkCountEl, typeof b.okCount === 'number' ? b.okCount : null);
       setNumField(mcOFailCountEl, typeof b.failCount === 'number' ? b.failCount : null);
       setNumField(mcOCandidateCountEl, typeof b.candidateCount === 'number' ? b.candidateCount : null);
+      // v0.32 — operatorReviewCount derived from operatorReviewCounts (HOT + WATCH eligible cards).
+      var orc = (b && b.operatorReviewCounts && typeof b.operatorReviewCounts === 'object') ? b.operatorReviewCounts : null;
+      var orCountTotal = orc
+        ? ((typeof orc.HOT_REVIEW === 'number' ? orc.HOT_REVIEW : 0)
+           + (typeof orc.WATCH_REVIEW === 'number' ? orc.WATCH_REVIEW : 0))
+        : null;
+      setNumField(mcOOperatorReviewCountEl, orCountTotal);
       var saf = (b && typeof b === 'object' && b.safety && typeof b.safety === 'object') ? b.safety : null;
       setBoolField(mcOTelegramSentEl, saf && typeof saf.telegramSent === 'boolean' ? saf.telegramSent : null);
       setBoolField(mcOKvWrittenEl, saf && typeof saf.kvWritten === 'boolean' ? saf.kvWritten : null);
@@ -1426,12 +1773,20 @@
         var reqEcho = { exchange: b.exchange, timeframe: b.timeframe, markets: markets };
         lastMultiRunResults = b.results;
         lastMultiRunReq = reqEcho;
+        lastMultiRunBody = b;
+        // v0.32 — reset filter to ALL for fresh scan
+        ws3CurrentFilter = 'ALL';
+        mcRenderDashboard(b, b.results);
+        mcRenderTop5(b.results);
+        mcRenderFailed(b.results);
+        mcInitFilterTabs(b.results);
         mcRenderResults(b.results, reqEcho);
         mcUpdateCandidateSelector(b.results, reqEcho);
         mcUpdateHistory(reqEcho, b);
       } else {
         lastMultiRunResults = [];
         lastMultiRunReq = null;
+        lastMultiRunBody = null;
         mcUpdateCandidateSelector([], null);
       }
       setStatus(s);
@@ -1579,8 +1934,19 @@
   var llOKvWriteScopeEl = document.getElementById('ll_o_kvWriteScope');
   var llOCandidateStoredEl = document.getElementById('ll_o_candidateStored');
   var llOTrackingStartedEl = document.getElementById('ll_o_trackingStarted');
+  // v0.32 — Section 11 preview + sent history elements
+  var llSelectedInfoWrap = document.getElementById('ll_selectedInfo_wrap');
+  var llSelectedInfoEl = document.getElementById('ll_selectedInfo');
+  var llPreviewWrap = document.getElementById('ll_preview_wrap');
+  var llPreviewEmptyEl = document.getElementById('ll_previewEmpty');
+  var llPreviewBoxEl = document.getElementById('ll_previewBox');
+  var llSentHistoryWrap = document.getElementById('ll_sentHistory_wrap');
+  var llSentHistoryEl = document.getElementById('ll_sentHistory');
 
   var LL_CONFIRM_PHRASE_REQUIRED = 'SEND_WS3_LIMITED_LIVE_REVIEW';
+
+  // v0.32 — memory-only Sent History (max 5, cleared on reload, no storage)
+  var ws3SentHistory = [];
 
   function llClearOutputs() {
     setStrField(llCodeEl, null);
@@ -1596,6 +1962,143 @@
   function llSetErrorCode(code) {
     setStatus('ERROR');
     setStrField(llCodeEl, (typeof code === 'string' && code.length > 0) ? code : 'UNKNOWN_ERROR');
+  }
+  // v0.32 — refresh selected-card preview block + telegram preview block
+  function llRefreshSelectedPreview() {
+    if (!llSelectedInfoWrap || !llSelectedInfoEl) return;
+    var raw = llSelectedCardEl ? llSelectedCardEl.value : '';
+    if (!raw) {
+      llSelectedInfoWrap.style.display = 'none';
+      llSelectedInfoEl.innerHTML = '';
+      llRefreshTelegramPreview(null);
+      return;
+    }
+    var p;
+    try { p = JSON.parse(raw); } catch (e) {
+      llSelectedInfoWrap.style.display = 'none';
+      llSelectedInfoEl.innerHTML = '';
+      llRefreshTelegramPreview(null);
+      return;
+    }
+    // Look up extra fields from lastMultiRunResults for richer preview (lastClose, latestTime, etc).
+    var extra = null;
+    if (Array.isArray(lastMultiRunResults)) {
+      for (var i = 0; i < lastMultiRunResults.length; i++) {
+        var r = lastMultiRunResults[i];
+        if (r && r.ok === true && r.market === p.market) { extra = r; break; }
+      }
+    }
+    var chips = (Array.isArray(p.reasonChips) && p.reasonChips.length > 0)
+      ? p.reasonChips.slice(0, 8).map(mcEscapeHtml).join(', ')
+      : '-';
+    var lines = [];
+    lines.push('<div><span class="lbl">Selected market:</span> <span class="val">' + mcEscapeHtml(p.market) + '</span></div>');
+    lines.push('<div><span class="lbl">Exchange / Timeframe:</span> <span class="val">' + mcEscapeHtml(p.exchange) + ' / ' + mcEscapeHtml(p.timeframe) + '</span></div>');
+    lines.push('<div><span class="lbl">Score / Grade:</span> <span class="val">' + (typeof p.score === 'number' ? p.score : '-') + ' / ' + mcEscapeHtml(p.grade) + '</span></div>');
+    lines.push('<div><span class="lbl">Operator review level:</span> <span class="val">' + mcEscapeHtml(p.operatorReviewLevel || 'LOW_SIGNAL') + '</span></div>');
+    lines.push('<div><span class="lbl">isCandidate:</span> <span class="val">' + (p.isCandidate === true ? 'true' : 'false') + '</span></div>');
+    lines.push('<div><span class="lbl">operatorReview:</span> <span class="val">' + (p.operatorReview === true ? 'true' : 'false') + '</span></div>');
+    lines.push('<div><span class="lbl">Reason chips:</span> <span class="val">' + chips + '</span></div>');
+    if (extra) {
+      lines.push('<div><span class="lbl">latestTime:</span> <span class="val">' + mcEscapeHtml(extra.latestTime || '-') + '</span></div>');
+      lines.push('<div><span class="lbl">lastClose:</span> <span class="val">' + (typeof extra.lastClose === 'number' ? extra.lastClose : '-') + '</span></div>');
+      lines.push('<div><span class="lbl">changePct / volRatio:</span> <span class="val">' + (typeof extra.changePct === 'number' ? extra.changePct.toFixed(3) : '-') + ' / ' + (typeof extra.volumeRatio === 'number' ? extra.volumeRatio.toFixed(3) : '-') + '</span></div>');
+    }
+    // Risk note: derive from chips if any.
+    var riskNote = '-';
+    if (Array.isArray(p.reasonChips)) {
+      if (p.reasonChips.indexOf('UPPER_WICK_RISK') !== -1) riskNote = 'UPPER_WICK_RISK 감지 (false positive 가능성)';
+      else if (p.reasonChips.indexOf('WIDE_RANGE_RISK') !== -1) riskNote = 'WIDE_RANGE_RISK 감지';
+      else if (p.reasonChips.indexOf('LOW_VOLUME') !== -1) riskNote = 'LOW_VOLUME (저거래량)';
+    }
+    lines.push('<div><span class="lbl">Risk note:</span> <span class="val">' + mcEscapeHtml(riskNote) + '</span></div>');
+    llSelectedInfoEl.innerHTML = lines.join('');
+    llSelectedInfoWrap.style.display = 'block';
+    llRefreshTelegramPreview(p);
+  }
+  // v0.32 — Telegram message preview (display only, no API call, no token)
+  function llRefreshTelegramPreview(p) {
+    if (!llPreviewBoxEl || !llPreviewEmptyEl) return;
+    if (!p || !p.market) {
+      llPreviewBoxEl.style.display = 'none';
+      llPreviewBoxEl.textContent = '';
+      llPreviewEmptyEl.style.display = 'block';
+      return;
+    }
+    var allowOR = !!(llAllowOrEl && llAllowOrEl.checked);
+    var eligible = (p.isCandidate === true) || ((p.operatorReview === true) && allowOR);
+    var chips = (Array.isArray(p.reasonChips) && p.reasonChips.length > 0)
+      ? p.reasonChips.slice(0, 8).join(', ')
+      : '-';
+    var lines = [];
+    lines.push('[WOOS WS3 LIMITED LIVE / OPERATOR REVIEW]');
+    lines.push('자동 매수/매도 추천 아님');
+    lines.push('운영자 검토 필요');
+    lines.push('Manual operator review only.');
+    lines.push('This is not a live trading alert.');
+    lines.push('');
+    lines.push('Market: ' + p.market);
+    lines.push('Exchange: ' + p.exchange);
+    lines.push('Timeframe: ' + p.timeframe);
+    lines.push('Score: ' + (typeof p.score === 'number' ? p.score : '-'));
+    lines.push('Grade: ' + p.grade);
+    lines.push('Operator review level: ' + (p.operatorReviewLevel || 'LOW_SIGNAL'));
+    lines.push('isCandidate: ' + (p.isCandidate === true ? 'true' : 'false'));
+    lines.push('Reason chips: ' + chips);
+    lines.push('candidateStored: false');
+    lines.push('trackingStarted: false');
+    if (!eligible) {
+      lines.push('');
+      lines.push('[NOT ELIGIBLE — Worker will return LIMITED_LIVE_INVALID_PAYLOAD]');
+      lines.push('Enable "Allow Operator Review send" to send isCandidate=false cards.');
+    }
+    llPreviewBoxEl.textContent = lines.join('\n');
+    llPreviewBoxEl.style.display = 'block';
+    llPreviewEmptyEl.style.display = 'none';
+  }
+  // v0.32 — append memory-only sent history (no storage)
+  function llAppendSentHistory(entry) {
+    if (!entry || typeof entry !== 'object') return;
+    ws3SentHistory.unshift({
+      time: entry.time || (new Date()).toISOString().replace('T',' ').slice(0,19),
+      market: entry.market || '-',
+      score: (typeof entry.score === 'number') ? entry.score : null,
+      grade: entry.grade || '-',
+      operatorReviewLevel: entry.operatorReviewLevel || 'LOW_SIGNAL',
+      messageType: entry.messageType || '-',
+      telegramSent: (entry.telegramSent === true),
+      kvWriteScope: entry.kvWriteScope || '-'
+    });
+    if (ws3SentHistory.length > 5) ws3SentHistory.length = 5;
+    llRenderSentHistory();
+  }
+  function llRenderSentHistory() {
+    if (!llSentHistoryWrap || !llSentHistoryEl) return;
+    if (ws3SentHistory.length === 0) {
+      llSentHistoryWrap.style.display = 'none';
+      llSentHistoryEl.textContent = '';
+      return;
+    }
+    var rows = [];
+    for (var i = 0; i < ws3SentHistory.length; i++) {
+      var h = ws3SentHistory[i];
+      var orColor = (h.operatorReviewLevel === 'HOT_REVIEW') ? '#a00'
+        : (h.operatorReviewLevel === 'WATCH_REVIEW') ? '#a60' : '#888';
+      rows.push(
+        '<div class="ws3-sent-row">'
+        + '<span class="sent-time">' + mcEscapeHtml(h.time) + '</span> '
+        + '<span class="sent-mkt">' + mcEscapeHtml(h.market) + '</span> '
+        + '<span style="color:#444;">' + mcEscapeHtml(h.grade) + '</span> '
+        + 'score=' + (h.score === null ? '-' : h.score) + ' '
+        + '<span style="color:' + orColor + '; font-weight:700;">' + mcEscapeHtml(h.operatorReviewLevel) + '</span> '
+        + '<span style="color:#666;">' + mcEscapeHtml(h.messageType) + '</span> '
+        + (h.telegramSent ? '<span style="color:#060;">tg=true</span>' : '<span style="color:#802;">tg=false</span>') + ' '
+        + '<span style="color:#666;">scope=' + mcEscapeHtml(h.kvWriteScope) + '</span>'
+        + '</div>'
+      );
+    }
+    llSentHistoryEl.innerHTML = rows.join('');
+    llSentHistoryWrap.style.display = 'block';
   }
   function refreshLlSendButton() {
     var hasSel = (typeof llSelectedCardEl.value === 'string' && llSelectedCardEl.value.length > 0);
@@ -1656,8 +2159,15 @@
     llUpdateOperatorReviewSelector(results, req);
   };
 
-  llSelectedCardEl.addEventListener('change', refreshLlSendButton);
+  // v0.32 — bind preview refresh to selection + allowOR changes
+  llSelectedCardEl.addEventListener('change', function() {
+    refreshLlSendButton();
+    llRefreshSelectedPreview();
+  });
   llConfirmPhraseEl.addEventListener('input', refreshLlSendButton);
+  if (llAllowOrEl) {
+    llAllowOrEl.addEventListener('change', llRefreshSelectedPreview);
+  }
 
   llSendBtn.addEventListener('click', function() {
     var endpoint = safeEndpoint();
@@ -1681,6 +2191,9 @@
     llSendBtn.disabled = true;
     setTimeout(refreshLlSendButton, 1500);
 
+    // Remember selected payload for sent-history append on success.
+    var sentPayloadSnapshot = payload;
+
     postJson(url, token, {
       manualTrigger: true,
       confirmPhrase: phrase,
@@ -1690,6 +2203,8 @@
       llConfirmPhraseEl.value = '';
       llSelectedCardEl.value = '';
       if (llAllowOrEl) llAllowOrEl.checked = false;
+      // v0.32 — clear preview after submit (success or fail)
+      llRefreshSelectedPreview();
       return resp.json().then(function(body) { return { resp: resp, body: body }; });
     }).then(function(r) {
       var b = (r && r.body) ? r.body : {};
@@ -1714,9 +2229,22 @@
       setStrField(llOKvWriteScopeEl, hasSafety && typeof saf.kvWriteScope === 'string' ? saf.kvWriteScope : null);
       setBoolField(llOCandidateStoredEl, hasSafety && typeof saf.candidateStored === 'boolean' ? saf.candidateStored : false);
       setBoolField(llOTrackingStartedEl, hasSafety && typeof saf.trackingStarted === 'boolean' ? saf.trackingStarted : false);
+      // v0.32 — append to memory-only sent history if Worker actually sent.
+      if (b.code === 'LIMITED_LIVE_REVIEW_SENT' && hasSafety && saf.telegramSent === true) {
+        llAppendSentHistory({
+          market: sentPayloadSnapshot && sentPayloadSnapshot.market,
+          score: (sentPayloadSnapshot && typeof sentPayloadSnapshot.score === 'number') ? sentPayloadSnapshot.score : null,
+          grade: sentPayloadSnapshot && sentPayloadSnapshot.grade,
+          operatorReviewLevel: sentPayloadSnapshot && sentPayloadSnapshot.operatorReviewLevel,
+          messageType: (typeof b.messageType === 'string') ? b.messageType : '-',
+          telegramSent: true,
+          kvWriteScope: (typeof saf.kvWriteScope === 'string') ? saf.kvWriteScope : '-'
+        });
+      }
       setStatus(s);
     }).catch(function() {
       llConfirmPhraseEl.value = '';
+      llRefreshSelectedPreview();
       llSetErrorCode('NETWORK_ERROR');
     });
   });

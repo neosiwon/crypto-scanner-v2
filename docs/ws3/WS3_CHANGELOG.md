@@ -5,6 +5,68 @@
 
 ---
 
+## [v0.32.0] — 2026-05-20 (V2-grade Operator Console Fast Track Pack)
+
+### 목적 (운영자 판단력 v2-grade 도약 / 속도 우선)
+v0.31.1 production 운영 (`WS3_LIMITED_LIVE_ENABLED=true` / 32-market preset 안정화) 상태에서 자동화가 아니라 운영자가 웹에서 빠르게 판단·수동 발송할 수 있게 만드는 V2-grade Operator Console UX Pack. 낮은 위험 UI 묶음을 한 번에 진행, 반복 dry-run 검증 루프 없이 필수 정적 테스트만. Worker 미수정 / Cloudflare Worker redeploy 불필요.
+
+### Added
+- `/docs/ws3/WS3_v0_32_0_V2_GRADE_OPERATOR_CONSOLE_REPORT.md` — v0.32 완료 보고서 (21 sections)
+
+### Changed
+- `/web/ws3-canary-console.html` (1739 → 2267 라인, +528):
+  - **CSS 확장** (50+ 신규 클래스): `.ws3-dash-grid` / `.ws3-dash-card` (HOT/WATCH/LOW 3-card) / `.ws3-tabs` / `.ws3-tab` (filter pills + count badge) / `.ws3-top5-row` / `.ws3-failed-row` / `.ws3-sent-row` / `.ws3-preview-box` / `.ws3-preview-empty` / `.ws3-selected-card`. 모바일 `@media (max-width: 420px)` 확장 (dashboard gap / tab min-width 56px / danger-zone row 14px 등)
+  - **Section 8 확장**:
+    - `mc_o_operatorReviewCount` 패널 fields 추가
+    - `mc_dashboard_wrap` (operator dashboard summary 3-card grid + last scan meta)
+    - `mc_filter_wrap` (filter tabs ALL/HOT_REVIEW/WATCH_REVIEW/LOW_SIGNAL/VOLUME_SURGE/HIGH_CLOSE_POSITION/isCandidate + count badge)
+    - `mc_top5_wrap` (Top 5 Fixed Candidates panel, Worker 정렬 순서 그대로 사용)
+    - `mc_failed_wrap` (Failed Markets list, client-side `results.filter(r => r.ok === false)` 추출)
+    - 기존 `mc_results_wrap` 결과 filter label 추가
+  - **Section 8 JS 신규 함수**: `ws3MatchesFilter` / `mcCountFilterMatches` / `mcInitFilterTabs` / `mcApplyFilter` / `mcRenderDashboard` / `mcRenderTop5` / `mcRenderFailed` (모두 client-side memory-only)
+  - **mcRenderResults filter 적용**: `ws3CurrentFilter` state 변수 (default 'ALL', 새 scan마다 리셋)
+  - **mcUpdateHistory 확장**: scan history row에 `okCount / failCount / HOT/WATCH/LOW counts` 추가 표시
+  - **Section 11 확장**:
+    - `ll_selectedInfo_wrap` (Selected Candidate Preview — market/exchange/timeframe/score/grade/level/isCandidate/operatorReview/chips/latestTime/lastClose/changePct/volRatio/risk note)
+    - `ll_preview_wrap` (Telegram Message Preview, Worker fixed preamble 라벨과 동일 — client-side display only, API 호출 0건)
+    - `ll_sentHistory_wrap` (Recent LIMITED LIVE Sent History — max 5, memory-only, no KV/storage)
+  - **Section 11 JS 신규 함수**: `llRefreshSelectedPreview` / `llRefreshTelegramPreview` / `llAppendSentHistory` / `llRenderSentHistory`
+  - **이벤트 hook 추가**: 선택 카드 change → preview refresh / allowOR checkbox change → preview eligibility 재계산 / Send 클릭 후 → preview clear / Worker code=LIMITED_LIVE_REVIEW_SENT + safety.telegramSent=true 시 sent history append
+  - **상태 변수**: `ws3CurrentFilter='ALL'` / `lastMultiRunBody=null` / `ws3SentHistory=[]` (memory-only)
+- `/web/ws3-canary-console/index.html` (1739 → 2267 라인, byte-for-byte mirror 유지)
+- `/docs/ws3/WS3_CHANGELOG.md` (본 파일): `[v0.32.0]` entry 상단 추가
+- `/docs/ws3/WS3_CURRENT_BASELINE.md`: baseline → v0.32.0 갱신 + 완료된 단계 row 추가 + v0.32.0 핵심 메모 추가
+
+### Not changed (intentional)
+- `/workers/ws3-telegram-canary-worker.js` — Worker 미수정. VERSION 상수 `WS3_v0.31.0_web_first_minimum_operator_mode` 유지. v0.29 `multiCandidateRunPipeline`이 이미 `results[].ok===false` rows를 응답에 포함하므로 client-side에서 failedMarkets 추출 가능 → Worker response 보강 0건
+- `WS3_LIMITED_LIVE_ENABLED='true'` 유지
+- `WS3_TELEGRAM_CANARY_ENABLED='false'` / `WS3_CANDIDATE_TEST_ENABLED='false'` / `WS3_TELEGRAM_CANARY_AUTHORIZED_AT='0'` / `WS3_CANARY_ALLOWED_ORIGINS='https://ws3-canary-console.pages.dev'` 유지
+- Cron / 자동 Telegram / candidate KV 저장 / tracking 시작 — 모두 disabled 유지
+
+### Verified
+- `node --check workers/ws3-telegram-canary-worker.js` PASS (Worker 미변경 확인용)
+- `diff -q web/ws3-canary-console.html web/ws3-canary-console/index.html` 0건 (byte-for-byte mirror)
+- Embedded `<script>` parse: 2 blocks (4428 + 74798 chars), `new Function(block)` ALL_BLOCKS_OK
+- 보호 파일 (`worker.js` / `wrangler.toml` / `index.html` / `manifest.json` / `service-worker.js` / `v3/` 25종 / `WS3_CODE_CONTRACT.md` / `WS3_WORKFLOW_TEMPLATE.md` / `workers/ws3-telegram-canary-worker.js` / `workers/ws3-canary-state-kv-adapter.js` / `wrangler-canary.example.toml` / `.gitignore`) diff 0건
+- storage 검사 `grep "localStorage|sessionStorage|indexedDB|document.cookie"` — 매치 2건 모두 정책 문맥 (`사용 0건` / `저장하지 않는다`), 실제 호출 0건
+- 노출된 폐기 hash repo-wide 매치 0건
+- bot_token / chat_id / message_id / Invoke Token / SHA-256 hash / KV namespace ID / raw Telegram response / raw exchange full response — 모든 매치 정책 문맥만 (raw value 0건)
+- 매수 추천 / 진입 추천 / 수익 보장 / 확정 신호 / LIVE BUY — 0건
+- 본 commit 까지 Cloudflare Worker redeploy 0건 / Pages redeploy 0건 / Telegram API 호출 0건 / KV write 0건 / candidate 저장 0건 / tracking 시작 0건 / 실 거래소 API 호출 0건
+
+### 다음 후보 (v0.32+ 자연검증 사이클)
+- 모바일 dashboard 3-card grid 가독성 점검
+- Top 5 카드 line wrap 거동
+- Filter tab 7개 wrap 거동
+- Telegram preview 본문 모바일 폰트 사이즈
+- 32-market scan failCount 추가 감소 가능성
+- operatorReview score / chip 임계값 미세 조정
+- duplicate guard window 60s 적정성
+- console hosting domain rotate 시점 가이드
+- Cron / auto Telegram / candidate 저장 / tracking 시작은 별도 사용자 명시 승인 전까지 계속 disabled
+
+---
+
 ## [v0.31.1] — 2026-05-19 (Natural Validation Stabilization Patch)
 
 ### 목적 (운영 안정화 / 새 기능 아님)
