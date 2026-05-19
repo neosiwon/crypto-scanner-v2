@@ -5,6 +5,90 @@
 
 ---
 
+## [v0.32.2] — 2026-05-20 (v2 UI 톤 이식 + 한글 우선 문구 정렬)
+
+### 목적 (백서 정렬 / 실사용 감성 강화 / 기능 변경 0건)
+v0.32.1 Dev Open Operator UX 정상 작동 후, 백서 UI/UX 기준에 맞춰 v2 디자인 톤(다크 네이비 / 글래스 / 시안 네온 / 그리드 / 글로우)을 WS3 console에 이식하고 영어 UI 라벨을 한글 우선으로 정리. 기능 로직 / Worker / KV / Telegram / env / route 모두 미변경. v2 데이터 의미·active tracking·completed history·분석기 state pipeline은 가져오지 않음 (WS3 독립 앱 유지).
+
+### Added
+- `/docs/ws3/WS3_v0_32_2_V2_UI_TONE_KOREAN_ALIGNMENT_REPORT.md` — v0.32.2 완료 보고서 (16 sections)
+
+### Changed
+- `/web/ws3-canary-console.html` CSS 전면 교체 (v2 톤 이식):
+  - `:root` CSS 변수 추가 (`--bg-primary` `#080d13` / `--bg-secondary` `#0c1420` / `--bg-card` `#0f1a27` / `--bg-panel` `#111e2e` / `--bg-elevated` `#152337` / `--border` `#1a2d42` / `--border-bright` `#243d57` / `--accent-cyan` `#00d4ff` / `--accent-green` `#00e676` / `--accent-orange` `#ff8c42` / `--accent-red` `#ff4560` / `--accent-yellow` `#ffd600` / `--text-primary` `#e2eaf5` / `--text-secondary` `#7a9ab8` / `--text-muted` `#3d5a72` / `--mono` JetBrains Mono / `--sans` Noto Sans KR / `--glow-cyan` / `--glow-green` / `--glow-red` / `--glow-orange` / `--radius` 6px)
+  - `body` 다크 네이비 배경 + Noto Sans KR + 최대폭 560px
+  - `body::before` 32px×32px 시안 그리드 배경 (v2 톤)
+  - `h1` 시안 네온 + glow + JetBrains Mono + letter-spacing 2px
+  - `h2` 시안 색 헤더 + border-bottom + letter-spacing 1px
+  - `.section` 글래스 카드 (bg-card + border + radius)
+  - `input` / `select` / `textarea` 다크 + cyan focus + glow border
+  - `button` 다크 + variant (primary cyan glow / danger red glow / controlled yellow)
+  - `.status-*` 시안/녹/주황/빨강 톤 with border
+  - `.panel` bg-panel + border + mono + 텍스트 hierarchy
+  - `.danger-zone` red border + soft red bg
+  - `.invite-gate` / `.invite-status` v2 톤 적용
+  - `.ws3-dash-grid` / `.ws3-dash-card` (.hot red glow / .watch orange glow / .low muted) + meta dashed border
+  - `.ws3-tabs` / `.ws3-tab` (.active cyan glow + count badge)
+  - `.ws3-top5-row` 다크 + mono
+  - `.ws3-failed-row` orange chip
+  - `.ws3-preview-box` cyan border dashed
+  - `.ws3-preview-empty` muted dashed
+  - `.ws3-sent-row` mono
+  - `.ws3-selected-card` cyan-tinted glass card with lbl/val mono
+  - `@media (max-width: 420px)` 확장 (dashboard val 15px / tab min-width 56px / danger-zone row 14px margin)
+- `/web/ws3-canary-console.html` HTML 사용자 UI 한글 우선 정리:
+  - `<h1>` WS3 Canary Console → WS3 운영 콘솔
+  - Section 헤더 11개 모두 한글 (예: "1. Configuration" → "1. 설정" / "8. Multi-market Candidate Dry-run" → "8. 다종목 스캔" / "11. Minimum Operator Mode" → "11. 운영자 검토 발송")
+  - Sub-panel 헤더 정리 (Operator Dashboard Summary → 운영 요약 / Top 5 Operator Review Candidates → 상위 후보 5개 / Candidate List → 후보 목록 / Failed Markets → 실패 마켓 / Filter → 필터 / Recent LIMITED LIVE Sent History → 최근 발송 기록 등)
+  - Dashboard card label HOT_REVIEW/WATCH_REVIEW/LOW_SIGNAL → HOT/WATCH/LOW (badge 영역 축약, 백서 구조값 중심 유지)
+  - 모든 input label 한글화 (Exchange→거래소 / Market→마켓 / Timeframe→타임프레임 / Limit→캔들 수 / Markets→마켓 목록 / Confirm Phrase→확인 문구 / Reset Phrase→리셋 문구 / Forced Test Reason→강제 테스트 사유 등)
+  - 모든 button label 한글화 (Check State→상태 확인 / Cleanup Confirm→정리 확인 / Send Canary→카나리 발송 / Operator Reset→운영자 리셋 / Run Live Preflight→시세 미리보기 실행 / Run Candidate Dry-run→단일 코인 점수 실행 / Run Multi-market Dry-run→스캔 실행 / Load Upbit KRW preset→업비트 원화 프리셋 불러오기 / Send Candidate TEST_ONLY→테스트 알림 발송 / Send LIMITED LIVE / OPERATOR REVIEW→제한 운영 알림 보내기)
+  - 안내문 한글화 (Dev Open Banner / Section 3-11 note / footnote / warn)
+  - JS `statusEl.textContent` "status:" → "상태:" / Section 11 selector placeholder 한글
+  - Worker raw key (mode / messageType / fixedMessageUsed / telegramSent / kvWritten / kvWriteScope / candidateStored / trackingStarted / code / httpStatus / version / persistenceAvailable / canaryEnabled / alreadySent / cleanupRequired / circuitOpen / currentPhase / candleCount / latestTime / lastClose / changePct / volumeRatio / volumeAccel / closePosition / upperWickPct / rangePct / score / grade / reasonChips / isCandidate / marketCount / okCount / failCount / candidateCount / operatorReviewCount) 그대로 (디버깅/매핑 일관성)
+  - 필요시 영어 병기: 운영자 검토(Operator Review) / 제한 운영(Limited Live) / 개발 개방(Dev Open)
+- `/web/ws3-canary-console/index.html` byte-for-byte mirror 유지
+- `/docs/ws3/WS3_CHANGELOG.md` (본 파일): `[v0.32.2]` entry 상단 추가
+- `/docs/ws3/WS3_CURRENT_BASELINE.md`: baseline → v0.32.2 갱신 + Closure 표 row 추가
+
+### Not changed (intentional)
+- `/workers/ws3-telegram-canary-worker.js` — Worker 미수정. VERSION 상수 `WS3_v0.31.0_web_first_minimum_operator_mode` 유지. Worker auth 경로 / KV write scope / Telegram fixed-text / duplicate guard / confirmPhrase / env-gate 모두 그대로
+- 기능 변경 0건 (UI 톤 + 라벨만 정리)
+- ID / class / JS 변수 / 함수 / Worker 응답 매핑 모두 그대로
+- 5 env vars 그대로 (WS3_LIMITED_LIVE_ENABLED='true' 운영 유지)
+- Cron / 자동 Telegram / candidate KV 저장 / tracking 시작 — 모두 disabled 유지
+- 본선 `index.html` / `manifest.json` / `service-worker.js` / `worker.js` / `wrangler.toml` / `v3/` 25종 / `workers/ws3-canary-state-kv-adapter.js` / `WS3_CODE_CONTRACT.md` / `WS3_WORKFLOW_TEMPLATE.md` 0건 (참고만 함, 수정 없음)
+
+### 백서 기준 준수
+- 가져온 것: 디자인 톤 + ViewModel 분리 철학 (UI 표현 영역만)
+- 가져오지 않은 것: v2 관심/정밀/표준/24h 퍼센트/진행도 의미 / active tracking / completed history / 분석기 state pipeline / v2 데이터 구조
+- WS3 독립 앱 유지
+- 사용자 표시 등급은 P-S/P-A/P-B/P-C 등급 코드 그대로 + S+ 표기 정책 유지 (SPLUS / splus 사용자 노출 0건 — `grep "SPLUS|splus"` 매치 0건)
+- 전통 캔들명 (도지 / 망치 / 장악형) 사용자 UI 라벨 0건 — `grep "도지|망치|장악형"` 매치 0건
+- 구조값 중심 표현 유지 (reasonChips VOLUME_SURGE / HIGH_CLOSE_POSITION / LOW_VOLUME / UPPER_WICK_RISK 등 — 구조값 chip)
+
+### Verified
+- `diff -q web/ws3-canary-console.html web/ws3-canary-console/index.html` 0건 (byte-for-byte mirror)
+- Embedded `<script>` 2 blocks `new Function(block)` ALL_BLOCKS_OK
+- `git diff --stat HEAD -- [보호 파일군]` 빈 출력 (workers/ worker.js wrangler.toml index.html manifest.json service-worker.js v3/ CODE_CONTRACT WORKFLOW_TEMPLATE 0건)
+- 영어 UI label 잔존 검사 (`grep "Operator Dashboard Summary|Top 5 Fixed Candidates|Failed Market List|Filter Tabs|Selected Candidate Preview|Telegram Message Preview|Memory-only Scan History|Memory-only Sent History"`) — 사용자 UI 매치 0건
+- 금지 표기 검사 (`grep "SPLUS|splus|도지|망치|장악형"`) — 사용자 UI 매치 0건
+- 노출된 폐기 hash repo-wide 매치 0건
+- bot_token / chat_id / message_id / Invoke Token / SHA-256 hash / KV namespace ID / raw Telegram response / raw exchange full response — 정책 문맥만 (raw value 0건)
+- 매수 추천 / 진입 추천 / 수익 보장 / 확정 신호 / LIVE BUY — 0건
+- 본 commit 까지 Cloudflare Worker redeploy 0건 / Pages redeploy 0건 / Telegram API 0건 / KV write 0건 / candidate 저장 0건 / tracking 시작 0건 / 실 거래소 API 호출 0건
+
+### 다음 후보 (v0.32.x / v0.33)
+- Bithumb 전환 (백서 v0 Bithumb-only 기준)
+- P-grade / S+ 등급 정렬
+- structureBucket 엔진 추가
+- signalCycle / cyclePhase / bucketFamily 추가
+- 자연검증 후 색상 / 톤 / 한글 문구 미세 조정
+- 모바일 UX 자연검증
+- Cron / auto Telegram / candidate 저장 / tracking 시작은 별도 사용자 명시 승인 전까지 계속 disabled
+
+---
+
 ## [v0.32.1] — 2026-05-20 (No Invoke Token / Dev Open Operator UX Patch)
 
 ### Verified
