@@ -105,7 +105,7 @@ var CANDIDATE_DRY_RUN_REASON_CHIP_MAX = 8;
 //   /send-candidate-test: TEST_ONLY Telegram send for ONE selected candidate (KV duplicate guard write only)
 //   Limited Live Mode skeleton: DISABLED by default. No cron, no auto alert.
 var MULTI_CANDIDATE_DRY_RUN_MODE = 'MULTI_CANDIDATE_DRY_RUN_ONLY';
-var MULTI_CANDIDATE_MAX_MARKETS = 10;
+var MULTI_CANDIDATE_MAX_MARKETS = 50;
 var CANDIDATE_TEST_MODE = 'CANDIDATE_TEST_ONLY';
 var CANDIDATE_TEST_CONFIRM_PHRASE = 'SEND_WS3_TEST_CANDIDATE';
 var CANDIDATE_TEST_MESSAGE_TYPE = 'CANDIDATE_TEST_ONLY';
