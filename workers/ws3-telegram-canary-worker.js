@@ -6571,6 +6571,17 @@
  */
 function classifyV3Grade(score) {
   if (typeof score !== 'number' || !isFinite(score)) return 'NONE';
+  // 백서 §3.2 + §6.2 — WS3_CONFIG.GRADE_BANDS 우선 / hardcoded fallback 두 번째
+  var cfg = globalThis.WS3_CONFIG && globalThis.WS3_CONFIG.GRADE_BANDS;
+  if (cfg && cfg.S_PLUS && cfg.S && cfg.A && cfg.B && cfg.C) {
+    if (score >= cfg.S_PLUS.min) return 'S+';
+    if (score >= cfg.S.min)      return 'S';
+    if (score >= cfg.A.min)      return 'A';
+    if (score >= cfg.B.min)      return 'B';
+    if (score >= cfg.C.min)      return 'C';
+    return 'NONE';
+  }
+  // hardcoded fallback (WS3_CONFIG 미로드 환경 안전망)
   if (score >= 90) return 'S+';
   if (score >= 82) return 'S';
   if (score >= 72) return 'A';
@@ -6660,7 +6671,7 @@ var TelegramCanarySender = require('../v3/v3-telegram-canary-sender.js');
 var CanaryStateKvAdapter = require('./ws3-canary-state-kv-adapter.js');
 
 // §constants ───────────────────────────────────────────────────────────
-var VERSION = 'WS3_v0.35.0_phase1_card_connection';
+var VERSION = 'WS3_v0.36.0_integration_config_rename';
 var SERVICE = 'WS3_CANARY_WEB_MVP';
 var STATUS_READY_CODE = 'CANARY_READY';
 var MAX_BODY_BYTES = 1024;
@@ -7716,7 +7727,9 @@ async function runMultiCandidatePipeline(deps, req) {
           // ──────────────────────────────────────────────────────────────
           // 백서 §4.1 운영 파이프라인 — v3 chain (Feature → Score → Structure → Cycle → Strategy → CardVM → RendererBinding)
           // ──────────────────────────────────────────────────────────────
-          var marketCtx = { exchange: 'BITHUMB', market: market, ts: Date.now() };
+          // 백서 §3.2 / §4.2 — exchange label = v3-config 참조 (magic string 회피)
+          var bithumbExchange = (globalThis.WS3_CONFIG && globalThis.WS3_CONFIG.EXCHANGES && globalThis.WS3_CONFIG.EXCHANGES.PRIMARY) || 'BITHUMB';
+          var marketCtx = { exchange: bithumbExchange, market: market, ts: Date.now() };
           var featurePayload = globalThis.WS3_FeaturePayload_Builder.build(candlesObj, marketCtx);
           if (!globalThis.WS3_FeaturePayload.isValid(featurePayload)) {
             return { ok: false, market: market, code: 'V3_PAYLOAD_INVALID' };

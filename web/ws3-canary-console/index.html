@@ -145,13 +145,25 @@ textarea{width:100%;min-height:96px}
 'use strict';
 
 // ═══════════════════════════════════════════════════════════════════
-// WS3 v0.35.0 Phase 1 — Card Connection
-// 백서 §16.2 헤더 8 슬롯 / §16.4 바디 18 섹션 / cardViewModel + rendererBinding 기반
+// WS3 v0.36.0 Phase 1 + 백서 §3.2 Config 정합성 통합
+// 백서 §16.2 헤더 8 슬롯 / §16.4 바디 18 섹션 / §16.4.1 selectionReason 4 필드
+// 모든 한글 라벨 = WS3_CONFIG.DISPLAY 참조 (백서 §3.2 — Config 중심 / 단일 진실 소스)
 // raw·debug·operatorReview·reasonChips 노출 0 / 운영 콘솔 패널 신규 0
 // ═══════════════════════════════════════════════════════════════════
 
-var API = 'https://ws3-telegram-canary.neosiwon.workers.dev';
+var API = 'https://woos-scanner-v3.neosiwon.workers.dev';
 var S = { ex: 'bithumb', rows: [], bad: [] };
+
+// 백서 §3.2 — v3-config.WS3_CONFIG 가 window 에 로드되어 있으면 우선 참조
+// (현재 production index.html 은 v3 module 미로드 / inline fallback 사용)
+var CFG = (typeof window !== 'undefined' && window.WS3_CONFIG) ? window.WS3_CONFIG : null;
+var DISPLAY = (CFG && CFG.DISPLAY) ? CFG.DISPLAY : null;
+
+// 한글 매핑 — WS3_CONFIG.DISPLAY 가 있으면 그쪽 우선 / 없으면 inline fallback (v3-config.js L97-115 sync)
+function dpick(category, id, fallback){
+  if (DISPLAY && DISPLAY[category] && DISPLAY[category][id]) return DISPLAY[category][id];
+  return fallback;
+}
 
 var P = {
   bithumb: ['BTC_KRW','ETH_KRW','XRP_KRW','SOL_KRW','DOGE_KRW','ADA_KRW','AVAX_KRW','DOT_KRW','LINK_KRW','NEAR_KRW','SEI_KRW','SUI_KRW','APT_KRW','ATOM_KRW','TRX_KRW','BCH_KRW','ETC_KRW','XLM_KRW','HBAR_KRW','MATIC_KRW','ARB_KRW','OP_KRW','STX_KRW','AAVE_KRW','ALGO_KRW','SAND_KRW','MANA_KRW','FLOW_KRW','GRT_KRW','EOS_KRW','FIL_KRW'],
@@ -160,11 +172,16 @@ var P = {
 };
 
 // ═══════════════════════════════════════════════════════════════════
-// 한글 매핑 (v3-config.DISPLAY 참조 / raw enum 사용자 노출 0)
+// 한글 매핑 (백서 §3.2 — WS3_CONFIG.DISPLAY sync / raw enum 노출 0)
 // ═══════════════════════════════════════════════════════════════════
-var GRADE_LABEL = { 'S+':'S+급 후보','S':'S급 후보','A':'A급 후보','B':'B급 관찰','C':'C급 관찰','NONE':'등급없음' };
+// 등급 — v3-config.WS3_DISPLAY.grade 정확 sync + 후보/관찰 의미 추가
+var GRADE_LABEL = {
+  'S+':'S+급 후보 (지금 즉시)', 'S':'S급 후보 (강력)', 'A':'A급 후보',
+  'B':'B급 관찰', 'C':'C급 관찰', 'NONE':'등급없음'
+};
 var GRADE_CLASS = { 'S+':'gSP','S':'gS','A':'gA','B':'gB','C':'gC','NONE':'muted' };
 
+// 전략 — WS3_DISPLAY.strategyBias 5종 + planType 확장 (v3-strategy-plan.js dynamic)
 var STRATEGY_LABEL = {
   'SCALP':['단타','red'], 'SWING':['스윙','cyan'], 'SCALP_SWING':['단타→스윙','orange'],
   'WATCH':['관찰',''], 'AVOID':['회피','muted'],
@@ -175,6 +192,7 @@ var STRATEGY_LABEL = {
   'EXPIRED_IGNORE':['신호 종료','muted']
 };
 
+// 구조 — WS3_DISPLAY.structure 5종 + v3-structure-bucket.js 동적 candidate 확장
 var STRUCTURE_LABEL = {
   'BOX_PRESSURE':['박스 압박','red'], 'BOX_BREAKOUT':['박스 돌파','red'],
   'OB_RECLAIM':['OB 회복','cyan'], 'LOW_SWEEP_RECLAIM':['저점 회복','cyan'],
@@ -186,17 +204,79 @@ var STRUCTURE_LABEL = {
   'RECLAIM_READY':['회복 준비','cyan'], 'HIGH_SWEEP_REJECT_CANDIDATE':['고점 거부','orange']
 };
 
+// 반복 — WS3_DISPLAY.signalPersistence 4종 정확 sync
 var PERSISTENCE_LABEL = {
   'single':['단일',''], 'repeat':['반복','yellow'],
   'strong_repeat':['강한 반복','orange'], 'hot_cycle':['핫사이클','red']
 };
 
+// 사이클 위상 — v3-signal-cycle.js dynamic
 var CYCLE_PHASE_LABEL = {
   'SEED':'시드', 'ACTIVE':'활성', 'COOLING':'쿨다운', 'ENDED':'종료',
   'NEW_CANDIDATE':'신규','PERSISTING':'지속','STRENGTHENING':'강화','WEAKENING':'약화'
 };
 
+// 매도전략 A-F — 백서 §13.4 / WS3_DISPLAY.exitStrategy + 한글 의미 추가
 var EXIT_LABEL = { A:'구조분할', B:'ATR 트레일링', C:'TP1 본절', D:'무효화', E:'시간제한', F:'거래량소멸' };
+
+// ─────────────────────────────────────────────────────────────────
+// [백서 §16.4.1] selectionReason 영문 enum → 한글 매핑
+// v3-card-view-model.js / v3-score-breakdown.js / v3-structure-bucket.js 의
+// reasons.push() 코드명 + dynamic suffix (+25 / +20 등) 모두 한글로 변환
+// ─────────────────────────────────────────────────────────────────
+var REASON_LABEL = {
+  // 구조 (structureBucket)
+  'BUCKET_RECLAIM_READY':       '구조: 회복 준비',
+  'BUCKET_BREAKOUT_READY':      '구조: 돌파 준비',
+  'BUCKET_BOX_PRESSURE':        '구조: 박스 압박',
+  'BUCKET_BOX_BREAKOUT':        '구조: 박스 돌파',
+  'BUCKET_OB_RECLAIM':          '구조: OB 회복',
+  'BUCKET_LOW_SWEEP_RECLAIM':   '구조: 저점 회복',
+  'BUCKET_MA_RECLAIM':          '구조: MA 회복',
+  'BOX_VALID':                  '박스 구조 적합',
+  'BOX_INVALID':                '박스 구조 부적합',
+  'PRICE_ZONE_VALID':           '가격 위치 적합',
+  'PRICE_ZONE_INVALID':         '가격 위치 부적합',
+  'REFERENCE_LOW_VALID':        '기준 저점 확보',
+  'REFERENCE_LOW_INVALID':      '기준 저점 미확보',
+  'SWEEP_RECLAIM_VALID':        '저점 회복 신호',
+  'SWEEP_RECLAIM_INVALID':      '저점 회복 미확정',
+  'STRUCTURE_SCORE_HIGH':       '구조 점수 우수',
+  'STRUCTURE_SCORE_LOW':        '구조 점수 미흡',
+  'BUCKET_BOX_TOP_PRESSURE':    '구조: 박스 상단 압박',
+  'BUCKET_BOX_BOTTOM_RISK':     '구조: 박스 하단 위험',
+  // 점수 (scoreBreakdown components)
+  'CORE_HIGH':                  '코어 점수 우수',
+  'STRUCTURE_HIGH':             '구조 점수 우수',
+  'VOLUME_HIGH':                '거래량·수급 강세',
+  'MOMENTUM_HIGH':              '모멘텀 강세',
+  'EXECUTION_HIGH':             '실행 환경 양호',
+  'RISK_HIGH':                  '리스크 높음',
+  'RISK_PENALTY':               '리스크 페널티 적용',
+  // 전략 (strategyBias / planType)
+  'STRATEGY_BREAKOUT_READY':    '전략: 돌파 준비',
+  'STRATEGY_RECLAIM_READY':     '전략: 회복 준비',
+  'STRATEGY_PULLBACK_WAIT':     '전략: 눌림 대기',
+  'STRATEGY_MOMENTUM_FOLLOW':   '전략: 모멘텀 추종',
+  // 사이클 (signalCycle)
+  'CYCLE_NEW_CANDIDATE':        '신규 후보',
+  'CYCLE_PERSISTING':           '지속 신호',
+  'CYCLE_STRENGTHENING':        '강화 사이클',
+  'CYCLE_WEAKENING':            '약화 사이클'
+};
+
+// "BOX_VALID+25" 형태의 dynamic suffix 처리
+function translateReason(code){
+  if (!code || typeof code !== 'string') return null;
+  // 분리: 코드명 + 수치 ("+25" / "-15" 등)
+  var m = code.match(/^([A-Z_]+)([\+\-]\d+)?$/);
+  if (!m) return code;  // 매칭 안 되는 경우 원본 (안전망)
+  var base = m[1];
+  var suffix = m[2] || '';
+  var kr = REASON_LABEL[base];
+  if (!kr) return null;  // 알 수 없는 enum = 표시 생략 (raw 노출 0)
+  return suffix ? (kr + ' (' + suffix + ')') : kr;
+}
 
 // ═══════════════════════════════════════════════════════════════════
 // 유틸
@@ -293,11 +373,42 @@ function renderSec3(r){
 }
 
 function renderSec35(cvm){
-  var reasons = (cvm && Array.isArray(cvm.reasons)) ? cvm.reasons : [];
+  if (!cvm) return null;
+  // 백서 §16.4.1 selectionReason 4 필드 시도 (cardViewModel 에 직접 분리 키 있으면 그쪽 우선)
+  var primary  = cvm.primaryReason || (cvm.selectionReason && cvm.selectionReason.primary) || null;
+  var technical = cvm.technicalReasons || (cvm.selectionReason && cvm.selectionReason.technical) || null;
+  var external = cvm.externalReasons || (cvm.selectionReason && cvm.selectionReason.external) || null;
+  var summary  = cvm.summary || (cvm.selectionReason && cvm.selectionReason.summary) || null;
+  // 백서 §16.4.1 4 필드가 분리돼 있으면 그대로 표시
+  if (primary || (Array.isArray(technical) && technical.length) || (Array.isArray(external) && external.length) || summary) {
+    var html = '';
+    if (primary)  html += '<p><b style="color:var(--cy)">주요:</b> ' + esc(typeof primary === 'string' ? (translateReason(primary)||primary) : (primary.label || '')) + '</p>';
+    if (Array.isArray(technical) && technical.length) {
+      var techItems = technical.map(function(t){
+        var c = typeof t === 'string' ? t : (t && (t.code || t.label)) || '';
+        var kr = translateReason(c);
+        return kr ? '<li>' + esc(kr) + '</li>' : '';
+      }).filter(Boolean).join('');
+      if (techItems) html += '<p><b>기술적 근거:</b></p><ul>' + techItems + '</ul>';
+    }
+    if (Array.isArray(external) && external.length) {
+      var extItems = external.map(function(t){
+        var c = typeof t === 'string' ? t : (t && (t.code || t.label)) || '';
+        var kr = translateReason(c);
+        return kr ? '<li>' + esc(kr) + '</li>' : '';
+      }).filter(Boolean).join('');
+      if (extItems) html += '<p><b>외부 보조:</b></p><ul>' + extItems + '</ul>';
+    }
+    if (summary)  html += '<p class="sub">' + esc(summary) + '</p>';
+    return html || null;
+  }
+  // 4 필드 미분리 시 — reasons 배열 단일 list 한글 변환 (현 v3-card-view-model.js 출력 형태)
+  var reasons = Array.isArray(cvm.reasons) ? cvm.reasons : [];
   if (!reasons.length) return null;
-  var items = reasons.slice(0, 6).map(function(rn){
-    var txt = (typeof rn === 'string') ? rn : (rn && (rn.label || rn.message || rn.reason || rn.code)) || '';
-    return txt ? '<li>' + esc(txt) + '</li>' : '';
+  var items = reasons.slice(0, 8).map(function(rn){
+    var code = (typeof rn === 'string') ? rn : (rn && (rn.code || rn.label || rn.message || rn.reason)) || '';
+    var kr = translateReason(code);
+    return kr ? '<li>' + esc(kr) + '</li>' : '';  // 알 수 없는 코드 = 표시 생략 (raw 노출 0)
   }).filter(Boolean).join('');
   return items ? '<ul>' + items + '</ul>' : null;
 }

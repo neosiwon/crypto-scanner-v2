@@ -9,7 +9,7 @@
 #   5) plain vars (CANARY_ENABLED / AUTHORIZED_AT / ALLOWED_ORIGINS) 도 환경에 맞게 채울 것
 #
 # 실제 KV namespace id / secret / origin 값은 본 example 파일에 절대 기록하지 않는다.
-name = "ws3-telegram-canary"
+name = "woos-scanner-v3"
 main = "workers/ws3-telegram-canary-entry.mjs"
 compatibility_date = "2026-05-17"
 
