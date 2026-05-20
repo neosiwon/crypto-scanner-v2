@@ -127,12 +127,19 @@
 
   // 분류기 임계값 (백서 §11.1 매수세 / §10 시장 / §15.3 세력예상가)
   var WS3_CLASSIFIER_THRESHOLDS = {
-    // §11.1 매수세 (DP-P1-1 — v3 단순 안 / 추후 v2 Shadow Score 5차원 = v0.46.0+)
+    // §11.1 매수세 (v0.46.0 — obvSlope 제거 → obvTrend / 토의 #7 upperWickPct STRONG 차단)
     BUY_PRESSURE: {
-      STRONG: { volumeRatio: 2.0, obvSlope: 0.3,  closePosition: 0.7 },
-      MEDIUM: { volumeRatio: 1.3, obvSlope: 0.1 },
+      STRONG: { volumeRatio: 2.0, closePosition: 0.7, upperWickPctMax: 0.4 },
+      MEDIUM: { volumeRatio: 1.3 },
       WEAK:   { volumeRatio: 0.8 },
-      NONE:   { volumeRatioMax: 0.8, upperWickPctMin: 0.4 }
+      NONE:   { volumeRatioMax: 0.8 }
+    },
+    // §11.1 OBV (v0.46.0 신규 — V2 calcOBV 산식 기반 / 토의 #8 MIN_SAMPLE 20)
+    OBV: {
+      LOOKBACK: 20,
+      UP_THRESHOLD: 0.005,
+      DOWN_THRESHOLD: -0.005,
+      MIN_SAMPLE_SIZE: 20
     },
     // §10 시장상황 (DP-P1-2 — v2 btcFilter 임계값 채택)
     MARKET_CONTEXT: {
@@ -143,11 +150,19 @@
       PENALTY_BEAR_MIN: 2.0,
       PENALTY_NEUTRAL_MIN: 0.5
     },
-    // §15.3 세력예상가 (DP-P1-4 — v2 estimateCostCenter 산출값)
+    // §15.3 세력예상가 (v0.46.0 — V2 estimateAccumulationCostRange 산식 기반)
     SMART_MONEY_ZONE: {
       ATR_MULTIPLIER_LOW: 0.5,
       ATR_MULTIPLIER_HIGH: 0.5,
-      NARROW_BOX_RANGE_PCT: 5
+      MIN_INNER_CANDLES: 3,
+      MIN_TOP_COUNT: 5,
+      TOP_VOLUME_RATIO: 0.3,
+      PANIC_BODY_RATIO_MIN: 0.6,
+      PANIC_SELL_WEIGHT: 0.5,
+      HIGH_CONF_MIN_TOP: 8,
+      HIGH_CONF_MAX_ANOMALY: 1,
+      MID_CONF_MIN_TOP: 5,
+      NARROW_BOX_RANGE_PCT: 3
     }
   };
 

@@ -146,12 +146,19 @@
 
   // 분류기 임계값 (백서 §11.1 매수세 / §10 시장 / §15.3 세력예상가)
   var WS3_CLASSIFIER_THRESHOLDS = {
-    // §11.1 매수세 (DP-P1-1 — v3 단순 안 / 추후 v2 Shadow Score 5차원 = v0.46.0+)
+    // §11.1 매수세 (v0.46.0 — obvSlope 제거 → obvTrend / 토의 #7 upperWickPct STRONG 차단)
     BUY_PRESSURE: {
-      STRONG: { volumeRatio: 2.0, obvSlope: 0.3,  closePosition: 0.7 },
-      MEDIUM: { volumeRatio: 1.3, obvSlope: 0.1 },
+      STRONG: { volumeRatio: 2.0, closePosition: 0.7, upperWickPctMax: 0.4 },
+      MEDIUM: { volumeRatio: 1.3 },
       WEAK:   { volumeRatio: 0.8 },
-      NONE:   { volumeRatioMax: 0.8, upperWickPctMin: 0.4 }
+      NONE:   { volumeRatioMax: 0.8 }
+    },
+    // §11.1 OBV (v0.46.0 신규 — V2 calcOBV 산식 기반 / 토의 #8 MIN_SAMPLE 20)
+    OBV: {
+      LOOKBACK: 20,
+      UP_THRESHOLD: 0.005,
+      DOWN_THRESHOLD: -0.005,
+      MIN_SAMPLE_SIZE: 20
     },
     // §10 시장상황 (DP-P1-2 — v2 btcFilter 임계값 채택)
     MARKET_CONTEXT: {
@@ -162,11 +169,19 @@
       PENALTY_BEAR_MIN: 2.0,
       PENALTY_NEUTRAL_MIN: 0.5
     },
-    // §15.3 세력예상가 (DP-P1-4 — v2 estimateCostCenter 산출값)
+    // §15.3 세력예상가 (v0.46.0 — V2 estimateAccumulationCostRange 산식 기반)
     SMART_MONEY_ZONE: {
       ATR_MULTIPLIER_LOW: 0.5,
       ATR_MULTIPLIER_HIGH: 0.5,
-      NARROW_BOX_RANGE_PCT: 5
+      MIN_INNER_CANDLES: 3,
+      MIN_TOP_COUNT: 5,
+      TOP_VOLUME_RATIO: 0.3,
+      PANIC_BODY_RATIO_MIN: 0.6,
+      PANIC_SELL_WEIGHT: 0.5,
+      HIGH_CONF_MIN_TOP: 8,
+      HIGH_CONF_MAX_ANOMALY: 1,
+      MID_CONF_MIN_TOP: 5,
+      NARROW_BOX_RANGE_PCT: 3
     }
   };
 
@@ -6904,43 +6919,89 @@ async function fetchBithumbCoinMeta(deps) {
 }
 
 /**
- * §11.1 매수세 분류 (DP-P1-1 / v3 단순 안)
+ * §11.1 OBV trend 계산 (v0.46.0 신규 / V2 calcOBV 산식 계승 + V3 UNKNOWN 정규화)
+ * 토의 #8 확정: MIN_SAMPLE_SIZE 미만 = UNKNOWN (FLAT 아님)
+ * 모든 상수 = cfg 참조 (메모리 #11)
+ */
+function calcOBVTrend(obvSeries, lookback, upT, downT, minSample) {
+  if (!obvSeries || !Array.isArray(obvSeries) || obvSeries.length < minSample) return 'UNKNOWN';
+  var recent = obvSeries.slice(-lookback);
+  var n = recent.length;
+  if (n < 2) return 'UNKNOWN';
+  // V2 calcOBV 선형회귀 slope
+  var sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0;
+  for (var i = 0; i < n; i++) {
+    sumX += i; sumY += recent[i];
+    sumXY += i * recent[i]; sumX2 += i * i;
+  }
+  var denom = (n * sumX2 - sumX * sumX);
+  if (denom === 0) return 'FLAT';
+  var slope = (n * sumXY - sumX * sumY) / denom;
+  var avg = sumY / n;
+  var normalizedSlope = (avg !== 0) ? slope / Math.abs(avg) : 0;
+  if (normalizedSlope > upT)   return 'UP';
+  if (normalizedSlope < downT) return 'DOWN';
+  return 'FLAT';
+}
+
+/**
+ * §11.1 매수세 분류 (v0.46.0 — V3 정확 경로 + 토의 #7 STRONG 차단)
  * 백서 §11.1 enum 5종 / §6.3 context = 점수 가점 X
+ * 변수 경로 (Gate 1 grep 확정):
+ *   volumeRatio   = fp.volume.volume.volRatio
+ *   obvSeries     = fp.momentum.obv.series
+ *   closePosition = fp.structure.candleShape.closePosition (0~1)
+ *   upperWickPct  = fp.structure.candleShape.upperWickPct / 100 (0~100 → 0~1)
+ * 토의 #7: upperWickPct = NONE 조건 X / STRONG 차단 only
+ * 모든 상수 = cfg 참조 (메모리 #11)
  */
 function classifyBuyPressure(featurePayload, cfg) {
-  if (!featurePayload || !featurePayload.indicators) return 'BUY_PRESSURE_UNKNOWN';
-  var ind = featurePayload.indicators;
-  var v = featurePayload.volume || {};
+  if (!featurePayload) return 'BUY_PRESSURE_UNKNOWN';
   var t = (cfg && cfg.CLASSIFIER_THRESHOLDS && cfg.CLASSIFIER_THRESHOLDS.BUY_PRESSURE);
-  if (!t) return 'BUY_PRESSURE_UNKNOWN';
-  
-  // 변수 추출 (v3-feature-payload 안전 추출)
-  var volumeRatio = (typeof v.volumeRatio === 'number') ? v.volumeRatio
-                  : (typeof ind.volumeRatio === 'number') ? ind.volumeRatio
-                  : null;
-  var obvSlope = (typeof ind.obvSlope === 'number') ? ind.obvSlope : null;
-  var closePosition = (typeof ind.closePosition === 'number') ? ind.closePosition : null;
-  var upperWickPct = (typeof ind.upperWickPct === 'number') ? ind.upperWickPct : null;
-  
+  var obvCfg = (cfg && cfg.CLASSIFIER_THRESHOLDS && cfg.CLASSIFIER_THRESHOLDS.OBV);
+  if (!t || !obvCfg) return 'BUY_PRESSURE_UNKNOWN';
+
+  // 변수 추출 (V3 정확 경로)
+  var vol = featurePayload.volume && featurePayload.volume.volume;
+  var volumeRatio = (vol && vol.valid && typeof vol.volRatio === 'number') ? vol.volRatio : null;
+  var obv = featurePayload.momentum && featurePayload.momentum.obv;
+  var obvSeries = (obv && obv.valid && Array.isArray(obv.series)) ? obv.series : null;
+  var cs = featurePayload.structure && featurePayload.structure.candleShape;
+  var closePosition = (cs && cs.valid && typeof cs.closePosition === 'number') ? cs.closePosition : null;
+  var upperWickPct = (cs && cs.valid && typeof cs.upperWickPct === 'number') ? cs.upperWickPct / 100 : null;
+
   if (volumeRatio === null) return 'BUY_PRESSURE_UNKNOWN';
-  
-  // NONE 우선 (매도 압력)
-  if (volumeRatio < t.NONE.volumeRatioMax || (upperWickPct !== null && upperWickPct >= t.NONE.upperWickPctMin)) {
+
+  var obvTrend = calcOBVTrend(obvSeries, obvCfg.LOOKBACK, obvCfg.UP_THRESHOLD,
+                               obvCfg.DOWN_THRESHOLD, obvCfg.MIN_SAMPLE_SIZE);
+
+  // NONE (매도 압력) — 토의 #7: 거래량 부족만으로 판정 (윗꼬리는 STRONG 차단)
+  if (volumeRatio < t.NONE.volumeRatioMax) {
     return 'BUY_PRESSURE_NONE';
   }
-  // STRONG (3 변수 모두)
-  if (volumeRatio >= t.STRONG.volumeRatio && (obvSlope === null || obvSlope >= t.STRONG.obvSlope) 
-      && (closePosition === null || closePosition >= t.STRONG.closePosition)) {
+
+  // 윗꼬리 강함 = STRONG 차단 플래그 (토의 #7 — "강 판정 차단" only)
+  var upperWickBlocksStrong = (upperWickPct !== null && upperWickPct >= t.STRONG.upperWickPctMax);
+
+  // STRONG (3 변수 모두 + 윗꼬리 차단 아님)
+  if (volumeRatio >= t.STRONG.volumeRatio &&
+      obvTrend === 'UP' &&
+      closePosition !== null && closePosition >= t.STRONG.closePosition &&
+      !upperWickBlocksStrong) {
     return 'BUY_PRESSURE_STRONG';
   }
-  // MEDIUM (2 변수)
-  if (volumeRatio >= t.MEDIUM.volumeRatio && (obvSlope === null || obvSlope >= t.MEDIUM.obvSlope)) {
+
+  // MEDIUM (volRatio + OBV UP 또는 FLAT 허용)
+  if (volumeRatio >= t.MEDIUM.volumeRatio &&
+      (obvTrend === 'UP' || obvTrend === 'FLAT')) {
     return 'BUY_PRESSURE_MEDIUM';
   }
+
   // WEAK
   if (volumeRatio >= t.WEAK.volumeRatio) {
     return 'BUY_PRESSURE_WEAK';
   }
+
   return 'BUY_PRESSURE_NONE';
 }
 
@@ -6990,34 +7051,86 @@ function calcSmartMoneyZone(structureDecision, featurePayload, cfg) {
   if (!structureDecision || !featurePayload) return null;
   var t = (cfg && cfg.CLASSIFIER_THRESHOLDS && cfg.CLASSIFIER_THRESHOLDS.SMART_MONEY_ZONE);
   if (!t) return null;
-  
-  var pz = structureDecision.priceZone;
-  if (!pz || typeof pz.center !== 'number' || pz.center <= 0) return null;
-  
-  var atr = (featurePayload.indicators && typeof featurePayload.indicators.atr === 'number')
-          ? featurePayload.indicators.atr
-          : null;
-  if (atr === null || atr <= 0) return null;
-  
-  var center = pz.center;
-  var low = center - atr * t.ATR_MULTIPLIER_LOW;
-  var high = center + atr * t.ATR_MULTIPLIER_HIGH;
-  
-  // v2 confidence 로직 — 박스 좁으면 하향
-  var box = structureDecision.box || {};
-  var rangePercent = (typeof box.rangePercent === 'number') ? box.rangePercent : 100;
-  var confidence = '높음';
-  if (rangePercent < t.NARROW_BOX_RANGE_PCT) {
-    confidence = '낮음';
-  } else if (rangePercent < t.NARROW_BOX_RANGE_PCT * 2) {
-    confidence = '보통';
+
+  // [Step 0] 박스 자체 valid 검증 (메모리 #27 — null 시 "데이터 수집 중")
+  //   box 경로 (Gate 1 grep 확정 CASE B): featurePayload.structure.structure.box
+  var box = featurePayload.structure && featurePayload.structure.structure
+            && featurePayload.structure.structure.box;
+  if (!box || !box.valid || typeof box.high !== 'number' || typeof box.low !== 'number') {
+    return null;
   }
-  
+
+  // [Step 1] ATR 추출 (객체 안 value — Gate 1 grep 확정)
+  var atrObj = featurePayload.indicators && featurePayload.indicators.atr;
+  var atr = (atrObj && atrObj.valid && typeof atrObj.value === 'number') ? atrObj.value : null;
+  if (atr === null || atr <= 0) return null;
+
+  // [Step 2] 캔들 추출
+  var primaryTf = (featurePayload.raw && featurePayload.raw.builderDebug
+                   && featurePayload.raw.builderDebug.primaryTimeframe) || 'h1';
+  var candles = (featurePayload.candles && featurePayload.candles[primaryTf]) || [];
+  if (candles.length === 0) return null;
+
+  // [Step 3] 박스 내부 캔들 추출 (V2 산식)
+  var inner = candles.filter(function(c) {
+    return c.close >= box.low && c.close <= box.high;
+  });
+
+  // [Step 4] fallback (V2 산식 / inner < MIN_INNER_CANDLES)
+  if (inner.length < t.MIN_INNER_CANDLES) {
+    var ctr = (box.high + box.low) / 2;
+    return {
+      valid: true,
+      source: 'BOX_CENTER_FALLBACK',
+      low:        Math.round(ctr - atr * t.ATR_MULTIPLIER_LOW),
+      center:     Math.round(ctr),
+      high:       Math.round(ctr + atr * t.ATR_MULTIPLIER_HIGH),
+      confidence: '낮음',
+      sampleCount: inner.length,
+      anomalyCount: 0
+    };
+  }
+
+  // [Step 5] 정상 계산 (V2 estimateAccumulationCostRange 산식)
+  var sorted = inner.slice().sort(function(a, b) { return b.volume - a.volume; });
+  var topN = Math.max(t.MIN_TOP_COUNT, Math.floor(sorted.length * t.TOP_VOLUME_RATIO));
+  var top = sorted.slice(0, topN);
+
+  var totalW = 0, totalWP = 0, anomalyCount = 0;
+  top.forEach(function(c) {
+    var range = c.high - c.low;
+    var bodyRatio = range > 0 ? (c.open - c.close) / range : 0;
+    var isPanic = (c.open > c.close) && (bodyRatio > t.PANIC_BODY_RATIO_MIN);
+    var w = isPanic ? c.volume * t.PANIC_SELL_WEIGHT : c.volume;
+    var tp = (c.high + c.low + c.close) / 3;
+    totalW += w;
+    totalWP += tp * w;
+    if (isPanic) anomalyCount++;
+  });
+
+  var center = totalW > 0 ? totalWP / totalW : (box.high + box.low) / 2;
+
+  // confidence (V2 산식)
+  var conf;
+  if (top.length >= t.HIGH_CONF_MIN_TOP && anomalyCount <= t.HIGH_CONF_MAX_ANOMALY) conf = '높음';
+  else if (top.length >= t.MID_CONF_MIN_TOP) conf = '보통';
+  else conf = '낮음';
+
+  // 박스 좁으면 한 단계 하향 (V2 산식)
+  if (typeof box.rangePercent === 'number' && box.rangePercent < t.NARROW_BOX_RANGE_PCT) {
+    if (conf === '높음') conf = '보통';
+    else if (conf === '보통') conf = '낮음';
+  }
+
   return {
-    low: Math.round(low),
-    center: Math.round(center),
-    high: Math.round(high),
-    confidence: confidence
+    valid: true,
+    source: 'BOX_INTERNAL_VOLUME_VWAP',
+    low:        Math.round(center - atr * t.ATR_MULTIPLIER_LOW),
+    center:     Math.round(center),
+    high:       Math.round(center + atr * t.ATR_MULTIPLIER_HIGH),
+    confidence: conf,
+    sampleCount: top.length,
+    anomalyCount: anomalyCount
   };
 }
 
@@ -7188,7 +7301,7 @@ var TelegramCanarySender = require('../v3/v3-telegram-canary-sender.js');
 var CanaryStateKvAdapter = require('./ws3-canary-state-kv-adapter.js');
 
 // §constants ───────────────────────────────────────────────────────────
-var VERSION = 'WS3_v0.45.1_inline_config_sync';
+var VERSION = 'WS3_v0.46.0_v2_estimation_inheritance';
 var SERVICE = 'WS3_CANARY_WEB_MVP';
 var STATUS_READY_CODE = 'CANARY_READY';
 var MAX_BODY_BYTES = 1024;
