@@ -6660,7 +6660,7 @@ var TelegramCanarySender = require('../v3/v3-telegram-canary-sender.js');
 var CanaryStateKvAdapter = require('./ws3-canary-state-kv-adapter.js');
 
 // §constants ───────────────────────────────────────────────────────────
-var VERSION = 'WS3_v0.31.0_web_first_minimum_operator_mode';
+var VERSION = 'WS3_v0.35.0_phase1_card_connection';
 var SERVICE = 'WS3_CANARY_WEB_MVP';
 var STATUS_READY_CODE = 'CANARY_READY';
 var MAX_BODY_BYTES = 1024;
@@ -7671,98 +7671,112 @@ async function runMultiCandidatePipeline(deps, req) {
   var promises = [];
   for (var i = 0; i < markets.length; i++) {
     (function(market, rank) {
-      var url = buildLivePreflightUrl(exchange, market, timeframe, limit);
-      if (url === null) {
-        promises.push(Promise.resolve({
-          ok: false,
-          market: market,
-          code: 'CANDIDATE_DRY_RUN_UNSUPPORTED_SOURCE'
-        }));
+      // v0.35.0 — 1차 패치: bithumb 전용 (백서 §4.2 / v3-config.ENABLE_BITHUMB=true 외 false)
+      if (exchange !== 'bithumb') {
+        promises.push(Promise.resolve({ ok: false, market: market, code: 'V3_EXCHANGE_NOT_SUPPORTED' }));
         return;
       }
-      var p = fetchLiveCandles(deps, url, LIVE_PREFLIGHT_FETCH_TIMEOUT_MS).then(function(fetchRes) {
-        if (fetchRes.ok !== true) {
-          return { ok: false, market: market, code: mapFetchCodeToCandidateDryRunCode(fetchRes.code) };
+      var p = (async function fetchAndProcess() {
+        // ──────────────────────────────────────────────────────────────
+        // 3TF 병렬 fetch (백서 §4.1 / Bithumb API 한도: 5m/15m/1h 만 지원)
+        // v3 timeframe key ('m5','m15','h1') ↔ Bithumb interval ('5m','15m','1h') 변환
+        // h4/d1 는 mapTimeframeToBithumbInterval 미지원 → v3 builder 빈 배열 default 처리
+        // ──────────────────────────────────────────────────────────────
+        var tfList = [
+          { v3: 'm5',  bithumb: '5m'  },
+          { v3: 'm15', bithumb: '15m' },
+          { v3: 'h1',  bithumb: '1h'  }
+        ];
+        var fetchResults;
+        try {
+          fetchResults = await Promise.all(tfList.map(function(tf) {
+            var u = buildLivePreflightUrl(exchange, market, tf.bithumb, limit);
+            if (u === null) return Promise.resolve({ tf: tf.v3, ok: false, candles: [] });
+            return fetchLiveCandles(deps, u, LIVE_PREFLIGHT_FETCH_TIMEOUT_MS).then(function(fr) {
+              if (fr.ok !== true) return { tf: tf.v3, ok: false, candles: [] };
+              var n = normalizeCandles(exchange, fr.raw, limit);
+              if (n.ok !== true) return { tf: tf.v3, ok: false, candles: [] };
+              return { tf: tf.v3, ok: true, candles: n.candles };
+            }).catch(function() { return { tf: tf.v3, ok: false, candles: [] }; });
+          }));
+        } catch (e) {
+          return { ok: false, market: market, code: 'CANDIDATE_DRY_RUN_NETWORK_ERROR' };
         }
-        var norm = normalizeCandles(exchange, fetchRes.raw, limit);
-        if (norm.ok !== true) {
-          return { ok: false, market: market, code: mapFetchCodeToCandidateDryRunCode(norm.code) };
+        // candlesObj 5 TF key 유지 (h4/d1 = 빈 배열 / v3 builder default 처리)
+        var candlesObj = { m5: [], m15: [], h1: [], h4: [], d1: [] };
+        var fetchOkCount = 0;
+        for (var fi = 0; fi < fetchResults.length; fi++) {
+          candlesObj[fetchResults[fi].tf] = fetchResults[fi].candles;
+          if (fetchResults[fi].ok) fetchOkCount++;
+        }
+        if (fetchOkCount === 0) {
+          return { ok: false, market: market, code: 'CANDIDATE_DRY_RUN_NETWORK_ERROR' };
         }
         try {
           // ──────────────────────────────────────────────────────────────
-          // 1. v3FeaturePayload build — 2-인자 호출 (사전 조사 발견 1)
+          // 백서 §4.1 운영 파이프라인 — v3 chain (Feature → Score → Structure → Cycle → Strategy → CardVM → RendererBinding)
           // ──────────────────────────────────────────────────────────────
-          var candlesObj = {
-            m5:  (primaryTimeframe === 'm5')  ? norm.candles : [],
-            m15: (primaryTimeframe === 'm15') ? norm.candles : [],
-            h1:  (primaryTimeframe === 'h1')  ? norm.candles : [],
-            h4:  (primaryTimeframe === 'h4')  ? norm.candles : [],
-            d1:  (primaryTimeframe === 'd1')  ? norm.candles : []
-          };
-          var marketCtx = {
-            exchange: (exchange === 'bithumb') ? 'BITHUMB'
-                    : (exchange === 'upbit')   ? 'UPBIT'
-                    : 'BINANCE',
-            market: market,
-            ts: Date.now()
-          };
+          var marketCtx = { exchange: 'BITHUMB', market: market, ts: Date.now() };
           var featurePayload = globalThis.WS3_FeaturePayload_Builder.build(candlesObj, marketCtx);
           if (!globalThis.WS3_FeaturePayload.isValid(featurePayload)) {
             return { ok: false, market: market, code: 'V3_PAYLOAD_INVALID' };
           }
-
-          // ──────────────────────────────────────────────────────────────
-          // 2. scoreBreakdown (백서 §6 100점 점수제)
-          // ──────────────────────────────────────────────────────────────
-          var scoreBreakdown = globalThis.WS3_ScoreBreakdown.build(featurePayload);
-
-          // ──────────────────────────────────────────────────────────────
-          // 3. structureDecision (백서 §7)
-          // ──────────────────────────────────────────────────────────────
+          // 백서 §6 100점 점수제
+          var scoreBreakdown    = globalThis.WS3_ScoreBreakdown.build(featurePayload);
+          // 백서 §7 structureBucket / priceZone / referenceLow
           var structureDecision = globalThis.WS3_StructureBucket.build(featurePayload, scoreBreakdown);
-
-          // ──────────────────────────────────────────────────────────────
-          // 4. signalCycle (백서 §8 / previousSignalState = null 1차 패치)
-          // ──────────────────────────────────────────────────────────────
-          var signalCycle = globalThis.WS3_SignalCycle.build(featurePayload, scoreBreakdown, structureDecision, null);
-
-          // ──────────────────────────────────────────────────────────────
-          // 5. strategyPlan (백서 §12, §13)
-          // ──────────────────────────────────────────────────────────────
-          var strategyPlan = globalThis.WS3_StrategyPlan.build(featurePayload, scoreBreakdown, structureDecision, signalCycle);
-
-          // ──────────────────────────────────────────────────────────────
-          // 6. cardViewModel (백서 §16)
-          // ──────────────────────────────────────────────────────────────
-          var cardViewModel = globalThis.WS3_CardViewModel.build(featurePayload, scoreBreakdown, structureDecision, signalCycle, strategyPlan);
-
+          // 백서 §8 signalCycle / persistence (previousState = null / 2차 패치 KV write 후속)
+          var signalCycle       = globalThis.WS3_SignalCycle.build(featurePayload, scoreBreakdown, structureDecision, null);
+          // 백서 §12, §13 strategyBias / entryPlan / exitPlan A-F
+          var strategyPlan      = globalThis.WS3_StrategyPlan.build(featurePayload, scoreBreakdown, structureDecision, signalCycle);
+          // 백서 §16 카드 헤더 + 18 섹션
+          var cardViewModel     = globalThis.WS3_CardViewModel.build(featurePayload, scoreBreakdown, structureDecision, signalCycle, strategyPlan);
+          // 백서 §16 rendererBinding (현재 cardViewModel 만 / activeCycleDecision·evaluationOutcome·operationPacket·transportPlan·externalConfluence 는 2차 패치 입력)
+          var rendererBinding   = (globalThis.WS3_RendererBinding && globalThis.WS3_RendererBinding.build)
+            ? globalThis.WS3_RendererBinding.build({
+                cardViewModel: cardViewModel
+              })
+            : null;
           var totalScore = (scoreBreakdown && scoreBreakdown.valid) ? scoreBreakdown.totalScore : 0;
           var grade = classifyV3Grade(totalScore);
-
           return {
             ok: true,
             market: market,
-            // 1차 패치 핵심 슬롯 (production card header chip 용)
+            // 핵심 헤더 슬롯 (백서 §16.2 — production card header chip 용)
             score: totalScore,
-            grade: grade,                                                                         // 'S+' / 'S' / 'A' / 'B' / 'C' / 'NONE'
-            structureBucket: (structureDecision && structureDecision.structureBucket) || 'UNKNOWN', // 13+종 (사전 조사)
-            strategyBias: (strategyPlan && strategyPlan.strategyBias) || 'UNKNOWN',                 // 10종 (사전 조사)
-            signalCyclePhase: (signalCycle && signalCycle.cycleState) || 'UNKNOWN',                 // semantic (NEW_CANDIDATE/PERSISTING/...)
-            signalCycleState: (signalCycle && signalCycle.cyclePhase) || 'UNKNOWN',                 // lifecycle (SEED/ACTIVE/COOLING/ENDED)
-            // cardViewModel 전체 (production card body 용 — 2차 패치 활성 예정)
-            cardViewModel: cardViewModel,
-            // metadata
-            latestTime: featurePayload.ts,
-            isCandidate: (totalScore >= 40),
-            // primaryTimeframe 정보 (디버깅용 / 화면 노출 X)
-            primaryTimeframe: primaryTimeframe
+            grade: grade,                                                                          // S+/S/A/B/C/NONE
+            structureBucket:   (structureDecision && structureDecision.structureBucket) || 'UNKNOWN',
+            priceZone:         (structureDecision && structureDecision.priceZone) || null,
+            strategyBias:      (strategyPlan && strategyPlan.strategyBias) || 'UNKNOWN',
+            planType:          (strategyPlan && strategyPlan.planType) || 'NONE',
+            entryPlan:         (strategyPlan && strategyPlan.entryPlan) || null,
+            exitPlan:          (strategyPlan && strategyPlan.exitPlan) || null,
+            // signalCycle 정정 — v0.34.0 swap 버그 해소 (phase=lifecycle / state=semantic)
+            signalCyclePhase:  (signalCycle && signalCycle.cyclePhase) || 'UNKNOWN',               // SEED/ACTIVE/COOLING/ENDED
+            signalCycleState:  (signalCycle && signalCycle.cycleState) || 'UNKNOWN',               // NEW_CANDIDATE/PERSISTING/...
+            signalPersistence: (signalCycle && signalCycle.persistence) || 'single',               // single/repeat/strong_repeat/hot_cycle
+            // 백서 §16.4 카드바디 입력 (정확 shape — components.volume + riskPenalty/totalScore 명시)
+            scoreBreakdown:    scoreBreakdown ? {
+                core:        (scoreBreakdown.components && scoreBreakdown.components.core)        || null,
+                structure:   (scoreBreakdown.components && scoreBreakdown.components.structure)   || null,
+                volume:      (scoreBreakdown.components && scoreBreakdown.components.volume)      || null,
+                momentum:    (scoreBreakdown.components && scoreBreakdown.components.momentum)    || null,
+                execution:   (scoreBreakdown.components && scoreBreakdown.components.execution)   || null,
+                grossScore:  scoreBreakdown.grossScore,
+                totalScore:  scoreBreakdown.totalScore,
+                riskPenalty: scoreBreakdown.riskPenalty
+              } : null,
+            cardViewModel:     cardViewModel,
+            rendererBinding:   rendererBinding,
+            // 메타
+            latestTime:        featurePayload.ts,
+            isCandidate:       (totalScore >= 40),
+            primaryTimeframe:  primaryTimeframe
           };
         } catch (e) {
           return { ok: false, market: market, code: 'V3_PIPELINE_ERROR', error: String((e && e.message) || e) };
         }
-      }).catch(function() {
-        return { ok: false, market: market, code: 'CANDIDATE_DRY_RUN_NETWORK_ERROR' };
-      });
+      })();
       promises.push(p);
     })(markets[i], i);
   }
@@ -7822,7 +7836,6 @@ function countOperatorReviewByLevel(results) {
 }
 
 function buildMultiCandidateDryRunResponse(req, pipelineResult) {
-  var orCounts = countOperatorReviewByLevel(pipelineResult.results);
   return {
     ok: true,
     status: 'OK',
@@ -7837,7 +7850,6 @@ function buildMultiCandidateDryRunResponse(req, pipelineResult) {
     okCount: pipelineResult.okCount,
     failCount: pipelineResult.failCount,
     candidateCount: countCandidates(pipelineResult.results),
-    operatorReviewCounts: orCounts,
     results: pipelineResult.results,
     safety: {
       telegramSent: false,
