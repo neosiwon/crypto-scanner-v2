@@ -7053,12 +7053,17 @@ function calcSmartMoneyZone(structureDecision, featurePayload, cfg) {
   if (!t) return null;
 
   // [Step 0] 박스 자체 valid 검증 (메모리 #27 — null 시 "데이터 수집 중")
-  //   box 경로 (Gate 1 grep 확정 CASE B): featurePayload.structure.structure.box
+  //   box 경로 (CASE B): featurePayload.structure.structure.box
+  //   ⚠️ v0.46.1: 실제 필드명 boxHigh/boxLow/boxCenter (high/low/rangePercent 아님)
   var box = featurePayload.structure && featurePayload.structure.structure
             && featurePayload.structure.structure.box;
-  if (!box || !box.valid || typeof box.high !== 'number' || typeof box.low !== 'number') {
+  if (!box || !box.valid || typeof box.boxHigh !== 'number' || typeof box.boxLow !== 'number') {
     return null;
   }
+  // rangePercent 파생 계산 (실제 box 에 없는 필드)
+  var boxRangePercent = (box.boxCenter && box.boxCenter !== 0)
+    ? ((box.boxHigh - box.boxLow) / box.boxCenter) * 100
+    : null;
 
   // [Step 1] ATR 추출 (객체 안 value — Gate 1 grep 확정)
   var atrObj = featurePayload.indicators && featurePayload.indicators.atr;
@@ -7071,14 +7076,14 @@ function calcSmartMoneyZone(structureDecision, featurePayload, cfg) {
   var candles = (featurePayload.candles && featurePayload.candles[primaryTf]) || [];
   if (candles.length === 0) return null;
 
-  // [Step 3] 박스 내부 캔들 추출 (V2 산식)
+  // [Step 3] 박스 내부 캔들 추출 (V2 산식 / boxLow~boxHigh)
   var inner = candles.filter(function(c) {
-    return c.close >= box.low && c.close <= box.high;
+    return c.close >= box.boxLow && c.close <= box.boxHigh;
   });
 
   // [Step 4] fallback (V2 산식 / inner < MIN_INNER_CANDLES)
   if (inner.length < t.MIN_INNER_CANDLES) {
-    var ctr = (box.high + box.low) / 2;
+    var ctr = box.boxCenter;
     return {
       valid: true,
       source: 'BOX_CENTER_FALLBACK',
@@ -7108,7 +7113,7 @@ function calcSmartMoneyZone(structureDecision, featurePayload, cfg) {
     if (isPanic) anomalyCount++;
   });
 
-  var center = totalW > 0 ? totalWP / totalW : (box.high + box.low) / 2;
+  var center = totalW > 0 ? totalWP / totalW : box.boxCenter;
 
   // confidence (V2 산식)
   var conf;
@@ -7116,8 +7121,8 @@ function calcSmartMoneyZone(structureDecision, featurePayload, cfg) {
   else if (top.length >= t.MID_CONF_MIN_TOP) conf = '보통';
   else conf = '낮음';
 
-  // 박스 좁으면 한 단계 하향 (V2 산식)
-  if (typeof box.rangePercent === 'number' && box.rangePercent < t.NARROW_BOX_RANGE_PCT) {
+  // 박스 좁으면 한 단계 하향 (V2 산식 / 파생 boxRangePercent)
+  if (boxRangePercent !== null && boxRangePercent < t.NARROW_BOX_RANGE_PCT) {
     if (conf === '높음') conf = '보통';
     else if (conf === '보통') conf = '낮음';
   }
@@ -7301,7 +7306,7 @@ var TelegramCanarySender = require('../v3/v3-telegram-canary-sender.js');
 var CanaryStateKvAdapter = require('./ws3-canary-state-kv-adapter.js');
 
 // §constants ───────────────────────────────────────────────────────────
-var VERSION = 'WS3_v0.46.0_v2_estimation_inheritance';
+var VERSION = 'WS3_v0.46.1_smartmoney_box_fields';
 var SERVICE = 'WS3_CANARY_WEB_MVP';
 var STATUS_READY_CODE = 'CANARY_READY';
 var MAX_BODY_BYTES = 1024;
