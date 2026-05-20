@@ -220,6 +220,44 @@ var CYCLE_PHASE_LABEL = {
 var EXIT_LABEL = { A:'구조분할', B:'ATR 트레일링', C:'TP1 본절', D:'무효화', E:'시간제한', F:'거래량소멸' };
 
 // ─────────────────────────────────────────────────────────────────
+// [v0.45.0] P1 분류기 4개 한글 매핑 (백서 §11.1 / §10 / §9.1 / §20.3)
+// ─────────────────────────────────────────────────────────────────
+var BUY_PRESSURE_LABEL = {
+  'BUY_PRESSURE_STRONG':  ['매수세 강',     'red'],
+  'BUY_PRESSURE_MEDIUM':  ['매수세 중',     'orange'],
+  'BUY_PRESSURE_WEAK':    ['매수세 약',     'yellow'],
+  'BUY_PRESSURE_NONE':    ['매수세 없음',   'muted'],
+  'BUY_PRESSURE_UNKNOWN': ['매수세 미확인', '']
+};
+var MARKET_CONTEXT_LABEL = {
+  'BTC_UP':         ['BTC 상승',     'red'],
+  'BTC_DOWN':       ['BTC 하락',     'muted'],
+  'BTC_SIDEWAYS':   ['BTC 횡보',     'yellow'],
+  'ALT_STRONG':     ['알트 강세',    'red'],
+  'MARKET_NEUTRAL': ['시장 중립',    ''],
+  'RISK_OFF':       ['위험 회피',    'orange'],
+  'UNKNOWN':        ['시장 미확인',  '']
+};
+// 백서 §9.1 + §7.1.1 — 5단계 시총 분류
+var CAP_LABEL = {
+  'EXTREME_LOW_CAP': '극저시총',
+  'VERY_LOW_CAP':    '초저시총',
+  'LOW_CAP':         '저시총',
+  'MID_CAP':         '중형',
+  'LARGE_CAP':       '대형',
+  'UNKNOWN':         '미분류'
+};
+// 백서 §20.3 표준 섹터 17종
+var SECTOR_LABEL = {
+  'L1':'레이어1', 'L2':'레이어2', 'DeFi':'디파이', 'RWA':'RWA',
+  'AI':'AI', 'Gaming':'게임', 'Meme':'밈', 'Infra':'인프라',
+  'Oracle':'오라클', 'Payment':'결제', 'Exchange':'거래소',
+  'Privacy':'프라이버시', 'NFT-Metaverse':'NFT·메타버스',
+  'Storage':'스토리지', 'Stablecoin':'스테이블', 'Fan-Social':'팬·소셜',
+  'Unknown':'미분류'
+};
+
+// ─────────────────────────────────────────────────────────────────
 // [백서 §16.4.1] selectionReason 영문 enum → 한글 매핑
 // v3-card-view-model.js / v3-score-breakdown.js / v3-structure-bucket.js 의
 // reasons.push() 코드명 + dynamic suffix (+25 / +20 등) 모두 한글로 변환
@@ -464,6 +502,80 @@ function renderSec9(r){
   return '<div class="exit-grid">' + slots + '</div>';
 }
 
+// ─────────────────────────────────────────────────────────────────
+// [v0.45.0] P1 분류기 4개 — §5/§6/§10/§13 render 함수
+// 백서 §11.1 / §10 / §15.3 / §20.1+§9.1+§20.3 + §6.3 (context = 점수 가점 X)
+// ─────────────────────────────────────────────────────────────────
+function renderSec5(r){
+  var bp = r.buyPressureState;
+  if (!bp || bp === 'BUY_PRESSURE_UNKNOWN') return null;
+  var l = BUY_PRESSURE_LABEL[bp];
+  if (!l) return null;
+  return '<p><b>' + esc(l[0]) + '</b></p>';
+}
+
+function renderSec6(r){
+  var mc = r.marketContext;
+  if (!mc) return null;
+  var state = (typeof mc === 'string') ? mc : (mc.state || 'UNKNOWN');
+  if (state === 'UNKNOWN') return null;
+  var l = MARKET_CONTEXT_LABEL[state];
+  if (!l) return null;
+  var detail = '';
+  if (mc && typeof mc.changeRate24h === 'number') {
+    var sign = mc.changeRate24h >= 0 ? '+' : '';
+    detail = '<p class="sub">BTC 24h: ' + sign + round1(mc.changeRate24h) + '%</p>';
+  } else if (mc && mc.desc && mc.desc !== '정상') {
+    detail = '<p class="sub">' + esc(mc.desc) + '</p>';
+  }
+  return '<p><b>' + esc(l[0]) + '</b></p>' + detail;
+}
+
+function renderSec10(r){
+  var sz = r.smartMoneyZone;
+  if (!sz || typeof sz.center !== 'number') return null;
+  var fmt = function(n){ return n.toLocaleString(); };
+  var conf = sz.confidence ? ' · 신뢰도 ' + esc(sz.confidence) : '';
+  return '<dl>' +
+    '<dt>저점 영역</dt><dd>' + fmt(sz.low) + ' KRW</dd>' +
+    '<dt>평단 추정</dt><dd>' + fmt(sz.center) + ' KRW</dd>' +
+    '<dt>상단 영역</dt><dd>' + fmt(sz.high) + ' KRW' + conf + '</dd>' +
+    '</dl>';
+}
+
+function renderSec13(r){
+  var m = r.coinMeta;
+  if (!m) return '<p class="sub">정보 없음</p>';
+  var name = m.koreanName || '-';
+  var cap = CAP_LABEL[m.capCategory] || '미분류';
+  var sector = SECTOR_LABEL[m.sector] || '미분류';
+  // 시총 표시 (조원 / 억원 / 미박제)
+  var capDetail;
+  if (typeof m.estCapKRW === 'number') {
+    capDetail = m.estCapKRW >= 1e12
+      ? '시총 약 ' + (m.estCapKRW/1e12).toFixed(1) + '조원'
+      : '시총 약 ' + Math.round(m.estCapKRW/1e8) + '억원';
+  } else {
+    capDetail = '시총 미박제';
+  }
+  // 거래대금
+  var volDetail = '';
+  if (typeof m.tradeValue24h === 'number') {
+    volDetail = m.tradeValue24h >= 1e8
+      ? '거래 ' + Math.round(m.tradeValue24h/1e8) + '억'
+      : '거래 ' + Math.round(m.tradeValue24h/1e6) + '백만';
+  }
+  // 등락률
+  var rateDetail = '';
+  if (typeof m.changeRate24h === 'number') {
+    var sign = m.changeRate24h >= 0 ? '+' : '';
+    rateDetail = sign + round1(m.changeRate24h) + '%';
+  }
+  var line2 = [capDetail, volDetail, rateDetail].filter(Boolean).join(' · ');
+  return '<p><b>' + esc(name) + '</b> · ' + esc(cap) + ' · ' + esc(sector) + '</p>' +
+         '<p class="sub">' + esc(line2) + '</p>';
+}
+
 function renderSec11(r){
   var p = r.signalPersistence;
   var l = PERSISTENCE_LABEL[p];
@@ -511,15 +623,15 @@ function renderBody(r){
     section('3', '점수 요약',          renderSec3(r)),
     section('3.5', '선별 근거',        renderSec35(cvm)),
     section('4', '구조 판단',          renderSec4(r)),
-    section('5', '매수세·수급',        null),                       // P1 분류기
-    section('6', '시장 상황',          null),                       // P1 분류기
+    section('5', '매수세·수급',        renderSec5(r)),               // P1 분류기 활성
+    section('6', '시장 상황',          renderSec6(r)),               // P1 분류기 활성
     section('7', '전략 성향',          renderSec7(r)),
     section('8', '진입 가이드',        renderSec8(r)),
     section('9', '매도전략 A-F',       renderSec9(r)),
-    section('10', '세력예상가',        null),                       // P1
+    section('10', '세력예상가',        renderSec10(r)),              // P1 분류기 활성
     section('11', '반복 신호',         renderSec11(r)),
     section('12', '지표 상세',         renderSec12(cvm)),
-    section('13', '코인 메타',         null),                       // P1
+    section('13', '코인 메타',         renderSec13(r)),              // P1 분류기 활성
     section('14', '뉴스',              null),                       // P2
     section('15', '시장 참고',         null),                       // P2
     section('16', '외부 보조',         renderSec16(rb)),

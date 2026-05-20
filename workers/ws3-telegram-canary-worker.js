@@ -6569,6 +6569,248 @@
  * S+ (>=90) / S (>=82) / A (>=72) / B (>=60) / C (>=40) / NONE (<40)
  * v0.34.0 신규 — P0-v1.1 (기존 classifyCandidateDryRunGrade 의 P-prefix 출력 대체)
  */
+// ═══════════════════════════════════════════════════════════════════
+// v0.45.0 P1 분류기 4개 (백서 §5/§6/§10/§13/§15.3/§11.1)
+// 자가질문 7개 사전 검증 통과 / 백서 §N 본문 발췌 의무 준수
+// ═══════════════════════════════════════════════════════════════════
+
+// 빗썸 API 결과 캐싱 (1일 1회 marketAll / 매 스캔 tickerAll)
+var COIN_META_BITHUMB_CACHE = {
+  marketAll: null,
+  marketAllExpiry: 0,
+  marketAllMap: null   // korean_name 빠른 조회용 dict
+};
+
+/**
+ * 빗썸 API 호출 — coinMeta 동적 데이터 (백서 §20.1 1순위)
+ * /v1/market/all?isDetails=true → korean_name + market_warning (1일 1회 캐싱)
+ * /public/ticker/ALL_KRW       → acc_trade_value_24H + fluctate_rate_24H (매 스캔)
+ */
+async function fetchBithumbCoinMeta(deps) {
+  var result = { marketAllMap: {}, tickerAll: {}, ok: false };
+  var now = Date.now();
+  // 1. marketAll (캐싱 1일)
+  if (COIN_META_BITHUMB_CACHE.marketAll && now < COIN_META_BITHUMB_CACHE.marketAllExpiry) {
+    result.marketAllMap = COIN_META_BITHUMB_CACHE.marketAllMap;
+  } else {
+    try {
+      var r1 = await deps.fetch('https://api.bithumb.com/v1/market/all?isDetails=true', { method: 'GET' });
+      if (r1.ok) {
+        var arr = await r1.json();
+        var map = {};
+        for (var i = 0; i < arr.length; i++) {
+          var m = arr[i];
+          if (m.market && m.market.indexOf('KRW-') === 0) {
+            map[m.market.replace('KRW-','')] = {
+              koreanName: m.korean_name || null,
+              marketWarning: m.market_warning || 'NONE'
+            };
+          }
+        }
+        COIN_META_BITHUMB_CACHE.marketAll = arr;
+        COIN_META_BITHUMB_CACHE.marketAllMap = map;
+        COIN_META_BITHUMB_CACHE.marketAllExpiry = now + 86400000; // 1일
+        result.marketAllMap = map;
+      }
+    } catch (e) { /* silent fail / fallback to manualMap koreanName */ }
+  }
+  // 2. tickerAll (매 스캔)
+  try {
+    var r2 = await deps.fetch('https://api.bithumb.com/public/ticker/ALL_KRW', { method: 'GET' });
+    if (r2.ok) {
+      var j = await r2.json();
+      if (j && j.status === '0000' && j.data) {
+        result.tickerAll = j.data;
+        result.ok = true;
+      }
+    }
+  } catch (e) { /* silent fail */ }
+  return result;
+}
+
+/**
+ * §11.1 매수세 분류 (DP-P1-1 / v3 단순 안)
+ * 백서 §11.1 enum 5종 / §6.3 context = 점수 가점 X
+ */
+function classifyBuyPressure(featurePayload, cfg) {
+  if (!featurePayload || !featurePayload.indicators) return 'BUY_PRESSURE_UNKNOWN';
+  var ind = featurePayload.indicators;
+  var v = featurePayload.volume || {};
+  var t = (cfg && cfg.CLASSIFIER_THRESHOLDS && cfg.CLASSIFIER_THRESHOLDS.BUY_PRESSURE);
+  if (!t) return 'BUY_PRESSURE_UNKNOWN';
+  
+  // 변수 추출 (v3-feature-payload 안전 추출)
+  var volumeRatio = (typeof v.volumeRatio === 'number') ? v.volumeRatio
+                  : (typeof ind.volumeRatio === 'number') ? ind.volumeRatio
+                  : null;
+  var obvSlope = (typeof ind.obvSlope === 'number') ? ind.obvSlope : null;
+  var closePosition = (typeof ind.closePosition === 'number') ? ind.closePosition : null;
+  var upperWickPct = (typeof ind.upperWickPct === 'number') ? ind.upperWickPct : null;
+  
+  if (volumeRatio === null) return 'BUY_PRESSURE_UNKNOWN';
+  
+  // NONE 우선 (매도 압력)
+  if (volumeRatio < t.NONE.volumeRatioMax || (upperWickPct !== null && upperWickPct >= t.NONE.upperWickPctMin)) {
+    return 'BUY_PRESSURE_NONE';
+  }
+  // STRONG (3 변수 모두)
+  if (volumeRatio >= t.STRONG.volumeRatio && (obvSlope === null || obvSlope >= t.STRONG.obvSlope) 
+      && (closePosition === null || closePosition >= t.STRONG.closePosition)) {
+    return 'BUY_PRESSURE_STRONG';
+  }
+  // MEDIUM (2 변수)
+  if (volumeRatio >= t.MEDIUM.volumeRatio && (obvSlope === null || obvSlope >= t.MEDIUM.obvSlope)) {
+    return 'BUY_PRESSURE_MEDIUM';
+  }
+  // WEAK
+  if (volumeRatio >= t.WEAK.volumeRatio) {
+    return 'BUY_PRESSURE_WEAK';
+  }
+  return 'BUY_PRESSURE_NONE';
+}
+
+/**
+ * §10 시장상황 분류 (DP-P1-2 / v2 btcFilter 임계값 채택)
+ * 입력: BTC_KRW 캔들 indicators (RSI + MACD 골든·데드 크로스)
+ * 출력: BTC_UP / BTC_SIDEWAYS / BTC_DOWN
+ */
+function classifyMarketContext(btcIndicators, cfg) {
+  if (!btcIndicators) return { state: 'UNKNOWN', penalty: 0, desc: '데이터 부족' };
+  var t = (cfg && cfg.CLASSIFIER_THRESHOLDS && cfg.CLASSIFIER_THRESHOLDS.MARKET_CONTEXT);
+  if (!t) return { state: 'UNKNOWN', penalty: 0 };
+  
+  var rsi = btcIndicators.rsi;
+  var macdState = btcIndicators.macdState; // 'golden' | 'dead' | 'golden_hold' | 'dead_hold'
+  var changeRate24h = btcIndicators.changeRate24h;
+  
+  // v2 btcFilter 그대로 (백서 §10 + v2 검증본)
+  var penalty = 0;
+  var descs = [];
+  if (typeof rsi === 'number') {
+    if (rsi < t.BTC_RSI_BEAR) { penalty += 1.5; descs.push('BTC RSI 약세'); }
+    else if (rsi < t.BTC_RSI_NEUTRAL) { penalty += 0.5; descs.push('BTC 중립이하'); }
+  }
+  if (macdState === 'dead') { penalty += t.MACD_DEAD_PENALTY; descs.push('MACD 데드'); }
+  else if (macdState === 'dead_hold') { penalty += t.MACD_DEAD_HOLD_PENALTY; descs.push('MACD 약화'); }
+  
+  var state = (penalty >= t.PENALTY_BEAR_MIN) ? 'BTC_DOWN'
+            : (penalty >= t.PENALTY_NEUTRAL_MIN) ? 'BTC_SIDEWAYS'
+            : 'BTC_UP';
+  
+  return {
+    state: state,
+    penalty: Math.round(penalty * 10) / 10,
+    desc: descs.join('/') || '정상',
+    rsi: rsi,
+    changeRate24h: changeRate24h
+  };
+}
+
+/**
+ * §15.3 세력예상가 산출값 (DP-P1-4 / v2 estimateCostCenter)
+ * 출력: { low, center, high, confidence }
+ * ⚠️ target1/2/3 + 손절 = 전략 A로 이동 (v0.46.0 별도)
+ */
+function calcSmartMoneyZone(structureDecision, featurePayload, cfg) {
+  if (!structureDecision || !featurePayload) return null;
+  var t = (cfg && cfg.CLASSIFIER_THRESHOLDS && cfg.CLASSIFIER_THRESHOLDS.SMART_MONEY_ZONE);
+  if (!t) return null;
+  
+  var pz = structureDecision.priceZone;
+  if (!pz || typeof pz.center !== 'number' || pz.center <= 0) return null;
+  
+  var atr = (featurePayload.indicators && typeof featurePayload.indicators.atr === 'number')
+          ? featurePayload.indicators.atr
+          : null;
+  if (atr === null || atr <= 0) return null;
+  
+  var center = pz.center;
+  var low = center - atr * t.ATR_MULTIPLIER_LOW;
+  var high = center + atr * t.ATR_MULTIPLIER_HIGH;
+  
+  // v2 confidence 로직 — 박스 좁으면 하향
+  var box = structureDecision.box || {};
+  var rangePercent = (typeof box.rangePercent === 'number') ? box.rangePercent : 100;
+  var confidence = '높음';
+  if (rangePercent < t.NARROW_BOX_RANGE_PCT) {
+    confidence = '낮음';
+  } else if (rangePercent < t.NARROW_BOX_RANGE_PCT * 2) {
+    confidence = '보통';
+  }
+  
+  return {
+    low: Math.round(low),
+    center: Math.round(center),
+    high: Math.round(high),
+    confidence: confidence
+  };
+}
+
+/**
+ * §13 코인메타 (DP-P1-3 / 백서 §20.1 1순위 빗썸 + 4순위 manualMetaMap)
+ * 분류: 5단계 (EXTREME_LOW / VERY_LOW / LOW / MID / LARGE_CAP)
+ */
+function getCoinMeta(market, bithumbMeta, cfg) {
+  if (!market) return null;
+  var symbol = String(market).replace('_KRW', '').replace('KRW-', '').toUpperCase();
+  
+  // 1순위: 빗썸 동적
+  var bm = (bithumbMeta && bithumbMeta.marketAllMap && bithumbMeta.marketAllMap[symbol]) || null;
+  var bt = (bithumbMeta && bithumbMeta.tickerAll && bithumbMeta.tickerAll[symbol]) || null;
+  
+  // 4순위: manualMetaMap
+  var mm = (cfg && cfg.COIN_MANUAL_MAP && cfg.COIN_MANUAL_MAP[symbol]) || null;
+  
+  // 데이터 0건 → null (정보 없음 표기)
+  if (!bm && !bt && !mm) return null;
+  
+  // 한글명 (빗썸 우선 / manualMap fallback)
+  var koreanName = (bm && bm.koreanName) || (mm && mm.name) || null;
+  
+  // 시총 (manualMap 만 — 빗썸 미제공)
+  var estCapKRW = (mm && typeof mm.cap === 'number') ? mm.cap : null;
+  
+  // capCategory 분류 (백서 §9.1 + §7.1.1 / WS3_CONFIG.CAP_THRESHOLDS_KRW)
+  var capCategory = 'UNKNOWN';
+  if (estCapKRW !== null && cfg && cfg.CAP_THRESHOLDS_KRW) {
+    var th = cfg.CAP_THRESHOLDS_KRW;
+    if (estCapKRW < th.EXTREME_LOW)      capCategory = 'EXTREME_LOW_CAP';
+    else if (estCapKRW < th.VERY_LOW)    capCategory = 'VERY_LOW_CAP';
+    else if (estCapKRW < th.LOW)         capCategory = 'LOW_CAP';
+    else if (estCapKRW < th.MID)         capCategory = 'MID_CAP';
+    else                                  capCategory = 'LARGE_CAP';
+  }
+  
+  // 섹터 (manualMap)
+  var sector = (mm && mm.sector) || 'Unknown';
+  
+  // 빗썸 동적 — 거래대금 + 등락률
+  var tradeValue24h = null;
+  var changeRate24h = null;
+  var marketWarning = (bm && bm.marketWarning) || 'NONE';
+  if (bt) {
+    if (bt.acc_trade_value_24H) {
+      var tv = parseFloat(bt.acc_trade_value_24H);
+      if (!isNaN(tv)) tradeValue24h = tv;
+    }
+    if (bt.fluctate_rate_24H) {
+      var cr = parseFloat(bt.fluctate_rate_24H);
+      if (!isNaN(cr)) changeRate24h = cr;
+    }
+  }
+  
+  return {
+    koreanName: koreanName,
+    capCategory: capCategory,
+    estCapKRW: estCapKRW,
+    sector: sector,
+    tradeValue24h: tradeValue24h,
+    changeRate24h: changeRate24h,
+    marketWarning: marketWarning
+  };
+}
+
+
 function classifyV3Grade(score) {
   if (typeof score !== 'number' || !isFinite(score)) return 'NONE';
   // 백서 §3.2 + §6.2 — WS3_CONFIG.GRADE_BANDS 우선 / hardcoded fallback 두 번째
@@ -6671,7 +6913,7 @@ var TelegramCanarySender = require('../v3/v3-telegram-canary-sender.js');
 var CanaryStateKvAdapter = require('./ws3-canary-state-kv-adapter.js');
 
 // §constants ───────────────────────────────────────────────────────────
-var VERSION = 'WS3_v0.36.0_integration_config_rename';
+var VERSION = 'WS3_v0.45.0_p1_classifiers_active';
 var SERVICE = 'WS3_CANARY_WEB_MVP';
 var STATUS_READY_CODE = 'CANARY_READY';
 var MAX_BODY_BYTES = 1024;
@@ -7675,6 +7917,38 @@ async function runMultiCandidatePipeline(deps, req) {
   var limit = req.limit;
   var markets = req.markets;
 
+  // ════════════════════════════════════════════════════════════
+  // v0.45.0 — 빗썸 coinMeta 1회 fetch + BTC marketContext 1회 분석
+  // 백서 §20.1 1순위 (빗썸 동적) + §10 (BTC 시장상황 공유)
+  // ════════════════════════════════════════════════════════════
+  var WS3_CFG = globalThis.WS3_CONFIG || {};
+  var v045_bithumbMeta = { marketAllMap: {}, tickerAll: {}, ok: false };
+  if (exchange === 'bithumb') {
+    try { v045_bithumbMeta = await fetchBithumbCoinMeta(deps); } catch (e) {}
+  }
+  
+  // BTC marketContext 1회 분석 (모든 카드 공유 / subrequest +1만)
+  var v045_btcMarketContext = { state: 'UNKNOWN', penalty: 0, desc: '데이터 부족' };
+  if (exchange === 'bithumb' && v045_bithumbMeta.tickerAll && v045_bithumbMeta.tickerAll.BTC) {
+    var btc = v045_bithumbMeta.tickerAll.BTC;
+    var changeRate24h = parseFloat(btc.fluctate_rate_24H);
+    // BTC ticker만 사용한 단순 시장 분석 (v2 btcFilter 변형 — RSI/MACD 미사용 / 변동률 기반)
+    var penalty = 0;
+    var descs = [];
+    if (changeRate24h <= -2) { penalty += 2.0; descs.push('BTC 하락'); }
+    else if (changeRate24h <= -0.5) { penalty += 0.5; descs.push('BTC 약세'); }
+    var cfgMC = (WS3_CFG.CLASSIFIER_THRESHOLDS && WS3_CFG.CLASSIFIER_THRESHOLDS.MARKET_CONTEXT) || { PENALTY_BEAR_MIN: 2.0, PENALTY_NEUTRAL_MIN: 0.5 };
+    var state = (penalty >= cfgMC.PENALTY_BEAR_MIN) ? 'BTC_DOWN'
+              : (penalty >= cfgMC.PENALTY_NEUTRAL_MIN) ? 'BTC_SIDEWAYS'
+              : 'BTC_UP';
+    v045_btcMarketContext = {
+      state: state,
+      penalty: Math.round(penalty * 10) / 10,
+      desc: descs.join('/') || '정상',
+      changeRate24h: isNaN(changeRate24h) ? null : changeRate24h
+    };
+  }
+
   // primary timeframe 결정 — 사용자 선택 timeframe 1개만 fetch.
   // featurePayload 의 다른 4 timeframe 자리는 empty array 로 채움 (v3-feature-payload-builder DP-4 createEmpty default 보장).
   var primaryTimeframe = mapToV3Timeframe(timeframe);
@@ -7784,7 +8058,12 @@ async function runMultiCandidatePipeline(deps, req) {
             // 메타
             latestTime:        featurePayload.ts,
             isCandidate:       (totalScore >= 40),
-            primaryTimeframe:  primaryTimeframe
+            primaryTimeframe:  primaryTimeframe,
+            // v0.45.0 — P1 분류기 4개 응답 (백서 §5/§6/§10/§13)
+            buyPressureState:  classifyBuyPressure(featurePayload, WS3_CFG),
+            marketContext:     v045_btcMarketContext,
+            coinMeta:          getCoinMeta(market, v045_bithumbMeta, WS3_CFG),
+            smartMoneyZone:    calcSmartMoneyZone(structureDecision, featurePayload, WS3_CFG)
           };
         } catch (e) {
           return { ok: false, market: market, code: 'V3_PIPELINE_ERROR', error: String((e && e.message) || e) };
