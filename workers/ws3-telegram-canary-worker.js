@@ -182,6 +182,26 @@
       HIGH_CONF_MAX_ANOMALY: 1,
       MID_CONF_MIN_TOP: 5,
       NARROW_BOX_RANGE_PCT: 3
+    },
+    // §15.3 현재 단계 (v0.47.0 — V2 currentPhase ratio 산식 / smartMoneyZone.center 대비 현재가)
+    // threshold = V2 원본 그대로 (토의 1 확정) / 모든 상수 config (메모리 #11)
+    CURRENT_PHASE: {
+      THRESHOLDS: {
+        ACCUMULATION_MAX: 1.10,
+        EARLY_UP_MAX: 1.30,
+        MAIN_UP_MAX: 1.70,
+        DISTRIBUTION_MAX: 2.00
+      },
+      NOTES: {
+        ACCUMULATION: '아직 평단 근처 — 진입 구간',
+        EARLY_UP: '평단 대비 10~30% — 추세 확인',
+        MAIN_UP: '평단 대비 30~70% — 추격 주의',
+        DISTRIBUTION_RISK: '평단 대비 70~100% — 세력 분배 가능성',
+        OVERHEAT: '평단 대비 2배 이상 — 진입 금지'
+      },
+      DISPLAY: {
+        SHOW_RATIO_IN_CARD: false
+      }
     }
   };
 
@@ -7140,6 +7160,46 @@ function calcSmartMoneyZone(structureDecision, featurePayload, cfg) {
 }
 
 /**
+ * §15.3 현재 단계 (v0.47.0 — V2 currentPhase ratio 산식 계승 + V3 정규화)
+ * ratio = currentClose / smartMoneyZone.center → 매집/초기상승/본상승/분배경계/과열
+ * 백서 §6.3: context 라벨 / score 영향 0 (V2 costFit 연동 계승 안 함)
+ * 메모리 #27: smartMoneyZone null / center<=0 / candles 없음 → null ("데이터 수집 중")
+ * 모든 상수 = cfg.CURRENT_PHASE (메모리 #11) / state 영문 = 내부 only / label·note 한글
+ * currentClose inline 추출 = calcSmartMoneyZone 동일 패턴 (전역 함수 / 모듈 헬퍼 스코프 밖)
+ */
+function calcCurrentPhase(smartMoneyZone, featurePayload, cfg) {
+  // [Step 0] smartMoneyZone valid 검증 (메모리 #27)
+  if (!smartMoneyZone || !smartMoneyZone.valid
+      || typeof smartMoneyZone.center !== 'number' || smartMoneyZone.center <= 0) {
+    return null;
+  }
+  var t = (cfg && cfg.CURRENT_PHASE);
+  if (!t || !t.THRESHOLDS || !t.NOTES) return null;
+
+  // [Step 1] currentClose 추출 (calcSmartMoneyZone 동일 inline 패턴)
+  var primaryTf = (featurePayload && featurePayload.raw && featurePayload.raw.builderDebug
+                   && featurePayload.raw.builderDebug.primaryTimeframe) || 'h1';
+  var candles = (featurePayload && featurePayload.candles && featurePayload.candles[primaryTf]) || [];
+  if (candles.length === 0) return null;
+  var currentClose = candles[candles.length - 1].close;
+  if (typeof currentClose !== 'number' || currentClose <= 0) return null;
+
+  // [Step 2] ratio 계산 (V2 산식 / 소수 3자리)
+  var ratio = parseFloat((currentClose / smartMoneyZone.center).toFixed(3));
+
+  // [Step 3] 단계 분기 (V2 threshold + config / state 영문 + label·note 한글)
+  var state, label, note;
+  if      (ratio < t.THRESHOLDS.ACCUMULATION_MAX) { state = 'ACCUMULATION';      label = '매집';     note = t.NOTES.ACCUMULATION; }
+  else if (ratio < t.THRESHOLDS.EARLY_UP_MAX)     { state = 'EARLY_UP';          label = '초기 상승'; note = t.NOTES.EARLY_UP; }
+  else if (ratio < t.THRESHOLDS.MAIN_UP_MAX)      { state = 'MAIN_UP';           label = '본 상승';   note = t.NOTES.MAIN_UP; }
+  else if (ratio < t.THRESHOLDS.DISTRIBUTION_MAX) { state = 'DISTRIBUTION_RISK'; label = '분배 경계'; note = t.NOTES.DISTRIBUTION_RISK; }
+  else                                             { state = 'OVERHEAT';          label = '과열';     note = t.NOTES.OVERHEAT; }
+
+  // ratio = API 응답엔 유지 / 카드 UI 노출은 DISPLAY.SHOW_RATIO_IN_CARD (토의 2 / 기본 false)
+  return { state: state, ratio: ratio, label: label, note: note };
+}
+
+/**
  * §13 코인메타 (DP-P1-3 / 백서 §20.1 1순위 빗썸 + 4순위 manualMetaMap)
  * 분류: 5단계 (EXTREME_LOW / VERY_LOW / LOW / MID / LARGE_CAP)
  */
@@ -7306,7 +7366,7 @@ var TelegramCanarySender = require('../v3/v3-telegram-canary-sender.js');
 var CanaryStateKvAdapter = require('./ws3-canary-state-kv-adapter.js');
 
 // §constants ───────────────────────────────────────────────────────────
-var VERSION = 'WS3_v0.46.1_smartmoney_box_fields';
+var VERSION = 'WS3_v0.47.0_current_phase';
 var SERVICE = 'WS3_CANARY_WEB_MVP';
 var STATUS_READY_CODE = 'CANARY_READY';
 var MAX_BODY_BYTES = 1024;
@@ -8419,6 +8479,9 @@ async function runMultiCandidatePipeline(deps, req) {
             : null;
           var totalScore = (scoreBreakdown && scoreBreakdown.valid) ? scoreBreakdown.totalScore : 0;
           var grade = classifyV3Grade(totalScore);
+          // v0.47.0 — smartMoneyZone 1회 계산 후 currentPhase 와 공유 (중복 호출 제거)
+          var v047_smartMoneyZone = calcSmartMoneyZone(structureDecision, featurePayload, WS3_CFG);
+          var v047_currentPhase   = calcCurrentPhase(v047_smartMoneyZone, featurePayload, WS3_CFG);
           return {
             ok: true,
             market: market,
@@ -8456,7 +8519,9 @@ async function runMultiCandidatePipeline(deps, req) {
             buyPressureState:  classifyBuyPressure(featurePayload, WS3_CFG),
             marketContext:     v045_btcMarketContext,
             coinMeta:          getCoinMeta(market, v045_bithumbMeta, WS3_CFG),
-            smartMoneyZone:    calcSmartMoneyZone(structureDecision, featurePayload, WS3_CFG)
+            smartMoneyZone:    v047_smartMoneyZone,
+            // v0.47.0 — 현재 단계 (백서 §15.3 / smartMoneyZone.center 대비 현재가)
+            currentPhase:      v047_currentPhase
           };
         } catch (e) {
           return { ok: false, market: market, code: 'V3_PIPELINE_ERROR', error: String((e && e.message) || e) };

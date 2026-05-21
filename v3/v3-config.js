@@ -163,6 +163,26 @@
       HIGH_CONF_MAX_ANOMALY: 1,
       MID_CONF_MIN_TOP: 5,
       NARROW_BOX_RANGE_PCT: 3
+    },
+    // §15.3 현재 단계 (v0.47.0 — V2 currentPhase ratio 산식 / smartMoneyZone.center 대비 현재가)
+    // threshold = V2 원본 그대로 (토의 1 확정) / 모든 상수 config (메모리 #11)
+    CURRENT_PHASE: {
+      THRESHOLDS: {
+        ACCUMULATION_MAX: 1.10,
+        EARLY_UP_MAX: 1.30,
+        MAIN_UP_MAX: 1.70,
+        DISTRIBUTION_MAX: 2.00
+      },
+      NOTES: {
+        ACCUMULATION: '아직 평단 근처 — 진입 구간',
+        EARLY_UP: '평단 대비 10~30% — 추세 확인',
+        MAIN_UP: '평단 대비 30~70% — 추격 주의',
+        DISTRIBUTION_RISK: '평단 대비 70~100% — 세력 분배 가능성',
+        OVERHEAT: '평단 대비 2배 이상 — 진입 금지'
+      },
+      DISPLAY: {
+        SHOW_RATIO_IN_CARD: false
+      }
     }
   };
 

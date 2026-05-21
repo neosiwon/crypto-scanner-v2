@@ -536,11 +536,23 @@ function renderSec10(r){
   if (!sz || typeof sz.center !== 'number') return null;
   var fmt = function(n){ return n.toLocaleString(); };
   var conf = sz.confidence ? ' · 신뢰도 ' + esc(sz.confidence) : '';
-  return '<dl>' +
+  var html = '<dl>' +
     '<dt>저점 영역</dt><dd>' + fmt(sz.low) + ' KRW</dd>' +
     '<dt>평단 추정</dt><dd>' + fmt(sz.center) + ' KRW</dd>' +
     '<dt>상단 영역</dt><dd>' + fmt(sz.high) + ' KRW' + conf + '</dd>' +
     '</dl>';
+  // v0.47.0 — 현재 단계 (백서 §15.3 / label·note 한글 / ratio 숨김 = 토의 2)
+  var cp = r.currentPhase;
+  if (cp && cp.label) {
+    // ratio 노출은 CURRENT_PHASE.DISPLAY.SHOW_RATIO_IN_CARD === true 일 때만 (config 토글 / 기본 false)
+    var showRatio = !!(CFG && CFG.CLASSIFIER_THRESHOLDS && CFG.CLASSIFIER_THRESHOLDS.CURRENT_PHASE
+      && CFG.CLASSIFIER_THRESHOLDS.CURRENT_PHASE.DISPLAY
+      && CFG.CLASSIFIER_THRESHOLDS.CURRENT_PHASE.DISPLAY.SHOW_RATIO_IN_CARD);
+    var ratioTxt = (showRatio && typeof cp.ratio === 'number') ? ' (' + cp.ratio + 'x)' : '';
+    html += '<p class="current-phase">현재 단계: <b>' + esc(cp.label) + '</b>' + ratioTxt +
+            (cp.note ? ' · ' + esc(cp.note) : '') + '</p>';
+  }
+  return html;
 }
 
 function renderSec13(r){
