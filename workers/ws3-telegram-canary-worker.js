@@ -7164,7 +7164,7 @@ function calcSmartMoneyZone(structureDecision, featurePayload, cfg) {
  * ratio = currentClose / smartMoneyZone.center → 매집/초기상승/본상승/분배경계/과열
  * 백서 §6.3: context 라벨 / score 영향 0 (V2 costFit 연동 계승 안 함)
  * 메모리 #27: smartMoneyZone null / center<=0 / candles 없음 → null ("데이터 수집 중")
- * 모든 상수 = cfg.CURRENT_PHASE (메모리 #11) / state 영문 = 내부 only / label·note 한글
+ * 모든 상수 = cfg.CLASSIFIER_THRESHOLDS.CURRENT_PHASE (메모리 #11) / state 영문 = 내부 only / label·note 한글
  * currentClose inline 추출 = calcSmartMoneyZone 동일 패턴 (전역 함수 / 모듈 헬퍼 스코프 밖)
  */
 function calcCurrentPhase(smartMoneyZone, featurePayload, cfg) {
@@ -7173,7 +7173,7 @@ function calcCurrentPhase(smartMoneyZone, featurePayload, cfg) {
       || typeof smartMoneyZone.center !== 'number' || smartMoneyZone.center <= 0) {
     return null;
   }
-  var t = (cfg && cfg.CURRENT_PHASE);
+  var t = (cfg && cfg.CLASSIFIER_THRESHOLDS && cfg.CLASSIFIER_THRESHOLDS.CURRENT_PHASE);
   if (!t || !t.THRESHOLDS || !t.NOTES) return null;
 
   // [Step 1] currentClose 추출 (calcSmartMoneyZone 동일 inline 패턴)
