@@ -1,0 +1,93 @@
+/* ============================================================
+   WS3 Stage 2 — v2 카드 디자인 발췌 (이식용)
+   출처: crypto-scanner-v2/index.html (v2 운영 빌드, 18294줄) / 사용자 자체 코드
+   스크린샷(관심 CHIP / 정밀 BLEND·LIT) 카드 = 아래 클래스 조합
+   ── 매핑 ──
+   카드 컨테이너  : details.v477-track-card  (+ .is-watch 관심 / .is-deep 정밀)
+   코인 dot       : .coin-dot.woos-dot-green/red/yellow
+   관심 별 ★      : .woos-watch-btn.woos-watch-on
+   등급 칩 S+/S/A/B: .hdr-grade-chip.tier-splus/tier-s/tier-a/tier-b
+   추적모드 칩    : .hdr-mode-chip.mode-watch(관심)/mode-precise(정밀)/mode-standard(표준)
+   멀티/x{N} 칩   : .woos-multi-chip
+   신규/마감 라벨 : .hdr-label-new / .hdr-label-near-end
+   진행도 바      : .compact-bar-thin > .compact-bar-thin-fill (+is-watch / is-deep 분기)
+   ============================================================ */
+
+/* ── 등급 색 토큰 (v2 root) ── */
+/* S+ 골드 #ffd233 / S 핑크 #ff7ad9 / A 보라 #a78bfa / B 시안 #00dfff */
+
+/* ── 헤더 등급 칩 (index.html 4133-4157) ── */
+.hdr-grade-chip { display:inline-flex; align-items:center; padding:2px 8px; border-radius:12px; font-size:.68rem; font-weight:700; }
+.hdr-grade-chip.tier-splus { background:rgba(255,210,51,.15); color:#ffd233; border:1px solid rgba(255,210,51,.55); box-shadow:0 0 12px rgba(255,210,51,.40); }
+.hdr-grade-chip.tier-s     { background:rgba(255,122,217,.14); color:#ff7ad9; border:1px solid rgba(255,122,217,.46); box-shadow:0 0 10px rgba(255,122,217,.32); }
+.hdr-grade-chip.tier-a     { background:rgba(167,139,250,.15); color:#a78bfa; border:1px solid rgba(167,139,250,.46); box-shadow:0 0 9px rgba(123,92,255,.28); }
+.hdr-grade-chip.tier-b     { background:rgba(0,223,255,.10); color:#00dfff; border:1px solid rgba(0,223,255,.34); box-shadow:0 0 8px rgba(0,223,255,.22); }
+
+/* ── 추적 모드 칩 관심/정밀/표준 (4160-4211) ── */
+.hdr-mode-chip { display:inline-flex; align-items:center; padding:2px 11px; border-radius:999px; font-size:.68rem; font-weight:800; margin-left:4px; height:22px; line-height:1; }
+.hdr-mode-chip.mode-watch    { color:#00151f; background:linear-gradient(135deg,#00e5ff,#36ffbd); border:1px solid rgba(0,229,255,.55); box-shadow:0 0 15px rgba(0,229,255,.50); }
+.hdr-mode-chip.mode-precise  { color:#ffffff; background:linear-gradient(135deg,#7b5cff,#b66cff); border:1px solid rgba(123,92,255,.55); box-shadow:0 0 15px rgba(123,92,255,.48); }
+.hdr-mode-chip.mode-standard { color:#c9d4e8; background:rgba(135,150,180,.12); border:1px solid rgba(160,175,205,.22); box-shadow:none; }
+
+/* ── 신규(1h)/마감임박 라벨 칩 (4168-4190) ── */
+.hdr-label-new      { display:inline-flex; align-items:center; padding:2px 9px; border-radius:999px; font-size:.66rem; font-weight:850; height:22px; line-height:1; color:#001a14; background:linear-gradient(135deg,#36ffbd,#00e6a8); border:1px solid rgba(54,255,189,.55); box-shadow:0 0 12px rgba(54,255,189,.45); white-space:nowrap; }
+.hdr-label-near-end { display:inline-flex; align-items:center; padding:2px 9px; border-radius:999px; font-size:.66rem; font-weight:850; height:22px; line-height:1; color:#2a1500; background:linear-gradient(135deg,#ffb84d,#ff8a3d); border:1px solid rgba(255,138,61,.55); box-shadow:0 0 12px rgba(255,138,61,.45); white-space:nowrap; }
+
+/* ── 멀티 / x{N} 칩 (4214) ── */
+.woos-multi-chip { display:inline-flex; align-items:center; height:22px; padding:0 9px; border-radius:999px; font-size:.68rem; font-weight:850; line-height:1; color:#67e8f9; background:rgba(0,212,255,.08); border:1px solid rgba(0,212,255,.35); box-shadow:0 0 10px rgba(0,212,255,.18); white-space:nowrap; }
+
+/* ── 코인 dot 상승/하락/횡보 (4220-4222) ── */
+.coin-dot.woos-dot-green  { background:#00e6a8; box-shadow:0 0 12px rgba(0,230,168,.75); }   /* 상승 민트 */
+.coin-dot.woos-dot-red    { background:#ff4d4f; box-shadow:0 0 12px rgba(255,77,79,.75); }    /* 하락 빨강 */
+.coin-dot.woos-dot-yellow { background:#aab4c4; box-shadow:0 0 8px rgba(170,180,196,.40); }   /* 횡보 회색 */
+
+/* ── 관심 별 ★ (4344) ── */
+.woos-watch-btn.woos-watch-on { color:#ffd233; filter:drop-shadow(0 0 10px rgba(255,210,51,.85)); transform:scale(1.08); }
+.woos-watch-btn:active        { transform:scale(.92); }
+
+/* ── 진행도 바 (4552-4578) ── */
+.compact-bar-thin       { position:relative; height:4px; background:rgba(255,255,255,.06); margin:0 -14px; overflow:hidden; z-index:1; }
+.compact-bar-thin-fill  { height:100%; background:linear-gradient(90deg,#00dfff,#00e6a8); box-shadow:0 0 13px rgba(0,229,255,.45); transition:width .3s ease; }
+.compact-bar-thin-fill.is-watch { background:linear-gradient(90deg,#00dfff,#00e6a8); box-shadow:0 0 13px rgba(0,229,255,.45); }
+details.v477-track-card.is-deep:not(.is-watch) .compact-bar-thin-fill { background:linear-gradient(90deg,#268dff,#7b5cff); box-shadow:0 0 13px rgba(123,92,255,.38); }
+/* 닫힌 카드 배경 진행률 (4532) */
+.compact-bg-progress { position:absolute; top:0; left:0; bottom:0; background:linear-gradient(90deg,rgba(0,212,255,.08),rgba(0,230,118,.10)); pointer-events:none; transition:width .3s ease; z-index:0; }
+
+/* ── 카드 글래스 + 네온 + 상태 보더/글로우 (4587-4672) ── */
+details.v477-track-card {
+  position:relative; border-radius:14px;
+  background: linear-gradient(135deg,rgba(0,229,255,.05),rgba(120,68,255,.04)), rgba(8,16,32,.42);
+  border:1px solid rgba(0,229,255,.14);
+  box-shadow: 0 4px 18px rgba(0,0,0,.28), inset 0 1px 0 rgba(255,255,255,.06);
+  backdrop-filter: blur(12px) saturate(130%); -webkit-backdrop-filter: blur(12px) saturate(130%);
+  margin-bottom:8px; overflow:hidden; transition: box-shadow .18s, border-color .18s;
+}
+details.v477-track-card::before {
+  content:""; position:absolute; inset:0; pointer-events:none;
+  background: radial-gradient(circle at 0% 20%, rgba(0,229,255,.10), transparent 38%), radial-gradient(circle at 100% 0%, rgba(155,92,255,.08), transparent 40%);
+  opacity:.7; z-index:0;
+}
+details.v477-track-card > summary, details.v477-track-card > .progress-rich-body { position:relative; z-index:1; }
+/* 관심 = 시안 보더 + 시안 glow */
+details.v477-track-card.is-watch {
+  border-color: rgba(0,229,255,.62);
+  background: radial-gradient(circle at 0% 28%, rgba(0,229,255,.30), transparent 40%), linear-gradient(135deg,rgba(0,229,255,.15),rgba(10,18,36,.72));
+  box-shadow: 0 0 0 1px rgba(0,229,255,.28), 0 0 30px rgba(0,229,255,.28), 0 12px 34px rgba(0,0,0,.46), inset 0 1px 0 rgba(255,255,255,.12);
+}
+/* 정밀(관심X) = 보라 보더 + 보라/시안 glow */
+details.v477-track-card.is-deep:not(.is-watch) {
+  border-color: rgba(123,92,255,.62);
+  background: radial-gradient(circle at 0% 24%, rgba(123,92,255,.20), transparent 38%), linear-gradient(135deg,rgba(24,14,48,.82),rgba(10,12,30,.75));
+  box-shadow: 0 0 0 1px rgba(123,92,255,.28), 0 0 26px rgba(123,92,255,.28), 0 12px 34px rgba(0,0,0,.44), inset 0 1px 0 rgba(255,255,255,.10);
+}
+details.v477-track-card.is-deep:not(.is-watch)::before {
+  background: radial-gradient(circle at 0% 20%, rgba(123,92,255,.14), transparent 36%), radial-gradient(circle at 100% 0%, rgba(0,229,255,.08), transparent 40%);
+}
+@media (hover:hover) {
+  details.v477-track-card:hover { border-color:rgba(0,229,255,.40); }
+  details.v477-track-card.is-watch:hover { box-shadow:0 0 0 1px rgba(0,229,255,.40),0 0 36px rgba(0,229,255,.36),0 14px 38px rgba(0,0,0,.50); }
+  details.v477-track-card.is-deep:not(.is-watch):hover { box-shadow:0 0 0 1px rgba(123,92,255,.40),0 0 32px rgba(123,92,255,.36),0 12px 32px rgba(0,0,0,.46); }
+}
+
+/* ── 등락률 % 색 (상승/하락) — v2 accent ── */
+/* 상승 #00e676 / 하락 #ff4560 (스크린샷 -1.50% 등 = 하락 빨강) */
