@@ -219,6 +219,15 @@ var CYCLE_PHASE_LABEL = {
 // 매도전략 A-F — 백서 §13.4 / WS3_DISPLAY.exitStrategy + 한글 의미 추가
 var EXIT_LABEL = { A:'구조분할', B:'ATR 트레일링', C:'TP1 본절', D:'무효화', E:'시간제한', F:'거래량소멸' };
 
+// [v0.48.0] 바디 섹션 배선 — enum 한글 매핑 (백서 §13.2/§13.4 / 미매핑→'기타' = 토의4)
+// 단계1: 현 worker 응답 구조 표시 / 단계2(A-F·30/30/40 분할 산식) = v0.49+
+var ENTRY_TRIGGER_LABEL = { CLOSE_ABOVE_REF_LOW:'기준 저점 종가 돌파', CLOSE_ABOVE_BOX_HIGH:'박스 상단 종가 돌파' };
+var ENTRY_TYPE_LABEL    = { RECLAIM_CONFIRM:'회복 확인', BREAKOUT_TRIGGER:'돌파 진입', WATCH:'관찰' };
+var EXIT_TYPE_LABEL     = { BOX_TARGET:'박스 상단 목표', NONE:'미설정' };
+var ENUM_FALLBACK_LABEL = '기타';
+// §11 반복 신호 streak 판정 임계값 (화면 표시용 / 토의3=A index.html 명명 상수 / worker 산식 아님)
+var PERSISTENCE_STREAK_REPEAT = 2;
+
 // ─────────────────────────────────────────────────────────────────
 // [v0.45.0] P1 분류기 4개 한글 매핑 (백서 §11.1 / §10 / §9.1 / §20.3)
 // ─────────────────────────────────────────────────────────────────
@@ -475,31 +484,38 @@ function renderSec7(r){
 }
 
 function renderSec8(r){
+  // [v0.48.0] entryPlan 단일 진입존 (백서 §13.2 부분 / 30·30·40 분할 = 단계2 v0.49+)
   var ep = r.entryPlan;
-  if (!ep || typeof ep !== 'object') return null;
-  // entryPlan 의 zones / triggers / size 등 안전 추출
-  if (ep.zones && Array.isArray(ep.zones) && ep.zones.length) {
-    var rows = ep.zones.slice(0, 3).map(function(z, i){
-      var label = ['1차','2차','3차'][i] || ((i+1)+'차');
-      var price = (z && typeof z.price === 'number') ? z.price : null;
-      var size = (z && typeof z.sizePct === 'number') ? z.sizePct + '%' : null;
-      return '<dt>' + label + '</dt><dd>' + (price !== null ? price : '-') + (size ? ' · ' + size : '') + '</dd>';
-    }).join('');
-    return '<dl>' + rows + '</dl>';
-  }
-  return null;
+  if (!ep || typeof ep !== 'object' || !ep.valid) return null;  // valid=false(WATCH) → '데이터 수집 중'
+  var rows = '';
+  if (typeof ep.entryZone === 'number')
+    rows += '<dt>진입존</dt><dd>' + ep.entryZone.toLocaleString() + ' KRW</dd>';
+  if (ep.trigger)
+    rows += '<dt>트리거</dt><dd>' + esc(ENTRY_TRIGGER_LABEL[ep.trigger] || ENUM_FALLBACK_LABEL) + '</dd>';
+  if (typeof ep.setupInvalidationHint === 'number')
+    rows += '<dt>무효화</dt><dd>' + ep.setupInvalidationHint.toLocaleString() + ' KRW</dd>';
+  if (typeof ep.referencePrice === 'number')
+    rows += '<dt>기준가</dt><dd>' + ep.referencePrice.toLocaleString() + ' KRW</dd>';
+  if (ep.type)
+    rows += '<dt>유형</dt><dd>' + esc(ENTRY_TYPE_LABEL[ep.type] || ENUM_FALLBACK_LABEL) + '</dd>';  // 토의1=A
+  return rows ? '<dl>' + rows + '</dl>' : null;
 }
 
 function renderSec9(r){
+  // [v0.48.0] exitPlan 단일 target (백서 §13.4 부분 / A-F 6슬롯 산식 = 단계2 v0.49+)
+  // EXIT_LABEL(A-F) 상수는 단계2 부활용으로 유지 (토의2=B / 현 renderSec9 는 미사용)
   var xp = r.exitPlan;
-  if (!xp || typeof xp !== 'object') return null;
-  var keys = ['A','B','C','D','E','F'];
-  var slots = keys.map(function(k){
-    var slot = xp[k] || xp['EXIT_' + k];
-    var enabled = !!(slot && (slot.enabled || slot.active));
-    return '<div class="ex-slot"><b>' + k + ' · ' + EXIT_LABEL[k] + '</b>' + (enabled ? '<span class="chip cyan" style="margin-left:4px">활성</span>' : '<span class="chip muted" style="margin-left:4px">대기</span>') + '</div>';
-  }).join('');
-  return '<div class="exit-grid">' + slots + '</div>';
+  if (!xp || typeof xp !== 'object' || !xp.valid) return null;
+  var rows = '';
+  if (typeof xp.targetHint === 'number')
+    rows += '<dt>목표가</dt><dd>' + xp.targetHint.toLocaleString() + ' KRW</dd>';
+  if (typeof xp.invalidationHint === 'number')
+    rows += '<dt>손절가</dt><dd>' + xp.invalidationHint.toLocaleString() + ' KRW</dd>';
+  if (typeof xp.riskRewardHint === 'number')  // null(68%) → 행 생략 (메모리 #27)
+    rows += '<dt>손익비</dt><dd>' + round1(xp.riskRewardHint) + '</dd>';
+  if (xp.type)
+    rows += '<dt>유형</dt><dd>' + esc(EXIT_TYPE_LABEL[xp.type] || ENUM_FALLBACK_LABEL) + '</dd>';
+  return rows ? '<dl>' + rows + '</dl>' : null;
 }
 
 // ─────────────────────────────────────────────────────────────────
@@ -589,23 +605,31 @@ function renderSec13(r){
 }
 
 function renderSec11(r){
-  var p = r.signalPersistence;
-  var l = PERSISTENCE_LABEL[p];
-  if (!l) return null;
-  var phase = CYCLE_PHASE_LABEL[r.signalCyclePhase] || r.signalCyclePhase || '판단 대기';
-  return '<p>반복 신호: <b>' + esc(l[0]) + '</b> · 위상: <b>' + esc(phase) + '</b></p>';
+  // [v0.48.0] signalPersistence 객체 파생 (백서 §8.3 부분 / SINGLE/REPEAT milestone = 단계2 v0.49+)
+  var sp = r.signalPersistence;
+  if (!sp || typeof sp !== 'object') return null;
+  var state;
+  if (sp.active === false)       state = '비활성';
+  else if (sp.isStrengthening)   state = '강화 중';
+  else if (sp.isWeakening)       state = '약화 중';
+  else if (typeof sp.streak === 'number' && sp.streak >= PERSISTENCE_STREAK_REPEAT) state = '반복 ' + sp.streak + '회';
+  else                           state = '신규';
+  var phase = CYCLE_PHASE_LABEL[r.signalCyclePhase] || '판단 대기';
+  return '<p>반복 신호: <b>' + esc(state) + '</b> · 위상: <b>' + esc(phase) + '</b></p>';
 }
 
 function renderSec12(cvm){
-  if (!cvm || !cvm.metrics || !cvm.metrics.indicators) return null;
-  var ind = cvm.metrics.indicators;
-  var pick = ['rsi','mfi','obvSlope','atrPct','closePosition'];
-  var labels = {rsi:'RSI',mfi:'MFI',obvSlope:'OBV 기울기',atrPct:'ATR %',closePosition:'종가 위치'};
-  var rows = pick.map(function(k){
-    var v = ind[k];
-    if (v == null || (typeof v !== 'number' && !v.value)) return '';
-    var n = typeof v === 'number' ? round1(v) : (v.value != null ? round1(v.value) : '-');
-    return '<dt>' + labels[k] + '</dt><dd>' + n + '</dd>';
+  // [v0.48.0] cvm.metrics 배열 순회 (백서 §14.1 / labelKo·value 한글 완비 / labelKey 영문 미노출)
+  if (!cvm || !Array.isArray(cvm.metrics) || !cvm.metrics.length) return null;
+  var fmt = function(m){
+    if (m.kind === 'score')   return m.value + '점';
+    if (m.kind === 'percent') return m.value + '%';
+    if (m.kind === 'count')   return m.value + '봉';
+    return m.value;  // enum = 이미 한글 / 기본
+  };
+  var rows = cvm.metrics.map(function(m){
+    if (!m || m.labelKo == null || m.value == null) return '';
+    return '<dt>' + esc(m.labelKo) + '</dt><dd>' + esc(String(fmt(m))) + '</dd>';
   }).filter(Boolean).join('');
   return rows ? '<dl>' + rows + '</dl>' : null;
 }
