@@ -450,16 +450,29 @@
   // ═══════════════════════════════════════════════════════════════════
 
   // §체결강도 트리거 (서버 봇 참조 기준값 / 방식1 봇 독립)
+  // v0.50.0 — 알파 21건 역산 실측 반영 (명세서 §12 / 봇 참조용 / 점수 무관)
   var WS3_ALPHA_TRIGGER = {
-    EXEC_STRENGTH_MIN:       150,        // 체결강도 최소선 % (실측 150%+ 활성화율 87%)
-    EXEC_DYNAMIC_TOP_PCT:    5,          // 그 시점 알트 중 상위 N% (시간대 자동 적응)
-    MIN_TRADES:              30,         // 노이즈필터: 체결수
-    MIN_SELL_KRW:            500000,     // 노이즈필터: 매도액
-    MIN_VALUE_KRW:           10000000,   // 노이즈필터: 거래대금
+    // ── 수축 (알파 21건 역산 확정 — §12.3) ──
+    SQUEEZE_BOX_PCT_MAX:     5.0,        // 직전 60분 박스폭 (고-저)/저 ≤5% = 후보 자격 (≤5% +5%달성100%/MAE-2.3% · >5% 80%/MAE-4.8% 절벽)
+    SQUEEZE_LOOKBACK_MIN:    60,         // 박스폭 측정 구간 (직전 60분)
+    SQUEEZE_SWEET_MIN:       1.5,        // MFE 최대 구간 하한 (참고: 1.5~4% = +20~22%)
+    SQUEEZE_SWEET_MAX:       4.0,        // MFE 최대 구간 상한 (참고용 / 컷 아님)
+    // ── 체결강도 (동적 우선 — §12.6) ──
+    EXEC_STRENGTH_MIN:       150,        // 절대 하한 안전장치 (시간대 무관 최소선)
+    EXEC_DYNAMIC_TOP_PCT:    5,          // ★주 트리거: 그 시점 상위 N% (시간대 자동 적응)
+    EXEC_USE_DYNAMIC:        true,       // true=동적순위 우선 / 절대값은 보조 하한
+    // 시간대별 체결강도 중앙 실측(참고): 새벽 112 / 낮 69 / 저녁 58
+    // ── 노이즈 필터 ──
+    MIN_TRADES:              30,         // 체결수
+    MIN_SELL_KRW:            500000,     // 매도액
+    MIN_VALUE_KRW:           10000000,   // 거래대금
+    // ── 지속성 ──
     PERSISTENCE_WINDOW:      10,         // 최근 10분(10틱)
     PERSISTENCE_MIN_HITS:    3,          // 150%+ 3회 이상 → 지속후보
     PERSISTENCE_STRONG_HITS: 4,          // 4회+ → strong_repeat 격상
-    SIGNAL_COOLDOWN_MIN:     30          // 중복 신호 방지(분)
+    SIGNAL_COOLDOWN_MIN:     30,         // 중복 신호 방지(분)
+    // ── 거래량 정책 (신규 — §12.4) ──
+    VOLUME_AS_CANDIDATE_FILTER: false    // 거래량은 후보 기준 아님(신호 후 결과) — 현재거래대금 상위로 좁히지 말 것
   };
 
   // §매도전략 EXIT_B 트레일 국면별 (백테스트 확정)
@@ -7404,7 +7417,7 @@ var TelegramCanarySender = require('../v3/v3-telegram-canary-sender.js');
 var CanaryStateKvAdapter = require('./ws3-canary-state-kv-adapter.js');
 
 // §constants ───────────────────────────────────────────────────────────
-var VERSION = 'WS3_v0.49.0_alpha_trigger_config';
+var VERSION = 'WS3_v0.50.0_squeeze_dynamic_config';
 var SERVICE = 'WS3_CANARY_WEB_MVP';
 var STATUS_READY_CODE = 'CANARY_READY';
 var MAX_BODY_BYTES = 1024;
