@@ -443,6 +443,40 @@
     'MEW': { name: '캣인어독스월드', cap: 74542599453, sector: 'Meme' }
   };
 
+  // ═══════════════════════════════════════════════════════════════════
+  // v0.49.0 신규 — v3 베타 알파 트리거 / 매도전략 / 도미넌스 국면 (베타 초기값)
+  // 근거 기반 추정 (사용자 승인 2026-05-24) / 실신호 대조로 조정 / 모든 값 config
+  // ⚠️ 점수 무관 (DEFAULT_SCORE_CONFIG 미참조) — 봇(레포 밖, 방식1) + 분류기·표시 보조용
+  // ═══════════════════════════════════════════════════════════════════
+
+  // §체결강도 트리거 (서버 봇 참조 기준값 / 방식1 봇 독립)
+  var WS3_ALPHA_TRIGGER = {
+    EXEC_STRENGTH_MIN:       150,        // 체결강도 최소선 % (실측 150%+ 활성화율 87%)
+    EXEC_DYNAMIC_TOP_PCT:    5,          // 그 시점 알트 중 상위 N% (시간대 자동 적응)
+    MIN_TRADES:              30,         // 노이즈필터: 체결수
+    MIN_SELL_KRW:            500000,     // 노이즈필터: 매도액
+    MIN_VALUE_KRW:           10000000,   // 노이즈필터: 거래대금
+    PERSISTENCE_WINDOW:      10,         // 최근 10분(10틱)
+    PERSISTENCE_MIN_HITS:    3,          // 150%+ 3회 이상 → 지속후보
+    PERSISTENCE_STRONG_HITS: 4,          // 4회+ → strong_repeat 격상
+    SIGNAL_COOLDOWN_MIN:     30          // 중복 신호 방지(분)
+  };
+
+  // §매도전략 EXIT_B 트레일 국면별 (백테스트 확정)
+  var WS3_EXIT_PARAMS = {
+    COMMON: { STOP_PCT: -5 },                                  // 손절 -5% (승률100%/최악+2%)
+    STRONG: { ACTIVATE_PCT: 3, ATR_MULT: 3, HOLD_HOURS: 12 },  // 강세 (샤프3.7)
+    WEAK:   { ACTIVATE_PCT: 8, ATR_MULT: 2, HOLD_HOURS: 9 }    // 약세 (샤프3.1)
+  };
+
+  // §도미넌스 국면 (두 데이터 2배 확증 / §9.2 숫자 임계 — P1.5 확정 예정)
+  var WS3_MARKET_REGIME = {
+    BTC_D_DOWN_THRESHOLD:  0,          // BTC.D 일변화 < 0 = 하락
+    USDT_D_DOWN_THRESHOLD: 0,          // USDT.D 일변화 < 0 = 하락
+    // STRONG = BTC.D↓ AND USDT.D↓ → STRONG exit / WEAK = USDT.D↑ → WEAK exit
+    SOURCE: 'coingecko_realtime'       // 과거 히스토리 무료 막힘 → 실시간만
+  };
+
   global.WS3_CONFIG = Object.freeze({
     VERSION: WS3_VERSION,
     VERSION_LABEL: WS3_VERSION_LABEL,
@@ -467,7 +501,11 @@
     SECTOR_LIST: WS3_SECTOR_LIST,
     CAP_THRESHOLDS_KRW: WS3_CAP_THRESHOLDS_KRW,
     LOW_CAP_FAMILY: WS3_LOW_CAP_FAMILY,
-    COIN_MANUAL_MAP: WS3_COIN_MANUAL_MAP
+    COIN_MANUAL_MAP: WS3_COIN_MANUAL_MAP,
+    // v0.49.0 신규 — v3 베타 (점수 무관 / 봇·분류기·표시 보조)
+    ALPHA_TRIGGER: WS3_ALPHA_TRIGGER,
+    EXIT_PARAMS: WS3_EXIT_PARAMS,
+    MARKET_REGIME: WS3_MARKET_REGIME
   });
 })(typeof window !== 'undefined' ? window : globalThis);
 /**
@@ -7366,7 +7404,7 @@ var TelegramCanarySender = require('../v3/v3-telegram-canary-sender.js');
 var CanaryStateKvAdapter = require('./ws3-canary-state-kv-adapter.js');
 
 // §constants ───────────────────────────────────────────────────────────
-var VERSION = 'WS3_v0.47.0_current_phase';
+var VERSION = 'WS3_v0.49.0_alpha_trigger_config';
 var SERVICE = 'WS3_CANARY_WEB_MVP';
 var STATUS_READY_CODE = 'CANARY_READY';
 var MAX_BODY_BYTES = 1024;
