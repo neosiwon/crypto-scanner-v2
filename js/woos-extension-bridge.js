@@ -1,6 +1,6 @@
 /* WOOS Extension Bridge
  * Base:    v4.9.5+phase2-v0-shadow-backfill-hotfix-r1
- * Current: v5.2.5 (본체 동기화 — 보조 해석 외부화 패치. bridge 자체 변경 0건)
+ * Current: v5.2.6 (본체 동기화 — 운영/진단/뉴스 외부화 패치. bridge 자체 변경 0건)
  *
  * 본체 ↔ shadow-kit 어댑터. hook point 단일 관리.
  *
@@ -26,7 +26,7 @@
   'use strict';
 
   global.WOOSExtensionBridge = {
-    VERSION: 'v5.2.5',
+    VERSION: 'v5.2.6',
 
     // 스캐너 결과 카드 (buildCoinCardHTML)
     renderScannerCardAddon: function (coin, rep, idx) {
