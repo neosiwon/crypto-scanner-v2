@@ -1,6 +1,6 @@
 /* WOOS Shadow Kit
  * Base:    v4.9.5+phase2-v0-shadow-backfill-hotfix-r1
- * Current: v5.2.3.1 (모달 자연어 보강 + 위치품질/손익비 7종 통합)
+ * Current: v5.2.4 (본체 동기화 — 지표 외부화 패치. shadow-kit 자체 변경 0건)
  *
  * Shadow Score / 라벨 / Backfill / ATR B / B-C 검증샘플 담당.
  *
@@ -1080,7 +1080,7 @@
 
   /* ─── 모듈 노출 ─── */
   global.WOOSShadowKit = {
-    VERSION: 'v5.2.3.1',
+    VERSION: 'v5.2.4',
     calcShadowScore: calcShadowScore,
     hasShadowInputData: hasShadowInputData,
     renderBackfillPanel: renderBackfillPanel,
