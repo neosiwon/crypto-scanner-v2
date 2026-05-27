@@ -1,6 +1,6 @@
 /* WOOS Indicators (지표 계산 세트)
  * Base:    v4.9.5+phase2-v0-shadow-backfill-hotfix-r1
- * Current: v5.2.4 (지표 계산 외부화 — 본문 변경 0건)
+ * Current: v5.2.5 (본체 동기화 — 보조 해석 외부화 패치. indicators 자체 변경 0건)
  *
  * 본체 index.html line 9615~9719 (~105줄)에서 통째 이전.
  * 본문/시그니처 변경 X / window alias 유지로 호출처 미터치.
@@ -126,7 +126,7 @@
 
   /* ─── 모듈 노출 ─── */
   global.WOOSIndicators = {
-    VERSION: 'v5.2.4',
+    VERSION: 'v5.2.5',
     calcRSI: calcRSI,
     calcOBV: calcOBV,
     calcMFI: calcMFI,
