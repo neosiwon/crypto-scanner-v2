@@ -1,6 +1,6 @@
 /* WOOS Ops (운영/진단/대시보드/뉴스)
  * Base:    v4.9.5+phase2-v0-shadow-backfill-hotfix-r1
- * Current: v5.2.6 (운영/진단/뉴스/대시보드 외부화 — 본문 변경 0건)
+ * Current: v5.2.6.1 (본체 동기화 — 텔레그램 발송 차단 hotfix. ops 자체 변경 0건)
  *
  * 본체 index.html 5개 영역(8623~8914 / 8966~9062 / 9068~9120 / 9122~9478 / 10660~10717)에서 통째 이전.
  * 본문/시그니처 변경 X / window alias 유지로 호출처(HTML onclick 등) 미터치.
@@ -862,7 +862,7 @@
 
   /* ─── 모듈 노출 ─── */
   global.WOOSOps = {
-    VERSION: 'v5.2.6',
+    VERSION: 'v5.2.6.1',
     // DIAG
     diagShowResult: diagShowResult,
     diagClearResult: diagClearResult,

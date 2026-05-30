@@ -1,6 +1,6 @@
 /* WOOS Interpret (보조 해석 레이어)
  * Base:    v4.9.5+phase2-v0-shadow-backfill-hotfix-r1
- * Current: v5.2.6 (본체 동기화 — 운영/진단/뉴스 외부화 패치. interpret 자체 변경 0건)
+ * Current: v5.2.6.1 (본체 동기화 — 텔레그램 발송 차단 hotfix. interpret 자체 변경 0건)
  *
  * 본체 index.html 5개 영역에서 통째 이전:
  *   9626~9790  — calcAccumulationStrength(★) / estimateAccumulationCostRange
@@ -298,7 +298,7 @@
 
   /* ─── 모듈 노출 ─── */
   global.WOOSInterpret = {
-    VERSION: 'v5.2.6',
+    VERSION: 'v5.2.6.1',
     calcAccumulationStrength: calcAccumulationStrength,
     estimateAccumulationCostRange: estimateAccumulationCostRange,
     estimateDistributionTargets: estimateDistributionTargets,

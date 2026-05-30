@@ -3617,7 +3617,12 @@ async function v47_sendOrQueue(env, text, type, snapshotId) {
 // ══════════════════════════════════════════════════════════════════
 // 텔레그램 발송
 // ══════════════════════════════════════════════════════════════════
+/* [v5.2.6.1] 텔레그램 알람 킬 스위치 (true = 발송 차단 / false = 정상 발송)
+ * 재가동: 이 줄을 false 로 바꾸고 wrangler deploy */
+var TELEGRAM_KILL_SWITCH = true;
+
 async function sendTelegram(env, text) {
+  if (TELEGRAM_KILL_SWITCH) return false;
   if (!env.TG_BOT_TOKEN || !env.TG_CHAT_ID) return false;
   try {
     var res = await fetch('https://api.telegram.org/bot' + env.TG_BOT_TOKEN + '/sendMessage', {

@@ -153,7 +153,7 @@
 <script>
 /* [v4.7.42] 캐시 강제 리셋 — SW 완전 제거 후 리로드 */
 (function(){
-  var VER = 'v5.2.6';  // 운영/진단/뉴스 외부화 (Base: v4.9.5+phase2-v0-shadow-backfill-hotfix-r1)
+  var VER = 'v5.2.6.1';  // 텔레그램 발송 차단 (Base: v4.9.5+phase2-v0-shadow-backfill-hotfix-r1)
   try {
     var LKEY = 'woos_hard_reset_ver';
     if (localStorage.getItem(LKEY) === VER) return;
@@ -7802,13 +7802,13 @@ details.analyzer-progress-card > summary.progress-compact-summary {
 </style>
 <!-- [WOOS PWA SPLASH CSS END] -->
 
-<!-- [v5.2.6 운영/진단/뉴스 외부화] Base: v4.9.5+phase2-v0-shadow-backfill-hotfix-r1 -->
-<link rel="stylesheet" href="./css/woos-shadow.css?v=v5.2.6">
-<script src="./js/woos-indicators.js?v=v5.2.6"></script>
-<script src="./js/woos-interpret.js?v=v5.2.6"></script>
-<script src="./js/woos-ops.js?v=v5.2.6"></script>
-<script src="./js/woos-shadow-kit.js?v=v5.2.6"></script>
-<script src="./js/woos-extension-bridge.js?v=v5.2.6"></script>
+<!-- [v5.2.6.1 텔레그램 발송 차단] Base: v4.9.5+phase2-v0-shadow-backfill-hotfix-r1 -->
+<link rel="stylesheet" href="./css/woos-shadow.css?v=v5.2.6.1">
+<script src="./js/woos-indicators.js?v=v5.2.6.1"></script>
+<script src="./js/woos-interpret.js?v=v5.2.6.1"></script>
+<script src="./js/woos-ops.js?v=v5.2.6.1"></script>
+<script src="./js/woos-shadow-kit.js?v=v5.2.6.1"></script>
+<script src="./js/woos-extension-bridge.js?v=v5.2.6.1"></script>
 
 </head>
 <body>
@@ -8637,14 +8637,14 @@ if (typeof window !== 'undefined') {
 // 탭 시 상세 팝업
 // ═══════════════════════════════════════════════════════════════
 
-var HTML_VERSION = 'v5.2.6';  // 운영/진단/뉴스 외부화 (Base: v4.9.5+phase2-v0-shadow-backfill-hotfix-r1)
+var HTML_VERSION = 'v5.2.6.1';  // 텔레그램 발송 차단 (Base: v4.9.5+phase2-v0-shadow-backfill-hotfix-r1)
 /* [v5.1.5] 한글 요약 화면 표기 — updateBuildBadge에서 한글 요약 동반 (사용자 명명법 강화) */
-var HTML_VERSION_LABEL = '운영/진단/뉴스 외부화';
+var HTML_VERSION_LABEL = '텔레그램 발송 차단';
 /* [v5.2.6] _cachedBuildInfo → js/woos-ops.js BUILD 섹션 IIFE 클로저로 이전 */
 
 // [State Lock 2 Action fix-2c] 패치 확인용 — 페이지 로드 시 버전명 출력 (DevTools 콘솔)
 try {
-  console.log('[WOOS] ' + HTML_VERSION + ' loaded — 운영/진단/뉴스 외부화');
+  console.log('[WOOS] ' + HTML_VERSION + ' loaded — 텔레그램 발송 차단 (kill switch=true)');
   window.WOOS_VERSION = HTML_VERSION;
 } catch(e) {}
 
@@ -10193,7 +10193,10 @@ function getTgConfig(){return{token:(document.getElementById('tgBotToken')||{}).
 function updateTgStatus(){var cfg=getTgConfig(),ok=cfg.token.length>20&&cfg.chatId.length>3;var el=document.getElementById('tgStatus');if(el){el.textContent=ok?'설정됨 ✓':'미설정';el.className='tg-status'+(ok?' ok':'');}try{localStorage.setItem('tg_token',cfg.token);localStorage.setItem('tg_chatid',cfg.chatId);}catch(e){}}
 function toggleTelegramPanel(){var p=document.getElementById('telegramPanel'),b=document.getElementById('tgToggleBtn');if(!p)return;var v=p.classList.contains('visible');p.classList.toggle('visible',!v);if(b)b.classList.toggle('active',!v);}
 
-async function sendTelegramMessage(text){var cfg=getTgConfig();if(!cfg.token||!cfg.chatId)return false;try{var res=await fetch('https://api.telegram.org/bot'+cfg.token+'/sendMessage',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({chat_id:cfg.chatId,text:text,parse_mode:'HTML'})});return(await res.json()).ok===true;}catch(e){return false;}}
+/* [v5.2.6.1] 텔레그램 알람 킬 스위치 (true = 발송 차단 / false = 정상 발송)
+ * 재가동: 이 줄을 false 로 바꾸고 commit/push */
+var WOOS_TELEGRAM_KILL_SWITCH = true;
+async function sendTelegramMessage(text){if(WOOS_TELEGRAM_KILL_SWITCH)return false;var cfg=getTgConfig();if(!cfg.token||!cfg.chatId)return false;try{var res=await fetch('https://api.telegram.org/bot'+cfg.token+'/sendMessage',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({chat_id:cfg.chatId,text:text,parse_mode:'HTML'})});return(await res.json()).ok===true;}catch(e){return false;}}
 
 async function sendTelegramTest(){
   var btn=document.querySelector('.tg-test-btn');if(btn){btn.textContent='전송 중...';btn.disabled=true;}
